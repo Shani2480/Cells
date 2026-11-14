@@ -1,5 +1,8 @@
 import {
   copyTable,
+  displayText,
+  flashFill,
+  type CellWrite,
   type Table,
   type AutoFilter,
   type ColumnFilter,
@@ -53,6 +56,10 @@ export type SortTarget = { range: Range; header: boolean }
 
 /** Excel's names for a quick sort, by what the active cell's column holds. */
 export type SortLabels = { ascending: string; descending: string }
+
+/** Excel's message when Flash Fill finds no pattern. */
+export const NO_FLASH_PATTERN =
+  "We looked at all the data next to the selection and didn't see a pattern for filling in values for you. To use Flash Fill, enter a couple of examples of the output you'd like to see, keep the active cell in the column you want filled in, and click the Flash Fill button again."
 
 /** A filter and where it lives: the sheet's AutoFilter (table null) or a table's Filter Button. */
 export type FilterHost = { filter: AutoFilter; table: Table | null }
@@ -228,6 +235,56 @@ export class DataCommands {
     }
     if (overwrites) this.c.shell.confirm(REPLACE_DESTINATION, run)
     else run()
+  }
+
+  // ── Flash Fill ──
+
+  /**
+   * Data › Flash Fill (Ctrl+E): fills the empty cells of the active cell's column, beside the data, by the pattern of
+   * the cells already typed there (its examples) from the other columns of the same rows. The results are text, as
+   * Excel's. Returns how many cells were filled.
+   */
+  flashFill(): number {
+    if (this.c.edit) this.c.commitEdit()
+    const sheet = this.c.sheet
+    const styles = this.c.wb.styles
+    const { row, col } = this.c.selection.active
+    const region = currentRegion(sheet, { row, col })
+    const text = (r: number, c: number) => {
+      const v = sheet.cells.get(r, c)?.value
+      return v === undefined || v === "" ? null : displayText(v, styles.get(sheet.styleAt(r, c)).numberFormat)
+    }
+    const cols: number[] = []
+    for (let c = region.c0; c <= region.c1; c++) if (c !== col) cols.push(c)
+    const attempt = (r0: number): { rows: number[]; results: (string | null)[] } | null => {
+      const rows: number[] = []
+      for (let r = r0; r <= region.r1; r++) rows.push(r)
+      const sources = rows.map((r) => cols.map((c) => text(r, c) ?? ""))
+      const outputs = rows.map((r) => text(r, col))
+      if (!outputs.some((o) => o !== null) || !outputs.some((o) => o === null)) return null
+      const results = flashFill(sources, outputs)
+      return results ? { rows, results } : null
+    }
+    // A header row over the column (First Name) isn't an example: without it when it doesn't fit.
+    const found = cols.length ? (attempt(region.r0) ?? attempt(region.r0 + 1)) : null
+    const writes: CellWrite[] = []
+    found?.rows.forEach((r, i) => {
+      const value = found.results[i]
+      if (value === null || value === undefined) return
+      const style = sheet.cells.get(r, col)?.style
+      writes.push({ row: r, col, data: { ...(style ? { style } : {}), value } })
+    })
+    if (!writes.length) {
+      this.c.shell.alert(NO_FLASH_PATTERN)
+      return 0
+    }
+    const sel = this.c.selection
+    this.c.transact([{ kind: "setCells", sheet: this.c.sheetIndex, cells: writes }], {
+      label: "Flash Fill",
+      before: sel,
+      after: sel,
+    })
+    return writes.length
   }
 
   // ── AutoFilter ──

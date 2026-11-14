@@ -1598,6 +1598,7 @@ export class SheetController {
       if (lower === "g") return (this.shell.goTo(), true)
       if (key === "`" && !shift) return (this.toggleShowFormulas(), true)
       if (lower === "d") return (this.fillFromEdge("down"), true)
+      if (lower === "e" && !shift) return (this.data.flashFill(), true)
       if (lower === "r") return (this.fillFromEdge("right"), true)
       if (lower === "u" && shift) return (this.toggleFormulaBarExpanded(), true)
       if (lower === "l" && shift) return (this.data.toggleFilter(), true)

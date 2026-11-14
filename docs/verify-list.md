@@ -78,6 +78,9 @@ Phase 3, added at the end:
       Resize Table dialogs' wording. The gallery thumbnails next to Excel's. The name a copied sheet's table gets
       (Cells writes Sales_2). The style colours, structured references and the file round trip (with a filtered
       column) were checked in Excel and the Open XML SDK.
+- [ ] Flash Fill: its results next to Excel's on the same examples (the patterns were written from Excel's documented
+      examples, not run in Excel), and the wording of the "no pattern" message (from memory). Excel's live suggestion
+      while typing (grey preview, Enter accepts) and the Flash Fill Options button aren't built.
 
 ## On a device
 

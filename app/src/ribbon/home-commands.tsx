@@ -972,7 +972,15 @@ export function homeCommands(): Command[] {
     { id: "FillAcrossWorksheets", label: "Across Worksheets..." },
     { id: "FillSeries", label: "Series..." },
     { id: "FillJustify", label: "Justify" },
-    { id: "QuickCode", label: "Flash Fill", shortcut: "Ctrl+E" },
+    {
+      id: "QuickCode",
+      label: "Flash Fill",
+      description:
+        "Automatically fill in values. Enter a couple of examples you want as output and keep the active cell in the column you want filled in.",
+      shortcut: "Ctrl+E",
+      keytip: "F",
+      run: (env) => void env.c.data.flashFill(),
+    },
     {
       id: "ClearMenu",
       label: "Clear",
