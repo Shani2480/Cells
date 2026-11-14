@@ -1,0 +1,10 @@
+{
+  "name": "@cells/platform",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Interfaces the shells implement per platform (files, dialogs, clipboard, window). Types only.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

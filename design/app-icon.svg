@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#33A86A"/>
+      <stop offset="0.55" stop-color="#1F7A48"/>
+      <stop offset="1" stop-color="#11502E"/>
+    </linearGradient>
+    <linearGradient id="sheet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EAF6EF"/>
+    </linearGradient>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#062B16" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#tile)"/>
+  <rect x="64" y="64" width="896" height="448" rx="208" fill="#FFFFFF" opacity="0.06"/>
+  <g filter="url(#lift)">
+    <rect x="208" y="208" width="608" height="608" rx="72" fill="url(#sheet)"/>
+  </g>
+  <g stroke="#1F7A48" stroke-opacity="0.28" stroke-width="16" stroke-linecap="round">
+    <line x1="410" y1="232" x2="410" y2="792"/>
+    <line x1="612" y1="232" x2="612" y2="792"/>
+    <line x1="232" y1="410" x2="792" y2="410"/>
+    <line x1="232" y1="612" x2="792" y2="612"/>
+  </g>
+  <rect x="410" y="410" width="202" height="202" rx="14" fill="#D9F0E3" stroke="#11502E" stroke-width="30"/>
+  <rect x="578" y="578" width="68" height="68" rx="10" fill="#11502E" stroke="#FFFFFF" stroke-width="14"/>
+</svg>

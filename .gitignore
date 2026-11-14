@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+*.tsbuildinfo
+*.log
+src-tauri/target
+src-tauri/gen/schemas
+tmp/
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Kept on this computer only: the Excel reference tooling (talks to a local VM) and reference screenshots.
+/tools/
+/screenshots/

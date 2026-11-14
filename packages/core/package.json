@@ -1,0 +1,10 @@
+{
+  "name": "@cells/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The spreadsheet: model, operations, undo, viewport maths, navigation, clipboard. Pure TypeScript, no DOM.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

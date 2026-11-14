@@ -1,0 +1,725 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tokens follow Inkspire's (src/index.css there, commit b9802e8): the same names and roles, with Excel's green as
+ * the theme colour instead of Word's blue. Components use tokens, never hex values.
+ */
+:root {
+  --font-ui: "Geist Variable", "Segoe UI", system-ui, sans-serif;
+  --font-cell: "Aptos Narrow", Calibri, Carlito, "Liberation Sans Narrow", "Liberation Sans", sans-serif;
+
+  --app-title-fill: #217346;
+  --app-titlebar-inactive: rgb(255 255 255 / 0.5);
+  --app-theme-primary: #217346;
+  --app-theme-hover: color-mix(in srgb, var(--app-theme-primary) 86%, black);
+  --app-theme-light: color-mix(in srgb, var(--app-theme-primary) 14%, white);
+  --app-workspace: #f3f3f3;
+  --app-ribbon-card: #ffffff;
+  --app-ribbon-border: #e1dfdd;
+  --app-ribbon-text: #242424;
+  --app-ribbon-muted: #616161;
+  --app-ribbon-disabled: #a19f9d;
+  --app-hover: #f3f2f1;
+  --app-pressed: #e5e5e5;
+  --app-divider: rgb(0 0 0 / 0.1);
+  --app-statusbar-bg: #f3f2f1;
+  --app-statusbar-text: #323130;
+  --app-statusbar-border: #c8c6c4;
+  --app-popover-bg: #ffffff;
+  --app-popover-border: #e1dfdd;
+  --app-popover-shadow: 0 8px 24px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
+  --app-field-bg: #ffffff;
+  --app-field-border: #c8c6c4;
+  --app-field-focus: var(--app-theme-primary);
+  --app-dialog-backdrop: rgb(0 0 0 / 0.18);
+
+  /* The sheet: Excel's light grid. */
+  --grid-bg: #ffffff;
+  --grid-line: #d4d4d4;
+  --grid-text: #000000;
+  --grid-header-bg: #f5f5f5;
+  --grid-header-line: #d4d4d4;
+  --grid-header-text: #424242;
+  --grid-header-selected-bg: #e1f1e7;
+  --grid-header-selected-text: #0e5c2f;
+  --grid-header-selected-bar: #217346;
+  --grid-header-full-bg: #c9e7d4;
+  --grid-header-full-text: #0e5c2f;
+  --grid-selection-fill: rgb(0 0 0 / 0.09);
+  --grid-selection-border: #217346;
+  --grid-fill-preview: #7a7a7a;
+  --grid-corner-triangle: #b8b8b8;
+  --grid-scrollbar-thumb: #c2c2c2;
+  --grid-scrollbar-thumb-hover: #a6a6a6;
+
+  color-scheme: light;
+}
+
+.dark {
+  --app-title-fill: #1d5e3a;
+  --app-titlebar-inactive: rgb(36 36 36 / 0.55);
+  --app-theme-primary: #4fae7c;
+  --app-theme-light: color-mix(in srgb, var(--app-theme-primary) 18%, #1e1e1e);
+  --app-workspace: #1e1e1e;
+  --app-ribbon-card: #292929;
+  --app-ribbon-border: #3b3a39;
+  --app-ribbon-text: #f3f2f1;
+  --app-ribbon-muted: #a19f9d;
+  --app-ribbon-disabled: #797775;
+  --app-hover: rgb(255 255 255 / 0.08);
+  --app-pressed: rgb(255 255 255 / 0.12);
+  --app-divider: #3b3a39;
+  --app-statusbar-bg: #252525;
+  --app-statusbar-text: #cccccc;
+  --app-statusbar-border: #3b3a39;
+  --app-popover-bg: #2d2d2d;
+  --app-popover-border: #484644;
+  --app-popover-shadow: 0 8px 24px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+  --app-field-bg: #1f1f1f;
+  --app-field-border: #605e5c;
+  --app-dialog-backdrop: rgb(0 0 0 / 0.35);
+
+  --grid-bg: #1f1f1f;
+  --grid-line: #3a3a3a;
+  --grid-text: #f0f0f0;
+  --grid-header-bg: #2a2a2a;
+  --grid-header-line: #444444;
+  --grid-header-text: #c8c8c8;
+  --grid-header-selected-bg: #24432f;
+  --grid-header-selected-text: #a6e3bf;
+  --grid-header-selected-bar: #4fae7c;
+  --grid-header-full-bg: #2f5a3f;
+  --grid-header-full-text: #d4f2e0;
+  --grid-selection-fill: rgb(255 255 255 / 0.1);
+  --grid-selection-border: #4fae7c;
+  --grid-fill-preview: #a0a0a0;
+  --grid-corner-triangle: #6a6a6a;
+  --grid-scrollbar-thumb: #5a5a5a;
+  --grid-scrollbar-thumb-hover: #777777;
+
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--app-ribbon-text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ── Window frame (frameless, rounded, as Inkspire's) ───────────────────────────────────────────────────── */
+
+.app-window-frame {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(0 0 0 / 0.2);
+  border-radius: 10px;
+  background: var(--app-workspace);
+}
+
+html.dark .app-window-frame {
+  border-color: rgb(255 255 255 / 0.18);
+}
+
+html.is-maximized .app-window-frame,
+html.is-browser .app-window-frame {
+  border: none;
+  border-radius: 0;
+}
+
+/* ── Title bar ──────────────────────────────────────────────────────────────────────────────────────────── */
+
+[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.titlebar {
+  position: relative;
+  display: grid;
+  flex: none;
+  height: 40px;
+  grid-template-columns: minmax(0, 1fr) fit-content(46%) minmax(min-content, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  background: var(--app-title-fill);
+  color: #ffffff;
+}
+
+.titlebar::after {
+  position: absolute;
+  inset: 0;
+  background: var(--app-titlebar-inactive);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root:has([role="dialog"][aria-modal="true"]) .titlebar::after {
+  opacity: 1;
+}
+
+.titlebar-start {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  padding-left: 8px;
+  overflow: hidden;
+}
+
+.titlebar-title {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar-end {
+  display: flex;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.titlebar-button,
+.window-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.titlebar-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.titlebar-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.titlebar-button:disabled {
+  opacity: 0.45;
+}
+
+.window-button {
+  width: 46px;
+  height: 40px;
+}
+
+.window-button:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.window-button.is-close:hover {
+  background: #c42b1c;
+}
+
+.titlebar-logo {
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+}
+
+/* ── Formula bar ────────────────────────────────────────────────────────────────────────────────────────── */
+
+.formula-bar {
+  display: flex;
+  flex: none;
+  height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--app-ribbon-border);
+  background: var(--app-ribbon-card);
+}
+
+.name-box {
+  width: 96px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 3px;
+  background: var(--app-field-bg);
+  color: var(--app-ribbon-text);
+  font: 12px var(--font-ui);
+  outline: none;
+  user-select: text;
+}
+
+.name-box:focus {
+  border-color: var(--app-field-focus);
+}
+
+.formula-bar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border-left: 1px solid var(--app-divider);
+  border-right: 1px solid var(--app-divider);
+}
+
+.formula-bar-button {
+  display: inline-flex;
+  width: 24px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-ribbon-muted);
+}
+
+.formula-bar-button:hover:not(:disabled) {
+  background: var(--app-hover);
+  color: var(--app-ribbon-text);
+}
+
+.formula-bar-button:disabled {
+  color: var(--app-ribbon-disabled);
+}
+
+.formula-bar-fx {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--app-ribbon-muted);
+}
+
+.formula-input {
+  flex: 1;
+  height: 22px;
+  min-width: 0;
+  padding: 2px 6px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: var(--app-field-bg);
+  color: var(--app-ribbon-text);
+  font: 14.67px var(--font-cell);
+  line-height: 17px;
+  outline: none;
+  resize: none;
+  white-space: pre;
+  user-select: text;
+}
+
+.formula-input:focus {
+  border-color: var(--app-field-border);
+}
+
+/* ── Grid ───────────────────────────────────────────────────────────────────────────────────────────────── */
+
+.sheet-area {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+
+.grid-host {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--grid-bg);
+}
+
+.grid-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  touch-action: none;
+}
+
+.cell-editor {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  padding: 1px 2px 0 3px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font: 14.67px var(--font-cell);
+  line-height: 18px;
+  opacity: 0;
+  outline: none;
+  pointer-events: none;
+  resize: none;
+  white-space: pre;
+}
+
+.cell-editor.is-editing,
+.cell-editor.is-mirror {
+  padding-top: calc(var(--editor-pad, 1px));
+  background: var(--grid-bg);
+  box-shadow: 0 0 0 2px var(--grid-selection-border);
+  color: var(--grid-text);
+  caret-color: var(--grid-text);
+  opacity: 1;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.cell-editor.is-mirror {
+  caret-color: transparent;
+}
+
+.grid-scrollbar {
+  position: absolute;
+  background: var(--grid-bg);
+}
+
+.grid-scrollbar.is-vertical {
+  right: 0;
+  width: 14px;
+  border-left: 1px solid var(--grid-header-line);
+}
+
+.grid-scrollbar.is-horizontal {
+  bottom: 0;
+  height: 14px;
+  border-top: 1px solid var(--grid-header-line);
+}
+
+.grid-scrollbar-thumb {
+  position: absolute;
+  border-radius: 6px;
+  background: var(--grid-scrollbar-thumb);
+}
+
+.grid-scrollbar.is-vertical .grid-scrollbar-thumb {
+  left: 3px;
+  width: 7px;
+}
+
+.grid-scrollbar.is-horizontal .grid-scrollbar-thumb {
+  top: 3px;
+  height: 7px;
+}
+
+.grid-scrollbar-thumb:hover {
+  background: var(--grid-scrollbar-thumb-hover);
+}
+
+.grid-scroll-corner {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--grid-header-bg);
+}
+
+.resize-tip {
+  position: absolute;
+  z-index: 5;
+  padding: 2px 6px;
+  border: 1px solid var(--app-popover-border);
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+  color: var(--app-ribbon-text);
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.resize-guide {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.resize-guide.is-vertical {
+  top: 0;
+  bottom: 14px;
+  border-left: 1px dashed var(--app-ribbon-muted);
+}
+
+.resize-guide.is-horizontal {
+  left: 0;
+  right: 14px;
+  border-top: 1px dashed var(--app-ribbon-muted);
+}
+
+/* ── Status bar ─────────────────────────────────────────────────────────────────────────────────────────── */
+
+.status-bar {
+  display: flex;
+  flex: none;
+  height: 24px;
+  align-items: center;
+  gap: 18px;
+  padding: 0 12px;
+  border-top: 1px solid var(--app-statusbar-border);
+  background: var(--app-statusbar-bg);
+  color: var(--app-statusbar-text);
+  font-size: 12px;
+}
+
+.status-bar-figures {
+  display: flex;
+  margin-left: auto;
+  gap: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Menus ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+.context-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--app-popover-border);
+  border-radius: 6px;
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+  color: var(--app-ribbon-text);
+  will-change: opacity;
+}
+
+.menu-row {
+  display: flex;
+  width: 100%;
+  height: 28px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: 13px var(--font-ui);
+  text-align: left;
+}
+
+.menu-row:hover:not(:disabled),
+.menu-row:focus-visible {
+  background: var(--app-hover);
+  outline: none;
+}
+
+.menu-row:disabled {
+  color: var(--app-ribbon-disabled);
+}
+
+.menu-row-icon {
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+  color: var(--app-ribbon-muted);
+}
+
+.menu-row-shortcut {
+  margin-left: auto;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--app-divider);
+}
+
+/* ── Dialogs (one frame for all, as Inkspire's) ─────────────────────────────────────────────────────────── */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-dialog-backdrop);
+}
+
+.dialog {
+  min-width: 300px;
+  overflow: hidden;
+  border: 1px solid var(--app-popover-border);
+  border-radius: 8px;
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+  color: var(--app-ribbon-text);
+  will-change: opacity;
+}
+
+.dialog-title {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  padding: 0 4px 0 12px;
+  background: var(--app-title-fill);
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.dialog-title-close {
+  display: inline-flex;
+  width: 28px;
+  height: 26px;
+  margin-left: auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #ffffff;
+}
+
+.dialog-title-close:hover {
+  background: #c42b1c;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 6px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+}
+
+.dialog-btn {
+  min-width: 80px;
+  height: 28px;
+  padding: 0 14px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-ribbon-card);
+  color: var(--app-ribbon-text);
+  font: 13px var(--font-ui);
+}
+
+.dialog-btn:hover {
+  background: var(--app-hover);
+}
+
+.dialog-btn.is-primary {
+  border-color: var(--app-theme-primary);
+  background: var(--app-theme-primary);
+  color: #ffffff;
+}
+
+.dialog-btn.is-primary:hover {
+  background: var(--app-theme-hover);
+}
+
+.dialog-field {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+  color: var(--app-ribbon-text);
+  font: 13px var(--font-ui);
+  outline: none;
+  user-select: text;
+}
+
+.dialog-field:focus {
+  border-color: var(--app-field-focus);
+}
+
+.dialog-label {
+  font-size: 13px;
+}
+
+.dialog-label u {
+  text-underline-offset: 2px;
+}
+
+.dialog-list {
+  height: 120px;
+  overflow: auto;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+}
+
+.dialog-list-item {
+  display: block;
+  width: 100%;
+  padding: 3px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: 13px var(--font-ui);
+  text-align: left;
+}
+
+.dialog-list-item:hover,
+.dialog-list-item.is-selected {
+  background: var(--app-theme-light);
+}
+
+.dialog-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.dialog-radio input {
+  accent-color: var(--app-theme-primary);
+}
+
+.dialog-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--app-divider);
+  border-radius: 4px;
+}
+
+/* Touch screens (tablets): finger-sized targets, as Inkspire's Android build. */
+@media (pointer: coarse) {
+  .menu-row {
+    min-height: 40px;
+  }
+
+  .titlebar-button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .grid-scrollbar.is-vertical {
+    width: 18px;
+  }
+
+  .grid-scrollbar.is-horizontal {
+    height: 18px;
+  }
+}

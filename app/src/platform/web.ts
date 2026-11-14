@@ -1,0 +1,50 @@
+import type { ClipboardContent, Platform } from "@cells/platform"
+
+function detectOs(): Platform["os"] {
+  if (typeof navigator === "undefined") return "web"
+  const agent = navigator.userAgent
+  if (/Android/i.test(agent)) return "android"
+  if (/Mac|iPhone|iPad/i.test(agent)) return "macos"
+  if (/Windows/i.test(agent)) return "windows"
+  if (/Linux/i.test(agent)) return "linux"
+  return "web"
+}
+
+/** The browser build (dev server and tests): the async clipboard where allowed, no window controls. */
+export const webPlatform: Platform = {
+  os: detectOs(),
+  clipboard: {
+    async write(content: ClipboardContent) {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        const items: Record<string, Blob> = { "text/plain": new Blob([content.text], { type: "text/plain" }) }
+        if (content.html) items["text/html"] = new Blob([content.html], { type: "text/html" })
+        await navigator.clipboard.write([new ClipboardItem(items)])
+        return
+      }
+      await navigator.clipboard?.writeText(content.text)
+    },
+    async read() {
+      try {
+        const text = await navigator.clipboard.readText()
+        return { text }
+      } catch {
+        return null
+      }
+    },
+  },
+  window: {
+    controllable: false,
+    async minimize() {},
+    async toggleMaximize() {},
+    async close() {},
+    async isMaximized() {
+      return false
+    },
+    async setTitle(title: string) {
+      document.title = title
+    },
+    onMaximizedChange() {
+      return () => {}
+    },
+  },
+}
