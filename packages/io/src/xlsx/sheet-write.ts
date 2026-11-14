@@ -21,6 +21,7 @@ import { PROTECTION_FLAGS, type SheetView } from "./sheet-read"
 import type { SheetSource } from "./read"
 import type { StylesOut } from "./styles"
 import { pxToColWidth, pxToPoints } from "./units"
+import { validationExtXml, validationsXml, withExt } from "./validation"
 
 /** The shared string table being written: each distinct text once, rich text as read where it is unchanged. */
 export class SharedStrings {
@@ -193,6 +194,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
       ? `<mergeCells count="${sheet.merges.size}">${sheet.merges.all.map((m) => `<mergeCell ref="${rangeRef(m)}"/>`).join("")}</mergeCells>`
       : "",
     conditionalFormatting: conditionalXml(sheet.conditional, styles, ctx.source?.keptConditional ?? []),
+    dataValidations: validationsXml(sheet.validations, rangeRef),
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
   }
   const kept: Kept[] = ctx.source?.kept.map((k) => ({ ...k })) ?? []
@@ -206,6 +208,12 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
       local: "pageMargins",
       xml: `<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>`,
     })
+  }
+  const validationExt = validationExtXml(sheet.validations, rangeRef)
+  if (validationExt) {
+    const extLst = kept.find((k) => k.local === "extLst")
+    if (extLst) extLst.xml = withExt(extLst.xml, validationExt)
+    else kept.push({ local: "extLst", xml: withExt(undefined, validationExt) })
   }
   // Generated elements replace nothing (the reader dropped them); assemble puts them in schema order among the kept ones.
   const body = assemble(WORKSHEET_ORDER, kept, generated)

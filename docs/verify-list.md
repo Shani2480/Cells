@@ -69,6 +69,10 @@ Phase 3, added at the end:
       (one column only, nothing to parse, replace the destination). The splitting was checked against Excel.
 - [ ] Remove Duplicates: the wording of the result message and the warning, and the dialog's layout, against
       Excel's (the rules for which values match were checked).
+- [ ] Data Validation: the dialog's three tabs, the messages for bad values (blank, not a number, Maximum below
+      Minimum) and the "extend to these cells" / "more than one type" questions against Excel's wording (written
+      from memory). The in-cell list's look and the input message's place next to Excel's. Which entries each rule
+      accepts was checked against Excel; the file round trip was checked in Excel and the Open XML SDK.
 
 ## On a device
 

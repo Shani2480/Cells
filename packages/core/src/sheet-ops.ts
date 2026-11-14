@@ -1,6 +1,7 @@
 import type { Range } from "./address"
 import type { AnnotationWrite } from "./annotations"
 import { copyEntries, type CFEntry } from "./conditional"
+import { copyValidations, type ValidationEntry } from "./validation"
 import { rewriteNames, type SheetList } from "./names"
 import { copyAutoFilter, type AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
@@ -24,6 +25,7 @@ export type SheetSnapshot = {
   colStyles: number[]
   merges: Range[]
   conditional?: CFEntry[]
+  validations?: ValidationEntry[]
   annotations?: AnnotationWrite[]
   protection?: SheetProtection | null
   autoFilter?: AutoFilter | null
@@ -49,6 +51,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     colStyles: sheet.colStyles.entries().flat(),
     merges: sheet.merges.all.map((m) => ({ ...m })),
     conditional: copyEntries(sheet.conditional),
+    validations: copyValidations(sheet.validations),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     protection: sheet.protection ? { ...sheet.protection } : null,
     autoFilter: copyAutoFilter(sheet.autoFilter),
@@ -72,6 +75,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   for (let i = 0; i < s.colStyles.length; i += 2) sheet.colStyles.set(s.colStyles[i], s.colStyles[i + 1])
   sheet.merges.replace(s.merges.map((m) => ({ ...m })))
   sheet.conditional = copyEntries(s.conditional ?? [])
+  sheet.validations = copyValidations(s.validations ?? [])
   for (const a of s.annotations ?? []) sheet.annotations.set(a.row, a.col, a.value)
   sheet.protection = s.protection ? { ...s.protection } : null
   sheet.autoFilter = copyAutoFilter(s.autoFilter ?? null)

@@ -235,7 +235,7 @@ export function FindReplaceDialog({
   )
 }
 
-type SpecialChoice = SpecialKind["kind"] | "objects" | "validation"
+type SpecialChoice = SpecialKind["kind"] | "objects"
 
 /** Go To Special (F5 › Special…, or Find & Select): pick cells by what they hold. */
 export function GoToSpecialDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
@@ -256,10 +256,10 @@ export function GoToSpecialDialog({ controller, onClose }: { controller: SheetCo
         kind = { kind: choice, all }
         break
       case "conditionalFormats":
+      case "validation":
         kind = { kind: choice, same }
         break
       case "objects":
-      case "validation":
         break
       default:
         kind = { kind: choice } as SpecialKind
@@ -322,7 +322,7 @@ export function GoToSpecialDialog({ controller, onClose }: { controller: SheetCo
           {radio("lastCell", "Last cell")}
           {radio("visible", "Visible cells only")}
           {radio("conditionalFormats", "Conditional formats")}
-          {radio("validation", "Data validation", true)}
+          {radio("validation", "Data validation")}
           <label className={cn("dialog-radio gs-sub", !cf && "is-disabled")}>
             <input type="radio" name="same" disabled={!cf} checked={!same} onChange={() => setSame(false)} />
             All

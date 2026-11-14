@@ -13,6 +13,8 @@ import { Backstage } from "@/shell/Backstage"
 import { whatsNewOnStart } from "@/about/release-notes"
 import { Dialog } from "@/shell/Dialog"
 import { RemoveDuplicatesDialog } from "@/shell/RemoveDuplicatesDialog"
+import { DataValidationDialog, ValidationAlertDialog } from "@/shell/DataValidationDialog"
+import type { AlertAnswer, ValidationAlert, ValidationDialogInit } from "@/sheet/validation"
 import { FindReplaceDialog, GoToSpecialDialog } from "@/shell/FindDialogs"
 import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
 import type { FilterDialogRequest } from "@/sheet/data"
@@ -87,6 +89,7 @@ type DialogState =
   | { kind: "sort"; range: Range }
   | { kind: "sortWarning"; then: (expand: boolean) => void; warning?: "sort" | "duplicates" }
   | { kind: "removeDuplicates"; range: Range }
+  | { kind: "dataValidation"; init: ValidationDialogInit }
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
@@ -275,6 +278,7 @@ function WorkbookWindow({
   const controller = doc.controller
   const platform = usePlatform()
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [badEntry, setBadEntry] = useState<{ alert: ValidationAlert; answer: (a: AlertAnswer) => void } | null>(null)
   const [menu, setMenu] = useState<GridContextMenu | null>(null)
   // Excel's message boxes sit over whatever is open (a dialog stays open under them).
   const [alert, setAlert] = useState<{ message: string; then?: () => void; back: HTMLElement | null } | null>(null)
@@ -324,6 +328,9 @@ function WorkbookWindow({
       filterDialog: (request) => setDialog({ kind: "filter", request }),
       findReplace: (tab) => setDialog({ kind: "findReplace", tab, n: Date.now() }),
       goToSpecial: () => setDialog({ kind: "goToSpecial" }),
+      dataValidation: (init) => setDialog({ kind: "dataValidation", init }),
+      validationAlert: (alert, answer) => setBadEntry({ alert, answer }),
+      openCellList: () => window.dispatchEvent(new CustomEvent("cells:open-cell-list")),
     }
   }, [controller])
 
@@ -708,6 +715,19 @@ function WorkbookWindow({
               const range = dialog.range
               closeDialog()
               controller.data.textToColumns(range, choices, at)
+            }}
+          />
+        ) : null}
+        {dialog?.kind === "dataValidation" ? (
+          <DataValidationDialog controller={controller} init={dialog.init} onClose={closeDialog} />
+        ) : null}
+        {badEntry ? (
+          <ValidationAlertDialog
+            alert={badEntry.alert}
+            onAnswer={(answer) => {
+              setBadEntry(null)
+              badEntry.answer(answer)
+              focusGrid()
             }}
           />
         ) : null}

@@ -27,6 +27,7 @@ import { scanXml } from "./scan"
 import { at, kid, kids, parseFragment, raw, type Kept, type XDoc, type XNode } from "./dom"
 import { formulaFromFile } from "./formula"
 import type { StylesIn } from "./styles"
+import { readValidationExt, readValidations } from "./validation"
 import { colWidthToPx, pointsToPx } from "./units"
 
 /** What a sheet's view looked like when saved (Excel keeps these per sheet). */
@@ -95,6 +96,7 @@ const OWN = new Set([
   "autoFilter",
   "mergeCells",
   "conditionalFormatting",
+  "dataValidations",
   "legacyDrawing",
 ])
 
@@ -334,7 +336,11 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         const rgb = color && ctx.styles ? at(color, "rgb") : undefined
         if (rgb) sheet.tabColor = "#" + rgb.slice(-6).toUpperCase()
       }
-      if (local === "extLst") source = dropConditionalExt(source)
+      if (local === "extLst") {
+        const ext = readValidationExt(dropConditionalExt(source), rootTag)
+        sheet.validations.push(...ext.entries)
+        source = ext.rest
+      }
       if (source) kept.push({ local, xml: source })
       return
     }
@@ -359,6 +365,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         break
       case "conditionalFormatting":
         conditional.push(parseFragment(source, rootTag))
+        break
+      case "dataValidations":
+        sheet.validations.unshift(...readValidations(parseFragment(source, rootTag).root))
         break
       case "legacyDrawing":
         legacyDrawing =

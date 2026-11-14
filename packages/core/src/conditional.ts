@@ -162,7 +162,7 @@ export function rulesIn(entries: readonly CFEntry[], ranges: readonly Range[]): 
 // ── Evaluation ────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Reads the values the workbook holds (calculated elsewhere): conditions never calculate cells themselves. */
-class ValueContext implements EvalContext {
+export class ValueContext implements EvalContext {
   sheet = 0
   row = 0
   col = 0
@@ -198,8 +198,8 @@ class ValueContext implements EvalContext {
   sheetCount() {
     return this.sheets.length
   }
-  defined() {
-    return null
+  defined(name: string) {
+    return (this.sheets as { names?: { node(name: string): Node | null } }).names?.node(name) ?? null
   }
   spillArea() {
     return null

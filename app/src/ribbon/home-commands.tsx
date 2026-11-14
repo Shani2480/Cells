@@ -1142,7 +1142,11 @@ export function homeCommands(): Command[] {
       label: "Constants",
       run: (env) => env.c.find.special({ kind: "constants", types: ALL_TYPES }),
     },
-    { id: "SelectDataValidation", label: "Data Validation" },
+    {
+      id: "SelectDataValidation",
+      label: "Data Validation",
+      run: (env) => env.c.find.special({ kind: "validation", same: false }),
+    },
     { id: "SelectObjects", label: "Select Objects" },
     { id: "SelectionPane", label: "Selection Pane..." },
   ]

@@ -1,3 +1,4 @@
+import { sameValidation, validationAt } from "./validation"
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import type { CellData } from "./cell-store"
 import { wildcardRegExp } from "./filter"
@@ -170,6 +171,7 @@ export type SpecialKind =
   | { kind: "lastCell" }
   | { kind: "visible" }
   | { kind: "conditionalFormats"; same: boolean }
+  | { kind: "validation"; same: boolean }
 
 const typeOf = (data: CellData): keyof ValueKinds =>
   typeof data.value === "number"
@@ -358,9 +360,14 @@ export function specialCells(
       }
       return out
     }
-    case "conditionalFormats": {
-      let entries = sheet.conditional
-      if (special.same) entries = entries.filter((e) => e.ranges.some((r) => inRange(r, active.row, active.col)))
+    case "conditionalFormats":
+    case "validation": {
+      let entries: { ranges: Range[] }[] = special.kind === "validation" ? sheet.validations : sheet.conditional
+      if (special.same && special.kind === "validation") {
+        // Same: the cells whose rule is the active cell's (Excel compares the settings, not the rule's identity).
+        const own = validationAt(sheet, active.row, active.col)
+        entries = own ? sheet.validations.filter((e) => sameValidation(e.rule, own.rule)) : []
+      } else if (special.same) entries = entries.filter((e) => e.ranges.some((r) => inRange(r, active.row, active.col)))
       const whole = selection.length === 1 && selection[0].r0 === selection[0].r1 && selection[0].c0 === selection[0].c1
       const out: Range[] = []
       for (const e of entries)

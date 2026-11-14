@@ -3,6 +3,7 @@ import { Axis } from "./axis"
 import { CellStore } from "./cell-store"
 import { Annotations } from "./annotations"
 import type { CFEntry } from "./conditional"
+import type { ValidationEntry } from "./validation"
 import type { AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
 
@@ -139,6 +140,8 @@ export class Sheet {
   readonly merges = new Merges()
   /** Conditional formatting rules, highest priority first. */
   conditional: CFEntry[] = []
+  /** Data Validation rules (a cell has at most one). */
+  validations: ValidationEntry[] = []
   /** Notes and comments by cell. */
   readonly annotations = new Annotations()
   /** Review › Protect Sheet; null when the sheet is not protected. */

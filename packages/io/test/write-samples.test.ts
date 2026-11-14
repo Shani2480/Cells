@@ -13,7 +13,7 @@ it.runIf(process.env.CELLS_WRITE_SAMPLES)("writes samples", async () => {
     writeFileSync(`tmp/xlsx/${name}.json`, JSON.stringify(expected(wb)))
   }
   // Excel's own files, saved again by Cells with their parts kept.
-  for (const name of ["budget", "formats", "conditional", "layout", "protected", "features"]) {
+  for (const name of ["budget", "formats", "conditional", "layout", "protected", "features", "validation"]) {
     const bytes = new Uint8Array(readFileSync(new URL(`./fixtures/excel/${name}.xlsx`, import.meta.url)))
     const read = await openXlsx(bytes, `${name}.xlsx`)
     const out = await saveXlsx(read.workbook, { source: read.source, views: read.views, activeSheet: read.activeSheet })

@@ -83,3 +83,60 @@ describe("passwords Excel 365 saved (SHA-512, 100,000 spins)", () => {
     expect(saved.workbook.structure.protection).toEqual(book)
   })
 })
+
+describe("Data Validation Excel 365 saved", () => {
+  const rules = (wb: Workbook) =>
+    wb.sheets[0].validations.map((e) => ({ ranges: e.ranges.map((r) => [r.r0, r.c0, r.r1, r.c1]), rule: e.rule }))
+
+  it("reads every kind, with the other-sheet list from the x14 extension", async () => {
+    const read = await openXlsx(fixture("validation"), "validation.xlsx")
+    const list = rules(read.workbook)
+    expect(list.map((e) => e.rule.type)).toEqual([
+      "whole",
+      "decimal",
+      "list",
+      "date",
+      "textLength",
+      "time",
+      "custom",
+      "list",
+    ])
+    const qty = list[0].rule
+    expect(qty).toMatchObject({ operator: "between", formula1: "1", formula2: "100", allowBlank: true })
+    expect(qty).toMatchObject({ promptTitle: "Quantity", prompt: "Whole number from 1 to 100", showInput: true })
+    expect(qty).toMatchObject({ errorTitle: "Bad quantity", error: "Type 1 to 100.", errorStyle: "stop" })
+    expect(list[1].rule).toMatchObject({ operator: "greaterThanOrEqual", formula1: "0", errorStyle: "warning" })
+    expect(list[2].rule).toMatchObject({ formula1: '"Apple,Banana,Cherry"', dropDown: true })
+    expect(list[3].rule).toMatchObject({ formula1: "DATE(2026,1,1)", formula2: "DATE(2026,12,31)" })
+    expect(list[4].rule).toMatchObject({ operator: "lessThanOrEqual", formula1: "5", errorStyle: "information" })
+    expect(list[6]).toMatchObject({
+      ranges: [
+        [1, 7, 9, 7],
+        [1, 9, 9, 9],
+      ],
+      rule: { formula1: "MOD(H2,2)=0" },
+    })
+    expect(list[7]).toMatchObject({
+      ranges: [[1, 5, 19, 5]],
+      rule: { formula1: "Lists!$A$1:$A$3", errorStyle: "warning" },
+    })
+  })
+
+  it("saves the rules back where Excel keeps them", async () => {
+    const read = await openXlsx(fixture("validation"), "validation.xlsx")
+    const saved = await saveXlsx(read.workbook, {
+      source: read.source,
+      views: read.views,
+      activeSheet: read.activeSheet,
+    })
+    const files = new Map((await readZip(saved)).map((e) => [e.normalizedName, new TextDecoder().decode(e.data)]))
+    const xml = files.get("xl/worksheets/sheet1.xml")!
+    expect(xml).toContain('<dataValidations count="7">')
+    expect(xml).toMatch(
+      /<x14:dataValidations count="1"[^>]*>.*<xm:f>Lists!\$A\$1:\$A\$3<\/xm:f>.*<xm:sqref>F2:F20<\/xm:sqref>/,
+    )
+    expect(xml.match(/CCE6A557/g)).toHaveLength(1)
+    const again = await openXlsx(saved, "validation.xlsx")
+    expect(rules(again.workbook)).toEqual(rules(read.workbook))
+  })
+})

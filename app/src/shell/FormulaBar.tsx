@@ -170,7 +170,7 @@ export function FormulaBar({
           disabled={!editing}
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => {
-            controller.commitEdit()
+            controller.commitChecked()
             onFocusGrid()
           }}
         >

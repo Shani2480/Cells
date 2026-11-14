@@ -219,6 +219,7 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
     case "unmerge":
     case "layout":
     case "conditional":
+    case "validations":
       return true
     default:
       return false

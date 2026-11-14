@@ -75,6 +75,7 @@ import {
 import { FormatCommands, NUMBER_FORMATS } from "./format"
 import { AnnotationCommands } from "./annotations"
 import { DataCommands, type FilterDialogRequest } from "./data"
+import { ValidationCommands, type AlertAnswer, type ValidationAlert, type ValidationDialogInit } from "./validation"
 import { FindCommands } from "./find"
 import { NameCommands } from "./names"
 import { ConditionalCommands } from "./conditional"
@@ -169,6 +170,12 @@ export type ShellRequests = {
   goToSpecial?(): void
   /** Custom AutoFilter or Top 10 AutoFilter, from a filter dropdown. */
   filterDialog?(request: FilterDialogRequest): void
+  /** Data › Data Validation: the dialog, with the rule it opens on. */
+  dataValidation?(init: ValidationDialogInit): void
+  /** The error alert after an entry breaks a rule; `answer` gets the button pressed. */
+  validationAlert?(alert: ValidationAlert, answer: (a: AlertAnswer) => void): void
+  /** Alt+Down on a cell with an in-cell list: open it. */
+  openCellList?(): void
   /** Ctrl+1: the Format Cells dialog, on a tab. */
   formatCells(tab?: "number" | "alignment" | "font" | "border" | "fill" | "protection"): void
 }
@@ -239,6 +246,8 @@ export class SheetController {
   /** Notes and comments. */
   readonly annotations: AnnotationCommands = new AnnotationCommands(this)
   readonly data: DataCommands = new DataCommands(this)
+  /** Data › Data Validation. */
+  readonly validation: ValidationCommands = new ValidationCommands(this)
   /** Find, Replace and Go To Special. */
   readonly find: FindCommands = new FindCommands(this)
   /** Defined names (Name Box, Define Name, Go To). */
@@ -485,6 +494,7 @@ export class SheetController {
   getVersion = () => this.version
 
   changed() {
+    if (this.validation?.circles) this.validation.refreshCircles()
     this.version++
     for (const listener of this.listeners) listener()
   }
@@ -805,6 +815,31 @@ export class SheetController {
     }
     this.transact(ops, { label, before, after: before })
     return true
+  }
+
+  /**
+   * Commits the entry once Data Validation lets it in; `then` runs after (a move). An entry that breaks its cell's
+   * rule shows the error alert and stays in the cell: Retry (or No) selects it to type again, Cancel throws it away,
+   * Yes (Warning) and OK (Information) enter it. Returns whether it went in now.
+   */
+  commitChecked(fill = false, then?: () => void): boolean {
+    const edit = this.edit
+    if (!edit) return false
+    const bad = this.validation.rejects(edit.text, edit.row, edit.col)
+    if (!bad || !this.shell.validationAlert) {
+      this.commitEdit(fill)
+      then?.()
+      return true
+    }
+    this.shell.validationAlert(this.validation.alertFor(bad), (answer) => {
+      if (!this.edit) return
+      if (answer === "yes" || answer === "ok") {
+        this.commitEdit(fill)
+        then?.()
+      } else if (answer === "cancel") this.cancelEdit()
+      else this.setEditSelection(0, this.edit.text.length)
+    })
+    return false
   }
 
   // ── Movement ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -1516,6 +1551,13 @@ export class SheetController {
         return true
     }
     if (alt && !primary && key === "ArrowDown" && this.data.openMenuAtActive()) return true
+    if (alt && !primary && key === "ArrowDown" && this.shell.openCellList) {
+      const { row, col } = this.selection.active
+      if (this.validation.dropdownAt(row, col)) {
+        this.shell.openCellList()
+        return true
+      }
+    }
     if (primary && !alt) {
       const lower = key.toLowerCase()
       if (lower === "z" && !shift) return (this.undo(), true)
@@ -1560,11 +1602,10 @@ export class SheetController {
       if (alt) return false // Alt+Enter: a line break inside the cell; the editor inserts it.
       if (primary && shift) {
         // Ctrl+Shift+Enter: dynamic arrays make it the same as Enter for one cell; the cell stays active.
-        this.commitEdit()
+        this.commitChecked()
         return true
       }
-      this.commitEdit(primary)
-      if (!primary) this.enterMove(shift ? "up" : "down")
+      this.commitChecked(primary, primary ? undefined : () => this.enterMove(shift ? "up" : "down"))
       return true
     }
     const list = this.autocomplete
@@ -1574,8 +1615,7 @@ export class SheetController {
       return true
     }
     if (key === "Tab") {
-      this.commitEdit()
-      this.enterMove(shift ? "left" : "right")
+      this.commitChecked(false, () => this.enterMove(shift ? "left" : "right"))
       return true
     }
     if (key === "F2") {
@@ -1597,8 +1637,7 @@ export class SheetController {
       return true
     }
     if (arrows[key] && this.edit.mode === "enter" && this.edit.surface === "cell" && !alt) {
-      this.commitEdit()
-      this.arrow(arrows[key], primary, shift)
+      this.commitChecked(false, () => this.arrow(arrows[key], primary, shift))
       return true
     }
     return false

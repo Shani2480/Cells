@@ -6,7 +6,7 @@ import { formulaCommands, nameCommand } from "./formula-commands"
 import { pictureFor } from "./pictures"
 import { qatCommands } from "./qat-commands"
 import { reviewCommands } from "./review-commands"
-import { CommandRegistry, type Command } from "./registry"
+import { CommandRegistry, type Command, type RibbonEnv } from "./registry"
 import { TABS, controlIds } from "./tabs"
 
 const large = { size: 32, strokeWidth: 1.25 }
@@ -76,7 +76,40 @@ function otherCommands(): Command[] {
     keytip: "E",
     run: (env) => env.c.data.openTextToColumns(),
   }
+  const unprotected = (env: RibbonEnv) => !env.c.sheet.protection
+  const dataValidation: Command[] = [
+    {
+      id: "DataValidationMenu",
+      label: "Data Validation",
+      description:
+        "Pick from a list of rules to limit the type of data that can be entered in a cell. For example, you can provide a list of values like 1, 2, and 3 or only allow numbers greater than 1000 as valid entries.",
+      keytip: "V",
+      run: (env) => env.c.validation.open(),
+      enabled: unprotected,
+      menu: ["DataValidation", "DataValidationCircleInvalid", "DataValidationClearValidationCircles"],
+    },
+    {
+      id: "DataValidation",
+      label: "Data Validation...",
+      keytip: "V",
+      run: (env) => env.c.validation.open(),
+      enabled: unprotected,
+    },
+    {
+      id: "DataValidationCircleInvalid",
+      label: "Circle Invalid Data",
+      keytip: "I",
+      run: (env) => env.c.validation.circleInvalid(),
+    },
+    {
+      id: "DataValidationClearValidationCircles",
+      label: "Clear Validation Circles",
+      keytip: "R",
+      run: (env) => env.c.validation.clearCircles(),
+    },
+  ]
   return [
+    ...dataValidation,
     fromText,
     removeDuplicates,
     textToColumns,

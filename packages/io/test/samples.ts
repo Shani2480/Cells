@@ -1,5 +1,5 @@
 // A made-up corpus: workbooks built in code that cover what the xlsx reader and writer handle.
-import { errorValue, hashPassword, Workbook, type CellData, type CFEntry } from "@cells/core"
+import { DEFAULT_VALIDATION, errorValue, hashPassword, Workbook, type CellData, type CFEntry } from "@cells/core"
 
 const done = (wb: Workbook) => {
   wb.calc.rebuild()
@@ -189,12 +189,35 @@ export function empty(): Workbook {
   return done(new Workbook(["Sheet1"]))
 }
 
+export function validation(): Workbook {
+  const wb = new Workbook(["Form", "Lists"])
+  const [form, lists] = wb.sheets
+  ;["Red", "Green", "Blue"].forEach((v, i) => lists.cells.set(i, 0, { value: v }))
+  form.cells.set(0, 0, { value: "Qty" })
+  form.cells.set(0, 1, { value: "Colour" })
+  form.cells.set(1, 0, { value: 3 })
+  const col = (c: number) => [{ r0: 1, c0: c, r1: 30, c1: c }]
+  const rule = DEFAULT_VALIDATION
+  form.validations = [
+    {
+      ranges: col(0),
+      rule: { ...rule, type: "whole", formula1: "1", formula2: "10", promptTitle: "Qty", prompt: "1 to 10 & <b>" },
+    },
+    { ranges: col(1), rule: { ...rule, type: "list", formula1: "Lists!$A$1:$A$3", errorStyle: "warning" } },
+    { ranges: col(2), rule: { ...rule, type: "list", formula1: '"Yes,No"', dropDown: false } },
+    { ranges: col(3), rule: { ...rule, type: "textLength", operator: "lessThan", formula1: "8", error: "Too long" } },
+    { ranges: [...col(4), ...col(6)], rule: { ...rule, type: "custom", formula1: "ISNUMBER(E2)", allowBlank: false } },
+  ]
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
   budget,
   formats,
   conditional,
   layout,
   protected: protectedBook,
+  validation,
   big,
   empty,
 }

@@ -24,6 +24,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       'Remove Duplicates (Data tab): pick the columns to compare, with or without a header row; duplicate rows go and the rest move up, compared the way Excel does (12 and 12.0 match, "apple" and "Apple" match).',
       "Text to Columns (Data tab): split a column by a delimiter or at fixed widths, set each new column's format, and choose where the result goes. It splits the way Excel does, formulas included.",
       "The formula bar shows a date as 3/19/2026 and a percentage as 100%, as Excel does, instead of the number underneath.",
+      "Data Validation (Data tab): limit what a cell takes (whole numbers, decimals, a list, dates, times, text length or a formula of your own), show a message when the cell is selected, and choose what happens when someone types something else: stop it, warn, or just tell them. A list gets a dropdown beside the cell (Alt+Down opens it). Circle Invalid Data rings the cells that break their rule, and Go To Special finds cells with rules. The rules open and save with Excel files.",
     ],
   },
   {

@@ -5,6 +5,7 @@ import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
 import { keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
 import { FilterButtons } from "./FilterButtons"
+import { ValidationLayer } from "./ValidationLayer"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
 import { drawGrid } from "./draw"
 import { lookOf, shownText } from "./cell-look"
@@ -389,8 +390,8 @@ export function GridView({
         canvasRef.current!.setPointerCapture(event.pointerId)
         return
       }
-      // Clicking another cell finishes the entry.
-      controller.commitEdit()
+      // Clicking another cell finishes the entry (unless Data Validation keeps it in its cell).
+      if (!controller.commitChecked()) return
     }
     focusInput()
     if (touch) {
@@ -837,6 +838,7 @@ export function GridView({
         />
       ) : null}
       {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+      {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
       {layout ? (
         <AnnotationLayer
           controller={controller}
