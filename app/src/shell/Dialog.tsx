@@ -13,6 +13,7 @@ export function Dialog({
   children,
   width = 320,
   acceptLabel = "OK",
+  cancelLabel = "Cancel",
 }: {
   title: string
   onCancel: () => void
@@ -20,12 +21,16 @@ export function Dialog({
   children: ReactNode
   width?: number
   acceptLabel?: string
+  /** null: a message with OK only. */
+  cancelLabel?: string | null
 }) {
   const titleId = useId()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const first = ref.current?.querySelector<HTMLElement>("input, select, button.dialog-list-item, button.dialog-btn")
+    const first =
+      ref.current?.querySelector<HTMLElement>("[data-autofocus]") ??
+      ref.current?.querySelector<HTMLElement>("input, select, button.dialog-list-item, button.dialog-btn")
     first?.focus()
     if (first instanceof HTMLInputElement) first.select()
   }, [])
@@ -33,6 +38,9 @@ export function Dialog({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        // Only the dialog on top (Manage Rules can open New Rule over itself).
+        const dialogs = document.querySelectorAll(".dialog")
+        if (dialogs[dialogs.length - 1] !== ref.current) return
         event.preventDefault()
         event.stopPropagation()
         onCancel()
@@ -72,9 +80,11 @@ export function Dialog({
           <button type="button" className="dialog-btn is-primary" onClick={onAccept}>
             {acceptLabel}
           </button>
-          <button type="button" className="dialog-btn" onClick={onCancel}>
-            Cancel
-          </button>
+          {cancelLabel === null ? null : (
+            <button type="button" className="dialog-btn" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>,

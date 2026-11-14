@@ -14,7 +14,7 @@
 - [x] Minimal shell (title bar, formula bar, grid, status bar)
 - [x] Excel tool skeleton (`tools/excel-run.py`, kept local)
 
-## Phase 2 — done, waiting for the go-ahead for Phase 3
+## Phase 2 — done
 
 - [x] Lexer and parser (A1, R1C1, 3-D, arrays, spill `#`, `@`), printing
 - [x] Values and coercion
@@ -25,6 +25,32 @@
 - [x] Formula bar and in-cell editing: colours, Point mode, F4, autocomplete, tooltips, Ctrl+`, Ctrl+Shift+Enter
 - [x] Engine in a Web Worker
 - [ ] Chain benchmark under 200 ms on a quiet machine (measured 150–200 ms quiet, more under load)
+
+## Phase 3 — done, waiting for the go-ahead for Phase 4
+
+- [x] Ribbon, KeyTips, Ctrl+F1, Quick Access Toolbar, Search (Alt+Q), backstage with What's New
+- [x] Formula bar: Name Box with names, Insert Function, expand and resize
+- [x] Sheet tabs
+- [x] Cell formatting, number formats (594 Excel TEXT cases), Format Cells
+- [x] Conditional formatting with Manage Rules
+- [x] Freeze panes, zoom, gridlines/headings, dark mode
+- [x] Notes, threaded comments, Protect Sheet, Protect Workbook
+- [x] Context menus and shortcuts
+- [x] Tablet gestures (grippers, long press, double tap, pinch, keyboard-aware editor)
+- [x] Version 0.3.0 with release notes
+- [ ] Split panes, Page Break Preview / Page Layout view, New Window
+- [ ] Function Arguments dialog; Name Manager, Create from Selection, Apply/Paste Names
+- [ ] First-run setup screen (theme, your name for notes and comments, AI opt-in once there is AI). Your rules ask
+      for it in every app, but it isn't in PLAN.md yet. Proposed for Phase 5 with Settings.
+
+## Later (from Phase 3)
+
+- Notes and comments don't move with Insert/Delete Cells (shift) or a cut and paste. They do move with whole rows
+  and columns.
+- "Select locked cells" off isn't enforced: the cursor can still go to locked cells.
+- Rows don't refit when a column width changes; edits over 20,000 rows don't refit rows at all.
+- Wheel scrolling moves by pixels, not by rows like Excel.
+- Icons in the conditional-formatting menu rows; avatar colours for comment authors (now picked from the name).
 
 ## Later (from Phase 2)
 

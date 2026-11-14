@@ -1,17 +1,28 @@
-import { Minus, Redo2, Square, SquareSquare, Undo2, X } from "lucide-react"
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { Minus, Square, SquareSquare, X } from "lucide-react"
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 import { usePlatform } from "@/platform/context"
 import type { SheetController } from "@/sheet/controller"
 
 /**
- * Excel's title bar: Quick Access (Undo, Redo) at the left, the workbook's name in the middle, window buttons at
- * the right. The whole bar drags the window (Tauri's drag script, "deep" so the gaps count too).
+ * Excel's title bar: the Quick Access Toolbar and the workbook's name at the left, Search in the middle, window
+ * buttons at the right. The whole bar drags the window (Tauri's drag script, "deep" so the gaps count too).
  */
-export function TitleBar({ controller, title }: { controller: SheetController; title: string }) {
+export function TitleBar({
+  controller,
+  title,
+  qat,
+  search,
+}: {
+  controller: SheetController
+  title: string
+  /** The Quick Access Toolbar. */
+  qat?: ReactNode
+  /** Search (Tell Me). */
+  search?: ReactNode
+}) {
   useSyncExternalStore(controller.subscribe, controller.getVersion)
   const platform = usePlatform()
   const [maximized, setMaximized] = useState(false)
-  const shortcut = (key: string) => (platform.os === "macos" ? `⌘${key}` : `Ctrl+${key}`)
 
   useEffect(() => {
     void platform.window.setTitle(title).catch(() => undefined)
@@ -29,34 +40,14 @@ export function TitleBar({ controller, title }: { controller: SheetController; t
     })
   }, [platform])
 
-  const undoLabel = controller.wb.undoLabel
-  const redoLabel = controller.wb.redoLabel
   return (
     <header className="titlebar" data-tauri-drag-region="deep">
       <div className="titlebar-start">
         <img className="titlebar-logo" src="/logo-mark.svg" alt="" draggable={false} />
-        <button
-          type="button"
-          className="titlebar-button"
-          aria-label="Undo"
-          title={undoLabel ? `Undo ${undoLabel} (${shortcut("Z")})` : `Undo (${shortcut("Z")})`}
-          disabled={!controller.wb.canUndo}
-          onClick={() => controller.undo()}
-        >
-          <Undo2 size={16} strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          className="titlebar-button"
-          aria-label="Redo"
-          title={redoLabel ? `Redo ${redoLabel} (${shortcut("Y")})` : `Redo (${shortcut("Y")})`}
-          disabled={!controller.wb.canRedo}
-          onClick={() => controller.redo()}
-        >
-          <Redo2 size={16} strokeWidth={1.75} />
-        </button>
+        {qat}
+        <div className="titlebar-title">{title}</div>
       </div>
-      <div className="titlebar-title">{title}</div>
+      <div className="titlebar-center">{search}</div>
       <div className="titlebar-end">
         {platform.window.controllable ? (
           <>

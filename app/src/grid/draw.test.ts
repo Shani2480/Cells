@@ -12,6 +12,7 @@ function recorder() {
     save: noop,
     restore: noop,
     beginPath: noop,
+    arc: noop,
     rect: noop,
     clip: noop,
     fill: noop,
@@ -24,7 +25,10 @@ function recorder() {
     setLineDash: noop,
     setTransform: noop,
     clearRect: noop,
-    fillStyle: "",
+    translate: noop,
+    rotate: noop,
+    createLinearGradient: () => ({ addColorStop: noop }) as unknown as CanvasGradient,
+    fillStyle: "" as string | CanvasGradient,
     strokeStyle: "",
     lineWidth: 1,
     font: "",
@@ -64,12 +68,15 @@ describe("drawGrid", () => {
       ],
       { label: "Set" },
     )
-    const { texts, raw } = draw(c)
+    const { texts, raw, layout } = draw(c)
     expect(texts).toContain("A")
     expect(texts).toContain("1")
     expect(texts).toContain("Name")
-    expect(raw.find((t) => t.text === "12.5")?.align).toBe("right")
-    expect(raw.find((t) => t.text === "Name")?.align).toBe("left")
+    const [a, b] = layout.cols
+    // Numbers end 3 px inside the cell's right edge; text starts 3 px inside its left edge.
+    const number = raw.find((t) => t.text === "12.5")!
+    expect(number.x + measure("12.5")).toBe(b.start + b.size - 3)
+    expect(raw.find((t) => t.text === "Name")!.x).toBe(a.start + 3)
   })
 
   it("shows #### for a number too wide for its column", () => {
@@ -103,5 +110,52 @@ describe("drawGrid", () => {
     expect(hitTest(c, layout, 5, layout.headerHeight + 30)).toEqual({ zone: "rowHeader", row: 1 })
     expect(hitTest(c, layout, x + 64, layout.headerHeight + 20).zone).toBe("fillHandle")
     expect(hitTest(c, layout, x + 100, layout.headerHeight + 50)).toEqual({ zone: "cell", row: 2, col: 1 })
+  })
+
+  it("shows touch grippers instead of the fill handle after a finger", () => {
+    const c = new SheetController()
+    c.pointerCell({ row: 1, col: 1 }, { shift: false, ctrl: false })
+    c.dragTo({ row: 3, col: 2 })
+    c.touchHandles = true
+    const { layout } = draw(c)
+    const x0 = layout.rowHeaderWidth + 64
+    const y0 = layout.headerHeight + 20
+    // B2:C4 → top-left at (B, row 2), bottom-right at the end of C4; a finger's width around each counts.
+    expect(hitTest(c, layout, x0 + 3, y0 - 4)).toEqual({ zone: "gripper", end: "start" })
+    expect(hitTest(c, layout, x0 + 128 + 10, y0 + 60 + 8)).toEqual({ zone: "gripper", end: "end" })
+    expect(hitTest(c, layout, x0 + 64, y0 + 30).zone).toBe("cell")
+    c.touchHandles = false
+    expect(hitTest(c, layout, x0 + 128, y0 + 60).zone).toBe("fillHandle")
+  })
+
+  it("draws a frozen-pane frame of a 100,000-row sheet within the frame budget", () => {
+    // Phase 3 budget: frozen panes keep the frame budget. This times the layout and drawing code (the canvas
+    // itself is a recorder here, so the GPU's share is not in it): best of 5, under half a 60 Hz frame.
+    const c = new SheetController()
+    const cells = []
+    for (let r = 0; r < 100_000; r++)
+      for (let col = 0; col < 20; col++) cells.push({ row: r, col, data: { value: r * 20 + col } })
+    c.wb.transact([{ kind: "setCells", sheet: 0, cells }], { label: "Load" })
+    c.pointerCell({ row: 4, col: 2 }, { shift: false, ctrl: false })
+    c.freezePanes()
+    c.scrollTo(c.sheet.cols.offset(5), c.sheet.rows.offset(50_000))
+    let ms = Infinity
+    for (let i = 0; i < 5; i++) {
+      const start = performance.now()
+      const layout = computeLayout(c, 1920, 1080, measure)
+      drawGrid({
+        painter: recorder().painter,
+        layout,
+        controller: c,
+        theme: LIGHT_THEME,
+        dpr: 1,
+        measure,
+        antsOffset: 0,
+      })
+      ms = Math.min(ms, performance.now() - start)
+    }
+    console.log(`frozen-pane frame (1920×1080)            ${ms.toFixed(1)} ms`)
+    expect(c.freeze).not.toBeNull()
+    expect(ms).toBeLessThan(8)
   })
 })

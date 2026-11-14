@@ -1,15 +1,9 @@
-import {
-  columnName,
-  formatValue,
-  generalAlign,
-  isWholeColumns,
-  isWholeRows,
-  rangeIntersection,
-  type CellValue,
-  type Range,
-} from "@cells/core"
+import { columnName, isWholeColumns, isWholeRows, rangeIntersection, type Range } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
-import { fillHandleRect, rangeRect, type GridLayout, type Line } from "./layout"
+import type { Measure } from "./cell-look"
+import { drawCells } from "./draw-cells"
+import { fillHandleRect, rangeRect, selectionGrippers, type GridLayout } from "./layout"
+import { GRIPPER_RADIUS } from "./touch"
 import { CELL_FONT, type GridTheme } from "./theme"
 
 /** The canvas calls the drawing needs (a real 2D context satisfies it; tests pass a recorder). */
@@ -18,6 +12,7 @@ export type Painter = Pick<
   | "save"
   | "restore"
   | "beginPath"
+  | "arc"
   | "rect"
   | "clip"
   | "fill"
@@ -31,6 +26,9 @@ export type Painter = Pick<
   | "setLineDash"
   | "setTransform"
   | "clearRect"
+  | "translate"
+  | "rotate"
+  | "createLinearGradient"
 > & {
   fillStyle: CanvasRenderingContext2D["fillStyle"]
   strokeStyle: CanvasRenderingContext2D["strokeStyle"]
@@ -48,52 +46,13 @@ export type DrawOptions = {
   controller: SheetController
   theme: GridTheme
   dpr: number
-  measure: (text: string) => number
+  measure: Measure
   /** Marching ants offset (animates while a copy is on the clipboard). */
   antsOffset: number
 }
 
-const PAD = 3
 /** Distance from a cell's bottom to the text baseline (bottom-aligned, as Excel's default). */
 const BASELINE_FROM_BOTTOM = 5
-
-type CellText = { text: string; align: "left" | "center" | "right"; numeric: boolean }
-
-function cellText(
-  controller: SheetController,
-  row: number,
-  col: number,
-  width: number,
-  measure: (t: string) => number,
-): CellText | null {
-  const sheet = controller.sheet
-  if (controller.showFormulas) {
-    // Ctrl+`: formulas as typed, left-aligned.
-    const input = sheet.cells.input(row, col)
-    if (input?.startsWith("=")) return { text: input, align: "left", numeric: false }
-    // A spill's other cells hold no formula of their own; Excel leaves them blank here.
-    if (sheet.cells.isSpill(row, col)) return null
-  }
-  const value: CellValue | undefined = sheet.cells.value(row, col)
-  if (value === undefined) return null
-  const style = controller.wb.styles.get(sheet.cells.style(row, col))
-  const align = generalAlign(value)
-  if (typeof value === "number") {
-    const digit = measure("0") || 7
-    const maxChars = Math.max(1, Math.floor((width - 2 * PAD + 1) / digit))
-    let text = formatValue(value, style.numberFormat, maxChars)
-    if (text !== null && measure(text) > width - PAD) {
-      text = style.numberFormat ? null : formatValue(value, undefined, Math.max(1, maxChars - 1))
-    }
-    if (text === null || measure(text) > width - 2) {
-      // A number that does not fit shows as #### across the cell (Excel never overflows numbers).
-      const count = Math.max(1, Math.floor((width - 2) / (measure("#") || 7)))
-      text = "#".repeat(count)
-    }
-    return { text, align, numeric: true }
-  }
-  return { text: formatValue(value) ?? "", align, numeric: false }
-}
 
 export function drawGrid(options: DrawOptions) {
   const { painter: p, layout, theme, dpr } = options
@@ -103,9 +62,30 @@ export function drawGrid(options: DrawOptions) {
   p.font = CELL_FONT
   p.textBaseline = "alphabetic"
 
-  drawCells(options)
-  drawSelection(options)
+  // Each part of the cell area (frozen rows and columns, the scrolling part) draws in its own rectangle.
+  for (const pane of layout.panes) {
+    drawCells({ ...options, layout: pane })
+    drawMarks({ ...options, layout: pane })
+    p.font = CELL_FONT
+    drawSelection({ ...options, layout: pane })
+  }
   drawHeaders(options)
+
+  // Frozen panes: a thin dark line where the frozen rows and columns end, across headers and cells (Excel).
+  if (layout.frozen) {
+    p.strokeStyle = theme.freezeLine
+    p.lineWidth = 1
+    p.beginPath()
+    if (layout.originY > layout.headerHeight) {
+      p.moveTo(0, layout.originY - 0.5)
+      p.lineTo(layout.width, layout.originY - 0.5)
+    }
+    if (layout.originX > layout.rowHeaderWidth) {
+      p.moveTo(layout.originX - 0.5, 0)
+      p.lineTo(layout.originX - 0.5, layout.height)
+    }
+    p.stroke()
+  }
 
   // The thin line under the column headers and right of the row headers.
   p.strokeStyle = theme.headerLine
@@ -118,165 +98,45 @@ export function drawGrid(options: DrawOptions) {
   p.stroke()
 }
 
-function drawCells({ painter: p, layout, controller, theme, measure }: DrawOptions) {
-  const { rows, cols, rowHeaderWidth, headerHeight, width, height } = layout
-  if (!rows.length || !cols.length) return
+/**
+ * Notes and comments: a small triangle in the cell's top-right corner, red for a note, purple for a comment (grey
+ * when the thread is resolved), as Excel marks them.
+ */
+function drawMarks({ painter: p, layout, controller, theme }: DrawOptions) {
   const sheet = controller.sheet
+  if (!sheet.annotations.size || !layout.rows.length || !layout.cols.length) return
+  const rows = new Map(layout.rows.map((l) => [l.index, l]))
+  const cols = new Map(layout.cols.map((l) => [l.index, l]))
   p.save()
   p.beginPath()
-  p.rect(rowHeaderWidth, headerHeight, width - rowHeaderWidth, height - headerHeight)
+  p.rect(layout.clip.x0, layout.clip.y0, layout.clip.x1 - layout.clip.x0, layout.clip.y1 - layout.clip.y0)
   p.clip()
-
-  const editing = controller.edit
-  const lastCol = cols[cols.length - 1]
-  const gridRight = lastCol.start + lastCol.size
-
-  // Horizontal gridlines: full width.
-  p.strokeStyle = theme.gridline
-  p.lineWidth = 1
-  p.beginPath()
-  for (const row of rows) {
-    const y = Math.round(row.start + row.size) - 0.5
-    p.moveTo(rowHeaderWidth, y)
-    p.lineTo(gridRight, y)
+  for (const a of sheet.annotations.all()) {
+    const merge = sheet.merges.at(a.row, a.col)
+    const top = rows.get(merge ? merge.r0 : a.row)
+    const right = cols.get(merge ? merge.c1 : a.col)
+    if (!top || !right) continue
+    const x = right.start + right.size
+    const y = top.start
+    const v = a.value
+    const size = v.kind === "note" ? 6 : 7
+    p.fillStyle = v.kind === "note" ? theme.noteMark : v.resolved ? theme.freezeLine : theme.commentMark
+    p.beginPath()
+    p.moveTo(x - size - 1, y + 1)
+    p.lineTo(x - 1, y + 1)
+    p.lineTo(x - 1, y + size + 1)
+    p.closePath()
+    p.fill()
   }
-  p.stroke()
-
-  // Text, row by row; text that runs into empty neighbours hides the vertical gridlines it crosses.
-  const vertical: { x: number; y0: number; y1: number }[] = []
-  for (const row of rows) {
-    const covered = new Set<number>()
-    const baseline = row.start + row.size - BASELINE_FROM_BOTTOM
-    const draws: { text: string; x: number; align: CanvasTextAlign; clip: [number, number] }[] = []
-
-    const place = (line: Line, info: CellText, extendLeft: number, extendRight: number) => {
-      const textWidth = measure(info.text)
-      const inner = line.size - 2 * PAD
-      let x: number
-      let align: CanvasTextAlign
-      if (info.align === "right") {
-        x = line.start + line.size - PAD
-        align = "right"
-      } else if (info.align === "center") {
-        x = line.start + line.size / 2
-        align = "center"
-      } else {
-        x = line.start + PAD
-        align = "left"
-      }
-      let clip0 = line.start
-      let clip1 = line.start + line.size
-      if (!info.numeric && textWidth > inner) {
-        clip0 = line.start - extendLeft
-        clip1 = line.start + line.size + extendRight
-      }
-      draws.push({ text: info.text, x, align, clip: [clip0, clip1] })
-    }
-
-    /** How far text in `col` may run right (into empty cells) and left, in pixels, marking crossed boundaries. */
-    const overflow = (col: number, info: CellText, size: number) => {
-      if (info.numeric) return { left: 0, right: 0 }
-      const textWidth = measure(info.text) + 2 * PAD
-      if (textWidth <= size) return { left: 0, right: 0 }
-      const need = info.align === "center" ? (textWidth - size) / 2 : textWidth - size
-      let right = 0
-      let left = 0
-      if (info.align !== "right") {
-        for (let c = col + 1; right < need && c < sheet.cols.count; c++) {
-          if (sheet.cells.hasValue(row.index, c) || (editing && editing.row === row.index && editing.col === c)) break
-          covered.add(c)
-          right += sheet.cols.size(c)
-        }
-      }
-      if (info.align !== "left") {
-        for (let c = col - 1; left < need && c >= 0; c--) {
-          if (sheet.cells.hasValue(row.index, c)) break
-          covered.add(c + 1)
-          left += sheet.cols.size(c)
-        }
-      }
-      return { left, right }
-    }
-
-    // Text that starts left of the view (or right of it, for right-aligned text) may run into it.
-    const used = sheet.cells.usedColumns()
-    const first = cols[0].index
-    const last = cols[cols.length - 1].index
-    for (let i = used.length - 1; i >= 0; i--) {
-      const c = used[i]
-      if (c >= first) continue
-      if (!sheet.cells.hasValue(row.index, c)) continue
-      const size = sheet.cols.size(c)
-      const info = cellText(controller, row.index, c, size, measure)
-      if (info && !info.numeric && info.align !== "right") {
-        const start = rowHeaderWidth + sheet.cols.offset(c) - layout.scrollX
-        const extent = overflow(c, info, size)
-        if (start + size + extent.right > rowHeaderWidth)
-          place({ index: c, start, size }, info, extent.left, extent.right)
-      }
-      break
-    }
-    for (const c of used) {
-      if (c <= last) continue
-      if (!sheet.cells.hasValue(row.index, c)) continue
-      const size = sheet.cols.size(c)
-      const info = cellText(controller, row.index, c, size, measure)
-      if (info && !info.numeric && info.align === "right") {
-        const start = rowHeaderWidth + sheet.cols.offset(c) - layout.scrollX
-        const extent = overflow(c, info, size)
-        if (start - extent.left < width) place({ index: c, start, size }, info, extent.left, extent.right)
-      }
-      break
-    }
-
-    for (const col of cols) {
-      if (editing && editing.row === row.index && editing.col === col.index) continue
-      const info = cellText(controller, row.index, col.index, col.size, measure)
-      if (!info) continue
-      const extent = overflow(col.index, info, col.size)
-      place(col, info, extent.left, extent.right)
-    }
-
-    for (const col of cols) {
-      if (!covered.has(col.index))
-        vertical.push({ x: Math.round(col.start) - 0.5, y0: row.start, y1: row.start + row.size })
-    }
-    // The last column's right edge.
-    if (!covered.has(lastCol.index + 1)) {
-      vertical.push({ x: Math.round(gridRight) - 0.5, y0: row.start, y1: row.start + row.size })
-    }
-
-    p.fillStyle = theme.text
-    for (const draw of draws) {
-      const lines = draw.text.split("\n")
-      p.textAlign = draw.align
-      p.save()
-      p.beginPath()
-      p.rect(draw.clip[0], row.start, draw.clip[1] - draw.clip[0], row.size)
-      p.clip()
-      lines.forEach((text, i) => {
-        p.fillText(text, draw.x, baseline - (lines.length - 1 - i) * 18)
-      })
-      p.restore()
-    }
-  }
-
-  p.strokeStyle = theme.gridline
-  p.beginPath()
-  for (const line of vertical) {
-    p.moveTo(line.x, line.y0)
-    p.lineTo(line.x, line.y1)
-  }
-  p.stroke()
   p.restore()
 }
 
 function clampRect(rect: { x: number; y: number; w: number; h: number }, layout: GridLayout) {
-  // Keep huge rectangles (whole columns) within a few pixels of the canvas, so canvas maths stays exact.
-  const x0 = Math.max(rect.x, layout.rowHeaderWidth - 4)
-  const y0 = Math.max(rect.y, layout.headerHeight - 4)
-  const x1 = Math.min(rect.x + rect.w, layout.width + 4)
-  const y1 = Math.min(rect.y + rect.h, layout.height + 4)
+  // Keep huge rectangles (whole columns) within a few pixels of the pane, so canvas maths stays exact.
+  const x0 = Math.max(rect.x, layout.clip.x0 - 4)
+  const y0 = Math.max(rect.y, layout.clip.y0 - 4)
+  const x1 = Math.min(rect.x + rect.w, layout.clip.x1 + 4)
+  const y1 = Math.min(rect.y + rect.h, layout.clip.y1 + 4)
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }
 
@@ -284,27 +144,23 @@ function drawSelection({ painter: p, layout, controller, theme, antsOffset }: Dr
   const { selection } = controller
   p.save()
   p.beginPath()
-  p.rect(
-    layout.rowHeaderWidth,
-    layout.headerHeight,
-    layout.width - layout.rowHeaderWidth,
-    layout.height - layout.headerHeight,
-  )
+  p.rect(layout.clip.x0, layout.clip.y0, layout.clip.x1 - layout.clip.x0, layout.clip.y1 - layout.clip.y0)
   p.clip()
 
-  const activeRect = rangeRect(controller, layout, {
-    r0: selection.active.row,
-    c0: selection.active.col,
-    r1: selection.active.row,
-    c1: selection.active.col,
-  })
+  // The active cell, or the whole merged cell it belongs to.
+  const activeArea = controller.activeArea()
+  const activeRect = rangeRect(controller, layout, activeArea)
 
   // Tint over every selected range except the active cell, which stays clear.
   p.fillStyle = theme.selectionFill
   selection.ranges.forEach((range) => {
     const rect = clampRect(rangeRect(controller, layout, range), layout)
     if (rect.w <= 0 || rect.h <= 0) return
-    const single = range.r0 === range.r1 && range.c0 === range.c1
+    const single =
+      range.r0 === activeArea.r0 &&
+      range.r1 === activeArea.r1 &&
+      range.c0 === activeArea.c0 &&
+      range.c1 === activeArea.c1
     if (single && selection.ranges.length === 1) return
     p.beginPath()
     p.rect(rect.x, rect.y, rect.w, rect.h)
@@ -334,6 +190,24 @@ function drawSelection({ painter: p, layout, controller, theme, antsOffset }: Dr
       Math.round(activeRect.w) - 2,
       Math.round(activeRect.h) - 2,
     )
+  }
+
+  // Touch grippers: white circles ringed in the selection colour.
+  const grippers = selectionGrippers(controller, layout)
+  if (grippers) {
+    p.lineWidth = 1.5
+    for (const [g, shown] of [
+      [grippers.start, grippers.startShown],
+      [grippers.end, grippers.endShown],
+    ] as const) {
+      if (!shown) continue
+      p.beginPath()
+      p.arc(g.x, g.y, GRIPPER_RADIUS, 0, Math.PI * 2)
+      p.fillStyle = theme.background
+      p.fill()
+      p.strokeStyle = theme.selectionBorder
+      p.stroke()
+    }
   }
 
   const handle = fillHandleRect(controller, layout)
@@ -438,6 +312,7 @@ function headerStates(controller: SheetController, layout: GridLayout) {
 
 function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
   const { rowHeaderWidth, headerHeight, width, height } = layout
+  if (!controller.showHeadings) return
   const states = headerStates(controller, layout)
   p.font = CELL_FONT
 
@@ -445,7 +320,17 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
   p.fillStyle = theme.headerBackground
   p.fillRect(rowHeaderWidth, 0, width - rowHeaderWidth, headerHeight)
   p.textAlign = "center"
+  const frozenCol = layout.frozen?.col ?? 0
+  const frozenRow = layout.frozen?.row ?? 0
+  /** The part of the header row (or column) a line belongs to: frozen lines don't scroll under the others. */
+  const colBand = (index: number) => (index < frozenCol ? [rowHeaderWidth, layout.originX] : [layout.originX, width])
+  const rowBand = (index: number) => (index < frozenRow ? [headerHeight, layout.originY] : [layout.originY, height])
   for (const col of layout.cols) {
+    const [b0, b1] = colBand(col.index)
+    p.save()
+    p.beginPath()
+    p.rect(b0, 0, b1 - b0, headerHeight)
+    p.clip()
     const state = states.cols.get(col.index)
     if (state) {
       p.fillStyle = state === "full" ? theme.headerFullBackground : theme.headerSelectedBackground
@@ -460,12 +345,18 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
     p.clip()
     p.fillText(columnName(col.index), col.start + col.size / 2, headerHeight - BASELINE_FROM_BOTTOM)
     p.restore()
+    p.restore()
   }
 
   // Row headers.
   p.fillStyle = theme.headerBackground
   p.fillRect(0, headerHeight, rowHeaderWidth, height - headerHeight)
   for (const row of layout.rows) {
+    const [b0, b1] = rowBand(row.index)
+    p.save()
+    p.beginPath()
+    p.rect(0, b0, rowHeaderWidth, b1 - b0)
+    p.clip()
     const state = states.rows.get(row.index)
     if (state) {
       p.fillStyle = state === "full" ? theme.headerFullBackground : theme.headerSelectedBackground
@@ -480,6 +371,7 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
     p.clip()
     p.fillText(String(row.index + 1), rowHeaderWidth / 2, row.start + row.size - BASELINE_FROM_BOTTOM)
     p.restore()
+    p.restore()
   }
 
   // Header separators.
@@ -488,11 +380,15 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
   p.beginPath()
   for (const col of layout.cols) {
     const x = Math.round(col.start + col.size) - 0.5
+    const [b0, b1] = colBand(col.index)
+    if (x < b0 || x > b1) continue
     p.moveTo(x, 0)
     p.lineTo(x, headerHeight)
   }
   for (const row of layout.rows) {
     const y = Math.round(row.start + row.size) - 0.5
+    const [b0, b1] = rowBand(row.index)
+    if (y < b0 || y > b1) continue
     p.moveTo(0, y)
     p.lineTo(rowHeaderWidth, y)
   }

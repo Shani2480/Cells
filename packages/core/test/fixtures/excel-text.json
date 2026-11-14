@@ -1,0 +1,2975 @@
+{
+  "source": "Excel (Microsoft 365, en-US) TEXT(value, code), via tools/excel-run.py",
+  "cases": [
+    {
+      "code": "General",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "General",
+      "value": 1234.5678,
+      "text": "1234.5678"
+    },
+    {
+      "code": "General",
+      "value": -1234.5678,
+      "text": "-1234.5678"
+    },
+    {
+      "code": "General",
+      "value": 0.5,
+      "text": "0.5"
+    },
+    {
+      "code": "General",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "General",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "General",
+      "value": 1.5e-5,
+      "text": "0.000015"
+    },
+    {
+      "code": "General",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "General",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "0",
+      "value": 1234.5678,
+      "text": "1235"
+    },
+    {
+      "code": "0",
+      "value": -1234.5678,
+      "text": "-1235"
+    },
+    {
+      "code": "0",
+      "value": 0.5,
+      "text": "1"
+    },
+    {
+      "code": "0",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "0",
+      "value": 45306.75,
+      "text": "45307"
+    },
+    {
+      "code": "0",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "0",
+      "value": 3.25,
+      "text": "3"
+    },
+    {
+      "code": "0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.00",
+      "value": 0,
+      "text": "0.00"
+    },
+    {
+      "code": "0.00",
+      "value": 1234.5678,
+      "text": "1234.57"
+    },
+    {
+      "code": "0.00",
+      "value": -1234.5678,
+      "text": "-1234.57"
+    },
+    {
+      "code": "0.00",
+      "value": 0.5,
+      "text": "0.50"
+    },
+    {
+      "code": "0.00",
+      "value": 12345678,
+      "text": "12345678.00"
+    },
+    {
+      "code": "0.00",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "0.00",
+      "value": 1.5e-5,
+      "text": "0.00"
+    },
+    {
+      "code": "0.00",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "0.00",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#,##0",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "#,##0",
+      "value": 1234.5678,
+      "text": "1,235"
+    },
+    {
+      "code": "#,##0",
+      "value": -1234.5678,
+      "text": "-1,235"
+    },
+    {
+      "code": "#,##0",
+      "value": 0.5,
+      "text": "1"
+    },
+    {
+      "code": "#,##0",
+      "value": 12345678,
+      "text": "12,345,678"
+    },
+    {
+      "code": "#,##0",
+      "value": 45306.75,
+      "text": "45,307"
+    },
+    {
+      "code": "#,##0",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "#,##0",
+      "value": 3.25,
+      "text": "3"
+    },
+    {
+      "code": "#,##0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#,##0.00",
+      "value": 0,
+      "text": "0.00"
+    },
+    {
+      "code": "#,##0.00",
+      "value": 1234.5678,
+      "text": "1,234.57"
+    },
+    {
+      "code": "#,##0.00",
+      "value": -1234.5678,
+      "text": "-1,234.57"
+    },
+    {
+      "code": "#,##0.00",
+      "value": 0.5,
+      "text": "0.50"
+    },
+    {
+      "code": "#,##0.00",
+      "value": 12345678,
+      "text": "12,345,678.00"
+    },
+    {
+      "code": "#,##0.00",
+      "value": 45306.75,
+      "text": "45,306.75"
+    },
+    {
+      "code": "#,##0.00",
+      "value": 1.5e-5,
+      "text": "0.00"
+    },
+    {
+      "code": "#,##0.00",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "#,##0.00",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": 0,
+      "text": "$0.00"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": 1234.5678,
+      "text": "$1,234.57"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": -1234.5678,
+      "text": "-$1,234.57"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": 0.5,
+      "text": "$0.50"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": 12345678,
+      "text": "$12,345,678.00"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": 45306.75,
+      "text": "$45,306.75"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": 1.5e-5,
+      "text": "$0.00"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": 3.25,
+      "text": "$3.25"
+    },
+    {
+      "code": "$#,##0.00",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": 0,
+      "text": "$0.00 "
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": 1234.5678,
+      "text": "$1,234.57 "
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": -1234.5678,
+      "text": "($1,234.57)"
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": 0.5,
+      "text": "$0.50 "
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": 12345678,
+      "text": "$12,345,678.00 "
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": 45306.75,
+      "text": "$45,306.75 "
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": 1.5e-5,
+      "text": "$0.00 "
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": 3.25,
+      "text": "$3.25 "
+    },
+    {
+      "code": "$#,##0.00_);($#,##0.00)",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": 0,
+      "text": "$0 "
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": 1234.5678,
+      "text": "$1,235 "
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": -1234.5678,
+      "text": "($1,235)"
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": 0.5,
+      "text": "$1 "
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": 12345678,
+      "text": "$12,345,678 "
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": 45306.75,
+      "text": "$45,307 "
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": 1.5e-5,
+      "text": "$0 "
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": 3.25,
+      "text": "$3 "
+    },
+    {
+      "code": "$#,##0_);[Red]($#,##0)",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0%",
+      "value": 0,
+      "text": "0%"
+    },
+    {
+      "code": "0%",
+      "value": 1234.5678,
+      "text": "123457%"
+    },
+    {
+      "code": "0%",
+      "value": -1234.5678,
+      "text": "-123457%"
+    },
+    {
+      "code": "0%",
+      "value": 0.5,
+      "text": "50%"
+    },
+    {
+      "code": "0%",
+      "value": 12345678,
+      "text": "1234567800%"
+    },
+    {
+      "code": "0%",
+      "value": 45306.75,
+      "text": "4530675%"
+    },
+    {
+      "code": "0%",
+      "value": 1.5e-5,
+      "text": "0%"
+    },
+    {
+      "code": "0%",
+      "value": 3.25,
+      "text": "325%"
+    },
+    {
+      "code": "0%",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.00%",
+      "value": 0,
+      "text": "0.00%"
+    },
+    {
+      "code": "0.00%",
+      "value": 1234.5678,
+      "text": "123456.78%"
+    },
+    {
+      "code": "0.00%",
+      "value": -1234.5678,
+      "text": "-123456.78%"
+    },
+    {
+      "code": "0.00%",
+      "value": 0.5,
+      "text": "50.00%"
+    },
+    {
+      "code": "0.00%",
+      "value": 12345678,
+      "text": "1234567800.00%"
+    },
+    {
+      "code": "0.00%",
+      "value": 45306.75,
+      "text": "4530675.00%"
+    },
+    {
+      "code": "0.00%",
+      "value": 1.5e-5,
+      "text": "0.00%"
+    },
+    {
+      "code": "0.00%",
+      "value": 3.25,
+      "text": "325.00%"
+    },
+    {
+      "code": "0.00%",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.00E+00",
+      "value": 0,
+      "text": "0.00E+00"
+    },
+    {
+      "code": "0.00E+00",
+      "value": 1234.5678,
+      "text": "1.23E+03"
+    },
+    {
+      "code": "0.00E+00",
+      "value": -1234.5678,
+      "text": "-1.23E+03"
+    },
+    {
+      "code": "0.00E+00",
+      "value": 0.5,
+      "text": "5.00E-01"
+    },
+    {
+      "code": "0.00E+00",
+      "value": 12345678,
+      "text": "1.23E+07"
+    },
+    {
+      "code": "0.00E+00",
+      "value": 45306.75,
+      "text": "4.53E+04"
+    },
+    {
+      "code": "0.00E+00",
+      "value": 1.5e-5,
+      "text": "1.50E-05"
+    },
+    {
+      "code": "0.00E+00",
+      "value": 3.25,
+      "text": "3.25E+00"
+    },
+    {
+      "code": "0.00E+00",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": 0,
+      "text": "000.0E+0"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": 1234.5678,
+      "text": "1.2E+3"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": -1234.5678,
+      "text": "-1.2E+3"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": 0.5,
+      "text": "500.0E-3"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": 12345678,
+      "text": "12.3E+6"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": 45306.75,
+      "text": "45.3E+3"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": 1.5e-5,
+      "text": "15.0E-6"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": 3.25,
+      "text": "3.3E+0"
+    },
+    {
+      "code": "##0.0E+0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "# ?/?",
+      "value": 0,
+      "text": "0    "
+    },
+    {
+      "code": "# ?/?",
+      "value": 1234.5678,
+      "text": "1234 4/7"
+    },
+    {
+      "code": "# ?/?",
+      "value": -1234.5678,
+      "text": "-1234 4/7"
+    },
+    {
+      "code": "# ?/?",
+      "value": 0.5,
+      "text": " 1/2"
+    },
+    {
+      "code": "# ?/?",
+      "value": 12345678,
+      "text": "12345678    "
+    },
+    {
+      "code": "# ?/?",
+      "value": 45306.75,
+      "text": "45306 3/4"
+    },
+    {
+      "code": "# ?/?",
+      "value": 1.5e-5,
+      "text": "0    "
+    },
+    {
+      "code": "# ?/?",
+      "value": 3.25,
+      "text": "3 1/4"
+    },
+    {
+      "code": "# ?/?",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "# ??/??",
+      "value": 0,
+      "text": "0      "
+    },
+    {
+      "code": "# ??/??",
+      "value": 1234.5678,
+      "text": "1234 46/81"
+    },
+    {
+      "code": "# ??/??",
+      "value": -1234.5678,
+      "text": "-1234 46/81"
+    },
+    {
+      "code": "# ??/??",
+      "value": 0.5,
+      "text": "  1/2 "
+    },
+    {
+      "code": "# ??/??",
+      "value": 12345678,
+      "text": "12345678      "
+    },
+    {
+      "code": "# ??/??",
+      "value": 45306.75,
+      "text": "45306  3/4 "
+    },
+    {
+      "code": "# ??/??",
+      "value": 1.5e-5,
+      "text": "0      "
+    },
+    {
+      "code": "# ??/??",
+      "value": 3.25,
+      "text": "3  1/4 "
+    },
+    {
+      "code": "# ??/??",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "# ?/8",
+      "value": 0,
+      "text": "0    "
+    },
+    {
+      "code": "# ?/8",
+      "value": 1234.5678,
+      "text": "1234 5/8"
+    },
+    {
+      "code": "# ?/8",
+      "value": -1234.5678,
+      "text": "-1234 5/8"
+    },
+    {
+      "code": "# ?/8",
+      "value": 0.5,
+      "text": " 4/8"
+    },
+    {
+      "code": "# ?/8",
+      "value": 12345678,
+      "text": "12345678    "
+    },
+    {
+      "code": "# ?/8",
+      "value": 45306.75,
+      "text": "45306 6/8"
+    },
+    {
+      "code": "# ?/8",
+      "value": 1.5e-5,
+      "text": "0    "
+    },
+    {
+      "code": "# ?/8",
+      "value": 3.25,
+      "text": "3 2/8"
+    },
+    {
+      "code": "# ?/8",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "?/?",
+      "value": 0,
+      "text": "0/1"
+    },
+    {
+      "code": "?/?",
+      "value": 1234.5678,
+      "text": "8642/7"
+    },
+    {
+      "code": "?/?",
+      "value": -1234.5678,
+      "text": "-8642/7"
+    },
+    {
+      "code": "?/?",
+      "value": 0.5,
+      "text": "1/2"
+    },
+    {
+      "code": "?/?",
+      "value": 12345678,
+      "text": "12345678/1"
+    },
+    {
+      "code": "?/?",
+      "value": 45306.75,
+      "text": "181227/4"
+    },
+    {
+      "code": "?/?",
+      "value": 1.5e-5,
+      "text": "0/1"
+    },
+    {
+      "code": "?/?",
+      "value": 3.25,
+      "text": "13/4"
+    },
+    {
+      "code": "?/?",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.0,,",
+      "value": 0,
+      "text": "0.0"
+    },
+    {
+      "code": "0.0,,",
+      "value": 1234.5678,
+      "text": "0.0"
+    },
+    {
+      "code": "0.0,,",
+      "value": -1234.5678,
+      "text": "0.0"
+    },
+    {
+      "code": "0.0,,",
+      "value": 0.5,
+      "text": "0.0"
+    },
+    {
+      "code": "0.0,,",
+      "value": 12345678,
+      "text": "12.3"
+    },
+    {
+      "code": "0.0,,",
+      "value": 45306.75,
+      "text": "0.0"
+    },
+    {
+      "code": "0.0,,",
+      "value": 1.5e-5,
+      "text": "0.0"
+    },
+    {
+      "code": "0.0,,",
+      "value": 3.25,
+      "text": "0.0"
+    },
+    {
+      "code": "0.0,,",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#,##0,",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "#,##0,",
+      "value": 1234.5678,
+      "text": "1"
+    },
+    {
+      "code": "#,##0,",
+      "value": -1234.5678,
+      "text": "-1"
+    },
+    {
+      "code": "#,##0,",
+      "value": 0.5,
+      "text": "0"
+    },
+    {
+      "code": "#,##0,",
+      "value": 12345678,
+      "text": "12,346"
+    },
+    {
+      "code": "#,##0,",
+      "value": 45306.75,
+      "text": "45"
+    },
+    {
+      "code": "#,##0,",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "#,##0,",
+      "value": 3.25,
+      "text": "0"
+    },
+    {
+      "code": "#,##0,",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "000-00-0000",
+      "value": 0,
+      "text": "000-00-0000"
+    },
+    {
+      "code": "000-00-0000",
+      "value": 1234.5678,
+      "text": "000-00-1235"
+    },
+    {
+      "code": "000-00-0000",
+      "value": -1234.5678,
+      "text": "-000-00-1235"
+    },
+    {
+      "code": "000-00-0000",
+      "value": 0.5,
+      "text": "000-00-0001"
+    },
+    {
+      "code": "000-00-0000",
+      "value": 12345678,
+      "text": "012-34-5678"
+    },
+    {
+      "code": "000-00-0000",
+      "value": 45306.75,
+      "text": "000-04-5307"
+    },
+    {
+      "code": "000-00-0000",
+      "value": 1.5e-5,
+      "text": "000-00-0000"
+    },
+    {
+      "code": "000-00-0000",
+      "value": 3.25,
+      "text": "000-00-0003"
+    },
+    {
+      "code": "000-00-0000",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": 0,
+      "text": "1/0/1900"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": 1234.5678,
+      "text": "5/18/1903"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": 0.5,
+      "text": "1/0/1900"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": 45306.75,
+      "text": "1/15/2024"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": 1.5e-5,
+      "text": "1/0/1900"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": 3.25,
+      "text": "1/3/1900"
+    },
+    {
+      "code": "m/d/yyyy",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": 0,
+      "text": "0-Jan-00"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": 1234.5678,
+      "text": "18-May-03"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": 0.5,
+      "text": "0-Jan-00"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": 45306.75,
+      "text": "15-Jan-24"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": 1.5e-5,
+      "text": "0-Jan-00"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": 3.25,
+      "text": "3-Jan-00"
+    },
+    {
+      "code": "d-mmm-yy",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "d-mmm",
+      "value": 0,
+      "text": "0-Jan"
+    },
+    {
+      "code": "d-mmm",
+      "value": 1234.5678,
+      "text": "18-May"
+    },
+    {
+      "code": "d-mmm",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "d-mmm",
+      "value": 0.5,
+      "text": "0-Jan"
+    },
+    {
+      "code": "d-mmm",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "d-mmm",
+      "value": 45306.75,
+      "text": "15-Jan"
+    },
+    {
+      "code": "d-mmm",
+      "value": 1.5e-5,
+      "text": "0-Jan"
+    },
+    {
+      "code": "d-mmm",
+      "value": 3.25,
+      "text": "3-Jan"
+    },
+    {
+      "code": "d-mmm",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "mmm-yy",
+      "value": 0,
+      "text": "Jan-00"
+    },
+    {
+      "code": "mmm-yy",
+      "value": 1234.5678,
+      "text": "May-03"
+    },
+    {
+      "code": "mmm-yy",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmm-yy",
+      "value": 0.5,
+      "text": "Jan-00"
+    },
+    {
+      "code": "mmm-yy",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmm-yy",
+      "value": 45306.75,
+      "text": "Jan-24"
+    },
+    {
+      "code": "mmm-yy",
+      "value": 1.5e-5,
+      "text": "Jan-00"
+    },
+    {
+      "code": "mmm-yy",
+      "value": 3.25,
+      "text": "Jan-00"
+    },
+    {
+      "code": "mmm-yy",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": 0,
+      "text": "12:00 AM"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": 1234.5678,
+      "text": "1:37 PM"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": 0.5,
+      "text": "12:00 PM"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": 45306.75,
+      "text": "6:00 PM"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": 1.5e-5,
+      "text": "12:00 AM"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": 3.25,
+      "text": "6:00 AM"
+    },
+    {
+      "code": "h:mm AM/PM",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": 0,
+      "text": "12:00:00 AM"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": 1234.5678,
+      "text": "1:37:38 PM"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": 0.5,
+      "text": "12:00:00 PM"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": 45306.75,
+      "text": "6:00:00 PM"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": 1.5e-5,
+      "text": "12:00:01 AM"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": 3.25,
+      "text": "6:00:00 AM"
+    },
+    {
+      "code": "h:mm:ss AM/PM",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "h:mm",
+      "value": 0,
+      "text": "0:00"
+    },
+    {
+      "code": "h:mm",
+      "value": 1234.5678,
+      "text": "13:37"
+    },
+    {
+      "code": "h:mm",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm",
+      "value": 0.5,
+      "text": "12:00"
+    },
+    {
+      "code": "h:mm",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm",
+      "value": 45306.75,
+      "text": "18:00"
+    },
+    {
+      "code": "h:mm",
+      "value": 1.5e-5,
+      "text": "0:00"
+    },
+    {
+      "code": "h:mm",
+      "value": 3.25,
+      "text": "6:00"
+    },
+    {
+      "code": "h:mm",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": 0,
+      "text": "0:00:00"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": 1234.5678,
+      "text": "13:37:38"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": 0.5,
+      "text": "12:00:00"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": 45306.75,
+      "text": "18:00:00"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": 1.5e-5,
+      "text": "0:00:01"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": 3.25,
+      "text": "6:00:00"
+    },
+    {
+      "code": "h:mm:ss",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": 0,
+      "text": "1/0/1900 0:00"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": 1234.5678,
+      "text": "5/18/1903 13:37"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": 0.5,
+      "text": "1/0/1900 12:00"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": 45306.75,
+      "text": "1/15/2024 18:00"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": 1.5e-5,
+      "text": "1/0/1900 0:00"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": 3.25,
+      "text": "1/3/1900 6:00"
+    },
+    {
+      "code": "m/d/yyyy h:mm",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "mm:ss",
+      "value": 0,
+      "text": "00:00"
+    },
+    {
+      "code": "mm:ss",
+      "value": 1234.5678,
+      "text": "37:38"
+    },
+    {
+      "code": "mm:ss",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mm:ss",
+      "value": 0.5,
+      "text": "00:00"
+    },
+    {
+      "code": "mm:ss",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mm:ss",
+      "value": 45306.75,
+      "text": "00:00"
+    },
+    {
+      "code": "mm:ss",
+      "value": 1.5e-5,
+      "text": "00:01"
+    },
+    {
+      "code": "mm:ss",
+      "value": 3.25,
+      "text": "00:00"
+    },
+    {
+      "code": "mm:ss",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": 0,
+      "text": "0:00:00"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": 1234.5678,
+      "text": "29629:37:38"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": 0.5,
+      "text": "12:00:00"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": 45306.75,
+      "text": "1087362:00:00"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": 1.5e-5,
+      "text": "0:00:01"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": 3.25,
+      "text": "78:00:00"
+    },
+    {
+      "code": "[h]:mm:ss",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": 0,
+      "text": "00:00"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": 1234.5678,
+      "text": "1777777:38"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": 0.5,
+      "text": "720:00"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": 45306.75,
+      "text": "65241720:00"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": 1.5e-5,
+      "text": "00:01"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": 3.25,
+      "text": "4680:00"
+    },
+    {
+      "code": "[mm]:ss",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": 0,
+      "text": "00:00.0"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": 1234.5678,
+      "text": "37:37.9"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": 0.5,
+      "text": "00:00.0"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": 45306.75,
+      "text": "00:00.0"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": 1.5e-5,
+      "text": "00:01.3"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": 3.25,
+      "text": "00:00.0"
+    },
+    {
+      "code": "mm:ss.0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "dddd",
+      "value": 0,
+      "text": "Saturday"
+    },
+    {
+      "code": "dddd",
+      "value": 1234.5678,
+      "text": "Monday"
+    },
+    {
+      "code": "dddd",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "dddd",
+      "value": 0.5,
+      "text": "Saturday"
+    },
+    {
+      "code": "dddd",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "dddd",
+      "value": 45306.75,
+      "text": "Monday"
+    },
+    {
+      "code": "dddd",
+      "value": 1.5e-5,
+      "text": "Saturday"
+    },
+    {
+      "code": "dddd",
+      "value": 3.25,
+      "text": "Tuesday"
+    },
+    {
+      "code": "dddd",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": 0,
+      "text": "January 0, 1900"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": 1234.5678,
+      "text": "May 18, 1903"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": 0.5,
+      "text": "January 0, 1900"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": 45306.75,
+      "text": "January 15, 2024"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": 1.5e-5,
+      "text": "January 0, 1900"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": 3.25,
+      "text": "January 3, 1900"
+    },
+    {
+      "code": "mmmm d, yyyy",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "ddd",
+      "value": 0,
+      "text": "Sat"
+    },
+    {
+      "code": "ddd",
+      "value": 1234.5678,
+      "text": "Mon"
+    },
+    {
+      "code": "ddd",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "ddd",
+      "value": 0.5,
+      "text": "Sat"
+    },
+    {
+      "code": "ddd",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "ddd",
+      "value": 45306.75,
+      "text": "Mon"
+    },
+    {
+      "code": "ddd",
+      "value": 1.5e-5,
+      "text": "Sat"
+    },
+    {
+      "code": "ddd",
+      "value": 3.25,
+      "text": "Tue"
+    },
+    {
+      "code": "ddd",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "mmm",
+      "value": 0,
+      "text": "Jan"
+    },
+    {
+      "code": "mmm",
+      "value": 1234.5678,
+      "text": "May"
+    },
+    {
+      "code": "mmm",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmm",
+      "value": 0.5,
+      "text": "Jan"
+    },
+    {
+      "code": "mmm",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmm",
+      "value": 45306.75,
+      "text": "Jan"
+    },
+    {
+      "code": "mmm",
+      "value": 1.5e-5,
+      "text": "Jan"
+    },
+    {
+      "code": "mmm",
+      "value": 3.25,
+      "text": "Jan"
+    },
+    {
+      "code": "mmm",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "mmmmm",
+      "value": 0,
+      "text": "J"
+    },
+    {
+      "code": "mmmmm",
+      "value": 1234.5678,
+      "text": "M"
+    },
+    {
+      "code": "mmmmm",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmmmm",
+      "value": 0.5,
+      "text": "J"
+    },
+    {
+      "code": "mmmmm",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmmmm",
+      "value": 45306.75,
+      "text": "J"
+    },
+    {
+      "code": "mmmmm",
+      "value": 1.5e-5,
+      "text": "J"
+    },
+    {
+      "code": "mmmmm",
+      "value": 3.25,
+      "text": "J"
+    },
+    {
+      "code": "mmmmm",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "yy",
+      "value": 0,
+      "text": "00"
+    },
+    {
+      "code": "yy",
+      "value": 1234.5678,
+      "text": "03"
+    },
+    {
+      "code": "yy",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "yy",
+      "value": 0.5,
+      "text": "00"
+    },
+    {
+      "code": "yy",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "yy",
+      "value": 45306.75,
+      "text": "24"
+    },
+    {
+      "code": "yy",
+      "value": 1.5e-5,
+      "text": "00"
+    },
+    {
+      "code": "yy",
+      "value": 3.25,
+      "text": "00"
+    },
+    {
+      "code": "yy",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": 0,
+      "text": "1900-01-00"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": 1234.5678,
+      "text": "1903-05-18"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": 0.5,
+      "text": "1900-01-00"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": 45306.75,
+      "text": "2024-01-15"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": 1.5e-5,
+      "text": "1900-01-00"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": 3.25,
+      "text": "1900-01-03"
+    },
+    {
+      "code": "yyyy-mm-dd",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "@",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "@",
+      "value": 1234.5678,
+      "text": "1234.5678"
+    },
+    {
+      "code": "@",
+      "value": -1234.5678,
+      "text": "-1234.5678"
+    },
+    {
+      "code": "@",
+      "value": 0.5,
+      "text": "0.5"
+    },
+    {
+      "code": "@",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "@",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "@",
+      "value": 1.5e-5,
+      "text": "0.000015"
+    },
+    {
+      "code": "@",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "@",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": 0,
+      "text": "Total: 0"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": 1234.5678,
+      "text": "Total: 1235"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": -1234.5678,
+      "text": "-Total: 1235"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": 0.5,
+      "text": "Total: 1"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": 12345678,
+      "text": "Total: 12345678"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": 45306.75,
+      "text": "Total: 45307"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": 1.5e-5,
+      "text": "Total: 0"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": 3.25,
+      "text": "Total: 3"
+    },
+    {
+      "code": "\"Total: \"0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": 0,
+      "text": "zero"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": 1234.5678,
+      "text": "1235"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": -1234.5678,
+      "text": "-1235"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": 0.5,
+      "text": "1"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": 45306.75,
+      "text": "45307"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": 3.25,
+      "text": "3"
+    },
+    {
+      "code": "0;-0;\"zero\"",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": 1234.5678,
+      "text": "1K"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": -1234.5678,
+      "text": "-1235"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": 0.5,
+      "text": "1"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": 12345678,
+      "text": "12,346K"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": 45306.75,
+      "text": "45K"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": 3.25,
+      "text": "3"
+    },
+    {
+      "code": "[>=1000]#,##0,\"K\";0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": 1234.5678,
+      "text": "1235"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": -1234.5678,
+      "text": "-1235"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": 0.5,
+      "text": "1"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": 45306.75,
+      "text": "45307"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": 3.25,
+      "text": "3"
+    },
+    {
+      "code": "[Blue]0;[Red]-0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.0?",
+      "value": 0,
+      "text": "0.0 "
+    },
+    {
+      "code": "0.0?",
+      "value": 1234.5678,
+      "text": "1234.57"
+    },
+    {
+      "code": "0.0?",
+      "value": -1234.5678,
+      "text": "-1234.57"
+    },
+    {
+      "code": "0.0?",
+      "value": 0.5,
+      "text": "0.5 "
+    },
+    {
+      "code": "0.0?",
+      "value": 12345678,
+      "text": "12345678.0 "
+    },
+    {
+      "code": "0.0?",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "0.0?",
+      "value": 1.5e-5,
+      "text": "0.0 "
+    },
+    {
+      "code": "0.0?",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "0.0?",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#.##",
+      "value": 0,
+      "text": "."
+    },
+    {
+      "code": "#.##",
+      "value": 1234.5678,
+      "text": "1234.57"
+    },
+    {
+      "code": "#.##",
+      "value": -1234.5678,
+      "text": "-1234.57"
+    },
+    {
+      "code": "#.##",
+      "value": 0.5,
+      "text": ".5"
+    },
+    {
+      "code": "#.##",
+      "value": 12345678,
+      "text": "12345678."
+    },
+    {
+      "code": "#.##",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "#.##",
+      "value": 1.5e-5,
+      "text": "."
+    },
+    {
+      "code": "#.##",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "#.##",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "???.???",
+      "value": 0,
+      "text": "   .   "
+    },
+    {
+      "code": "???.???",
+      "value": 1234.5678,
+      "text": "1234.568"
+    },
+    {
+      "code": "???.???",
+      "value": -1234.5678,
+      "text": "-1234.568"
+    },
+    {
+      "code": "???.???",
+      "value": 0.5,
+      "text": "   .5  "
+    },
+    {
+      "code": "???.???",
+      "value": 12345678,
+      "text": "12345678.   "
+    },
+    {
+      "code": "???.???",
+      "value": 45306.75,
+      "text": "45306.75 "
+    },
+    {
+      "code": "???.???",
+      "value": 1.5e-5,
+      "text": "   .   "
+    },
+    {
+      "code": "???.???",
+      "value": 3.25,
+      "text": "  3.25 "
+    },
+    {
+      "code": "???.???",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "00000",
+      "value": 0,
+      "text": "00000"
+    },
+    {
+      "code": "00000",
+      "value": 1234.5678,
+      "text": "01235"
+    },
+    {
+      "code": "00000",
+      "value": -1234.5678,
+      "text": "-01235"
+    },
+    {
+      "code": "00000",
+      "value": 0.5,
+      "text": "00001"
+    },
+    {
+      "code": "00000",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "00000",
+      "value": 45306.75,
+      "text": "45307"
+    },
+    {
+      "code": "00000",
+      "value": 1.5e-5,
+      "text": "00000"
+    },
+    {
+      "code": "00000",
+      "value": 3.25,
+      "text": "00003"
+    },
+    {
+      "code": "00000",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": 0,
+      "text": "0 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": 1234.5678,
+      "text": "1235 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": -1234.5678,
+      "text": "-1235 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": 0.5,
+      "text": "1 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": 12345678,
+      "text": "12345678 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": 45306.75,
+      "text": "45307 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": 1.5e-5,
+      "text": "0 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": 3.25,
+      "text": "3 units"
+    },
+    {
+      "code": "0 \"units\"",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "\\$0",
+      "value": 0,
+      "text": "$0"
+    },
+    {
+      "code": "\\$0",
+      "value": 1234.5678,
+      "text": "$1235"
+    },
+    {
+      "code": "\\$0",
+      "value": -1234.5678,
+      "text": "-$1235"
+    },
+    {
+      "code": "\\$0",
+      "value": 0.5,
+      "text": "$1"
+    },
+    {
+      "code": "\\$0",
+      "value": 12345678,
+      "text": "$12345678"
+    },
+    {
+      "code": "\\$0",
+      "value": 45306.75,
+      "text": "$45307"
+    },
+    {
+      "code": "\\$0",
+      "value": 1.5e-5,
+      "text": "$0"
+    },
+    {
+      "code": "\\$0",
+      "value": 3.25,
+      "text": "$3"
+    },
+    {
+      "code": "\\$0",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": 0,
+      "text": " -   "
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": 1234.5678,
+      "text": " 1,234.57 "
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": -1234.5678,
+      "text": " (1,234.57)"
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": 0.5,
+      "text": " 0.50 "
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": 12345678,
+      "text": " 12,345,678.00 "
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": 45306.75,
+      "text": " 45,306.75 "
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": 1.5e-5,
+      "text": " 0.00 "
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": 3.25,
+      "text": " 3.25 "
+    },
+    {
+      "code": "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)",
+      "value": "abc",
+      "text": " abc "
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": 0,
+      "text": "0.00 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": 1234.5678,
+      "text": "1,234.57 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": -1234.5678,
+      "text": "-1,234.57 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": 0.5,
+      "text": "0.50 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": 12345678,
+      "text": "12,345,678.00 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": 45306.75,
+      "text": "45,306.75 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": 1.5e-5,
+      "text": "0.00 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": 3.25,
+      "text": "3.25 kr"
+    },
+    {
+      "code": "#,##0.00 \"kr\"",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": 0,
+      "text": "0.00"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": 1234.5678,
+      "text": "1234.57"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": -1234.5678,
+      "text": "(1234.57)"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": 0.5,
+      "text": "0.50"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": 12345678,
+      "text": "12345678.00"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": 1.5e-5,
+      "text": "0.00"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "0.00;(0.00)",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": 0,
+      "text": "-"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": 1234.5678,
+      "text": "1,235"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": -1234.5678,
+      "text": "-1,235"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": 0.5,
+      "text": "1"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": 12345678,
+      "text": "12,345,678"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": 45306.75,
+      "text": "45,307"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": 3.25,
+      "text": "3"
+    },
+    {
+      "code": "#,##0;-#,##0;-",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "h AM/PM",
+      "value": 0,
+      "text": "12 AM"
+    },
+    {
+      "code": "h AM/PM",
+      "value": 1234.5678,
+      "text": "1 PM"
+    },
+    {
+      "code": "h AM/PM",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h AM/PM",
+      "value": 0.5,
+      "text": "12 PM"
+    },
+    {
+      "code": "h AM/PM",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "h AM/PM",
+      "value": 45306.75,
+      "text": "6 PM"
+    },
+    {
+      "code": "h AM/PM",
+      "value": 1.5e-5,
+      "text": "12 AM"
+    },
+    {
+      "code": "h AM/PM",
+      "value": 3.25,
+      "text": "6 AM"
+    },
+    {
+      "code": "h AM/PM",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "s.00",
+      "value": 0,
+      "text": "0.00"
+    },
+    {
+      "code": "s.00",
+      "value": 1234.5678,
+      "text": "37.92"
+    },
+    {
+      "code": "s.00",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "s.00",
+      "value": 0.5,
+      "text": "0.00"
+    },
+    {
+      "code": "s.00",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "s.00",
+      "value": 45306.75,
+      "text": "0.00"
+    },
+    {
+      "code": "s.00",
+      "value": 1.5e-5,
+      "text": "1.30"
+    },
+    {
+      "code": "s.00",
+      "value": 3.25,
+      "text": "0.00"
+    },
+    {
+      "code": "s.00",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#",
+      "value": 0,
+      "text": ""
+    },
+    {
+      "code": "#",
+      "value": 1234.5678,
+      "text": "1235"
+    },
+    {
+      "code": "#",
+      "value": -1234.5678,
+      "text": "-1235"
+    },
+    {
+      "code": "#",
+      "value": 0.5,
+      "text": "1"
+    },
+    {
+      "code": "#",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "#",
+      "value": 45306.75,
+      "text": "45307"
+    },
+    {
+      "code": "#",
+      "value": 1.5e-5,
+      "text": ""
+    },
+    {
+      "code": "#",
+      "value": 3.25,
+      "text": "3"
+    },
+    {
+      "code": "#",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.###",
+      "value": 0,
+      "text": "0."
+    },
+    {
+      "code": "0.###",
+      "value": 1234.5678,
+      "text": "1234.568"
+    },
+    {
+      "code": "0.###",
+      "value": -1234.5678,
+      "text": "-1234.568"
+    },
+    {
+      "code": "0.###",
+      "value": 0.5,
+      "text": "0.5"
+    },
+    {
+      "code": "0.###",
+      "value": 12345678,
+      "text": "12345678."
+    },
+    {
+      "code": "0.###",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "0.###",
+      "value": 1.5e-5,
+      "text": "0."
+    },
+    {
+      "code": "0.###",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "0.###",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#,###.00",
+      "value": 0,
+      "text": ".00"
+    },
+    {
+      "code": "#,###.00",
+      "value": 1234.5678,
+      "text": "1,234.57"
+    },
+    {
+      "code": "#,###.00",
+      "value": -1234.5678,
+      "text": "-1,234.57"
+    },
+    {
+      "code": "#,###.00",
+      "value": 0.5,
+      "text": ".50"
+    },
+    {
+      "code": "#,###.00",
+      "value": 12345678,
+      "text": "12,345,678.00"
+    },
+    {
+      "code": "#,###.00",
+      "value": 45306.75,
+      "text": "45,306.75"
+    },
+    {
+      "code": "#,###.00",
+      "value": 1.5e-5,
+      "text": ".00"
+    },
+    {
+      "code": "#,###.00",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "#,###.00",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": 0,
+      "text": "zero"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": 1234.5678,
+      "text": "pos"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": -1234.5678,
+      "text": "neg"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": 0.5,
+      "text": "pos"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": 12345678,
+      "text": "pos"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": 45306.75,
+      "text": "pos"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": 1.5e-5,
+      "text": "pos"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": 3.25,
+      "text": "pos"
+    },
+    {
+      "code": "[<0]\"neg\";[=0]\"zero\";\"pos\"",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": 0,
+      "text": "-"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": 1234.5678,
+      "text": "123456.78%"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": -1234.5678,
+      "text": "-123456.78%"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": 0.5,
+      "text": "50.00%"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": 12345678,
+      "text": "1234567800.00%"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": 45306.75,
+      "text": "4530675.00%"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": 1.5e-5,
+      "text": "0.00%"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": 3.25,
+      "text": "325.00%"
+    },
+    {
+      "code": "0.00%;-0.00%;\"-\"",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": 0,
+      "text": "00/01/00"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": 1234.5678,
+      "text": "18/05/03"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": 0.5,
+      "text": "00/01/00"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": 45306.75,
+      "text": "15/01/24"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": 1.5e-5,
+      "text": "00/01/00"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": 3.25,
+      "text": "03/01/00"
+    },
+    {
+      "code": "dd/mm/yy",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "mmm d",
+      "value": 0,
+      "text": "Jan 0"
+    },
+    {
+      "code": "mmm d",
+      "value": 1234.5678,
+      "text": "May 18"
+    },
+    {
+      "code": "mmm d",
+      "value": -1234.5678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmm d",
+      "value": 0.5,
+      "text": "Jan 0"
+    },
+    {
+      "code": "mmm d",
+      "value": 12345678,
+      "text": "#ERR"
+    },
+    {
+      "code": "mmm d",
+      "value": 45306.75,
+      "text": "Jan 15"
+    },
+    {
+      "code": "mmm d",
+      "value": 1.5e-5,
+      "text": "Jan 0"
+    },
+    {
+      "code": "mmm d",
+      "value": 3.25,
+      "text": "Jan 3"
+    },
+    {
+      "code": "mmm d",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "#?.?#",
+      "value": 0,
+      "text": " . "
+    },
+    {
+      "code": "#?.?#",
+      "value": 1234.5678,
+      "text": "1234.57"
+    },
+    {
+      "code": "#?.?#",
+      "value": -1234.5678,
+      "text": "-1234.57"
+    },
+    {
+      "code": "#?.?#",
+      "value": 0.5,
+      "text": " .5"
+    },
+    {
+      "code": "#?.?#",
+      "value": 12345678,
+      "text": "12345678. "
+    },
+    {
+      "code": "#?.?#",
+      "value": 45306.75,
+      "text": "45306.75"
+    },
+    {
+      "code": "#?.?#",
+      "value": 1.5e-5,
+      "text": " . "
+    },
+    {
+      "code": "#?.?#",
+      "value": 3.25,
+      "text": "3.25"
+    },
+    {
+      "code": "#?.?#",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "# #/#",
+      "value": 0,
+      "text": "0"
+    },
+    {
+      "code": "# #/#",
+      "value": 1234.5678,
+      "text": "1234 4/7"
+    },
+    {
+      "code": "# #/#",
+      "value": -1234.5678,
+      "text": "-1234 4/7"
+    },
+    {
+      "code": "# #/#",
+      "value": 0.5,
+      "text": "1/2"
+    },
+    {
+      "code": "# #/#",
+      "value": 12345678,
+      "text": "12345678"
+    },
+    {
+      "code": "# #/#",
+      "value": 45306.75,
+      "text": "45306 3/4"
+    },
+    {
+      "code": "# #/#",
+      "value": 1.5e-5,
+      "text": "0"
+    },
+    {
+      "code": "# #/#",
+      "value": 3.25,
+      "text": "3 1/4"
+    },
+    {
+      "code": "# #/#",
+      "value": "abc",
+      "text": "abc"
+    },
+    {
+      "code": "0 ?/100",
+      "value": 0,
+      "text": "0      "
+    },
+    {
+      "code": "0 ?/100",
+      "value": 1234.5678,
+      "text": "1234 57/100"
+    },
+    {
+      "code": "0 ?/100",
+      "value": -1234.5678,
+      "text": "-1234 57/100"
+    },
+    {
+      "code": "0 ?/100",
+      "value": 0.5,
+      "text": "0 50/100"
+    },
+    {
+      "code": "0 ?/100",
+      "value": 12345678,
+      "text": "12345678      "
+    },
+    {
+      "code": "0 ?/100",
+      "value": 45306.75,
+      "text": "45306 75/100"
+    },
+    {
+      "code": "0 ?/100",
+      "value": 1.5e-5,
+      "text": "0      "
+    },
+    {
+      "code": "0 ?/100",
+      "value": 3.25,
+      "text": "3 25/100"
+    },
+    {
+      "code": "0 ?/100",
+      "value": "abc",
+      "text": "abc"
+    }
+  ]
+}

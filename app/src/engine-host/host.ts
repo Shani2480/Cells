@@ -1,4 +1,12 @@
-import type { CalcMode, CalcStatus, Calculator, Change, Op, Workbook } from "@cells/core"
+import {
+  FORMAT_OPS,
+  type CalcMode,
+  type CalcStatus,
+  type Calculator,
+  type Change,
+  type Op,
+  type Workbook,
+} from "@cells/core"
 import { createEngine } from "./engine"
 import type { FromWorker, Port } from "./protocol"
 
@@ -24,9 +32,11 @@ export class WorkerCalculator implements Calculator {
     wb.setCalculator(this)
   }
 
-  afterOps(ops: readonly Op[], _changes: readonly Change[]) {
+  afterOps(all: readonly Op[], _changes: readonly Change[]) {
+    // Formats stay in the UI: the engine doesn't need them, and style ids belong to this workbook's style table.
+    const ops = all.filter((op) => !FORMAT_OPS.has(op.kind))
     if (!ops.length) return
-    this.port.post({ type: "ops", ops: [...ops] })
+    this.port.post({ type: "ops", ops })
     this.outstanding++
   }
 

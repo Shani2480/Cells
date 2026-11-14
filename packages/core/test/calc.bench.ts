@@ -107,3 +107,30 @@ describe("calculation budgets", () => {
     )
   })
 })
+
+/** Phase 3 budgets (PLAN.md). */
+describe("formatting budgets", () => {
+  it("formatting a 100,000-row column takes < 300 ms", () => {
+    const wb = new Workbook()
+    const cells: CellWrite[] = []
+    for (let r = 0; r < 100_000; r++) cells.push({ row: r, col: 0, data: { value: r } })
+    wb.transact([{ kind: "setCells", sheet: 0, cells }], { label: "Load" })
+    const column = { r0: 0, r1: 1_048_575, c0: 0, c1: 0 }
+    time(
+      "bold on column A (100,000 values)",
+      () => wb.transact([{ kind: "format", sheet: 0, ranges: [column], patch: { bold: true } }], { label: "Bold" }),
+      300,
+    )
+    time(
+      "fill on A1:A100000 (a range, not the column)",
+      () =>
+        wb.transact(
+          [{ kind: "format", sheet: 0, ranges: [{ r0: 0, r1: 99_999, c0: 0, c1: 0 }], patch: { fill: "#ffff00" } }],
+          { label: "Fill" },
+        ),
+      300,
+    )
+    time("undo the fill", () => wb.undo(), 300)
+    expect(wb.styles.get(wb.sheets[0].styleAt(5, 0))).toEqual({ bold: true })
+  })
+})

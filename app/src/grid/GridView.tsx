@@ -1,14 +1,18 @@
 import { MAX_ROWS, rangeOf, type CellAddress, type Range } from "@cells/core"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import { usePlatform } from "@/platform/context"
-import type { SheetController } from "@/sheet/controller"
+import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
 import { keyInputFrom } from "@/sheet/keys"
-import { autofitColumnWidth, autofitRowHeight, columnWidthLabel, rowHeightLabel } from "./autofit"
+import { AnnotationLayer } from "./AnnotationLayer"
+import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
 import { drawGrid } from "./draw"
+import { lookOf, shownText } from "./cell-look"
+import { PAD } from "./draw-cells"
 import { FormulaAssist, FormulaHighlight } from "./FormulaAssist"
-import { cellAt, computeLayout, hitTest, rangeRect, type GridLayout, type Hit } from "./layout"
+import { cellAt, colX, computeLayout, hitTest, rangeRect, rowY, type GridLayout, type Hit } from "./layout"
 import { CELL_FONT, LIGHT_THEME, readGridTheme, type GridTheme } from "./theme"
 import { Scrollbar } from "./Scrollbar"
+import { distance, keyboardOverlap, LONG_PRESS_MS, midpoint, pinch, TAP_SLOP, TapTracker, type Point } from "./touch"
 
 const SCROLLBAR = 14
 
@@ -30,7 +34,14 @@ type Drag =
       moved: boolean
       row: number
       col: number
+      /** Where the finger went down (client px), for the long-press menu. */
+      clientX: number
+      clientY: number
+      /** The long press opened the menu: lifting the finger is not a tap. */
+      pressed: boolean
     }
+  /** Two fingers: zoom follows their distance. */
+  | { kind: "pinch"; startDistance: number; startZoom: number }
 
 export type GridContextMenu = { x: number; y: number; target: "cells" | "rows" | "cols" }
 
@@ -49,28 +60,73 @@ export function GridView({
   const layoutRef = useRef<GridLayout | null>(null)
   const dragRef = useRef<Drag | null>(null)
   const pointerRef = useRef<{ x: number; y: number; ctrl: boolean } | null>(null)
+  // Fingers on the canvas (CSS px from its top-left), the long-press timer and the last tap (double tap edits).
+  const touchesRef = useRef(new Map<number, Point>())
+  const pressTimer = useRef<number | undefined>(undefined)
+  const tapsRef = useRef(new TapTracker())
+  const lastTouchRef = useRef(0)
   const themeRef = useRef<GridTheme>(LIGHT_THEME)
   const measureCache = useRef(new Map<string, number>())
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [cursor, setCursor] = useState("cell")
   const [resizeTip, setResizeTip] = useState<{ x: number; y: number; text: string } | null>(null)
+  // The note or comment under the pointer; leaving it hides the box after a moment, so the pointer can move into
+  // a comment card.
+  const [hover, setHover] = useState<{ row: number; col: number } | null>(null)
+  const hoverTimer = useRef<number | undefined>(undefined)
+  const hoverAt = useCallback((cell: { row: number; col: number } | null) => {
+    window.clearTimeout(hoverTimer.current)
+    if (cell) {
+      setHover((h) => (h && h.row === cell.row && h.col === cell.col ? h : cell))
+      return
+    }
+    hoverTimer.current = window.setTimeout(() => setHover(null), 300)
+  }, [])
+  const keepHover = useCallback(() => window.clearTimeout(hoverTimer.current), [])
   const [antsOffset, setAntsOffset] = useState(0)
   const [themeVersion, setThemeVersion] = useState(0)
   const composingRef = useRef(false)
 
-  const measure = useCallback((text: string) => {
+  const measure = useCallback((text: string, font: string = CELL_FONT) => {
     const cache = measureCache.current
-    let width = cache.get(text)
+    const key = font === CELL_FONT ? text : `${font}\u0000${text}`
+    let width = cache.get(key)
     if (width === undefined) {
       const ctx = canvasRef.current?.getContext("2d")
       if (!ctx) return text.length * 7
-      ctx.font = CELL_FONT
+      const before = ctx.font
+      ctx.font = font
       width = ctx.measureText(text).width
+      ctx.font = before
       if (cache.size > 20_000) cache.clear()
-      cache.set(text, width)
+      cache.set(key, width)
     }
     return width
   }, [])
+
+  // What a cell shows in its column (Increase Decimal reads it) and AutoFit for the ribbon's Format menu.
+  useEffect(() => {
+    controller.shownText = (row, col) => {
+      const value = controller.sheet.cells.value(row, col)
+      if (value === undefined) return ""
+      const look = lookOf(controller.wb.styles, controller.sheet.styleAt(row, col))
+      return shownText(value, look, controller.sheet.cols.size(col), PAD, measure).text
+    }
+    controller.autofit = (axis) => {
+      const indexes = controller.selectedIndexes(axis)
+      if (axis === "cols")
+        for (const col of indexes) controller.setLineSize("cols", [col], autofitColumnWidth(controller, col, measure))
+      else
+        for (const row of indexes)
+          controller.setLineSize("rows", [row], fittedRowHeight(controller, row, measure), true)
+    }
+    controller.rowFit = (row) => fittedRowHeight(controller, row, measure)
+    return () => {
+      controller.shownText = null
+      controller.autofit = null
+      controller.rowFit = null
+    }
+  }, [controller, measure])
 
   // Size: the canvas fills the host minus the scrollbars.
   useLayoutEffect(() => {
@@ -117,10 +173,12 @@ export function GridView({
       canvas.width = Math.round(size.width * dpr)
       canvas.height = Math.round(size.height * dpr)
     }
-    const layout = computeLayout(controller, size.width, size.height, measure)
+    // Zoom: the layout is in sheet pixels (the canvas size divided by the zoom); drawing scales back up.
+    const zoom = controller.zoom
+    const layout = computeLayout(controller, size.width / zoom, size.height / zoom, measure)
     layoutRef.current = layout
-    const viewWidth = size.width - layout.rowHeaderWidth
-    const viewHeight = size.height - layout.headerHeight
+    const viewWidth = size.width / zoom - layout.rowHeaderWidth
+    const viewHeight = size.height / zoom - layout.headerHeight
     if (controller.viewWidth !== viewWidth || controller.viewHeight !== viewHeight) {
       controller.viewWidth = viewWidth
       controller.viewHeight = viewHeight
@@ -129,7 +187,7 @@ export function GridView({
     const ctx = canvas.getContext("2d")
     if (!ctx) return
     const start = import.meta.env.DEV ? performance.now() : 0
-    drawGrid({ painter: ctx, layout, controller, theme: themeRef.current, dpr, measure, antsOffset })
+    drawGrid({ painter: ctx, layout, controller, theme: themeRef.current, dpr: dpr * zoom, measure, antsOffset })
     // Dev builds record draw times for the frame-time checks (scripts read the "cells:draw" measures).
     if (import.meta.env.DEV) performance.measure("cells:draw", { start, end: performance.now() })
   }, [controller, version, size, measure, antsOffset, themeVersion])
@@ -167,9 +225,11 @@ export function GridView({
 
   // ── Pointer ────────────────────────────────────────────────────────────────────────────────────────────
 
+  /** A pointer position in sheet pixels on the canvas (undoing the zoom). */
   const localPoint = (event: { clientX: number; clientY: number }) => {
     const rect = canvasRef.current!.getBoundingClientRect()
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    const zoom = controller.zoom
+    return { x: (event.clientX - rect.left) / zoom, y: (event.clientY - rect.top) / zoom }
   }
 
   const fillTarget = (source: Range, address: CellAddress): Range => {
@@ -238,7 +298,10 @@ export function GridView({
       case "pan": {
         const dx = drag.startX - x
         const dy = drag.startY - y
-        if (Math.abs(dx) + Math.abs(dy) > 6) drag.moved = true
+        if (!drag.moved && Math.hypot(dx, dy) * controller.zoom > TAP_SLOP) {
+          drag.moved = true
+          window.clearTimeout(pressTimer.current)
+        }
         controller.scrollTo(drag.scrollX + dx, drag.scrollY + dy)
         break
       }
@@ -274,9 +337,34 @@ export function GridView({
     return () => window.clearInterval(timer)
   })
 
+  const cssPoint = (event: { clientX: number; clientY: number }): Point => {
+    const rect = canvasRef.current!.getBoundingClientRect()
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+  }
+
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const layout = layoutRef.current
     if (!layout) return
+    const touch = event.pointerType === "touch"
+    if (controller.touchHandles !== touch) {
+      controller.touchHandles = touch
+      controller.changed()
+    }
+    if (touch) {
+      lastTouchRef.current = Date.now()
+      touchesRef.current.set(event.pointerId, cssPoint(event))
+      if (touchesRef.current.size === 2) {
+        // A second finger: pinch to zoom (the first finger's pan or press is over).
+        window.clearTimeout(pressTimer.current)
+        const [a, b] = [...touchesRef.current.values()]
+        dragRef.current = { kind: "pinch", startDistance: distance(a, b), startZoom: controller.zoom }
+        canvasRef.current!.setPointerCapture(event.pointerId)
+        return
+      }
+      if (touchesRef.current.size > 2) return
+    }
+    // A click on the sheet closes an open comment card (Excel).
+    if (controller.annotations.open) controller.annotations.closeThread()
     const { x, y } = localPoint(event)
     const hit = hitTest(controller, layout, x, y)
     const shift = event.shiftKey
@@ -304,9 +392,20 @@ export function GridView({
       controller.commitEdit()
     }
     focusInput()
-    if (event.pointerType === "touch") {
+    if (touch) {
+      canvasRef.current!.setPointerCapture(event.pointerId)
+      if (hit.zone === "gripper") {
+        // Stretch the selection from the opposite corner.
+        const r = controller.selection.ranges[0]
+        const anchor = hit.end === "end" ? { row: r.r0, col: r.c0 } : { row: r.r1, col: r.c1 }
+        const focus = hit.end === "end" ? { row: r.r1, col: r.c1 } : { row: r.r0, col: r.c0 }
+        controller.setSelection({ ...controller.selection, anchor, focus }, null)
+        dragRef.current = { kind: "cells" }
+        pointerRef.current = { x, y, ctrl: false }
+        return
+      }
       const cell = hit.zone === "cell" ? hit : { row: 0, col: 0 }
-      dragRef.current = {
+      const pan: Drag = {
         kind: "pan",
         startX: x,
         startY: y,
@@ -315,8 +414,25 @@ export function GridView({
         moved: false,
         row: "row" in cell ? cell.row : 0,
         col: "col" in cell ? cell.col : 0,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        pressed: false,
       }
-      canvasRef.current!.setPointerCapture(event.pointerId)
+      dragRef.current = pan
+      // Long press: the context menu, for what is under the finger (as a right-click).
+      window.clearTimeout(pressTimer.current)
+      pressTimer.current = window.setTimeout(() => {
+        if (dragRef.current !== pan || pan.moved) return
+        pan.pressed = true
+        tapsRef.current.reset()
+        handleRightClick(hit)
+        controller.changed()
+        onContextMenu({
+          x: pan.clientX,
+          y: pan.clientY,
+          target: hit.zone === "rowHeader" ? "rows" : hit.zone === "colHeader" ? "cols" : "cells",
+        })
+      }, LONG_PRESS_MS)
       return
     }
     canvasRef.current!.setPointerCapture(event.pointerId)
@@ -381,6 +497,27 @@ export function GridView({
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const layout = layoutRef.current
     if (!layout) return
+    if (event.pointerType === "touch" && touchesRef.current.has(event.pointerId)) {
+      touchesRef.current.set(event.pointerId, cssPoint(event))
+      const drag = dragRef.current
+      if (drag?.kind === "pinch") {
+        if (touchesRef.current.size < 2) return
+        const [a, b] = [...touchesRef.current.values()]
+        const next = pinch({
+          startZoom: drag.startZoom,
+          startDistance: drag.startDistance,
+          distance: distance(a, b),
+          mid: midpoint(a, b),
+          scroll: { x: controller.scrollX, y: controller.scrollY },
+          origin: { x: layout.originX, y: layout.originY },
+          zoom: controller.zoom,
+          clamp: (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)),
+        })
+        controller.setZoom(next.zoom)
+        controller.scrollTo(next.scroll.x, next.scroll.y)
+        return
+      }
+    }
     const { x, y } = localPoint(event)
     const ctrl = platform.os === "macos" ? event.metaKey : event.ctrlKey
     pointerRef.current = { x, y, ctrl }
@@ -389,6 +526,11 @@ export function GridView({
       return
     }
     const hit = hitTest(controller, layout, x, y)
+    if (hit.zone === "cell") {
+      const merge = controller.sheet.merges.at(hit.row, hit.col)
+      const cell = merge ? { row: merge.r0, col: merge.c0 } : { row: hit.row, col: hit.col }
+      hoverAt(controller.sheet.annotations.get(cell.row, cell.col) ? cell : null)
+    } else hoverAt(null)
     setCursor(
       hit.zone === "colResize"
         ? "col-resize"
@@ -405,7 +547,11 @@ export function GridView({
   }
 
   const endDrag = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const wasTouch = touchesRef.current.delete(event.pointerId)
+    window.clearTimeout(pressTimer.current)
     const drag = dragRef.current
+    // A pinch ends with its first lifted finger; the other finger then does nothing until it lifts.
+    if (wasTouch && !drag && touchesRef.current.size) return
     dragRef.current = null
     pointerRef.current = null
     setResizeTip(null)
@@ -419,8 +565,25 @@ export function GridView({
     } else if (drag.kind === "resize-row") {
       const rows = resizeTargets(controller, "rows", drag.row)
       controller.setLineSize("rows", rows, drag.size)
-    } else if (drag.kind === "pan" && !drag.moved) {
+    } else if (drag.kind === "pan" && !drag.moved && !drag.pressed && event.type === "pointerup") {
       controller.pointerCell({ row: drag.row, col: drag.col }, { shift: false, ctrl: false })
+      // A second tap on the same cell edits it, with the on-screen keyboard.
+      if (tapsRef.current.tap(drag.row, drag.col, Date.now())) {
+        controller.beginEdit("edit")
+        const input = inputRef.current
+        input?.blur()
+        requestAnimationFrame(() => input?.focus())
+        return
+      }
+    }
+    if (drag.kind === "pinch") {
+      controller.changed()
+      return
+    }
+    // Format Painter paints the selection made with this drag.
+    if (controller.format.painter && drag.kind !== "fill" && !drag.kind.startsWith("resize")) {
+      const ranges = controller.selection.ranges
+      controller.format.paint(ranges[ranges.length - 1])
     }
     controller.changed()
     // Pointing from the formula bar keeps typing there.
@@ -440,7 +603,7 @@ export function GridView({
       for (const col of cols) controller.setLineSize("cols", [col], autofitColumnWidth(controller, col, measure))
     } else if (hit.zone === "rowResize") {
       const rows = resizeTargets(controller, "rows", hit.row)
-      for (const row of rows) controller.setLineSize("rows", [row], autofitRowHeight(controller, row))
+      for (const row of rows) controller.setLineSize("rows", [row], fittedRowHeight(controller, row, measure), true)
     } else if (hit.zone === "fillHandle") {
       fillDownToData(controller)
     }
@@ -452,8 +615,13 @@ export function GridView({
     const canvas = canvasRef.current
     if (!canvas) return
     const onWheel = (event: WheelEvent) => {
-      if (event.ctrlKey) return // Zoom (Phase 3).
       event.preventDefault()
+      if (event.ctrlKey || event.metaKey) {
+        // Ctrl+wheel zooms in steps of 15% (Excel).
+        if (event.deltaY !== 0)
+          controller.setZoom(Math.round((controller.zoom - Math.sign(event.deltaY) * 0.15) * 100) / 100)
+        return
+      }
       const unit = event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? controller.viewHeight : 1
       let dx = event.deltaX * unit
       let dy = event.deltaY * unit
@@ -465,6 +633,26 @@ export function GridView({
     }
     canvas.addEventListener("wheel", onWheel, { passive: false })
     return () => canvas.removeEventListener("wheel", onWheel)
+  }, [controller])
+
+  // ── On-screen keyboard ────────────────────────────────────────────────────────────────────────────────
+  // When the keyboard opens (the visual viewport shrinks) or the view moves, scroll the sheet so the cell being
+  // edited stays above it.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const keepVisible = () => {
+      const input = inputRef.current
+      if (!controller.edit || controller.edit.surface !== "cell" || !input) return
+      const overlap = keyboardOverlap(input.getBoundingClientRect().bottom, vv.offsetTop, vv.height)
+      if (overlap > 0) controller.scrollTo(controller.scrollX, controller.scrollY + overlap / controller.zoom)
+    }
+    vv.addEventListener("resize", keepVisible)
+    vv.addEventListener("scroll", keepVisible)
+    return () => {
+      vv.removeEventListener("resize", keepVisible)
+      vv.removeEventListener("scroll", keepVisible)
+    }
   }, [controller])
 
   // ── Keyboard and clipboard (on the hidden input) ──────────────────────────────────────────────────────
@@ -534,33 +722,49 @@ export function GridView({
   // ── Editor placement ───────────────────────────────────────────────────────────────────────────────────
 
   const layout = layoutRef.current
+  const zoom = controller.zoom
   const active = editing ? { row: editing.row, col: editing.col } : controller.selection.active
   let editorStyle: React.CSSProperties = { left: 0, top: 0, width: 1, height: 1 }
   if (layout && size.width) {
-    const rect = rangeRect(controller, layout, rangeOf(active))
+    const rect = rangeRect(controller, layout, controller.sheet.merges.at(active.row, active.col) ?? rangeOf(active))
     if (editing) {
+      // The entry is typed in the cell's own font, colour and fill, as Excel shows it.
+      const look = lookOf(controller.wb.styles, controller.sheet.styleAt(active.row, active.col))
+      const lineHeight = lineHeightOf(look.fontPx)
       const lines = editing.text.split("\n")
-      const textWidth = Math.max(...lines.map((line) => measure(line))) + 10
+      const textWidth = Math.max(...lines.map((line) => measure(line, look.font))) + 10
       const maxWidth = Math.max(rect.w, layout.width - rect.x)
       editorStyle = {
-        left: rect.x,
-        top: rect.y,
+        left: rect.x * zoom,
+        top: rect.y * zoom,
         width: Math.min(maxWidth, Math.max(rect.w + 1, textWidth)),
-        height: Math.max(rect.h + 1, lines.length * 18 + 4),
+        height: Math.max(rect.h + 1, lines.length * lineHeight + 4),
+        font: look.font,
+        lineHeight: `${lineHeight}px`,
+        // A formula's text is drawn by the coloured copy underneath; plain entries take the cell's colours.
+        ...(look.color && !editing.text.startsWith("=") ? { color: look.color } : {}),
+        ...(look.fill && !editing.text.startsWith("=") ? { background: look.fill } : {}),
       }
+      // The editor is laid out at 100% and scaled like the cells.
+      if (zoom !== 1) Object.assign(editorStyle, { transform: `scale(${zoom})`, transformOrigin: "0 0" })
     } else {
-      editorStyle = { left: Math.max(0, rect.x), top: Math.max(0, rect.y), width: 1, height: 1 }
+      editorStyle = { left: Math.max(0, rect.x * zoom), top: Math.max(0, rect.y * zoom), width: 1, height: 1 }
     }
   }
 
   const sheet = controller.sheet
   const used = sheet.cells.usedBounds()
+  // The scrollbars cover the scrolling part only (frozen rows and columns don't scroll).
+  const minX = controller.minScrollX
+  const minY = controller.minScrollY
   const contentWidth =
-    Math.max(sheet.cols.offset((used?.c1 ?? 0) + 1), controller.scrollX + controller.viewWidth) +
-    controller.viewWidth / 2
+    Math.max(sheet.cols.offset((used?.c1 ?? 0) + 1), controller.scrollX + controller.paneWidth) +
+    controller.paneWidth / 2 -
+    minX
   const contentHeight =
-    Math.max(sheet.rows.offset((used?.r1 ?? 0) + 1), controller.scrollY + controller.viewHeight) +
-    controller.viewHeight / 2
+    Math.max(sheet.rows.offset((used?.r1 ?? 0) + 1), controller.scrollY + controller.paneHeight) +
+    controller.paneHeight / 2 -
+    minY
 
   return (
     <div ref={hostRef} className="grid-host" data-testid="grid">
@@ -572,11 +776,13 @@ export function GridView({
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onPointerLeave={() => hoverAt(null)}
         onDoubleClick={onDoubleClick}
         onContextMenu={(event) => {
           event.preventDefault()
           const layout = layoutRef.current
-          if (!layout) return
+          // A touch long press opens the menu itself (iPadOS sends no contextmenu, Android sends one too).
+          if (!layout || Date.now() - lastTouchRef.current < 1500) return
           const { x, y } = localPoint(event)
           const hit = hitTest(controller, layout, x, y)
           handleRightClick(hit)
@@ -601,6 +807,8 @@ export function GridView({
         }
         style={editorStyle}
         aria-label="Cell editor"
+        // On a touch screen the keyboard shows only while a cell is being edited.
+        inputMode={controller.touchHandles && !editing ? "none" : undefined}
         spellCheck={false}
         autoCapitalize="off"
         autoComplete="off"
@@ -622,13 +830,24 @@ export function GridView({
           controller={controller}
           style={{
             left: Number(editorStyle.left ?? 0),
-            top: Number(editorStyle.top ?? 0) + Number(editorStyle.height ?? 0) + 3,
+            top: Number(editorStyle.top ?? 0) + Number(editorStyle.height ?? 0) * zoom + 3,
           }}
           onPick={focusInput}
         />
       ) : null}
+      {layout ? (
+        <AnnotationLayer
+          controller={controller}
+          layout={layout}
+          zoom={zoom}
+          hover={hover}
+          onKeepHover={keepHover}
+          onLeaveHover={() => hoverAt(null)}
+          onDone={focusInput}
+        />
+      ) : null}
       {resizeTip ? (
-        <div className="resize-tip" style={{ left: resizeTip.x + 12, top: resizeTip.y + 4 }}>
+        <div className="resize-tip" style={{ left: resizeTip.x * zoom + 12, top: resizeTip.y * zoom + 4 }}>
           {resizeTip.text}
         </div>
       ) : null}
@@ -636,11 +855,7 @@ export function GridView({
         <div
           className="resize-guide is-vertical"
           style={{
-            left:
-              layout.rowHeaderWidth +
-              sheet.cols.offset(dragRef.current.col) -
-              controller.scrollX +
-              dragRef.current.size,
+            left: (colX(sheet, layout, dragRef.current.col) + dragRef.current.size) * zoom,
           }}
         />
       ) : null}
@@ -648,29 +863,28 @@ export function GridView({
         <div
           className="resize-guide is-horizontal"
           style={{
-            top:
-              layout.headerHeight + sheet.rows.offset(dragRef.current.row) - controller.scrollY + dragRef.current.size,
+            top: (rowY(sheet, layout, dragRef.current.row) + dragRef.current.size) * zoom,
           }}
         />
       ) : null}
       <Scrollbar
         orientation="vertical"
         length={size.height}
-        offset={layout?.headerHeight ?? 20}
-        position={controller.scrollY}
-        view={controller.viewHeight}
+        offset={(layout?.originY ?? 20) * zoom}
+        position={controller.scrollY - minY}
+        view={controller.paneHeight}
         content={contentHeight}
-        onScroll={(y) => controller.scrollTo(controller.scrollX, y)}
+        onScroll={(y) => controller.scrollTo(controller.scrollX, y + minY)}
         onDone={focusInput}
       />
       <Scrollbar
         orientation="horizontal"
         length={size.width}
-        offset={layout?.rowHeaderWidth ?? 40}
-        position={controller.scrollX}
-        view={controller.viewWidth}
+        offset={(layout?.originX ?? 40) * zoom}
+        position={controller.scrollX - minX}
+        view={controller.paneWidth}
         content={contentWidth}
-        onScroll={(x) => controller.scrollTo(x, controller.scrollY)}
+        onScroll={(x) => controller.scrollTo(x + minX, controller.scrollY)}
         onDone={focusInput}
       />
       <div className="grid-scroll-corner" />

@@ -296,7 +296,7 @@ export function parseRefText(text: string): RefNode | null {
       sheetTo = parts[1] ?? null
     }
   }
-  if (body.toUpperCase() === "#REF!") {
+  if (body.toUpperCase() === "#REF!" || sheet?.toUpperCase() === "#REF") {
     return {
       type: "ref",
       sheet,

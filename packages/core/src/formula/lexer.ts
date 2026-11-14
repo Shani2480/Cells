@@ -89,6 +89,17 @@ export function tokenize(source: string, options: LexOptions = {}): Token[] {
       }
       const upper = rest.toUpperCase()
       const error = ERRORS.find((e) => upper.startsWith(e))
+      // A reference whose sheet was deleted: #REF!B2, #REF!A1:C3 (as Excel writes it). One ref token, invalid.
+      if (error === "#REF!") {
+        const body =
+          /^(?:\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?|\$?[A-Za-z]{1,3}:\$?[A-Za-z]{1,3}|\$?\d+:\$?\d+)(?![\w.(!])/.exec(
+            rest.slice(5),
+          )
+        if (body) {
+          push("ref", rest.slice(0, 5 + body[0].length))
+          continue
+        }
+      }
       push(error ? "error" : "invalid", error ? rest.slice(0, error.length) : ch)
       continue
     }

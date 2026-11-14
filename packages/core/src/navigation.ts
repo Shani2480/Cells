@@ -32,11 +32,47 @@ function edgeShown(axis: Axis, dir: 1 | -1): number {
 export function step(sheet: Sheet, from: CellAddress, dir: Direction): CellAddress {
   const vertical = isVertical(dir)
   const axis = vertical ? sheet.rows : sheet.cols
-  const next = nextShown(axis, vertical ? from.row : from.col, sign(dir))
+  const d = sign(dir)
+  // A merged cell is one cell: leave it from its far edge.
+  const m = sheet.merges.at(from.row, from.col)
+  const start = !m ? (vertical ? from.row : from.col) : vertical ? (d === 1 ? m.r1 : m.r0) : d === 1 ? m.c1 : m.c0
+  const next = nextShown(axis, start, d)
   if (next === -1) {
     return from
   }
-  return vertical ? { row: next, col: from.col } : { row: from.row, col: next }
+  return mergeAnchor(sheet, vertical ? { row: next, col: from.col } : { row: from.row, col: next })
+}
+
+/** The top-left cell of the merge holding `cell`, or the cell itself. */
+export function mergeAnchor(sheet: Sheet, cell: CellAddress): CellAddress {
+  const m = sheet.merges.at(cell.row, cell.col)
+  return m ? { row: m.r0, col: m.c0 } : cell
+}
+
+/** `range` grown until no merged cell sticks out of it (Excel selects merged cells whole). */
+export function growToMerges(sheet: Sheet, range: Range): Range {
+  if (!sheet.merges.size) return range
+  let r = { ...range }
+  for (let guard = 0; guard < 1000; guard++) {
+    let grown = false
+    for (const m of sheet.merges.overlapping(r)) {
+      if (m.r0 < r.r0 || m.r1 > r.r1 || m.c0 < r.c0 || m.c1 > r.c1) {
+        r = { r0: Math.min(r.r0, m.r0), r1: Math.max(r.r1, m.r1), c0: Math.min(r.c0, m.c0), c1: Math.max(r.c1, m.c1) }
+        grown = true
+      }
+    }
+    if (!grown) break
+  }
+  return r
+}
+
+/** Whether the selection is one cell, or exactly one merged cell. */
+export function isSingleCellOn(sheet: Sheet, selection: Selection): boolean {
+  if (isSingleCell(selection)) return true
+  if (selection.ranges.length !== 1) return false
+  const r = selection.ranges[0]
+  const m = sheet.merges.at(r.r0, r.c0)
+  return m !== null && m.r0 === r.r0 && m.r1 === r.r1 && m.c0 === r.c0 && m.c1 === r.c1
 }
 
 function hasValueAt(sheet: Sheet, vertical: boolean, line: number, index: number) {
@@ -166,7 +202,7 @@ function runEnd(sheet: Sheet, col: number, row: number): number {
  * plain step.
  */
 export function moveWithinSelection(sheet: Sheet, selection: Selection, dir: Direction): Selection {
-  if (isSingleCell(selection)) {
+  if (isSingleCellOn(sheet, selection)) {
     const active = step(sheet, selection.active, dir)
     return { ranges: [rangeOf(active)], active, activeRange: 0, anchor: active, focus: active }
   }
@@ -204,7 +240,9 @@ export function moveWithinSelection(sheet: Sheet, selection: Selection, dir: Dir
         }
       }
     }
-    if (!sheet.rows.isHidden(row) && !sheet.cols.isHidden(col)) {
+    // Hidden cells, and the cells of a merge other than its top-left, are passed over.
+    const m = sheet.merges.size ? sheet.merges.at(row, col) : null
+    if (!sheet.rows.isHidden(row) && !sheet.cols.isHidden(col) && (!m || (m.r0 === row && m.c0 === col))) {
       break
     }
   }

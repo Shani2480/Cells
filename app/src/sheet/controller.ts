@@ -1,5 +1,9 @@
 import {
   MAX_COLS,
+  PROTECTED_MESSAGE,
+  isLocked,
+  protectionBlocks,
+  structureBlocks,
   MAX_ROWS,
   addRange,
   blockFromText,
@@ -21,7 +25,9 @@ import {
   fillOp,
   formatValue,
   functionsStartingWith,
-  isSingleCell,
+  growToMerges,
+  isSingleCellOn,
+  mergeAnchor,
   isWholeColumns,
   isWholeRows,
   lastCell,
@@ -50,13 +56,26 @@ import {
   type FunctionInfo,
   type CellAddress,
   type CellBlock,
+  type CellWrite,
+  type CFEntry,
+  type CFResult,
+  ConditionalEval,
+  StyleTable,
+  dateSerial,
   type Direction,
+  type AxisEntry,
   type Op,
+  type UndoEntry,
   type Range,
   type Selection,
   type Sheet,
   Workbook,
 } from "@cells/core"
+import { FormatCommands, NUMBER_FORMATS } from "./format"
+import { AnnotationCommands } from "./annotations"
+import { NameCommands } from "./names"
+import { ConditionalCommands } from "./conditional"
+import { SHEET_MESSAGES, SheetCommands } from "./sheets"
 
 /**
  * Ready: the grid has the keys. Enter: typing a fresh entry (arrows commit). Edit: F2 editing (arrows move the
@@ -86,7 +105,32 @@ export type EditState = {
 export type Autocomplete = { start: number; prefix: string; items: FunctionInfo[]; pick: number }
 
 /** The marching-ants range after Copy or Cut, until Esc, a new entry or a paste of a cut. */
-export type ClipState = { range: Range; cut: boolean; text: string; block: CellBlock }
+/** `sheet`: where the copy came from (a cut pasted on another sheet moves the cells there). */
+export type ClipState = { range: Range; cut: boolean; text: string; block: CellBlock; sheet: Sheet }
+
+/**
+ * Frozen panes: rows above `row` and columns left of `col` stay put. They show from `top` / `left` (the first row and
+ * column in view when the panes were frozen). `row === top` freezes no rows, `col === left` no columns.
+ */
+export type Freeze = { row: number; col: number; top: number; left: number }
+
+/** Excel's zoom range. */
+export const MIN_ZOOM = 0.1
+export const MAX_ZOOM = 4
+
+/** What each sheet remembers while another one is shown (Excel keeps these per sheet). */
+type SheetView = {
+  selection: Selection
+  scrollX: number
+  scrollY: number
+  freeze: Freeze | null
+  zoom: number
+  showGridlines: boolean
+  showHeadings: boolean
+}
+
+/** Undo state: the selection, and the sheet it was on. */
+export type ViewMeta = Selection & { sheet?: number }
 
 export type KeyInput = {
   key: string
@@ -102,9 +146,34 @@ export type InsertDeleteRequest = { kind: "insert" | "delete" }
 export type ShellRequests = {
   goTo(): void
   insertDelete(request: InsertDeleteRequest): void
+  /** Ask before going on (Excel's OK/Cancel warnings); `ok` runs on OK. */
+  confirm(message: string, ok: () => void): void
+  /** A message with only OK (Excel's refusals); `then` runs when it closes (instead of focusing the sheet). */
+  alert(message: string, then?: () => void): void
+  /** Shift+F3: Insert Function. */
+  insertFunction?(): void
+  /** Ctrl+1: the Format Cells dialog, on a tab. */
+  formatCells(tab?: "number" | "alignment" | "font" | "border" | "fill" | "protection"): void
 }
 
 export const HEADER_HEIGHT = 20
+
+/** Format changes that can change a row's fitted height. */
+const FIT_KEYS = new Set(["fontSize", "fontName", "wrap", "rotation", "indent", "numberFormat"])
+/** Edits touching more rows than this don't refit rows (see fitRows). */
+const FIT_LIMIT = 20_000
+
+/** Today as a date serial (local time), for "A Date Occurring" rules. */
+function todaySerial(): number {
+  const now = new Date()
+  return dateSerial(now.getFullYear(), now.getMonth() + 1, now.getDate())
+}
+
+/** Clears every cell of a range (contents and formats): the source of a cut pasted on another sheet. */
+function clearCellsOp(sheetIndex: number, sheet: Sheet, range: Range): Op {
+  const cells: CellWrite[] = sheet.cells.entries(range).map((e) => ({ row: e.row, col: e.col, data: undefined }))
+  return { kind: "setCells", sheet: sheetIndex, cells }
+}
 
 /**
  * The state and behaviour of one sheet view: selection, in-cell editing, scrolling, clipboard and every keyboard
@@ -119,20 +188,63 @@ export class SheetController {
   endMode = false
   /** Ctrl+`: cells show their formulas instead of their values. */
   showFormulas = false
+  /** View › Freeze Panes (per sheet). */
+  freeze: Freeze | null = null
+  /** View › Zoom: 1 is 100% (per sheet). */
+  zoom = 1
+  /** View › Gridlines. */
+  showGridlines = true
+  /** View › Headings (row numbers and column letters). */
+  showHeadings = true
+  /** View › Formula Bar. */
+  showFormulaBar = true
+  /** The formula bar shows several lines (Ctrl+Shift+U, or its chevron); how many is set by dragging its edge. */
+  formulaBarExpanded = false
+  formulaBarLines = 3
   /** Preview of a fill-handle drag (the area it will fill). */
   fillPreview: Range | null = null
+  /** The last pointer was a finger: the selection shows round grippers instead of the fill handle. */
+  touchHandles = false
   /** Scroll position in sheet pixels at 100% (top-left of the cell area). */
   scrollX = 0
   scrollY = 0
-  /** Size of the cell area (without headers), set by the view. */
+  /** Size of the cell area (without headers), set by the view, in sheet pixels (at 100%; the zoom is applied after). */
   viewWidth = 800
   viewHeight = 600
   rowHeaderWidth = 40
-  shell: ShellRequests = { goTo() {}, insertDelete() {} }
+  shell: ShellRequests = { goTo() {}, insertDelete() {}, confirm: (_m, ok) => ok(), alert() {}, formatCells() {} }
+  /** Home-tab formatting on the selection. */
+  readonly format: FormatCommands = new FormatCommands(this)
+  /** Home › Conditional Formatting. */
+  readonly conditional: ConditionalCommands = new ConditionalCommands(this)
+  /** Sheet tabs: add, delete, rename, move, copy, colour, hide. */
+  readonly sheets: SheetCommands = new SheetCommands(this)
+  /** Notes and comments. */
+  readonly annotations: AnnotationCommands = new AnnotationCommands(this)
+  /** Defined names (Name Box, Define Name, Go To). */
+  readonly names: NameCommands = new NameCommands(this)
+  /** What a cell shows in its column (the view knows the fonts and widths); used by Increase/Decrease Decimal. */
+  shownText: ((row: number, col: number) => string) | null = null
+  /** AutoFit Row Height / Column Width on the selection (the view measures text). */
+  autofit: ((axis: "rows" | "cols") => void) | null = null
+  /** The grid's row fitter (it can measure text): the height a row's content needs, null for the default. */
+  rowFit: ((row: number) => number | null) | null = null
+  /** Styles conditional formatting draws with (kept apart from the workbook's own table). */
+  readonly cfStyles = new StyleTable()
+  private cf: {
+    sheet: Sheet
+    version: number
+    day: number
+    preview: CFEntry | null
+    ev: ConditionalEval
+  } | null = null
   /** Bumped on every change the view may need to draw; the React hook compares it. */
   version = 0
 
   private readonly listeners = new Set<() => void>()
+  private readonly views = new WeakMap<Sheet, SheetView>()
+  /** The sheet whose selection and scroll are live (its index can change when sheets move). */
+  private shown: Sheet
   /** Tab moves remember where they started, so Enter returns to that column on the next row (Excel). */
   private tabStartCol: number | null = null
   /** Ctrl+A in data selects the region first, the whole sheet on the next press. */
@@ -140,11 +252,142 @@ export class SheetController {
 
   constructor(wb: Workbook<Selection> = new Workbook<Selection>()) {
     this.wb = wb
+    this.shown = wb.sheets[0]
     wb.subscribe(() => this.changed())
   }
 
   get sheet(): Sheet {
     return this.wb.sheets[this.sheetIndex]
+  }
+
+  /**
+   * Records a change for undo, with the sheet it happened on: undo and redo show that sheet again. `sheetAfter` is
+   * the sheet shown after the change, when the change itself moves to another one (adding or deleting a sheet).
+   */
+  transact(ops: Op[], o: { label: string; before: Selection; after?: Selection; sheetAfter?: number }) {
+    const at = this.sheetIndex
+    if (this.refuses(ops)) return null
+    const entry = this.wb.transact(ops, {
+      label: o.label,
+      before: { ...o.before, sheet: at } as ViewMeta,
+      // Without `after`, redo shows the sheet with the selection it had.
+      after: (o.after ? { ...o.after, sheet: o.sheetAfter ?? at } : { sheet: o.sheetAfter ?? at }) as ViewMeta,
+    })
+    if (entry) this.fitRows(entry, ops)
+    return entry
+  }
+
+  /**
+   * Excel heightens (and lowers again) rows whose content needs it: wrapped text, line breaks, bigger fonts. Rows
+   * the user sized by hand keep their height. The fitted heights join the edit's undo step. Very large edits (more
+   * than FIT_LIMIT rows) are left as they are, to keep formatting whole columns fast.
+   */
+  private fitRows(entry: UndoEntry<ViewMeta>, ops: Op[]) {
+    const fit = this.rowFit
+    if (!fit) return
+    const rows = new Set<number>()
+    const sheetIndex = this.sheetIndex
+    const used = this.sheet.cells.usedBounds()
+    const addRange = (r: Range) => {
+      const r0 = Math.max(r.r0, used ? 0 : r.r1 + 1)
+      const r1 = Math.min(r.r1, used ? used.r1 : -1)
+      for (let row = r0; row <= r1 && rows.size <= FIT_LIMIT; row++) rows.add(row)
+    }
+    for (const op of ops) {
+      if (!("sheet" in op) || op.sheet !== sheetIndex) continue
+      if (op.kind === "setCells") for (const w of op.cells) rows.add(w.row)
+      else if (op.kind === "format" && Object.keys(op.patch).some((k) => FIT_KEYS.has(k))) op.ranges.forEach(addRange)
+      if (rows.size > FIT_LIMIT) return
+    }
+    if (!rows.size) return
+    const axis = this.sheet.rows
+    const entries: AxisEntry[] = []
+    for (const row of rows) {
+      if (axis.hasCustomSize(row) && !axis.isAuto(row)) continue
+      const size = fit(row)
+      const current = axis.hasCustomSize(row) ? axis.storedSize(row) : null
+      if (size === current) continue
+      entries.push({ index: row, size, hidden: axis.isHidden(row), ...(size !== null ? { auto: true as const } : {}) })
+    }
+    if (entries.length) this.wb.amend(entry, [{ kind: "axis", sheet: sheetIndex, axis: "rows", entries }])
+  }
+
+  /** A protected sheet refuses the change: Excel's message, and nothing happens. */
+  refuses(ops: Op[]): boolean {
+    if (this.wb.structure.protection && ops.some(structureBlocks)) {
+      this.shell.alert(SHEET_MESSAGES.structureLocked)
+      return true
+    }
+    const sheets = this.wb.sheets
+    const blocked = ops.some((op) => {
+      const sheet = "sheet" in op ? sheets[op.sheet] : undefined
+      return sheet !== undefined && sheet.protection !== null && protectionBlocks(sheet, this.wb.styles, op)
+    })
+    if (blocked) this.shell.alert(PROTECTED_MESSAGE)
+    return blocked
+  }
+
+  /** Whether the active cell can be edited (not a locked cell on a protected sheet). */
+  canEditActive(): boolean {
+    const { row, col } = this.selection.active
+    return !this.sheet.protection || !isLocked(this.sheet, this.wb.styles, row, col)
+  }
+
+  /** Shows another sheet; the one left keeps its selection and scroll for when it comes back. */
+  activate(index: number) {
+    const sheets = this.wb.sheets
+    const target = sheets[index]
+    if (!target) return
+    if (this.edit) this.commitEdit()
+    this.annotations.editing = null
+    this.annotations.open = null
+    this.sheetIndex = index
+    if (this.shown === target) {
+      this.changed()
+      return
+    }
+    if (sheets.includes(this.shown))
+      this.views.set(this.shown, {
+        selection: this.selection,
+        scrollX: this.scrollX,
+        scrollY: this.scrollY,
+        freeze: this.freeze,
+        zoom: this.zoom,
+        showGridlines: this.showGridlines,
+        showHeadings: this.showHeadings,
+      })
+    this.shown = target
+    const view = this.views.get(target)
+    this.selection = view?.selection ?? selectCell({ row: 0, col: 0 })
+    this.scrollX = view?.scrollX ?? 0
+    this.scrollY = view?.scrollY ?? 0
+    this.freeze = view?.freeze ?? null
+    this.zoom = view?.zoom ?? 1
+    this.showGridlines = view?.showGridlines ?? true
+    this.showHeadings = view?.showHeadings ?? true
+    this.lastCtrlARegion = null
+    this.fillPreview = null
+    this.endMode = false
+    this.changed()
+  }
+
+  /** What conditional formatting does to a cell of the sheet shown (null: nothing). */
+  cfAt(row: number, col: number): CFResult | null {
+    const preview = this.conditional.preview
+    if (!this.sheet.conditional.length && !preview) return null
+    const day = todaySerial()
+    let cf = this.cf
+    if (!cf || cf.sheet !== this.sheet || cf.version !== this.wb.version || cf.day !== day || cf.preview !== preview) {
+      const entries = preview ? [preview, ...this.sheet.conditional] : undefined
+      cf = this.cf = {
+        sheet: this.sheet,
+        version: this.wb.version,
+        day,
+        preview,
+        ev: new ConditionalEval(this.wb.sheets, this.sheetIndex, day, entries),
+      }
+    }
+    return cf.ev.at(row, col)
   }
 
   get mode(): CellMode {
@@ -169,10 +412,25 @@ export class SheetController {
   // ── Selection ──────────────────────────────────────────────────────────────────────────────────────────────
 
   setSelection(selection: Selection, reveal: CellAddress | null = selection.focus) {
-    this.selection = selection
+    this.selection = this.mergeAware(selection)
     this.lastCtrlARegion = null
     if (reveal) this.scrollIntoView(reveal)
     this.changed()
+  }
+
+  /** Merged cells are selected whole, and the active cell of a merge is its top-left cell. */
+  private mergeAware(selection: Selection): Selection {
+    if (!this.sheet.merges.size) return selection
+    const ranges = selection.ranges.map((r) => growToMerges(this.sheet, r))
+    const active = mergeAnchor(this.sheet, selection.active)
+    if (ranges.every((r, i) => r === selection.ranges[i]) && active === selection.active) return selection
+    return { ...selection, ranges, active }
+  }
+
+  /** The merged area the active cell belongs to, or the cell itself (the active outline and the editor cover it). */
+  activeArea(): Range {
+    const { row, col } = this.selection.active
+    return this.sheet.merges.at(row, col) ?? { r0: row, r1: row, c0: col, c1: col }
   }
 
   selectCellAt(address: CellAddress) {
@@ -191,7 +449,7 @@ export class SheetController {
         return `${rangeRows(range)}R x ${rangeCols(range)}C`
       }
     }
-    return cellName(this.selection.active)
+    return this.names.nameOfSelection() ?? cellName(this.selection.active)
   }
 
   /** The formula bar's text: what is being typed, or the active cell's input. */
@@ -229,6 +487,10 @@ export class SheetController {
 
   /** Starts an entry: typing replaces (enter mode) or F2/double-click edits the content (edit mode). */
   beginEdit(mode: "enter" | "edit", text?: string, surface: "cell" | "bar" = "cell") {
+    if (!this.canEditActive()) {
+      this.shell.alert(PROTECTED_MESSAGE)
+      return
+    }
     const { row, col } = this.selection.active
     const initial = text ?? (mode === "edit" ? this.formulaBarText() : "")
     this.edit = {
@@ -353,6 +615,48 @@ export class SheetController {
     return true
   }
 
+  /**
+   * Insert Function (fx, Shift+F3) and the Function Library menus: `NAME()` at the caret with the caret inside the
+   * parentheses; on a cell that isn't being edited the entry starts as `=NAME()`. Excel opens Function Arguments
+   * next; here the argument tooltip guides the typing.
+   */
+  insertFunction(name: string) {
+    const call = `${name}(`
+    if (!this.edit) {
+      this.beginEdit("enter", `=${call})`)
+      const edit = this.edit as EditState | null
+      if (edit) {
+        const caret = call.length + 1
+        this.edit = { ...edit, selStart: caret, selEnd: caret }
+        this.changed()
+      }
+      return
+    }
+    const edit = this.edit
+    const before = edit.text.slice(0, edit.selStart)
+    const after = edit.text.slice(edit.selEnd)
+    const lead = edit.text.startsWith("=") ? "" : before.length === 0 ? "=" : ""
+    const insert = `${lead}${call})`
+    const caret = before.length + lead.length + call.length
+    this.edit = { ...edit, text: before + insert + after, selStart: caret, selEnd: caret, point: null, pick: 0 }
+    this.changed()
+  }
+
+  /** Use in Formula: a defined name at the caret (an entry starts with "=" when none is open). */
+  insertName(name: string) {
+    if (!this.edit) {
+      this.beginEdit("enter", `=${name}`)
+      return
+    }
+    const edit = this.edit
+    const before = edit.text.slice(0, edit.selStart)
+    const after = edit.text.slice(edit.selEnd)
+    const insert = (before.length === 0 && !edit.text.startsWith("=") ? "=" : "") + name
+    const caret = before.length + insert.length
+    this.edit = { ...edit, text: before + insert + after, selStart: caret, selEnd: caret, point: null, pick: 0 }
+    this.changed()
+  }
+
   private movePick(delta: number) {
     const list = this.autocomplete
     if (!this.edit || !list) return
@@ -390,7 +694,7 @@ export class SheetController {
     this.edit = null
     const before = this.selection
     let op: Op
-    if (fill && !isSingleCell(this.selection)) {
+    if (fill && !isSingleCellOn(this.sheet, this.selection)) {
       op = fillInputOp(
         this.sheetIndex,
         this.sheet,
@@ -404,7 +708,19 @@ export class SheetController {
     }
     const label = edit.text ? `Typing '${truncate(edit.text)}' in ${cellName(edit)}` : `Clear ${cellName(edit)}`
     this.clip = null
-    this.wb.transact([op], { label, before, after: before })
+    const ops: Op[] = [op]
+    // A line break typed with Alt+Enter turns on Wrap Text for the cell (Excel), so the lines show.
+    if (edit.text.includes("\n") && !edit.text.startsWith("=")) {
+      const ranges = fill && !isSingleCellOn(this.sheet, this.selection) ? this.selection.ranges : [rangeOf(edit)]
+      if (ranges.some((r) => !this.wb.styles.get(this.sheet.styleAt(r.r0, r.c0)).wrap))
+        ops.push({
+          kind: "format",
+          sheet: this.sheetIndex,
+          ranges: ranges.map((r) => ({ ...r })),
+          patch: { wrap: true },
+        })
+    }
+    this.transact(ops, { label, before, after: before })
     return true
   }
 
@@ -428,7 +744,7 @@ export class SheetController {
 
   /** Enter / Shift+Enter / Tab / Shift+Tab: move within a multi-cell selection, or step (with Excel's Tab return). */
   enterMove(dir: Direction) {
-    const single = isSingleCell(this.selection)
+    const single = isSingleCellOn(this.sheet, this.selection)
     if (single && dir === "down" && this.tabStartCol !== null) {
       const row = step(this.sheet, this.selection.active, "down").row
       const target = { row, col: this.tabStartCol }
@@ -452,7 +768,11 @@ export class SheetController {
     this.tabStartCol = null
     this.endMode = false
     const from = shift ? this.selection.focus : this.selection.active
-    const target = ctrl ? { row: 0, col: 0 } : { row: from.row, col: 0 }
+    // With frozen panes Home and Ctrl+Home go to the first unfrozen column and cell (Excel).
+    const f = this.freeze
+    const col = f && f.col > f.left ? f.col : 0
+    const row = f && f.row > f.top ? f.row : 0
+    const target = ctrl ? { row, col } : { row: from.row, col }
     if (shift) this.setSelection(extendSelection(this.selection, target), target)
     else this.setSelection(selectCell(target))
   }
@@ -470,14 +790,14 @@ export class SheetController {
     this.tabStartCol = null
     this.endMode = false
     const axis = horizontal ? this.sheet.cols : this.sheet.rows
-    const span = horizontal ? this.viewWidth : this.viewHeight
+    const span = horizontal ? this.paneWidth : this.paneHeight
     const from = shift ? this.selection.focus : this.selection.active
     const index = horizontal ? from.col : from.row
     const targetPx = axis.offset(index) + dir * span
     const targetIndex = Math.max(0, Math.min(axis.count - 1, axis.indexAt(Math.max(0, targetPx))))
     const target = horizontal ? { row: from.row, col: targetIndex } : { row: targetIndex, col: from.col }
-    if (horizontal) this.scrollX = Math.max(0, this.scrollX + dir * span)
-    else this.scrollY = Math.max(0, this.scrollY + dir * span)
+    if (horizontal) this.scrollX = Math.max(this.minScrollX, this.scrollX + dir * span)
+    else this.scrollY = Math.max(this.minScrollY, this.scrollY + dir * span)
     if (shift) this.setSelection(extendSelection(this.selection, target), target)
     else this.setSelection(selectCell(target), target)
   }
@@ -584,20 +904,33 @@ export class SheetController {
   clearContents() {
     const op = clearContentsOp(this.sheetIndex, this.sheet, this.selection.ranges)
     if (op) {
-      this.wb.transact([op], { label: "Clear", before: this.selection, after: this.selection })
+      this.transact([op], { label: "Clear", before: this.selection, after: this.selection })
     }
   }
 
   undo() {
     if (this.edit) return
     const entry = this.wb.undo()
-    if (entry?.before) this.restoreSelection(entry.before)
+    if (entry) this.restoreView(entry.before)
   }
 
   redo() {
     if (this.edit) return
     const entry = this.wb.redo()
-    if (entry?.after) this.restoreSelection(entry.after)
+    if (entry) this.restoreView(entry.after)
+  }
+
+  /** After undo/redo: back to the sheet and selection of that moment (or the nearest sheet still there). */
+  private restoreView(meta: ViewMeta | undefined) {
+    const sheets = this.wb.sheets
+    let index = meta?.sheet ?? sheets.indexOf(this.shown)
+    if (index < 0) index = this.sheetIndex
+    index = Math.min(index, sheets.length - 1)
+    if (sheets[index].hidden) index = this.sheets.nearestVisible(index)
+    this.activate(index)
+    if (!meta || !("ranges" in meta)) return
+    const { sheet: _sheet, ...selection } = meta
+    this.restoreSelection(selection)
   }
 
   private restoreSelection(selection: Selection) {
@@ -625,7 +958,7 @@ export class SheetController {
       ops.push(pasteBlockOp(this.sheetIndex, range, readBlock(this.sheet, source)))
     }
     if (ops.length) {
-      this.wb.transact(ops, {
+      this.transact(ops, {
         label: dir === "down" ? "Fill Down" : "Fill Right",
         before: this.selection,
         after: this.selection,
@@ -647,13 +980,13 @@ export class SheetController {
       const cleared: Range = target.r1 < source.r1 ? { ...source, r0: target.r1 + 1 } : { ...source, c0: target.c1 + 1 }
       const op = clearContentsOp(this.sheetIndex, this.sheet, [cleared])
       const after = selectRange(target, this.selection.active)
-      if (op) this.wb.transact([op], { label: "Clear", before: this.selection, after })
+      if (op) this.transact([op], { label: "Clear", before: this.selection, after })
       this.setSelection(after, null)
       return
     }
     const op = fillOp(this.sheetIndex, this.sheet, source, target, invert)
     const after = selectRange(target, this.selection.active)
-    if (op) this.wb.transact([op], { label: "AutoFill", before: this.selection, after })
+    if (op) this.transact([op], { label: "AutoFill", before: this.selection, after })
     this.setSelection(after, null)
   }
 
@@ -671,7 +1004,7 @@ export class SheetController {
       }),
     )
     const text = encodeTSV(rows)
-    this.clip = { range, cut, text, block }
+    this.clip = { range, cut, text, block, sheet: this.sheet }
     this.changed()
     return { text, html: encodeHTML(rows) }
   }
@@ -704,16 +1037,21 @@ export class SheetController {
     const before = this.selection
     if (own && this.clip?.cut) {
       const area = { r0: target.r0, c0: target.c0, r1: target.r0 + block.rows - 1, c1: target.c0 + block.cols - 1 }
-      const ops = moveBlockOps(this.sheetIndex, this.clip.range, area)
+      const from = this.wb.sheets.indexOf(this.clip.sheet)
+      if (from < 0) return false
+      const ops =
+        from === this.sheetIndex
+          ? moveBlockOps(this.sheetIndex, this.clip.range, area)
+          : [pasteBlockOp(this.sheetIndex, area, block), clearCellsOp(from, this.clip.sheet, this.clip.range)]
       const after = selectRange(area, { row: area.r0, col: area.c0 })
       this.clip = null
-      this.wb.transact(ops, { label: "Move", before, after })
+      this.transact(ops, { label: "Move", before, after })
       this.setSelection(after, null)
       return true
     }
     const area = pasteArea(target, block)
     const after = selectRange(area, this.selection.active)
-    this.wb.transact([pasteBlockOp(this.sheetIndex, area, block)], { label: "Paste", before, after })
+    this.transact([pasteBlockOp(this.sheetIndex, area, block)], { label: "Paste", before, after })
     this.setSelection(after, null)
     return true
   }
@@ -744,7 +1082,7 @@ export class SheetController {
       at: from,
       count: to - from + 1,
     }))
-    this.wb.transact(ops, {
+    this.transact(ops, {
       label: axis === "rows" ? "Insert Rows" : "Insert Columns",
       before: this.selection,
       after: this.selection,
@@ -759,7 +1097,7 @@ export class SheetController {
       at: from,
       count: to - from + 1,
     }))
-    this.wb.transact(ops, {
+    this.transact(ops, {
       label: axis === "rows" ? "Delete Rows" : "Delete Columns",
       before: this.selection,
       after: this.selection,
@@ -774,7 +1112,7 @@ export class SheetController {
       kind === "insert"
         ? { kind: "insertCells", sheet: this.sheetIndex, range, shift: shift as "down" | "right" }
         : { kind: "deleteCells", sheet: this.sheetIndex, range, shift: shift as "up" | "left" }
-    this.wb.transact([op], {
+    this.transact([op], {
       label: kind === "insert" ? "Insert Cells" : "Delete Cells",
       before: this.selection,
       after: this.selection,
@@ -795,15 +1133,21 @@ export class SheetController {
     }
   }
 
-  setLineSize(axis: "rows" | "cols", indexes: number[], size: number | null) {
+  /** `auto`: AutoFit Row Height, a size fitted to the content that later edits may change again. */
+  setLineSize(axis: "rows" | "cols", indexes: number[], size: number | null, auto = false) {
     const target = axis === "rows" ? this.sheet.rows : this.sheet.cols
-    const entries = indexes.map((index) => ({ index, size, hidden: size === 0 ? false : target.isHidden(index) }))
+    const entries: AxisEntry[] = indexes.map((index) => ({
+      index,
+      size,
+      hidden: size === 0 ? false : target.isHidden(index),
+      ...(auto && size !== null ? { auto: true as const } : {}),
+    }))
     if (size === 0) {
       // Excel: a width/height of 0 hides the line.
       this.setHidden(axis, indexes, true)
       return
     }
-    this.wb.transact([{ kind: "axis", sheet: this.sheetIndex, axis, entries }], {
+    this.transact([{ kind: "axis", sheet: this.sheetIndex, axis, entries }], {
       label: axis === "rows" ? "Row Height" : "Column Width",
       before: this.selection,
       after: this.selection,
@@ -817,7 +1161,7 @@ export class SheetController {
       size: target.hasCustomSize(index) ? target.storedSize(index) : null,
       hidden,
     }))
-    this.wb.transact([{ kind: "axis", sheet: this.sheetIndex, axis, entries }], {
+    this.transact([{ kind: "axis", sheet: this.sheetIndex, axis, entries }], {
       label: hidden ? "Hide" : "Unhide",
       before: this.selection,
       after: this.selection,
@@ -848,9 +1192,38 @@ export class SheetController {
 
   // ── Scrolling ──────────────────────────────────────────────────────────────────────────────────────────────
 
+  /** Width of the frozen columns and height of the frozen rows (sheet pixels). */
+  get frozenWidth(): number {
+    const f = this.freeze
+    return f ? this.sheet.cols.offset(f.col) - this.sheet.cols.offset(f.left) : 0
+  }
+
+  get frozenHeight(): number {
+    const f = this.freeze
+    return f ? this.sheet.rows.offset(f.row) - this.sheet.rows.offset(f.top) : 0
+  }
+
+  /** The part of the view that scrolls (the cell area less the frozen panes). */
+  get paneWidth(): number {
+    return Math.max(1, this.viewWidth - this.frozenWidth)
+  }
+
+  get paneHeight(): number {
+    return Math.max(1, this.viewHeight - this.frozenHeight)
+  }
+
+  /** With frozen panes the scrolling part starts at the first unfrozen row and column. */
+  get minScrollX(): number {
+    return this.freeze ? this.sheet.cols.offset(this.freeze.col) : 0
+  }
+
+  get minScrollY(): number {
+    return this.freeze ? this.sheet.rows.offset(this.freeze.row) : 0
+  }
+
   scrollTo(x: number, y: number) {
-    const nx = Math.max(0, Math.min(x, this.sheet.cols.total - this.viewWidth))
-    const ny = Math.max(0, Math.min(y, this.sheet.rows.total - this.viewHeight))
+    const nx = Math.max(this.minScrollX, Math.min(x, this.sheet.cols.total - this.paneWidth))
+    const ny = Math.max(this.minScrollY, Math.min(y, this.sheet.rows.total - this.paneHeight))
     if (nx !== this.scrollX || ny !== this.scrollY) {
       this.scrollX = nx
       this.scrollY = ny
@@ -858,21 +1231,100 @@ export class SheetController {
     }
   }
 
-  /** Scrolls the least amount that shows the whole cell (or as much as fits). */
+  /** Scrolls the least amount that shows the whole cell (or as much as fits). Frozen cells are always in view. */
   scrollIntoView(address: CellAddress) {
     const rows = this.sheet.rows
     const cols = this.sheet.cols
-    const top = rows.offset(address.row)
-    const bottom = top + rows.size(address.row)
-    const left = cols.offset(address.col)
-    const right = left + cols.size(address.col)
+    const f = this.freeze
     let { scrollX, scrollY } = this
-    if (top < scrollY) scrollY = top
-    else if (bottom > scrollY + this.viewHeight) scrollY = Math.min(top, bottom - this.viewHeight)
-    if (left < scrollX) scrollX = left
-    else if (right > scrollX + this.viewWidth) scrollX = Math.min(left, right - this.viewWidth)
-    this.scrollX = Math.max(0, scrollX)
-    this.scrollY = Math.max(0, scrollY)
+    if (!f || address.row >= f.row) {
+      const top = rows.offset(address.row)
+      const bottom = top + rows.size(address.row)
+      if (top < scrollY) scrollY = top
+      else if (bottom > scrollY + this.paneHeight) scrollY = Math.min(top, bottom - this.paneHeight)
+    }
+    if (!f || address.col >= f.col) {
+      const left = cols.offset(address.col)
+      const right = left + cols.size(address.col)
+      if (left < scrollX) scrollX = left
+      else if (right > scrollX + this.paneWidth) scrollX = Math.min(left, right - this.paneWidth)
+    }
+    this.scrollX = Math.max(this.minScrollX, scrollX)
+    this.scrollY = Math.max(this.minScrollY, scrollY)
+  }
+
+  // ── View: freeze and zoom ─────────────────────────────────────────────────────────────────────────────────
+
+  /** The first row and column in view (of the scrolling part). */
+  get topLeft(): CellAddress {
+    return { row: this.sheet.rows.indexAt(this.scrollY), col: this.sheet.cols.indexAt(this.scrollX) }
+  }
+
+  /**
+   * Freeze Panes: rows above and columns left of the active cell stay in view. With the top-left cell in view active,
+   * Excel freezes at the middle of the window instead.
+   */
+  freezePanes() {
+    if (this.edit) this.commitEdit()
+    const { row: top, col: left } = this.topLeft
+    let { row, col } = this.selection.active
+    if (row <= top && col <= left) {
+      row = this.sheet.rows.indexAt(this.scrollY + this.viewHeight / 2)
+      col = this.sheet.cols.indexAt(this.scrollX + this.viewWidth / 2)
+    }
+    this.setFreeze({ row: Math.max(row, top), col: Math.max(col, left), top, left })
+  }
+
+  freezeTopRow() {
+    if (this.edit) this.commitEdit()
+    const { row: top, col: left } = this.topLeft
+    this.setFreeze({ row: top + 1, col: left, top, left })
+  }
+
+  freezeFirstColumn() {
+    if (this.edit) this.commitEdit()
+    const { row: top, col: left } = this.topLeft
+    this.setFreeze({ row: top, col: left + 1, top, left })
+  }
+
+  unfreeze() {
+    const f = this.freeze
+    if (!f) return
+    this.freeze = null
+    // The frozen rows and columns become ordinary ones at the top and left again.
+    this.scrollX = this.sheet.cols.offset(f.left)
+    this.scrollY = this.sheet.rows.offset(f.top)
+    this.changed()
+  }
+
+  private setFreeze(f: Freeze) {
+    if (f.row === f.top && f.col === f.left) return
+    this.freeze = f
+    // The scrolling part goes on where the frozen part ends, so nothing on screen moves.
+    this.scrollX = this.sheet.cols.offset(f.col)
+    this.scrollY = this.sheet.rows.offset(f.row)
+    this.scrollIntoView(this.selection.active)
+    this.changed()
+  }
+
+  /** View › Zoom (10% to 400%). */
+  setZoom(zoom: number) {
+    const z = Math.round(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) * 100) / 100
+    if (z === this.zoom) return
+    this.zoom = z
+    this.changed()
+  }
+
+  /** Zoom to Selection: the selection fills the window (as far as 10%–400% allows), its top-left cell at the top left. */
+  zoomToSelection(cssWidth: number, cssHeight: number) {
+    const r = this.selection.ranges[this.selection.ranges.length - 1]
+    const w = this.sheet.cols.offset(r.c1 + 1) - this.sheet.cols.offset(r.c0)
+    const h = this.sheet.rows.offset(r.r1 + 1) - this.sheet.rows.offset(r.r0)
+    const z = Math.floor(Math.min(cssWidth / Math.max(1, w), cssHeight / Math.max(1, h)) * 100) / 100
+    this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
+    this.scrollX = Math.max(this.minScrollX, this.sheet.cols.offset(r.c0))
+    this.scrollY = Math.max(this.minScrollY, this.sheet.rows.offset(r.r0))
+    this.changed()
   }
 
   /** Ctrl+Backspace: bring the active cell into view. */
@@ -926,11 +1378,27 @@ export class SheetController {
         return true
       case "PageDown":
       case "PageUp":
-        if (primary) return false // Ctrl+PgUp/PgDn switch sheets (Phase 3).
+        if (primary) {
+          if (!shift && !alt) this.sheets.step(key === "PageDown" ? 1 : -1)
+          return true
+        }
         this.page(key === "PageDown" ? 1 : -1, alt, shift)
         return true
       case "F2":
-        this.beginEdit("edit")
+        // Shift+F2: new or edit note; Ctrl+Shift+F2: new comment (Excel 365).
+        if (shift && primary) this.annotations.newComment()
+        else if (shift) this.annotations.newNote()
+        else this.beginEdit("edit")
+        return true
+      case "F3":
+        // Shift+F3: Insert Function (F3 alone, Paste Name, is not built yet).
+        if (!shift || primary || alt) return false
+        this.shell.insertFunction?.()
+        return true
+      case "F11":
+        // Shift+F11 inserts a sheet (F11 alone makes a chart sheet: not built yet).
+        if (!shift || primary || alt) return false
+        this.sheets.insert()
         return true
       case "F5":
         this.shell.goTo()
@@ -951,6 +1419,7 @@ export class SheetController {
         return true
       case "Escape":
         this.endMode = false
+        this.format.cancelPainter()
         this.clearClip()
         this.changed()
         return true
@@ -963,10 +1432,12 @@ export class SheetController {
       if (key === " " && shift) return (this.selectEverything(), true)
       if (key === " ") return (this.selectColumns(), true)
       if (lower === "g") return (this.shell.goTo(), true)
-      if (key === "`" || key === "~") return (this.toggleShowFormulas(), true)
+      if (key === "`" && !shift) return (this.toggleShowFormulas(), true)
       if (lower === "d") return (this.fillFromEdge("down"), true)
       if (lower === "r") return (this.fillFromEdge("right"), true)
-      if (key === "-" || key === "_") return (this.insertOrDelete("delete"), true)
+      if (lower === "u" && shift) return (this.toggleFormulaBarExpanded(), true)
+      if (this.formatKey(key, shift)) return true
+      if (key === "-") return (this.insertOrDelete("delete"), true)
       if (key === "+" || (key === "=" && shift)) return (this.insertOrDelete("insert"), true)
       if (key === "*" || (key === "8" && shift)) return (this.selectCurrentRegion(), true)
       if (key === "9" || key === "(") return (this.hideSelected("rows", !shift && key === "9"), true)
@@ -1036,6 +1507,47 @@ export class SheetController {
       return true
     }
     return false
+  }
+
+  /** Formatting shortcuts (Ctrl+B, Ctrl+1, Ctrl+Shift+$ …), keyed by the character typed (US layout). */
+  private formatKey(key: string, shift: boolean): boolean {
+    const f = this.format
+    const lower = key.toLowerCase()
+    if (!shift) {
+      if (lower === "b" || key === "2") return (f.toggle("bold"), true)
+      if (lower === "i" || key === "3") return (f.toggle("italic"), true)
+      if (lower === "u" || key === "4") return (f.underline(), true)
+      if (key === "5") return (f.toggle("strike"), true)
+      if (key === "1") return (this.shell.formatCells(), true)
+      return false
+    }
+    const codes: Record<string, string> = {
+      "~": NUMBER_FORMATS.general,
+      "!": NUMBER_FORMATS.number,
+      "@": NUMBER_FORMATS.time,
+      "#": NUMBER_FORMATS.dayMonthYear,
+      $: NUMBER_FORMATS.currency,
+      "%": NUMBER_FORMATS.percent,
+      "^": NUMBER_FORMATS.scientific,
+    }
+    if (codes[key]) return (f.numberFormat(codes[key]), true)
+    if (key === "&" || key === "7") return (f.border("outside"), true)
+    if (key === "_") return (f.border("none"), true)
+    if (lower === "f" || lower === "p") return (this.shell.formatCells("font"), true)
+    return false
+  }
+
+  /** Ctrl+Shift+U: expand or collapse the formula bar. */
+  toggleFormulaBarExpanded() {
+    this.formulaBarExpanded = !this.formulaBarExpanded
+    this.changed()
+  }
+
+  setFormulaBarLines(lines: number) {
+    const next = Math.max(1, Math.min(20, Math.round(lines)))
+    if (next === this.formulaBarLines) return
+    this.formulaBarLines = next
+    this.changed()
   }
 
   toggleShowFormulas() {

@@ -2,7 +2,7 @@ import { MAX_COLS, MAX_ROWS, type Range } from "../address"
 import type { RefNode, RefPoint } from "./ast"
 import { tokenize } from "./lexer"
 import { parseRefText } from "./parser"
-import { refText } from "./print"
+import { refText, sheetPrefix } from "./print"
 
 /**
  * Reference rewriting: what Excel does to formula text when rows or cells move under it, when a formula is copied,
@@ -165,4 +165,31 @@ export function moveMapper(source: Range, dr: number, dc: number): RefMapper {
     if (inside(span, dest) && !overlaps(span, source)) return null
     return undefined
   }
+}
+
+/**
+ * A sheet renamed (`to` a name) or deleted (`to` null): references that name it take the new name, or become #REF!
+ * (as Excel writes =#REF!A1 for a reference to a deleted sheet). Returns null when nothing changed.
+ */
+export function renameSheetRefs(formula: string, from: string, to: string | null): string | null {
+  const eq = formula.startsWith("=") ? 1 : 0
+  const tokens = tokenize(formula.slice(eq))
+  const name = from.toLowerCase()
+  let changed = false
+  for (const token of tokens) {
+    if (token.kind !== "ref") continue
+    const ref = parseRefText(token.text)
+    if (!ref || ref.invalid || ref.sheet === null) continue
+    const hitFrom = ref.sheet.toLowerCase() === name
+    const hitTo = ref.sheetTo?.toLowerCase() === name
+    if (!hitFrom && !hitTo) continue
+    const bang = token.text.lastIndexOf("!")
+    const rest = token.text.slice(bang + 1)
+    if (to === null) token.text = `#REF!${rest}`
+    else
+      token.text = sheetPrefix(hitFrom ? to : ref.sheet, ref.sheetTo === null ? null : hitTo ? to : ref.sheetTo) + rest
+    changed = true
+  }
+  if (!changed) return null
+  return (eq ? "=" : "") + tokens.map((t) => t.text).join("")
 }

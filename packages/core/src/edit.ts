@@ -29,21 +29,31 @@ function moved(data: CellData, dr: number, dc: number): CellData {
  * The cell content for typed text, keeping the cell's format. A number typed as "10%" or "1,000" gives the cell
  * that number format when it has none (General), as Excel does on entry.
  */
-export function contentForInput(styles: StyleTable, current: CellData | undefined, text: string): CellData | undefined {
+export function contentForInput(
+  styles: StyleTable,
+  current: CellData | undefined,
+  text: string,
+  /** The row's or column's format, which a cell without its own shows. */
+  inherited = DEFAULT_STYLE_ID,
+): CellData | undefined {
   const style = current?.style ?? DEFAULT_STYLE_ID
   const parsed = parseInput(completeFormula(text))
   if (!parsed) {
     return style ? { style } : undefined
   }
   let nextStyle = style
-  if (parsed.numberFormat && !styles.get(style).numberFormat) {
-    nextStyle = styles.derive(style, { numberFormat: parsed.numberFormat })
+  const shown = style || inherited
+  if (parsed.numberFormat && !styles.get(shown).numberFormat) {
+    // The cell gets its own format: what it showed (its row's or column's) plus the number format.
+    nextStyle = styles.derive(shown, { numberFormat: parsed.numberFormat })
   }
   const data: CellData = { value: parsed.value }
   if (parsed.input !== undefined) data.input = parsed.input
   if (nextStyle) data.style = nextStyle
   return data
 }
+
+const lineStyle = (sheet: Sheet, row: number, col: number) => sheet.rowStyles.get(row) || sheet.colStyles.get(col)
 
 /** Typing into one cell. */
 export function writeInputOp(
@@ -57,7 +67,7 @@ export function writeInputOp(
   return {
     kind: "setCells",
     sheet: sheetIndex,
-    cells: [{ row, col, data: contentForInput(styles, sheet.cells.get(row, col), text) }],
+    cells: [{ row, col, data: contentForInput(styles, sheet.cells.get(row, col), text, lineStyle(sheet, row, col)) }],
   }
 }
 
@@ -79,7 +89,8 @@ export function fillInputOp(
     for (let row = range.r0; row <= range.r1; row++) {
       for (let col = range.c0; col <= range.c1; col++) {
         const typed = formula ? copyFormula(text, row - origin.row, col - origin.col) : text
-        cells.push({ row, col, data: contentForInput(styles, sheet.cells.get(row, col), typed) })
+        const data = contentForInput(styles, sheet.cells.get(row, col), typed, lineStyle(sheet, row, col))
+        cells.push({ row, col, data })
       }
     }
   }

@@ -1,8 +1,9 @@
-import { formatValue, MAX_ROWS } from "@cells/core"
+import { DEFAULT_ROW_HEIGHT, formatValue, MAX_COLS, MAX_ROWS } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
+import { lookOf, shownText, type Measure } from "./cell-look"
+import { wrapLines } from "./draw-cells"
 
 const PAD = 3
-const LINE_HEIGHT = 18
 
 /** Excel's column width in characters of the default font's widest digit (7 px): 64 px is 8.43. */
 export function columnChars(px: number) {
@@ -50,12 +51,35 @@ export function autofitColumnWidth(
   return widest === 0 ? null : Math.ceil(widest + 2 * PAD + 2)
 }
 
-/** Double-click on a row border: tall enough for the row's line breaks, or the default. */
-export function autofitRowHeight(controller: SheetController, row: number): number | null {
-  let lines = 1
-  for (const col of controller.sheet.cells.usedColumns()) {
-    const value = controller.sheet.cells.value(row, col)
-    if (typeof value === "string") lines = Math.max(lines, value.split("\n").length)
+/** A font's line height as the cells draw it (11 pt: 20 px, the default row). */
+export const lineHeightOf = (fontPx: number) => Math.round(fontPx * 1.36)
+
+/**
+ * The height a row's content needs, as Excel fits rows by itself: the tallest cell's lines (wrapped text, line
+ * breaks) at its font's line height. Merged and rotated cells don't count (Excel skips them). Null: the default.
+ */
+export function fittedRowHeight(controller: SheetController, row: number, measure: Measure): number | null {
+  const sheet = controller.sheet
+  const styles = controller.wb.styles
+  let tallest = 0
+  const fit = (col: number, styleId: number) => {
+    if (sheet.merges.at(row, col)) return
+    const look = lookOf(styles, styleId)
+    if (look.rotation !== null) return
+    let lines = 1
+    const value = sheet.cells.value(row, col)
+    if (value !== undefined && value !== null && value !== "") {
+      const width = sheet.cols.size(col)
+      const text = shownText(value, look, width, PAD, measure).text
+      lines = look.wrap
+        ? wrapLines(text, look.font, Math.max(1, width - 2 * PAD - look.indent), measure).length
+        : text.split("\n").length
+    }
+    tallest = Math.max(tallest, lines * lineHeightOf(look.fontPx))
   }
-  return lines <= 1 ? null : lines * LINE_HEIGHT + 2
+  sheet.cells.forEach({ r0: row, r1: row, c0: 0, c1: MAX_COLS - 1 }, (_r, col) => fit(col, sheet.styleAt(row, col)))
+  // A row format with a bigger font heightens the row even where it is empty.
+  const rowStyle = sheet.rowStyles.get(row)
+  if (rowStyle) tallest = Math.max(tallest, lineHeightOf(lookOf(styles, rowStyle).fontPx))
+  return tallest > DEFAULT_ROW_HEIGHT ? tallest : null
 }

@@ -293,12 +293,10 @@ scalarFn("TEXT", 2, 2, (a) => {
   const v = a[0] as Scalar
   const code = text(a[1])
   if (isError(code)) return code
-  if (v === null) return formatWithCode(0, code).text
-  if (typeof v === "string") {
-    const n = textToNumber(v)
-    return formatWithCode(n ?? v, code).text
-  }
-  return formatWithCode(v as number | boolean, code).text
+  const value = v === null ? 0 : typeof v === "string" ? (textToNumber(v) ?? v) : (v as number | boolean)
+  const result = formatWithCode(value, code)
+  // A date or time out of range: the cell would show ####, TEXT gives #VALUE!.
+  return result.overflow ? VALUE : result.text
 })
 scalarFn("VALUE", 1, 1, (a) => {
   const v = a[0] as Scalar

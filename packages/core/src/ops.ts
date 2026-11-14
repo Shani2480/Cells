@@ -1,8 +1,15 @@
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import type { Axis } from "./axis"
 import type { CellData } from "./cell-store"
+import type { AnnotationWrite } from "./annotations"
+import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
+import { rewriteNames, type DefinedName, type SheetList } from "./names"
+import type { SheetProtection, WorkbookProtection } from "./protection"
+import { formatRanges, recordBounds, restoreStyles, shiftMerges, type StyleRecord } from "./formatting"
 import { moveMapper, rewriteFormula, shiftMapper, type RefMapper } from "./formula/adjust"
 import type { Sheet } from "./sheet"
+import { applySheetOp, type SheetOp } from "./sheet-ops"
+import { StyleTable, type StylePatch } from "./styles"
 
 /** One cell's new content; `data: undefined` clears it. */
 export type CellWrite = { row: number; col: number; data: CellData | undefined }
@@ -10,7 +17,7 @@ export type CellWrite = { row: number; col: number; data: CellData | undefined }
 export type AxisName = "rows" | "cols"
 
 /** One row's or column's size and visibility; `size: null` means the default size. */
-export type AxisEntry = { index: number; size: number | null; hidden: boolean }
+export type AxisEntry = { index: number; size: number | null; hidden: boolean; auto?: true }
 
 /**
  * Every change to a workbook is one of these: plain, serialisable data. `applyOp` performs one and returns the
@@ -18,9 +25,10 @@ export type AxisEntry = { index: number; size: number | null; hidden: boolean }
  */
 export type Op =
   | { kind: "setCells"; sheet: number; cells: CellWrite[] }
-  | { kind: "insertRows"; sheet: number; at: number; count: number }
+  /** `plain`: no formats copied from the line before (the undo of a deletion puts back exactly what was there). */
+  | { kind: "insertRows"; sheet: number; at: number; count: number; plain?: true }
   | { kind: "deleteRows"; sheet: number; at: number; count: number }
-  | { kind: "insertCols"; sheet: number; at: number; count: number }
+  | { kind: "insertCols"; sheet: number; at: number; count: number; plain?: true }
   | { kind: "deleteCols"; sheet: number; at: number; count: number }
   /** Insert blank cells in `range`, pushing the cells there down or right (within the range's columns or rows). */
   | { kind: "insertCells"; sheet: number; range: Range; shift: "down" | "right" }
@@ -32,13 +40,87 @@ export type Op =
    * workbook that point into the source follow the cells.
    */
   | { kind: "moveCells"; sheet: number; source: Range; dr: number; dc: number }
+  /** Formats every cell of `ranges` (whole rows and columns as Excel stores them). */
+  | { kind: "format"; sheet: number; ranges: Range[]; patch: StylePatch }
+  /** Puts exact style ids back (the undo of a format, Format Painter). Ids belong to the workbook's style table. */
+  | { kind: "styles"; sheet: number; record: StyleRecord }
+  | { kind: "merge"; sheet: number; ranges: Range[] }
+  | { kind: "unmerge"; sheet: number; ranges: Range[] }
+  /** The whole set of row formats, column formats and merges (flat [index, id, …]): undo of structural edits. */
+  | {
+      kind: "layout"
+      sheet: number
+      rows: number[]
+      cols: number[]
+      merges: Range[]
+      conditional?: CFEntry[]
+      annotations?: AnnotationWrite[]
+    }
+  /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
+  | { kind: "conditional"; sheet: number; entries: CFEntry[] }
+  /** Notes and comments: set or remove one cell's annotation each. */
+  | { kind: "annotations"; sheet: number; writes: AnnotationWrite[] }
+  /** Defined names: the whole list after the change (Define Name, the Name Box). */
+  | { kind: "names"; names: DefinedName[] }
+  /** Protect Sheet (with the options) or Unprotect Sheet (null). */
+  | { kind: "protect"; sheet: number; protection: SheetProtection | null }
+  /** Protect Workbook (Structure) or Unprotect Workbook (null). */
+  | { kind: "protectWorkbook"; protection: WorkbookProtection | null }
+  /** Sheets: add, delete, rename, move, tab colour and hiding (see sheet-ops). */
+  | SheetOp
 
-/** What an operation touched, for redraws and (from Phase 2) recalculation. */
-export type Change = { sheet: number; structural: boolean; range?: Range }
+/** Operations that change formats only: the calculation engine has nothing to do for them. */
+export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
+  "format",
+  "styles",
+  "merge",
+  "unmerge",
+  "layout",
+  "conditional",
+  "annotations",
+  "protect",
+  "protectWorkbook",
+  "sheetProps",
+])
+
+/**
+ * What an operation touched, for redraws and (from Phase 2) recalculation. `format` marks a change of formats only
+ * (no values), which the engine skips.
+ */
+export type Change = { sheet: number; structural: boolean; range?: Range; format?: true }
 
 export type Applied = { inverse: Op[]; change: Change }
 
-export function applyOp(sheets: readonly Sheet[], op: Op): Applied {
+/** Styles for ops that format; a workbook passes its own table (tests and the worker may leave it out). */
+const fallbackStyles = new StyleTable()
+
+export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackStyles): Applied {
+  switch (op.kind) {
+    case "addSheet":
+    case "removeSheet":
+    case "renameSheet":
+    case "moveSheet":
+    case "sheetProps":
+      return applySheetOp(sheets, op)
+    case "names": {
+      const table = (sheets as SheetList).names
+      if (!table) throw new Error("No name table")
+      const before = table.copy()
+      table.replace(op.names)
+      // Formulas that use a name read it when they are registered: re-read them all.
+      return { inverse: [{ kind: "names", names: before }], change: { sheet: 0, structural: true } }
+    }
+    case "protectWorkbook": {
+      const box = (sheets as SheetList).structure
+      if (!box) throw new Error("No workbook protection")
+      const before = box.protection ? { ...box.protection } : null
+      box.protection = op.protection ? { ...op.protection } : null
+      return {
+        inverse: [{ kind: "protectWorkbook", protection: before }],
+        change: { sheet: 0, structural: false, format: true },
+      }
+    }
+  }
   const sheet = sheets[op.sheet]
   if (!sheet) {
     throw new Error(`No sheet ${op.sheet}`)
@@ -47,11 +129,11 @@ export function applyOp(sheets: readonly Sheet[], op: Op): Applied {
     case "setCells":
       return setCells(sheet, op)
     case "insertRows":
-      return insertLines(sheets, op.sheet, "rows", op.at, op.count)
+      return insertLines(sheets, op.sheet, "rows", op.at, op.count, op.plain)
     case "deleteRows":
       return deleteLines(sheets, op.sheet, "rows", op.at, op.count)
     case "insertCols":
-      return insertLines(sheets, op.sheet, "cols", op.at, op.count)
+      return insertLines(sheets, op.sheet, "cols", op.at, op.count, op.plain)
     case "deleteCols":
       return deleteLines(sheets, op.sheet, "cols", op.at, op.count)
     case "insertCells":
@@ -62,7 +144,118 @@ export function applyOp(sheets: readonly Sheet[], op: Op): Applied {
       return setAxis(sheet, op.sheet, op.axis, op.entries)
     case "moveCells":
       return moveCells(sheets, op)
+    case "format": {
+      const record = formatRanges(sheet, styles, op.ranges, op.patch)
+      return formatApplied(op.sheet, record)
+    }
+    case "styles":
+      return formatApplied(op.sheet, restoreStyles(sheet, op.record))
+    case "merge":
+    case "unmerge":
+      return mergeCells(sheet, op)
+    case "layout":
+      return setLayout(sheet, op)
+    case "conditional": {
+      const before = copyEntries(sheet.conditional)
+      sheet.conditional = copyEntries(op.entries)
+      return {
+        inverse: [{ kind: "conditional", sheet: op.sheet, entries: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "annotations": {
+      const before: AnnotationWrite[] = op.writes.map((w) => ({
+        row: w.row,
+        col: w.col,
+        value: sheet.annotations.get(w.row, w.col) ?? null,
+      }))
+      for (const w of op.writes) sheet.annotations.set(w.row, w.col, w.value)
+      return {
+        inverse: [{ kind: "annotations", sheet: op.sheet, writes: before.reverse() }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "protect": {
+      const before = sheet.protection ? { ...sheet.protection } : null
+      sheet.protection = op.protection ? { ...op.protection } : null
+      return {
+        inverse: [{ kind: "protect", sheet: op.sheet, protection: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
   }
+}
+
+function formatApplied(sheet: number, undo: StyleRecord): Applied {
+  return {
+    inverse: [{ kind: "styles", sheet, record: undo }],
+    change: { sheet, structural: false, range: recordBounds(undo), format: true },
+  }
+}
+
+/**
+ * Merge: the ranges become merged cells, absorbing any merges they overlap (as Excel does when a selection contains
+ * merged cells). Unmerge: every merge overlapping the ranges goes. The inverse puts back exactly what was there.
+ */
+function mergeCells(sheet: Sheet, op: Extract<Op, { kind: "merge" | "unmerge" }>): Applied {
+  const removed: Range[] = []
+  for (const r of op.ranges) {
+    const hit = sheet.merges.overlapping(r)
+    sheet.merges.remove(hit)
+    removed.push(...hit)
+  }
+  if (op.kind === "merge") for (const r of op.ranges) sheet.merges.add(r)
+  const touched = [...op.ranges, ...removed]
+  const bounds = touched.reduce<Range | undefined>(
+    (b, r) =>
+      b
+        ? { r0: Math.min(b.r0, r.r0), r1: Math.max(b.r1, r.r1), c0: Math.min(b.c0, r.c0), c1: Math.max(b.c1, r.c1) }
+        : { ...r },
+    undefined,
+  )
+  const inverse: Op[] = []
+  if (op.kind === "merge") inverse.push({ kind: "unmerge", sheet: op.sheet, ranges: op.ranges })
+  if (removed.length) inverse.push({ kind: "merge", sheet: op.sheet, ranges: removed })
+  return { inverse, change: { sheet: op.sheet, structural: false, range: bounds, format: true } }
+}
+
+/** A snapshot of the sheet's row and column formats and merges. */
+function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> {
+  return {
+    kind: "layout",
+    sheet: index,
+    rows: sheet.rowStyles.entries().flat(),
+    cols: sheet.colStyles.entries().flat(),
+    merges: sheet.merges.all.map((m) => ({ ...m })),
+    conditional: copyEntries(sheet.conditional),
+    annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
+  }
+}
+
+function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
+  const before = layoutOf(sheet, op.sheet)
+  for (const [i] of sheet.rowStyles.entries()) sheet.rowStyles.set(i, 0)
+  for (const [i] of sheet.colStyles.entries()) sheet.colStyles.set(i, 0)
+  for (let i = 0; i < op.rows.length; i += 2) sheet.rowStyles.set(op.rows[i], op.rows[i + 1])
+  for (let i = 0; i < op.cols.length; i += 2) sheet.colStyles.set(op.cols[i], op.cols[i + 1])
+  sheet.merges.replace(op.merges.map((m) => ({ ...m })))
+  if (op.conditional) sheet.conditional = copyEntries(op.conditional)
+  if (op.annotations) {
+    sheet.annotations.clear()
+    for (const a of op.annotations) sheet.annotations.set(a.row, a.col, a.value)
+  }
+  return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
+}
+
+/** Whether a structural edit has row/column formats or merges to carry along (and to snapshot for undo). */
+function hasLayout(sheet: Sheet) {
+  return (
+    sheet.rowStyles.size > 0 ||
+    sheet.colStyles.size > 0 ||
+    sheet.merges.size > 0 ||
+    sheet.conditional.length > 0 ||
+    sheet.annotations.size > 0
+  )
 }
 
 /**
@@ -90,6 +283,9 @@ function rewriteReferences(sheets: readonly Sheet[], target: number, map: RefMap
     }
     undo.push({ kind: "setCells", sheet: index, cells: previous })
   })
+  const host = sheets[0]?.name ?? targetName
+  const names = rewriteNames(sheets as SheetList, (ref) => rewriteFormula(ref, host, targetName, map))
+  if (names) undo.push({ kind: "names", names })
   return undo
 }
 
@@ -125,20 +321,34 @@ function lineRange(axis: AxisName, from: number, to: number): Range {
   return axis === "rows" ? { r0: from, r1: to, c0: 0, c1: MAX_COLS - 1 } : { r0: 0, r1: MAX_ROWS - 1, c0: from, c1: to }
 }
 
-function insertLines(sheets: readonly Sheet[], index: number, axis: AxisName, at: number, count: number): Applied {
+function insertLines(
+  sheets: readonly Sheet[],
+  index: number,
+  axis: AxisName,
+  at: number,
+  count: number,
+  plain = false,
+): Applied {
   const sheet = sheets[index]
   const size = axis === "rows" ? MAX_ROWS : MAX_COLS
   // Lines pushed off the end are lost; keep them so undo can restore them.
   const dropped = sheet.cells.entries(lineRange(axis, size - count, size - 1))
   const droppedAxis = axisOf(sheet, axis).overrides(size - count, size - 1)
   const texts = rewriteReferences(sheets, index, shiftMapper(axis, at, count))
+  const layout = hasLayout(sheet) ? layoutOf(sheet, index) : null
   if (axis === "rows") {
     sheet.cells.shiftRows(at, count)
   } else {
     sheet.cells.shiftCols(at, count)
   }
   axisOf(sheet, axis).insert(at, count)
+  ;(axis === "rows" ? sheet.rowStyles : sheet.colStyles).insert(at, count)
+  shiftMerges(sheet, axis, at, count)
+  shiftConditional(sheet, axis, at, count)
+  sheet.annotations.shift(axis, at, count)
+  if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
+  if (layout) inverse.push(layout)
   if (dropped.length) {
     inverse.push({ kind: "setCells", sheet: index, cells: dropped })
   }
@@ -149,12 +359,32 @@ function insertLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   return { inverse, change: { sheet: index, structural: true } }
 }
 
+/**
+ * Excel's default for inserted rows and columns ("Format Same As Above / Left"): the new cells take the formats of
+ * the cells in the line before them. Only formats; the inverse (deleting the lines) takes them away again.
+ */
+function copyFormatsInto(sheet: Sheet, axis: AxisName, at: number, count: number) {
+  if (at === 0) return
+  const source = lineRange(axis, at - 1, at - 1)
+  const styled: number[] = []
+  sheet.cells.forEachStyle(source, (row, col, style) => {
+    if (style) styled.push(axis === "rows" ? col : row, style)
+  })
+  for (let i = 0; i < styled.length; i += 2) {
+    for (let k = at; k < at + count; k++) {
+      if (axis === "rows") sheet.cells.setStyle(k, styled[i], styled[i + 1])
+      else sheet.cells.setStyle(styled[i], k, styled[i + 1])
+    }
+  }
+}
+
 function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at: number, count: number): Applied {
   const sheet = sheets[index]
   const range = lineRange(axis, at, at + count - 1)
   const removed = sheet.cells.entries(range)
   const removedAxis = axisOf(sheet, axis).overrides(at, at + count - 1)
   const texts = rewriteReferences(sheets, index, shiftMapper(axis, at, -count))
+  const layout = hasLayout(sheet) ? layoutOf(sheet, index) : null
   sheet.cells.clear(range)
   if (axis === "rows") {
     sheet.cells.shiftRows(at + count, -count)
@@ -162,7 +392,12 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
     sheet.cells.shiftCols(at + count, -count)
   }
   axisOf(sheet, axis).remove(at, count)
-  const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count }]
+  ;(axis === "rows" ? sheet.rowStyles : sheet.colStyles).remove(at, count)
+  shiftMerges(sheet, axis, at, -count)
+  shiftConditional(sheet, axis, at, -count)
+  sheet.annotations.shift(axis, at, -count)
+  const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
+  if (layout) inverse.push(layout)
   if (removed.length) {
     inverse.push({ kind: "setCells", sheet: index, cells: removed })
   }
@@ -227,19 +462,23 @@ function deleteCells(sheets: readonly Sheet[], index: number, range: Range, shif
 
 function setAxis(sheet: Sheet, index: number, name: AxisName, entries: AxisEntry[]): Applied {
   const axis = axisOf(sheet, name)
+  let visibility = false
   const previous: AxisEntry[] = entries.map((entry) => ({
     index: entry.index,
     size: axis.hasCustomSize(entry.index) ? axis.storedSize(entry.index) : null,
     hidden: axis.isHidden(entry.index),
+    ...(axis.isAuto(entry.index) ? { auto: true as const } : {}),
   }))
   for (const entry of entries) {
-    axis.setSize(entry.index, entry.size)
+    if (axis.isHidden(entry.index) !== entry.hidden) visibility = true
+    axis.setSize(entry.index, entry.size, entry.auto)
     axis.setHidden(entry.index, entry.hidden)
   }
   previous.reverse()
   return {
     inverse: [{ kind: "axis", sheet: index, axis: name, entries: previous }],
-    change: { sheet: index, structural: true },
+    // Sizes alone change no value; hiding does (SUBTOTAL 101–111 and AGGREGATE skip hidden rows).
+    change: visibility ? { sheet: index, structural: true } : { sheet: index, structural: false, format: true },
   }
 }
 

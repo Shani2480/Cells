@@ -117,6 +117,33 @@ export class CellStore {
     return this.chunk(row, col)?.styles?.[row & CHUNK_MASK] ?? 0
   }
 
+  /** Sets only the cell's style id (0 removes it), keeping its value and formula. */
+  setStyle(row: number, col: number, style: number) {
+    const chunk = this.chunk(row, col)
+    const offset = row & CHUNK_MASK
+    if (!chunk && style === 0) return
+    this.put(row, col, chunk?.values[offset], chunk?.inputs?.get(offset), style, chunk?.spills?.has(offset) ?? false)
+  }
+
+  /** Visits the stored cells in `range` with their style ids, without building a record per cell. */
+  forEachStyle(range: Range, visit: (row: number, col: number, style: number) => void) {
+    for (const col of this.usedColumns()) {
+      if (col < range.c0) continue
+      if (col > range.c1) break
+      const column = this.columns.get(col)!
+      for (const [key, chunk] of column.chunks) {
+        const base = key << CHUNK_BITS
+        if (base > range.r1 || base + CHUNK_MASK < range.r0) continue
+        const start = Math.max(range.r0, base) - base
+        const end = Math.min(range.r1, base + CHUNK_MASK) - base
+        const styles = chunk.styles
+        for (let offset = start; offset <= end; offset++) {
+          if (chunk.has(offset)) visit(base + offset, col, styles ? styles[offset] : 0)
+        }
+      }
+    }
+  }
+
   /** Replaces everything stored for the cell; `undefined` or an empty record removes it. */
   set(row: number, col: number, data: CellData | undefined) {
     this.put(

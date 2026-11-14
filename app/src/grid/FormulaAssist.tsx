@@ -11,11 +11,13 @@ export function FormulaHighlight({
   className,
   style,
   scrollLeft = 0,
+  scrollTop = 0,
 }: {
   controller: SheetController
   className: string
   style?: CSSProperties
   scrollLeft?: number
+  scrollTop?: number
 }) {
   const edit = controller.edit
   if (!edit || !edit.text.startsWith("=")) return null
@@ -34,7 +36,7 @@ export function FormulaHighlight({
   parts.push(edit.text.slice(at))
   return (
     <div className={className} style={style} aria-hidden>
-      <div style={{ transform: `translateX(${-scrollLeft}px)` }}>
+      <div style={{ transform: `translate(${-scrollLeft}px, ${-scrollTop}px)` }}>
         {parts}
         {/* Keeps a trailing line break's height. */}
         {"​"}

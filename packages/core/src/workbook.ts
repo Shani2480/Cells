@@ -4,6 +4,9 @@ import { applyOp, type Change, type Op } from "./ops"
 import type { CellValue } from "./values"
 import { Sheet } from "./sheet"
 import { StyleTable } from "./styles"
+import { NameTable, type SheetList } from "./names"
+import type { WorkbookProtection } from "./protection"
+import type { Node } from "./formula/ast"
 
 /** One undoable step: a label for the Undo tooltip, the ops either way, and the caller's state either side. */
 export type UndoEntry<Meta = unknown> = {
@@ -98,6 +101,10 @@ export const DEFAULT_UNDO_LIMIT = 100
 export class Workbook<Meta = unknown> {
   readonly sheets: Sheet[]
   readonly styles = new StyleTable()
+  /** Defined names, workbook-wide. */
+  readonly names = new NameTable()
+  /** Protect Workbook (Structure): null when the workbook isn't protected. */
+  readonly structure: { protection: WorkbookProtection | null } = { protection: null }
   undoLimit: number
   private readonly undoStack: UndoEntry<Meta>[] = []
   private readonly redoStack: UndoEntry<Meta>[] = []
@@ -110,9 +117,16 @@ export class Workbook<Meta = unknown> {
 
   constructor(sheetNames: string[] = ["Sheet1"], undoLimit = DEFAULT_UNDO_LIMIT) {
     this.sheets = sheetNames.map((name) => new Sheet(name))
+    ;(this.sheets as SheetList).names = this.names
+    ;(this.sheets as SheetList).structure = this.structure
     this.undoLimit = undoLimit
     this.calc = new CalcEngine(this)
     this.calculator = new LocalCalculator(this.calc)
+  }
+
+  /** The engine's hook: a defined name's formula, parsed. */
+  definedName(name: string, _sheet: number): Node | null {
+    return this.names.node(name)
   }
 
   /** Hands calculation to another calculator (the worker host). The own engine then stays idle. */
@@ -190,6 +204,18 @@ export class Workbook<Meta = unknown> {
     return entry
   }
 
+  /**
+   * Adds follow-up ops to a step just taken (row heights fitted to what an edit wrote): they apply now and undo and
+   * redo with the step.
+   */
+  amend(entry: UndoEntry<Meta>, ops: Op[]) {
+    if (!ops.length) return
+    const { inverse, changes } = this.run(ops)
+    entry.undo = [...inverse, ...entry.undo]
+    entry.redo = [...entry.redo, ...ops]
+    this.emit(changes, ops)
+  }
+
   get canUndo() {
     return this.undoStack.length > 0
   }
@@ -247,7 +273,7 @@ export class Workbook<Meta = unknown> {
     const inverses: Op[][] = []
     const changes: Change[] = []
     for (const op of ops) {
-      const applied = applyOp(this.sheets, op)
+      const applied = applyOp(this.sheets, op, this.styles)
       inverses.push(applied.inverse)
       changes.push(applied.change)
     }

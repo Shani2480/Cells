@@ -2,6 +2,71 @@
 
 Newest first. Each entry: what changed, how it was checked, what is still open.
 
+## 2026-11-14 — Phase 3: desktop and tablet UI, formatting (0.3.0)
+
+**Built**
+
+- Ribbon with Excel's tabs, groups and control ids (Home, Insert, Page Layout, Formulas, Data, Review, View, Help),
+  groups that collapse as the window narrows, KeyTips, Ctrl+F1, right-click menu (Add to Quick Access Toolbar,
+  Collapse the Ribbon). Everything not built is greyed out with "Not built yet." (Insert, Page Layout and Data are
+  mostly that until Phases 4–5.)
+- Quick Access Toolbar (Undo/Redo by default, Excel's Customize menu, right-click to add or remove), and Search
+  (Alt+Q), which runs a command or opens its menu on its tab.
+- File backstage with the Account page and What's New. It opens by itself once after an update.
+- Formula bar: Name Box with the names list, naming the selection by typing a name, going to names and references;
+  fx and Shift+F3 open Insert Function (search, categories, Most Recently Used); expand/collapse (Ctrl+Shift+U) and a
+  drag handle to resize.
+- Formulas tab: the function library galleries, Define Name, Use in Formula, calculation options, Calculate Now and
+  Calculate Sheet, Show Formulas. Defined names are kept through inserting, deleting, renaming and removing sheets.
+- Sheet tabs: add, rename, move/copy (drag, Ctrl+drag, dialog), colour, hide/unhide, scroll arrows, Ctrl+PgUp/PgDn,
+  right-click menus.
+- Formatting: font, size, bold/italic/underline/strike, colours, fill, alignment, indent, wrap, rotation, merge
+  variants, borders, cell styles, Format Painter, clear formats. Row heights follow wrapped text, line breaks and
+  bigger fonts (rows sized by hand keep their height).
+- Number formats: Excel's format language end to end, the Number group, Increase/Decrease Decimal, Format Cells
+  (Number, Alignment, Font, Border, Fill, Protection), entry auto-detection.
+- Conditional formatting: highlight rules, top/bottom, data bars, colour scales, icon sets, formula rules, and Manage
+  Rules with priority and Stop If True.
+- View: freeze panes (at the selection, top row, first column), zoom (dialog, 100%, to selection, status bar
+  slider, Ctrl+wheel, pinch), gridlines and headings, formula bar toggle, dark mode.
+- Review: notes (yellow boxes, Show/Hide, Show All, Previous/Next, Convert to Comments), threaded comments (card with
+  replies, edit, delete, resolve), Protect Sheet (Excel's 15 options and password with confirmation), Protect
+  Workbook (structure). Locked cells refuse edits with Excel's message.
+- Context menus for cells, row and column headers, tabs and the ribbon; the Phase 3 shortcut set.
+- Tablet: `pointer: coarse` sizing, tap to select, round grippers to stretch the selection, long-press menu, double
+  tap to edit (the keyboard only shows while editing), pinch zoom around the fingers, and the editor scrolled clear
+  of the on-screen keyboard.
+
+**Checked against Excel** (16.0, build 17932, US locale)
+
+- Number formats: `packages/core/test/fixtures/excel-text.json` holds 594 TEXT results that Excel gave (66 format
+  codes × 8 numbers and a text). All match. Bugs fixed on the way:
+  - quoted literals before digits came out reversed;
+  - `@` showed nothing for numbers;
+  - seconds rounded down (13:37:37 for 13:37:38);
+  - fraction padding, `?/100`-style denominators and engineering zero (`000.0E+0`);
+  - the minus sign in conditional sections;
+  - out-of-range dates now give `#VALUE!` in TEXT.
+- Password hash (Excel's legacy hash) and its messages, Protect Sheet defaults, name and Name Box messages.
+
+**Deviations from PLAN.md**
+
+- Not built in this phase:
+  - split panes, Page Break Preview, Page Layout view, and New Window (multiple windows on one workbook);
+  - the Function Arguments dialog: Insert Function puts `=NAME()` in the cell with the caret inside;
+  - Name Manager, Create from Selection, Apply Names and Paste Names. Names are workbook-wide only.
+- The Windows option of Protect Workbook is greyed out, as in Excel 365.
+
+**Measured**
+
+- Formatting A1:A100000 through the app's controller (format + undo, best of 3): bold 61 ms, currency 61 ms, fill
+  57 ms, font size 57 ms, borders 55 ms; bold on the whole column A also under the 300 ms budget
+  (`app/src/sheet/format-budget.test.ts`).
+- One frozen-pane frame of a 100,000 × 20 sheet at 1920 × 1080: layout and drawing code 2.5 ms
+  (`app/src/grid/draw.test.ts`; the canvas is a recorder there, so the GPU's share is not included).
+
+**Open**: see `docs/verify-list.md`.
+
 ## 2026-11-14 — Phase 2: formula and calculation engine
 
 **Built**

@@ -6,6 +6,22 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "0.3.0",
+    date: "2026-11-14",
+    notes: [
+      "The ribbon: Home, Insert, Page Layout, Formulas, Data, Review, View and Help, with KeyTips (press Alt), Ctrl+F1 to collapse it, a Quick Access Toolbar you can add commands to, and Search (Alt+Q) to find any command. Commands that aren't built yet are greyed out and say so.",
+      "Cell formatting: fonts, colours, fills, borders, alignment, wrap, rotation, indents, merging, cell styles, Format Painter, and the Format Cells dialog (Ctrl+1) with all six tabs.",
+      "Number formats work like Excel's, including custom codes, dates and times, fractions and conditions; checked against Excel on 594 cases.",
+      "Conditional formatting: highlight rules, top/bottom, data bars, colour scales, icon sets, formula rules, and Manage Rules.",
+      "Sheet tabs: add, rename, move and copy (drag, or Ctrl+drag), colour, hide and unhide.",
+      "View: freeze panes, zoom (status bar, Ctrl+wheel, pinch), gridlines and headings on and off, and dark mode.",
+      "Notes and threaded comments; Protect Sheet and Protect Workbook, with passwords.",
+      "The formula bar grows to several lines and can be resized. The Name Box lists and creates names, and fx opens Insert Function.",
+      "On a touch screen: tap to select, drag the round handles to stretch the selection, long-press for the menu, double-tap to edit, pinch to zoom. The sheet scrolls so the keyboard doesn't cover the cell you're typing in.",
+      "This page opens by itself once after an update.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-11-14",
     notes: [
@@ -29,3 +45,28 @@ export const RELEASE_NOTES: ReleaseNote[] = [
 ]
 
 export const CURRENT_VERSION = RELEASE_NOTES[0].version
+
+const SEEN_KEY = "cells.seen-version"
+
+/**
+ * Whether to open What's New on start: once after an update (a different version was seen before). A first start
+ * only records the version. Storage can be missing or blocked; then nothing shows.
+ */
+export function whatsNewOnStart(storage: Pick<Storage, "getItem" | "setItem"> | null = safeStorage()): boolean {
+  if (!storage) return false
+  try {
+    const seen = storage.getItem(SEEN_KEY)
+    storage.setItem(SEEN_KEY, CURRENT_VERSION)
+    return seen !== null && seen !== CURRENT_VERSION
+  } catch {
+    return false
+  }
+}
+
+function safeStorage(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage
+  } catch {
+    return null
+  }
+}

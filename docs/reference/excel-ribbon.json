@@ -1,0 +1,5750 @@
+{
+  "source": "OfficeDev/office-fluent-ui-command-identifiers, Microsoft 365 Current Channel excelcontrols.xlsx (MIT License, Copyright (c) Microsoft Corporation); labels read from Excel 16.0 build 17932 with CommandBars.GetLabelMso. Right-click menus read from Excel's CommandBars (Cell, Column, Row, Ply).",
+  "tabs": [
+    {
+      "id": "TabHome",
+      "label": "Home",
+      "groups": [
+        {
+          "id": "GroupClipboard",
+          "label": "Clipboard",
+          "items": [
+            {
+              "id": "PasteMenu",
+              "type": "splitButton",
+              "label": "Paste",
+              "items": [
+                {
+                  "id": "Paste",
+                  "type": "button",
+                  "label": "Paste"
+                },
+                {
+                  "id": "PasteGallery",
+                  "type": "gallery",
+                  "label": "Paste",
+                  "items": [
+                    {
+                      "id": "PasteUsingTextImportWizard",
+                      "type": "button",
+                      "label": "Use Text Import Wizard..."
+                    },
+                    {
+                      "id": "PasteRefreshableWebQuery",
+                      "type": "button",
+                      "label": "Refreshable Web Query..."
+                    },
+                    {
+                      "id": "PasteSpecialDialog",
+                      "type": "button",
+                      "label": "Paste Special..."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "Cut",
+              "type": "button",
+              "label": "Cut"
+            },
+            {
+              "id": "CopySplitButton",
+              "type": "splitButton",
+              "label": "Copy",
+              "items": [
+                {
+                  "id": "Copy",
+                  "type": "button",
+                  "label": "Copy"
+                },
+                {
+                  "id": "CopyAsPicture",
+                  "type": "button",
+                  "label": "Copy as Picture..."
+                }
+              ]
+            },
+            {
+              "id": "FormatPainter",
+              "type": "control",
+              "label": "Format Painter"
+            },
+            {
+              "id": "ShowClipboard",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Office Clipboard..."
+            }
+          ]
+        },
+        {
+          "id": "GroupFont",
+          "label": "Font",
+          "items": [
+            {
+              "id": "Font",
+              "type": "comboBox",
+              "label": "Font:"
+            },
+            {
+              "id": "FontSize",
+              "type": "comboBox",
+              "label": "Font Size:"
+            },
+            {
+              "id": "FontSizeIncrease",
+              "type": "button",
+              "label": "Increase Font Size"
+            },
+            {
+              "id": "FontSizeDecrease",
+              "type": "button",
+              "label": "Decrease Font Size"
+            },
+            {
+              "id": "Bold",
+              "type": "toggleButton",
+              "label": "Bold"
+            },
+            {
+              "id": "Italic",
+              "type": "toggleButton",
+              "label": "Italic"
+            },
+            {
+              "id": "UnderlineGallery",
+              "type": "splitButton",
+              "label": "Underline",
+              "items": [
+                {
+                  "id": "Underline",
+                  "type": "toggleButton",
+                  "label": "Underline"
+                },
+                {
+                  "id": "UnderlineDouble",
+                  "type": "toggleButton",
+                  "label": "Double Underline"
+                }
+              ]
+            },
+            {
+              "id": "BordersGallery",
+              "type": "splitButton",
+              "label": "Borders",
+              "items": [
+                {
+                  "id": "BorderBottomNoToggle",
+                  "type": "button",
+                  "label": "Bottom Border"
+                },
+                {
+                  "id": "BorderTopNoToggle",
+                  "type": "button",
+                  "label": "Top Border"
+                },
+                {
+                  "id": "BorderLeftNoToggle",
+                  "type": "button",
+                  "label": "Left Border"
+                },
+                {
+                  "id": "BorderRightNoToggle",
+                  "type": "button",
+                  "label": "Right Border"
+                },
+                {
+                  "id": "BorderNone",
+                  "type": "button",
+                  "label": "No Border"
+                },
+                {
+                  "id": "BordersAll",
+                  "type": "button",
+                  "label": "All Borders"
+                },
+                {
+                  "id": "BorderOutside",
+                  "type": "button",
+                  "label": "Outside Borders"
+                },
+                {
+                  "id": "BorderThickOutside",
+                  "type": "button",
+                  "label": "Thick Outside Borders"
+                },
+                {
+                  "id": "BorderDoubleBottom",
+                  "type": "button",
+                  "label": "Bottom Double Border"
+                },
+                {
+                  "id": "BorderThickBottom",
+                  "type": "button",
+                  "label": "Thick Bottom Border"
+                },
+                {
+                  "id": "BorderTopAndBottom",
+                  "type": "button",
+                  "label": "Top and Bottom Border"
+                },
+                {
+                  "id": "BorderTopAndThickBottom",
+                  "type": "button",
+                  "label": "Top and Thick Bottom Border"
+                },
+                {
+                  "id": "BorderTopAndDoubleBottom",
+                  "type": "button",
+                  "label": "Top and Double Bottom Border"
+                },
+                {
+                  "id": "BorderDrawLine",
+                  "type": "toggleButton",
+                  "label": "Draw Border"
+                },
+                {
+                  "id": "BorderDrawGrid",
+                  "type": "toggleButton",
+                  "label": "Draw Border Grid"
+                },
+                {
+                  "id": "BorderErase",
+                  "type": "toggleButton",
+                  "label": "Erase Border"
+                },
+                {
+                  "id": "BorderColorPickerExcel",
+                  "type": "gallery",
+                  "label": "Line Color",
+                  "items": [
+                    {
+                      "id": "BorderMoreColorsDialog",
+                      "type": "button",
+                      "label": "More Colors..."
+                    }
+                  ]
+                },
+                {
+                  "id": "BorderStyle",
+                  "type": "dropDown",
+                  "label": "Line Style"
+                },
+                {
+                  "id": "BordersMoreDialog",
+                  "type": "button",
+                  "label": "More Borders..."
+                }
+              ]
+            },
+            {
+              "id": "CellFillColorPicker",
+              "type": "gallery",
+              "label": "Fill Color",
+              "items": [
+                {
+                  "id": "FontShadingColorMoreColorsDialog",
+                  "type": "button",
+                  "label": "More Colors..."
+                }
+              ]
+            },
+            {
+              "id": "FontColorPicker",
+              "type": "gallery",
+              "label": "Font Color",
+              "items": [
+                {
+                  "id": "FontColorMoreColorsDialogExcel",
+                  "type": "button",
+                  "label": "More Colors..."
+                }
+              ]
+            },
+            {
+              "id": "PhoneticGuideMenu",
+              "type": "splitButton",
+              "label": "Phonetic Guide",
+              "items": [
+                {
+                  "id": "PhoneticGuideFieldShow",
+                  "type": "toggleButton",
+                  "label": "Show Phonetic Field"
+                },
+                {
+                  "id": "PhoneticGuideEdit",
+                  "type": "button",
+                  "label": "Edit Phonetic"
+                },
+                {
+                  "id": "PhoneticGuideSettings",
+                  "type": "button",
+                  "label": "Phonetic Settings..."
+                }
+              ]
+            },
+            {
+              "id": "FormatCellsFontDialog",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Format Cell Font"
+            }
+          ]
+        },
+        {
+          "id": "GroupAlignmentExcel",
+          "label": "Alignment",
+          "items": [
+            {
+              "id": "AlignTopExcel",
+              "type": "toggleButton",
+              "label": "Top Align"
+            },
+            {
+              "id": "AlignMiddleExcel",
+              "type": "toggleButton",
+              "label": "Middle Align"
+            },
+            {
+              "id": "AlignBottomExcel",
+              "type": "toggleButton",
+              "label": "Bottom Align"
+            },
+            {
+              "id": "OrientationMenu",
+              "type": "menu",
+              "label": "Orientation",
+              "items": [
+                {
+                  "id": "TextOrientationAngleCounterclockwise",
+                  "type": "toggleButton",
+                  "label": "Angle Counterclockwise"
+                },
+                {
+                  "id": "TextOrientationAngleClockwise",
+                  "type": "toggleButton",
+                  "label": "Angle Clockwise"
+                },
+                {
+                  "id": "TextOrientationVertical",
+                  "type": "toggleButton",
+                  "label": "Vertical Text"
+                },
+                {
+                  "id": "TextOrientationRotateUp",
+                  "type": "toggleButton",
+                  "label": "Rotate Text Up"
+                },
+                {
+                  "id": "TextOrientationRotateDown",
+                  "type": "toggleButton",
+                  "label": "Rotate Text Down"
+                },
+                {
+                  "id": "CellAlignmentOptions",
+                  "type": "button",
+                  "label": "Format Cell Alignment"
+                }
+              ]
+            },
+            {
+              "id": "AlignLeftToRightMenu",
+              "type": "splitButton",
+              "label": "Left-to-Right",
+              "items": [
+                {
+                  "id": "TextDirectionLeftToRight",
+                  "type": "toggleButton",
+                  "label": "Left-to-Right"
+                },
+                {
+                  "id": "TextDirectionRightToLeft",
+                  "type": "toggleButton",
+                  "label": "Right-to-Left"
+                },
+                {
+                  "id": "TextDirectionContext",
+                  "type": "toggleButton",
+                  "label": "Context"
+                }
+              ]
+            },
+            {
+              "id": "AlignLeft",
+              "type": "toggleButton",
+              "label": "Align Left"
+            },
+            {
+              "id": "AlignCenter",
+              "type": "toggleButton",
+              "label": "Center"
+            },
+            {
+              "id": "AlignRight",
+              "type": "toggleButton",
+              "label": "Align Right"
+            },
+            {
+              "id": "IndentDecreaseExcel",
+              "type": "button",
+              "label": "Decrease Indent"
+            },
+            {
+              "id": "IndentIncreaseExcel",
+              "type": "button",
+              "label": "Increase Indent"
+            },
+            {
+              "id": "WrapText",
+              "type": "toggleButton",
+              "label": "Wrap Text"
+            },
+            {
+              "id": "MergeCenterMenu",
+              "type": "splitButton",
+              "label": "Merge",
+              "items": [
+                {
+                  "id": "MergeCenter",
+                  "type": "toggleButton",
+                  "label": "Merge & Center"
+                },
+                {
+                  "id": "MergeCellsAcross",
+                  "type": "button",
+                  "label": "Merge Across"
+                },
+                {
+                  "id": "MergeCells",
+                  "type": "button",
+                  "label": "Merge Cells"
+                },
+                {
+                  "id": "UnmergeCells",
+                  "type": "button",
+                  "label": "Split Cells..."
+                },
+                {
+                  "id": "CenterAcrossSelection",
+                  "type": "toggleButton",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "CellAlignmentOptions",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Format Cell Alignment"
+            }
+          ]
+        },
+        {
+          "id": "GroupNumber",
+          "label": "Number",
+          "items": [
+            {
+              "id": "NumberFormatGallery",
+              "type": "comboBox",
+              "label": "Number Format",
+              "items": [
+                {
+                  "id": "NumberFormatsDialog",
+                  "type": "button",
+                  "label": "More Number Formats..."
+                }
+              ]
+            },
+            {
+              "id": "AccountingFormatMenu",
+              "type": "splitButton",
+              "label": "Accounting Number Formats",
+              "items": [
+                {
+                  "id": "AccountingFormat",
+                  "type": "button",
+                  "label": "Accounting Number Format"
+                },
+                {
+                  "id": "AccountingFormatExcel",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "AccountingFormatMoreExcel",
+                  "type": "button",
+                  "label": "More Accounting Formats..."
+                }
+              ]
+            },
+            {
+              "id": "PercentStyle",
+              "type": "button",
+              "label": "Percent Style"
+            },
+            {
+              "id": "CommaStyle",
+              "type": "button",
+              "label": "Comma Style"
+            },
+            {
+              "id": "DecimalsIncrease",
+              "type": "button",
+              "label": "Increase Decimal"
+            },
+            {
+              "id": "DecimalsDecrease",
+              "type": "button",
+              "label": "Decrease Decimal"
+            },
+            {
+              "id": "FormatCellsNumberDialog",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Format Cell Number"
+            }
+          ]
+        },
+        {
+          "id": "GroupStyles",
+          "label": "Styles",
+          "items": [
+            {
+              "id": "ConditionalFormattingMenu",
+              "type": "menu",
+              "label": "Conditional Formatting",
+              "items": [
+                {
+                  "id": "ConditionalFormattingHighlightCellsMenu",
+                  "type": "menu",
+                  "label": "Highlight Cells Rules",
+                  "items": [
+                    {
+                      "id": "ConditionalFormattingHighlightGreaterThan",
+                      "type": "button",
+                      "label": "Greater Than..."
+                    },
+                    {
+                      "id": "ConditionalFormattingHighlightLessThan",
+                      "type": "button",
+                      "label": "Less Than..."
+                    },
+                    {
+                      "id": "ConditionalFormattingHighlightBetween",
+                      "type": "button",
+                      "label": "Between..."
+                    },
+                    {
+                      "id": "ConditionalFormattingHighlightEqualTo",
+                      "type": "button",
+                      "label": "Equal To..."
+                    },
+                    {
+                      "id": "ConditionalFormattingHighlightTextContaining",
+                      "type": "button",
+                      "label": "Text that Contains..."
+                    },
+                    {
+                      "id": "ConditionalFormattingHighlightDateOccuring",
+                      "type": "button",
+                      "label": "A Date Occurring..."
+                    },
+                    {
+                      "id": "ConditionalFormattingHighlightDuplicateValues",
+                      "type": "button",
+                      "label": "Duplicate Values..."
+                    },
+                    {
+                      "id": "ConditionalFormattingHighlightRulesMore",
+                      "type": "button",
+                      "label": "More Rules..."
+                    }
+                  ]
+                },
+                {
+                  "id": "ConditionalFormattingTopBottomMenu",
+                  "type": "menu",
+                  "label": "Top/Bottom Rules",
+                  "items": [
+                    {
+                      "id": "ConditionalFormattingTopNItems",
+                      "type": "button",
+                      "label": "Top 10 Items..."
+                    },
+                    {
+                      "id": "ConditionalFormattingTopNPercent",
+                      "type": "button",
+                      "label": "Top 10 %..."
+                    },
+                    {
+                      "id": "ConditionalFormattingBottomNItems",
+                      "type": "button",
+                      "label": "Bottom 10 Items..."
+                    },
+                    {
+                      "id": "ConditionalFormattingBottomNPercent",
+                      "type": "button",
+                      "label": "Bottom 10 %..."
+                    },
+                    {
+                      "id": "ConditionalFormattingAboveAverage",
+                      "type": "button",
+                      "label": "Above Average..."
+                    },
+                    {
+                      "id": "ConditionalFormattingBelowAverage",
+                      "type": "button",
+                      "label": "Below Average..."
+                    },
+                    {
+                      "id": "ConditionalFormattingTopBottomMore",
+                      "type": "button",
+                      "label": "More Rules..."
+                    }
+                  ]
+                },
+                {
+                  "id": "ConditionalFormattingDataBarsGallery",
+                  "type": "gallery",
+                  "label": "Data Bars",
+                  "items": [
+                    {
+                      "id": "ConditionalFormattingDataBarsMoreOptions",
+                      "type": "button",
+                      "label": "More Rules..."
+                    }
+                  ]
+                },
+                {
+                  "id": "ConditionalFormattingColorScalesGallery",
+                  "type": "gallery",
+                  "label": "Color Scales",
+                  "items": [
+                    {
+                      "id": "ConditionalFormattingColorScalesMore",
+                      "type": "button",
+                      "label": "More Rules..."
+                    }
+                  ]
+                },
+                {
+                  "id": "ConditionalFormattingIconSetsGallery",
+                  "type": "gallery",
+                  "label": "Icon Sets",
+                  "items": [
+                    {
+                      "id": "ConditionalFormattingIconSetsMore",
+                      "type": "button",
+                      "label": "More Rules..."
+                    }
+                  ]
+                },
+                {
+                  "id": "ConditionalFormattingNewRule",
+                  "type": "button",
+                  "label": "New Rule..."
+                },
+                {
+                  "id": "ConditionalFormattingClearMenu",
+                  "type": "menu",
+                  "label": "Clear Rules",
+                  "items": [
+                    {
+                      "id": "ConditionalFormattingClearSelectedCells",
+                      "type": "button",
+                      "label": "Clear Rules from Selected Cells"
+                    },
+                    {
+                      "id": "ConditionalFormattingClearSheet",
+                      "type": "button",
+                      "label": "Clear Rules from Entire Sheet"
+                    },
+                    {
+                      "id": "ConditionalFormattingClearTable",
+                      "type": "button",
+                      "label": "Clear Rules from This Table"
+                    },
+                    {
+                      "id": "ConditionalFormattingClearPivotTable",
+                      "type": "button",
+                      "label": "Clear Rules from This PivotTable"
+                    }
+                  ]
+                },
+                {
+                  "id": "ConditionalFormattingsManage",
+                  "type": "button",
+                  "label": "Manage Rules..."
+                }
+              ]
+            },
+            {
+              "id": "FormatAsTableGallery",
+              "type": "gallery",
+              "label": "Format as Table",
+              "items": [
+                {
+                  "id": "TableStyleNew",
+                  "type": "button",
+                  "label": "New Table Style..."
+                },
+                {
+                  "id": "PivotTableNewStyle",
+                  "type": "button",
+                  "label": "New PivotTable Style..."
+                }
+              ]
+            },
+            {
+              "id": "CellStylesGallery",
+              "type": "gallery",
+              "label": "Cell Styles",
+              "items": [
+                {
+                  "id": "CellStyleNew",
+                  "type": "button",
+                  "label": "New Cell Style..."
+                },
+                {
+                  "id": "CellStylesMerge",
+                  "type": "button",
+                  "label": "Merge Styles..."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupCells",
+          "label": "Cells",
+          "items": [
+            {
+              "id": "InsertCellstMenu",
+              "type": "splitButton",
+              "label": "Insert",
+              "items": [
+                {
+                  "id": "CellsInsertSmart",
+                  "type": "button",
+                  "label": "Insert Cells"
+                },
+                {
+                  "id": "CellsInsertDialog",
+                  "type": "button",
+                  "label": "Insert Cells..."
+                },
+                {
+                  "id": "SheetRowsInsert",
+                  "type": "button",
+                  "label": "Insert Sheet Rows"
+                },
+                {
+                  "id": "SheetColumnsInsert",
+                  "type": "button",
+                  "label": "Insert Sheet Columns"
+                },
+                {
+                  "id": "TableRowsInsertAboveExcel",
+                  "type": "button",
+                  "label": "Insert Table Rows Above"
+                },
+                {
+                  "id": "TableRowsInsertBelowExcel",
+                  "type": "button",
+                  "label": "Insert Table Row Below"
+                },
+                {
+                  "id": "TableColumnsInsertLeftExcel",
+                  "type": "button",
+                  "label": "Insert Table Columns to the Left"
+                },
+                {
+                  "id": "TableColumnsInsertRightExcel",
+                  "type": "button",
+                  "label": "Insert Table Columns to the Right"
+                },
+                {
+                  "id": "SheetInsert",
+                  "type": "button",
+                  "label": "Insert Sheet"
+                }
+              ]
+            },
+            {
+              "id": "TableDeleteRowsAndColumnsMenu",
+              "type": "splitButton",
+              "label": "Delete",
+              "items": [
+                {
+                  "id": "CellsDeleteSmart",
+                  "type": "button",
+                  "label": "Delete Cells..."
+                },
+                {
+                  "id": "CellsDelete",
+                  "type": "button",
+                  "label": "Delete Cells..."
+                },
+                {
+                  "id": "SheetRowsDelete",
+                  "type": "button",
+                  "label": "Delete Sheet Rows"
+                },
+                {
+                  "id": "SheetColumnsDelete",
+                  "type": "button",
+                  "label": "Delete Sheet Columns"
+                },
+                {
+                  "id": "TableRowsDeleteExcel",
+                  "type": "button",
+                  "label": "Delete Table Rows"
+                },
+                {
+                  "id": "TableColumnsDeleteExcel",
+                  "type": "button",
+                  "label": "Delete Table Columns"
+                },
+                {
+                  "id": "SheetDelete",
+                  "type": "button",
+                  "label": "Delete Sheet"
+                }
+              ]
+            },
+            {
+              "id": "FormatCellsMenu",
+              "type": "menu",
+              "label": "Format",
+              "items": [
+                {
+                  "id": "RowHeight",
+                  "type": "button",
+                  "label": "Row Height..."
+                },
+                {
+                  "id": "RowHeightAutoFit",
+                  "type": "button",
+                  "label": "AutoFit Row Height"
+                },
+                {
+                  "id": "ColumnWidth",
+                  "type": "button",
+                  "label": "Column Width..."
+                },
+                {
+                  "id": "ColumnWidthAutoFit",
+                  "type": "button",
+                  "label": "AutoFit Column Width"
+                },
+                {
+                  "id": "ColumnWidthDefault",
+                  "type": "button",
+                  "label": "Default Width..."
+                },
+                {
+                  "id": "HideAndUnhideMenu",
+                  "type": "menu",
+                  "label": "Hide & Unhide",
+                  "items": [
+                    {
+                      "id": "RowsHide",
+                      "type": "button",
+                      "label": "Hide Rows"
+                    },
+                    {
+                      "id": "ColumnsHide",
+                      "type": "button",
+                      "label": "Hide Columns"
+                    },
+                    {
+                      "id": "SheetHide",
+                      "type": "button",
+                      "label": "Hide Sheet"
+                    },
+                    {
+                      "id": "RowsUnhide",
+                      "type": "button",
+                      "label": "Unhide Rows"
+                    },
+                    {
+                      "id": "ColumnsUnhide",
+                      "type": "button",
+                      "label": "Unhide Columns"
+                    },
+                    {
+                      "id": "SheetUnhide",
+                      "type": "button",
+                      "label": "Unhide Sheet..."
+                    }
+                  ]
+                },
+                {
+                  "id": "SheetRename",
+                  "type": "button",
+                  "label": "Rename Sheet"
+                },
+                {
+                  "id": "SheetMoveOrCopy",
+                  "type": "button",
+                  "label": "Move or Copy Sheet..."
+                },
+                {
+                  "id": "SheetTabColorGallery",
+                  "type": "gallery",
+                  "label": "Tab Color",
+                  "items": [
+                    {
+                      "id": "SheetTabColorMoreColorsDialog",
+                      "type": "button",
+                      "label": "More Colors..."
+                    }
+                  ]
+                },
+                {
+                  "id": "CollapseArrays",
+                  "type": "toggleButton",
+                  "label": ""
+                },
+                {
+                  "id": "SheetProtect",
+                  "type": "button",
+                  "label": "Protect Sheet..."
+                },
+                {
+                  "id": "Lock",
+                  "type": "toggleButton",
+                  "label": "Lock"
+                },
+                {
+                  "id": "FormatCellsDialog",
+                  "type": "button",
+                  "label": "Format Cells..."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupEditingExcel",
+          "label": "Editing",
+          "items": [
+            {
+              "id": "AutoSumMenu",
+              "type": "splitButton",
+              "label": "AutoSum",
+              "items": [
+                {
+                  "id": "AutoSum",
+                  "type": "button",
+                  "label": "Sum"
+                },
+                {
+                  "id": "AutoSumAverage",
+                  "type": "button",
+                  "label": "Average"
+                },
+                {
+                  "id": "AutoSumCount",
+                  "type": "button",
+                  "label": "Count Numbers"
+                },
+                {
+                  "id": "AutoSumMax",
+                  "type": "button",
+                  "label": "Max"
+                },
+                {
+                  "id": "AutoSumMin",
+                  "type": "button",
+                  "label": "Min"
+                },
+                {
+                  "id": "AutoSumMoreFunctions",
+                  "type": "button",
+                  "label": "More Functions..."
+                }
+              ]
+            },
+            {
+              "id": "FillMenu",
+              "type": "menu",
+              "label": "Fill",
+              "items": [
+                {
+                  "id": "FillDown",
+                  "type": "button",
+                  "label": "Down"
+                },
+                {
+                  "id": "FillRight",
+                  "type": "button",
+                  "label": "Right"
+                },
+                {
+                  "id": "FillUp",
+                  "type": "button",
+                  "label": "Up"
+                },
+                {
+                  "id": "FillLeft",
+                  "type": "button",
+                  "label": "Left"
+                },
+                {
+                  "id": "FillAcrossWorksheets",
+                  "type": "button",
+                  "label": "Across Worksheets..."
+                },
+                {
+                  "id": "FillSeries",
+                  "type": "button",
+                  "label": "Series..."
+                },
+                {
+                  "id": "FillJustify",
+                  "type": "button",
+                  "label": "Justify"
+                },
+                {
+                  "id": "QuickCode",
+                  "type": "button",
+                  "label": "Flash Fill"
+                }
+              ]
+            },
+            {
+              "id": "ClearMenu",
+              "type": "menu",
+              "label": "Clear",
+              "items": [
+                {
+                  "id": "ClearAll",
+                  "type": "button",
+                  "label": "Clear All"
+                },
+                {
+                  "id": "ClearFormats",
+                  "type": "button",
+                  "label": "Clear Formats"
+                },
+                {
+                  "id": "ClearContents",
+                  "type": "button",
+                  "label": "Clear Contents"
+                },
+                {
+                  "id": "ClearComments",
+                  "type": "button",
+                  "label": "Clear Comments"
+                },
+                {
+                  "id": "ClearThreadedCommentsAndNotes",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "HyperlinksClear",
+                  "type": "button",
+                  "label": "Clear Hyperlinks"
+                },
+                {
+                  "id": "HyperlinksRemove",
+                  "type": "button",
+                  "label": "Remove Hyperlinks"
+                },
+                {
+                  "id": "CleanupWorkbook",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "SortFilterMenu",
+              "type": "menu",
+              "label": "Sort & Filter",
+              "items": [
+                {
+                  "id": "SortAscendingExcel",
+                  "type": "button",
+                  "label": "Sort Ascending"
+                },
+                {
+                  "id": "SortDescendingExcel",
+                  "type": "button",
+                  "label": "Sort Descending"
+                },
+                {
+                  "id": "SortCustomExcel",
+                  "type": "button",
+                  "label": "Custom Sort..."
+                },
+                {
+                  "id": "Filter",
+                  "type": "toggleButton",
+                  "label": "Filter"
+                },
+                {
+                  "id": "SortClear",
+                  "type": "button",
+                  "label": "Clear"
+                },
+                {
+                  "id": "FilterReapply",
+                  "type": "button",
+                  "label": "Reapply"
+                }
+              ]
+            },
+            {
+              "id": "SelectMenuExcel",
+              "type": "menu",
+              "label": "Find & Select",
+              "items": [
+                {
+                  "id": "FindDialogExcel",
+                  "type": "button",
+                  "label": "Find..."
+                },
+                {
+                  "id": "ReplaceDialog",
+                  "type": "button",
+                  "label": "Replace..."
+                },
+                {
+                  "id": "GoTo",
+                  "type": "button",
+                  "label": "Go To..."
+                },
+                {
+                  "id": "GoToSpecial",
+                  "type": "button",
+                  "label": "Go To Special..."
+                },
+                {
+                  "id": "GoToFormulas",
+                  "type": "button",
+                  "label": "Formulas"
+                },
+                {
+                  "id": "GoToComments",
+                  "type": "button",
+                  "label": "Comments"
+                },
+                {
+                  "id": "GoToCommentsLegacy",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "GoToConditionalFormatting",
+                  "type": "button",
+                  "label": "Conditional Formatting"
+                },
+                {
+                  "id": "GoToConstants",
+                  "type": "button",
+                  "label": "Constants"
+                },
+                {
+                  "id": "GoToDataValidation",
+                  "type": "button",
+                  "label": "Data Validation"
+                },
+                {
+                  "id": "ObjectsSelect",
+                  "type": "toggleButton",
+                  "label": "Select Objects"
+                },
+                {
+                  "id": "SelectionPane",
+                  "type": "toggleButton",
+                  "label": "Selection Pane..."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupActivation",
+          "label": "",
+          "items": [
+            {
+              "id": "ActivateOffice",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupIdeas",
+          "label": "Analysis",
+          "items": [
+            {
+              "id": "DataCleansing",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "AnalyzeData",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupClassifyLabelProtect",
+          "label": "Sensitivity",
+          "items": [
+            {
+              "id": "ClassifyLabelProtect",
+              "type": "menu",
+              "label": "Sensitivity",
+              "items": [
+                {
+                  "id": "",
+                  "type": "gallery",
+                  "label": ""
+                },
+                {
+                  "id": "",
+                  "type": "toggleButton",
+                  "label": ""
+                },
+                {
+                  "id": "",
+                  "type": "gallery",
+                  "label": ""
+                },
+                {
+                  "id": "",
+                  "type": "gallery",
+                  "label": ""
+                },
+                {
+                  "id": "",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupOfficeExtensionsAddinFlyout",
+          "label": "Add-ins",
+          "items": [
+            {
+              "id": "OfficeExtensionsShowAddinFlyout",
+              "type": "button",
+              "label": "Add-ins"
+            },
+            {
+              "id": "OfficeExtensionsShowAddinFlyout",
+              "type": "toggleButton",
+              "label": "Add-ins"
+            }
+          ]
+        },
+        {
+          "id": "GroupHomePowerOptions",
+          "label": "Power Options",
+          "items": [
+            {
+              "id": "UXPPPowerOptions",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupAIAssistance",
+          "label": "Assistance",
+          "items": [
+            {
+              "id": "DataCleansing",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "AnalyzeData",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "Copilot",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TabInsert",
+      "label": "Insert",
+      "groups": [
+        {
+          "id": "GroupInsertTablesExcel",
+          "label": "Tables",
+          "items": [
+            {
+              "id": "PivotTableInsert",
+              "type": "button",
+              "label": "PivotTable"
+            },
+            {
+              "id": "InsertPivotTableSplit",
+              "type": "gallery",
+              "label": "PivotTable",
+              "items": [
+                {
+                  "id": "NewPivotTable",
+                  "type": "button",
+                  "label": "PivotTable"
+                },
+                {
+                  "id": "PowerBIDataInsert",
+                  "type": "button",
+                  "label": "From Power BI"
+                }
+              ]
+            },
+            {
+              "id": "InsertPivotTableDropdown",
+              "type": "gallery",
+              "label": "PivotTable",
+              "items": [
+                {
+                  "id": "CreatePivotTableFromTableRange",
+                  "type": "button",
+                  "label": "From Table/Range"
+                },
+                {
+                  "id": "CreatePivotTableFromExternalDataSource",
+                  "type": "button",
+                  "label": "From External Data Source"
+                },
+                {
+                  "id": "CreatePivotTableFromDataModel",
+                  "type": "button",
+                  "label": "From Data Model"
+                },
+                {
+                  "id": "PowerBIDataInsert",
+                  "type": "button",
+                  "label": "From Power BI"
+                }
+              ]
+            },
+            {
+              "id": "PivotTableSuggestion",
+              "type": "button",
+              "label": "Recommended PivotTables"
+            },
+            {
+              "id": "TableInsertExcel",
+              "type": "button",
+              "label": "Table"
+            },
+            {
+              "id": "SplitButtonMsForm",
+              "type": "gallery",
+              "label": "",
+              "items": [
+                {
+                  "id": "MsFormInsert",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "MsFormPreview",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "MsFormEdit",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "MsFormSend",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "MsFormDelete",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupInsertIllustrations",
+          "label": "Illustrations",
+          "items": [
+            {
+              "id": "FlyoutAnchorInsertPictures",
+              "type": "gallery",
+              "label": "Pictures",
+              "items": [
+                {
+                  "id": "PictureInsertFromFile",
+                  "type": "button",
+                  "label": "Pictures..."
+                },
+                {
+                  "id": "InsertMobilePicture",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "InsertM365Picture",
+                  "type": "button",
+                  "label": "Stock Images..."
+                },
+                {
+                  "id": "ClipArtInsertDialog",
+                  "type": "button",
+                  "label": "Online Pictures..."
+                }
+              ]
+            },
+            {
+              "id": "ShapesInsertGallery",
+              "type": "gallery",
+              "label": "Shapes"
+            },
+            {
+              "id": "IconInsertFromFile",
+              "type": "button",
+              "label": "Icons"
+            },
+            {
+              "id": "Insert3DModelDropdown",
+              "type": "splitButton",
+              "label": "3D Models",
+              "items": [
+                {
+                  "id": "Insert3DModelDefault",
+                  "type": "button",
+                  "label": "3D Models"
+                },
+                {
+                  "id": "Insert3DModelFromFile",
+                  "type": "button",
+                  "label": "This Device..."
+                },
+                {
+                  "id": "Insert3DModelFromFileConsumer",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "Insert3DModelFromOnline",
+                  "type": "button",
+                  "label": "Stock 3D Models..."
+                },
+                {
+                  "id": "Insert3DModelFromOnlineConsumer",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "SmartArtInsert",
+              "type": "button",
+              "label": "SmartArt..."
+            },
+            {
+              "id": "Insert3DModelFallback",
+              "type": "button",
+              "label": "3D Models"
+            },
+            {
+              "id": "ScreenshotInsertGallery",
+              "type": "gallery",
+              "label": "Screenshot",
+              "items": [
+                {
+                  "id": "ScreenClipping",
+                  "type": "button",
+                  "label": "Screen Clipping"
+                }
+              ]
+            },
+            {
+              "id": "InsertPicturesInCellOverCellsMenu",
+              "type": "menu",
+              "label": "Pictures",
+              "items": [
+                {
+                  "id": "InsertPicturePlaceInCellsMenu",
+                  "type": "menu",
+                  "label": "Place in Cell",
+                  "items": [
+                    {
+                      "id": "InsertCellPictureFromFile",
+                      "type": "button",
+                      "label": "From File..."
+                    },
+                    {
+                      "id": "InsertCellMobilePicture",
+                      "type": "button",
+                      "label": ""
+                    },
+                    {
+                      "id": "InsertCellM365Picture",
+                      "type": "button",
+                      "label": "Stock Images..."
+                    },
+                    {
+                      "id": "InsertCellClipArtDialog",
+                      "type": "button",
+                      "label": "Online Pictures..."
+                    }
+                  ]
+                },
+                {
+                  "id": "InsertPicturePlaceOverCellsMenu",
+                  "type": "menu",
+                  "label": "Place over Cells",
+                  "items": [
+                    {
+                      "id": "PictureInsertFromFile",
+                      "type": "button",
+                      "label": "Pictures..."
+                    },
+                    {
+                      "id": "InsertMobilePicture",
+                      "type": "button",
+                      "label": ""
+                    },
+                    {
+                      "id": "InsertM365Picture",
+                      "type": "button",
+                      "label": "Stock Images..."
+                    },
+                    {
+                      "id": "ClipArtInsertDialog",
+                      "type": "button",
+                      "label": "Online Pictures..."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupOfficeExtension",
+          "label": "Add-ins",
+          "items": [
+            {
+              "id": "OfficeExtensionsAppStore",
+              "type": "button",
+              "label": "Get Add-ins"
+            },
+            {
+              "id": "OfficeExtensionsGallery2",
+              "type": "gallery",
+              "label": "My Add-ins",
+              "items": [
+                {
+                  "id": "OfficeExtensionsDialog",
+                  "type": "button",
+                  "label": "See All..."
+                },
+                {
+                  "id": "OfficeExtensionsManageOtherAddins",
+                  "type": "button",
+                  "label": "Manage Other Add-ins..."
+                },
+                {
+                  "id": "ExtensibilityExperimentation",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "OfficeExtensionsFeaturedApp1",
+              "type": "button",
+              "label": "Add-in1"
+            },
+            {
+              "id": "OfficeExtensionsFeaturedApp2",
+              "type": "button",
+              "label": "Add-in2"
+            },
+            {
+              "id": "OfficeExtensionsFeaturedApp3",
+              "type": "button",
+              "label": "Add-in3"
+            },
+            {
+              "id": "OfficeExtensionsFeaturedApp4",
+              "type": "button",
+              "label": "Add-in4"
+            },
+            {
+              "id": "OfficeExtensionsFeaturedApp5",
+              "type": "button",
+              "label": "Add-in5"
+            },
+            {
+              "id": "OfficeExtensionsFeaturedApp6",
+              "type": "button",
+              "label": "Add-in6"
+            }
+          ]
+        },
+        {
+          "id": "GroupInsertChartsExcel",
+          "label": "Charts",
+          "items": [
+            {
+              "id": "ChartInsertGalleryNew",
+              "type": "button",
+              "label": "Recommended Charts"
+            },
+            {
+              "id": "ChartTypeColumnInsertGallery",
+              "type": "gallery",
+              "label": "Insert Column or Bar Chart",
+              "items": [
+                {
+                  "id": "ChartTypeColumnInsertDialog",
+                  "type": "button",
+                  "label": "More Column Charts..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeLineInsertGallery",
+              "type": "gallery",
+              "label": "Insert Line or Area Chart",
+              "items": [
+                {
+                  "id": "ChartTypeLineInsertDialog",
+                  "type": "button",
+                  "label": "More Line Charts..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypePieInsertGallery",
+              "type": "gallery",
+              "label": "Insert Pie or Doughnut Chart",
+              "items": [
+                {
+                  "id": "ChartTypePieInsertDialog",
+                  "type": "button",
+                  "label": "More Pie Charts..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeHierarchyInsertGallery",
+              "type": "gallery",
+              "label": "Insert Hierarchy Chart",
+              "items": [
+                {
+                  "id": "ChartTypeHierarchyInsertDialog",
+                  "type": "button",
+                  "label": "More Hierarchy Charts..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeStatisticalInsertGallery",
+              "type": "gallery",
+              "label": "Insert Statistic Chart",
+              "items": [
+                {
+                  "id": "ChartTypeStatisticalInsertDialog",
+                  "type": "button",
+                  "label": "More Statistical Charts..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeXYScatterInsertGallery",
+              "type": "gallery",
+              "label": "Insert Scatter (X, Y) or Bubble Chart",
+              "items": [
+                {
+                  "id": "ChartTypeScatterInsertDialog",
+                  "type": "button",
+                  "label": "More Scatter Charts..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeWaterfallInsertChartGallery",
+              "type": "gallery",
+              "label": "Insert Waterfall, Funnel, Stock, Surface, or Radar Chart",
+              "items": [
+                {
+                  "id": "ChartTypeStockInsertDialog",
+                  "type": "button",
+                  "label": "More Stock Charts..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeComboInsertGallery",
+              "type": "gallery",
+              "label": "Insert Combo Chart",
+              "items": [
+                {
+                  "id": "ChartTypeComboInsertDialog",
+                  "type": "button",
+                  "label": "Create Custom Combo Chart..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeCustomVisualInsertGallery",
+              "type": "gallery",
+              "label": "Insert Custom Visual",
+              "items": [
+                {
+                  "id": "ChartTypeCustomVisualInsertDialog",
+                  "type": "button",
+                  "label": "More Custom Visuals..."
+                }
+              ]
+            },
+            {
+              "id": "ChartTypeMapsInsertGallery",
+              "type": "gallery",
+              "label": "Maps",
+              "items": [
+                {
+                  "id": "ChartTypeMapsInsertDialog",
+                  "type": "button",
+                  "label": "More Map Charts"
+                }
+              ]
+            },
+            {
+              "id": "NewPivotChartSplitButton",
+              "type": "splitButton",
+              "label": "PivotChart",
+              "items": [
+                {
+                  "id": "PivotChartInsert",
+                  "type": "button",
+                  "label": "PivotChart"
+                },
+                {
+                  "id": "SxNewPivotChartAndTable",
+                  "type": "button",
+                  "label": "PivotChart & PivotTable"
+                }
+              ]
+            },
+            {
+              "id": "ChartDialogLauncherAll",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Recommended Charts"
+            }
+          ]
+        },
+        {
+          "id": "GroupPowerMap",
+          "label": "",
+          "items": [
+            {
+              "id": "SplitButtonPowerMap",
+              "type": "gallery",
+              "label": "3D Map",
+              "items": [
+                {
+                  "id": "PowerMapLaunch",
+                  "type": "button",
+                  "label": "Open 3D Maps"
+                },
+                {
+                  "id": "PowerMapAddData",
+                  "type": "button",
+                  "label": "Add Selected Data to 3D Maps"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupSparklinesInsert",
+          "label": "Sparklines",
+          "items": [
+            {
+              "id": "SparklineLineInsert",
+              "type": "button",
+              "label": "Line"
+            },
+            {
+              "id": "SparklineColumnInsert",
+              "type": "button",
+              "label": "Column"
+            },
+            {
+              "id": "SparklineWinLossInsert",
+              "type": "button",
+              "label": "Win/Loss"
+            }
+          ]
+        },
+        {
+          "id": "GroupSlicerInsert",
+          "label": "Filters",
+          "items": [
+            {
+              "id": "SlicerInsert",
+              "type": "button",
+              "label": "Insert Slicer..."
+            },
+            {
+              "id": "InsertTimeline",
+              "type": "button",
+              "label": "Timeline"
+            }
+          ]
+        },
+        {
+          "id": "GroupInsertLinks",
+          "label": "Links",
+          "items": [
+            {
+              "id": "InsertLinkGallery",
+              "type": "gallery",
+              "label": "Link",
+              "items": [
+                {
+                  "id": "",
+                  "type": "button",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "HyperlinkInsert",
+                      "type": "button",
+                      "label": "Link"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupInsertComments",
+          "label": "",
+          "items": [
+            {
+              "id": "InsertNewComment",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupCellControls",
+          "label": "Controls",
+          "items": [
+            {
+              "id": "InsertInCellCheckbox",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "InCellStarRating",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "InCellPictureCellFormat",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupInsertText",
+          "label": "Text",
+          "items": [
+            {
+              "id": "TextBoxInsertExcel",
+              "type": "toggleButton",
+              "label": "Text Box"
+            },
+            {
+              "id": "TextBoxInsertMenu",
+              "type": "splitButton",
+              "label": "Text Box",
+              "items": [
+                {
+                  "id": "TextBoxInsertHorizontal",
+                  "type": "toggleButton",
+                  "label": "Draw Horizontal Text Box"
+                },
+                {
+                  "id": "TextBoxInsertVertical",
+                  "type": "toggleButton",
+                  "label": "Vertical Text Box"
+                }
+              ]
+            },
+            {
+              "id": "HeaderFooterInsert",
+              "type": "button",
+              "label": "Header & Footer..."
+            },
+            {
+              "id": "WordArtInsertGallery",
+              "type": "gallery",
+              "label": "WordArt"
+            },
+            {
+              "id": "SignatureLineInsertMenu",
+              "type": "splitButton",
+              "label": "Signature Line",
+              "items": [
+                {
+                  "id": "SignatureLineInsert",
+                  "type": "button",
+                  "label": "Signature Line"
+                },
+                {
+                  "id": "SignatureServicesAdd",
+                  "type": "button",
+                  "label": "Add Signature Services..."
+                }
+              ]
+            },
+            {
+              "id": "OleObjectctInsert",
+              "type": "button",
+              "label": "Object..."
+            }
+          ]
+        },
+        {
+          "id": "GroupInsertSymbols",
+          "label": "Symbols",
+          "items": [
+            {
+              "id": "InsertBuildingBlocksEquationsGallery",
+              "type": "gallery",
+              "label": "Equation",
+              "items": [
+                {
+                  "id": "EquationInsertNew",
+                  "type": "button",
+                  "label": "Insert New Equation"
+                },
+                {
+                  "id": "InkEquation",
+                  "type": "button",
+                  "label": "Ink Equation"
+                }
+              ]
+            },
+            {
+              "id": "SymbolInsert",
+              "type": "button",
+              "label": "Symbol..."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TabPageLayoutExcel",
+      "label": "Page Layout",
+      "groups": [
+        {
+          "id": "GroupThemesExcel",
+          "label": "Themes",
+          "items": [
+            {
+              "id": "ThemesGallery",
+              "type": "gallery",
+              "label": "Themes",
+              "items": [
+                {
+                  "id": "ThemeSearchOfficeOnline",
+                  "type": "button",
+                  "label": "Enable Content Updates from Office.com..."
+                },
+                {
+                  "id": "ThemeBrowseForThemes",
+                  "type": "button",
+                  "label": "Browse for Themes..."
+                },
+                {
+                  "id": "ThemeSaveCurrent",
+                  "type": "button",
+                  "label": "Save Current Theme..."
+                }
+              ]
+            },
+            {
+              "id": "ThemeColorsGallery",
+              "type": "gallery",
+              "label": "Colors",
+              "items": [
+                {
+                  "id": "ThemeColorsCreateNew",
+                  "type": "button",
+                  "label": "Customize Colors..."
+                }
+              ]
+            },
+            {
+              "id": "ThemeFontsGallery",
+              "type": "gallery",
+              "label": "Fonts",
+              "items": [
+                {
+                  "id": "ThemeFontsCreateNew",
+                  "type": "button",
+                  "label": "Customize Fonts..."
+                }
+              ]
+            },
+            {
+              "id": "ThemeEffectsGallery",
+              "type": "gallery",
+              "label": "Effects"
+            }
+          ]
+        },
+        {
+          "id": "GroupPageSetup",
+          "label": "Page Setup",
+          "items": [
+            {
+              "id": "PageMarginsGallery",
+              "type": "gallery",
+              "label": "Margins",
+              "items": [
+                {
+                  "id": "MarginsCustomMargins",
+                  "type": "button",
+                  "label": "Custom Margins..."
+                }
+              ]
+            },
+            {
+              "id": "PageOrientationGallery",
+              "type": "gallery",
+              "label": "Orientation"
+            },
+            {
+              "id": "PageSizeGallery",
+              "type": "gallery",
+              "label": "Size",
+              "items": [
+                {
+                  "id": "PageSizeMorePaperSizesDialogExcel",
+                  "type": "button",
+                  "label": "More Paper Sizes..."
+                }
+              ]
+            },
+            {
+              "id": "PrintAreaMenu",
+              "type": "menu",
+              "label": "Print Area",
+              "items": [
+                {
+                  "id": "PrintAreaSetPrintArea",
+                  "type": "button",
+                  "label": "Set Print Area"
+                },
+                {
+                  "id": "PrintAreaClearPrintArea",
+                  "type": "button",
+                  "label": "Clear Print Area"
+                },
+                {
+                  "id": "PrintAreaAddToPrintArea",
+                  "type": "button",
+                  "label": "Add to Print Area"
+                }
+              ]
+            },
+            {
+              "id": "PageBreakMenu",
+              "type": "menu",
+              "label": "Breaks",
+              "items": [
+                {
+                  "id": "PageBreakInsertExcel",
+                  "type": "button",
+                  "label": "Insert Page Break"
+                },
+                {
+                  "id": "PageBreakRemove",
+                  "type": "button",
+                  "label": "Remove Page Break"
+                },
+                {
+                  "id": "PageBreaksResetAll",
+                  "type": "button",
+                  "label": "Reset All Page Breaks"
+                }
+              ]
+            },
+            {
+              "id": "SheetBackground",
+              "type": "button",
+              "label": "Background..."
+            },
+            {
+              "id": "PrintTitles",
+              "type": "button",
+              "label": "Print Titles"
+            },
+            {
+              "id": "PageSetupPageDialog",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Page Setup"
+            }
+          ]
+        },
+        {
+          "id": "GroupPageLayoutScaleToFit",
+          "label": "Scale to Fit",
+          "items": [
+            {
+              "id": "PageScaleToFitWidth",
+              "type": "comboBox",
+              "label": "Width:",
+              "items": [
+                {
+                  "id": "PageScaleToFitOptionsDialog",
+                  "type": "button",
+                  "label": "More Pages..."
+                }
+              ]
+            },
+            {
+              "id": "PageScaleToFitHeight",
+              "type": "comboBox",
+              "label": "Height:",
+              "items": [
+                {
+                  "id": "PageScaleToFitOptionsDialog",
+                  "type": "button",
+                  "label": "More Pages..."
+                }
+              ]
+            },
+            {
+              "id": "PageScaleToFitScale",
+              "type": "control",
+              "label": "Scale:"
+            },
+            {
+              "id": "PageSetupPageDialog",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Page Setup"
+            }
+          ]
+        },
+        {
+          "id": "GroupPageLayoutSheetOptions",
+          "label": "Sheet Options",
+          "items": [
+            {
+              "id": "RightToLeftDocument",
+              "type": "toggleButton",
+              "label": "Right-to-Left Document"
+            },
+            {
+              "id": "GridlinesLabel",
+              "type": "labelControl",
+              "label": "Gridlines"
+            },
+            {
+              "id": "ViewSheetGridlines",
+              "type": "checkBox",
+              "label": "View"
+            },
+            {
+              "id": "SheetPrintGridlines",
+              "type": "checkBox",
+              "label": "Print"
+            },
+            {
+              "id": "HeadingsLabel",
+              "type": "labelControl",
+              "label": "Headings"
+            },
+            {
+              "id": "ViewSheetHeadings",
+              "type": "checkBox",
+              "label": "View"
+            },
+            {
+              "id": "SheetPrintHeadings",
+              "type": "checkBox",
+              "label": "Print"
+            },
+            {
+              "id": "PageSetupSheetDialog",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Sheet Options"
+            }
+          ]
+        },
+        {
+          "id": "GroupArrange",
+          "label": "Arrange",
+          "items": [
+            {
+              "id": "ObjectBringForwardMenu",
+              "type": "splitButton",
+              "label": "Bring Forward",
+              "items": [
+                {
+                  "id": "ObjectBringForward",
+                  "type": "button",
+                  "label": "Bring Forward"
+                },
+                {
+                  "id": "ObjectBringToFront",
+                  "type": "button",
+                  "label": "Bring to Front"
+                }
+              ]
+            },
+            {
+              "id": "ObjectSendBackwardMenu",
+              "type": "splitButton",
+              "label": "Send Backward",
+              "items": [
+                {
+                  "id": "ObjectSendBackward",
+                  "type": "button",
+                  "label": "Send Backward"
+                },
+                {
+                  "id": "ObjectSendToBack",
+                  "type": "button",
+                  "label": "Send to Back"
+                }
+              ]
+            },
+            {
+              "id": "SelectionPane",
+              "type": "toggleButton",
+              "label": "Selection Pane..."
+            },
+            {
+              "id": "ObjectAlignMenu",
+              "type": "menu",
+              "label": "Align",
+              "items": [
+                {
+                  "id": "ObjectsAlignLeft",
+                  "type": "button",
+                  "label": "Align Left"
+                },
+                {
+                  "id": "ObjectsAlignCenterHorizontal",
+                  "type": "button",
+                  "label": "Align Center"
+                },
+                {
+                  "id": "ObjectsAlignRight",
+                  "type": "button",
+                  "label": "Align Right"
+                },
+                {
+                  "id": "ObjectsAlignTop",
+                  "type": "button",
+                  "label": "Align Top"
+                },
+                {
+                  "id": "ObjectsAlignMiddleVertical",
+                  "type": "button",
+                  "label": "Align Middle"
+                },
+                {
+                  "id": "ObjectsAlignBottom",
+                  "type": "button",
+                  "label": "Align Bottom"
+                },
+                {
+                  "id": "AlignDistributeHorizontallyClassic",
+                  "type": "button",
+                  "label": "Distribute Horizontally"
+                },
+                {
+                  "id": "AlignDistributeVerticallyClassic",
+                  "type": "button",
+                  "label": "Distribute Vertically"
+                },
+                {
+                  "id": "SnapToGrid",
+                  "type": "toggleButton",
+                  "label": "Snap to Grid"
+                },
+                {
+                  "id": "SnapToShapes",
+                  "type": "toggleButton",
+                  "label": "Snap to Shape"
+                },
+                {
+                  "id": "ViewGridlinesToggleExcel",
+                  "type": "toggleButton",
+                  "label": "View Gridlines"
+                }
+              ]
+            },
+            {
+              "id": "ObjectsGroupMenu",
+              "type": "menu",
+              "label": "Group",
+              "items": [
+                {
+                  "id": "ObjectsGroup",
+                  "type": "button",
+                  "label": "Group"
+                },
+                {
+                  "id": "ObjectsRegroup",
+                  "type": "button",
+                  "label": "Regroup"
+                },
+                {
+                  "id": "ObjectsUngroup",
+                  "type": "button",
+                  "label": "Ungroup"
+                }
+              ]
+            },
+            {
+              "id": "ObjectRotateGallery",
+              "type": "gallery",
+              "label": "Rotate",
+              "items": [
+                {
+                  "id": "ObjectRotationOptionsDialog",
+                  "type": "button",
+                  "label": "More Rotation Options..."
+                }
+              ]
+            },
+            {
+              "id": "ObjectsArrangeMenu",
+              "type": "menu",
+              "label": "Arrange",
+              "items": [
+                {
+                  "id": "ObjectBringToFront",
+                  "type": "button",
+                  "label": "Bring to Front"
+                },
+                {
+                  "id": "ObjectBringForward",
+                  "type": "button",
+                  "label": "Bring Forward"
+                },
+                {
+                  "id": "ObjectSendToBack",
+                  "type": "button",
+                  "label": "Send to Back"
+                },
+                {
+                  "id": "ObjectSendBackward",
+                  "type": "button",
+                  "label": "Send Backward"
+                },
+                {
+                  "id": "ObjectsGroup",
+                  "type": "button",
+                  "label": "Group"
+                },
+                {
+                  "id": "ObjectsUngroup",
+                  "type": "button",
+                  "label": "Ungroup"
+                },
+                {
+                  "id": "ObjectsRegroup",
+                  "type": "button",
+                  "label": "Regroup"
+                },
+                {
+                  "id": "ObjectAlignMenu",
+                  "type": "menu",
+                  "label": "Align",
+                  "items": [
+                    {
+                      "id": "ObjectsAlignLeft",
+                      "type": "button",
+                      "label": "Align Left"
+                    },
+                    {
+                      "id": "ObjectsAlignCenterHorizontal",
+                      "type": "button",
+                      "label": "Align Center"
+                    },
+                    {
+                      "id": "ObjectsAlignRight",
+                      "type": "button",
+                      "label": "Align Right"
+                    },
+                    {
+                      "id": "ObjectsAlignTop",
+                      "type": "button",
+                      "label": "Align Top"
+                    },
+                    {
+                      "id": "ObjectsAlignMiddleVertical",
+                      "type": "button",
+                      "label": "Align Middle"
+                    },
+                    {
+                      "id": "ObjectsAlignBottom",
+                      "type": "button",
+                      "label": "Align Bottom"
+                    },
+                    {
+                      "id": "AlignDistributeHorizontallyClassic",
+                      "type": "button",
+                      "label": "Distribute Horizontally"
+                    },
+                    {
+                      "id": "AlignDistributeVerticallyClassic",
+                      "type": "button",
+                      "label": "Distribute Vertically"
+                    },
+                    {
+                      "id": "SnapToGrid",
+                      "type": "toggleButton",
+                      "label": "Snap to Grid"
+                    },
+                    {
+                      "id": "SnapToShapes",
+                      "type": "toggleButton",
+                      "label": "Snap to Shape"
+                    },
+                    {
+                      "id": "ViewGridlinesToggleExcel",
+                      "type": "toggleButton",
+                      "label": "View Gridlines"
+                    }
+                  ]
+                },
+                {
+                  "id": "ObjectRotateGallery",
+                  "type": "gallery",
+                  "label": "Rotate",
+                  "items": [
+                    {
+                      "id": "ObjectRotationOptionsDialog",
+                      "type": "button",
+                      "label": "More Rotation Options..."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TabFormulas",
+      "label": "Formulas",
+      "groups": [
+        {
+          "id": "GroupFunctionLibrary",
+          "label": "Function Library",
+          "items": [
+            {
+              "id": "FunctionWizard",
+              "type": "button",
+              "label": "Insert Function..."
+            },
+            {
+              "id": "AutoSumMenu",
+              "type": "splitButton",
+              "label": "AutoSum",
+              "items": [
+                {
+                  "id": "AutoSum",
+                  "type": "button",
+                  "label": "Sum"
+                },
+                {
+                  "id": "AutoSumAverage",
+                  "type": "button",
+                  "label": "Average"
+                },
+                {
+                  "id": "AutoSumCount",
+                  "type": "button",
+                  "label": "Count Numbers"
+                },
+                {
+                  "id": "AutoSumMax",
+                  "type": "button",
+                  "label": "Max"
+                },
+                {
+                  "id": "AutoSumMin",
+                  "type": "button",
+                  "label": "Min"
+                },
+                {
+                  "id": "AutoSumMoreFunctions",
+                  "type": "button",
+                  "label": "More Functions..."
+                }
+              ]
+            },
+            {
+              "id": "FunctionsRecentlyUsedtInsertGallery",
+              "type": "gallery",
+              "label": "Recently Used",
+              "items": [
+                {
+                  "id": "FunctionWizard",
+                  "type": "button",
+                  "label": "Insert Function..."
+                }
+              ]
+            },
+            {
+              "id": "FunctionsFinancialInsertGallery",
+              "type": "gallery",
+              "label": "Financial",
+              "items": [
+                {
+                  "id": "FunctionWizard",
+                  "type": "button",
+                  "label": "Insert Function..."
+                }
+              ]
+            },
+            {
+              "id": "FunctionsLogicalInsertGallery",
+              "type": "gallery",
+              "label": "Logical",
+              "items": [
+                {
+                  "id": "FunctionWizard",
+                  "type": "button",
+                  "label": "Insert Function..."
+                }
+              ]
+            },
+            {
+              "id": "FunctionsTextInsertGallery",
+              "type": "gallery",
+              "label": "Text",
+              "items": [
+                {
+                  "id": "FunctionWizard",
+                  "type": "button",
+                  "label": "Insert Function..."
+                }
+              ]
+            },
+            {
+              "id": "FunctionsDateTimeInsertGallery",
+              "type": "gallery",
+              "label": "Date & Time",
+              "items": [
+                {
+                  "id": "FunctionWizard",
+                  "type": "button",
+                  "label": "Insert Function..."
+                }
+              ]
+            },
+            {
+              "id": "FunctionsLookupReferenceInsertGallery",
+              "type": "gallery",
+              "label": "Lookup & Reference",
+              "items": [
+                {
+                  "id": "FunctionWizard",
+                  "type": "button",
+                  "label": "Insert Function..."
+                }
+              ]
+            },
+            {
+              "id": "FunctionsMathTrigInsertGallery",
+              "type": "gallery",
+              "label": "Math & Trig",
+              "items": [
+                {
+                  "id": "FunctionWizard",
+                  "type": "button",
+                  "label": "Insert Function..."
+                }
+              ]
+            },
+            {
+              "id": "FormulaMoreFunctionsMenu",
+              "type": "menu",
+              "label": "More Functions",
+              "items": [
+                {
+                  "id": "FunctionsStatisticalInsertGallery",
+                  "type": "gallery",
+                  "label": "Statistical",
+                  "items": [
+                    {
+                      "id": "FunctionWizard",
+                      "type": "button",
+                      "label": "Insert Function..."
+                    }
+                  ]
+                },
+                {
+                  "id": "FunctionsEngineeringInsertGallery",
+                  "type": "gallery",
+                  "label": "Engineering",
+                  "items": [
+                    {
+                      "id": "FunctionWizard",
+                      "type": "button",
+                      "label": "Insert Function..."
+                    }
+                  ]
+                },
+                {
+                  "id": "FunctionsCubeInsertGallery",
+                  "type": "gallery",
+                  "label": "Cube",
+                  "items": [
+                    {
+                      "id": "FunctionWizard",
+                      "type": "button",
+                      "label": "Insert Function..."
+                    }
+                  ]
+                },
+                {
+                  "id": "FunctionsInformationInsertGallery",
+                  "type": "gallery",
+                  "label": "Information",
+                  "items": [
+                    {
+                      "id": "FunctionWizard",
+                      "type": "button",
+                      "label": "Insert Function..."
+                    }
+                  ]
+                },
+                {
+                  "id": "FunctionsCompatibility",
+                  "type": "gallery",
+                  "label": "Compatibility",
+                  "items": [
+                    {
+                      "id": "FunctionWizard",
+                      "type": "button",
+                      "label": "Insert Function..."
+                    }
+                  ]
+                },
+                {
+                  "id": "FunctionsWebInsertGallery",
+                  "type": "gallery",
+                  "label": "Web",
+                  "items": [
+                    {
+                      "id": "FunctionWizard",
+                      "type": "button",
+                      "label": "Insert Function..."
+                    }
+                  ]
+                },
+                {
+                  "id": "FunctionsAzureInsertGallery",
+                  "type": "gallery",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "FunctionWizard",
+                      "type": "button",
+                      "label": "Insert Function..."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupPythonChunk",
+          "label": "",
+          "items": [
+            {
+              "id": "InsertPythonMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "InsertPython",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonInExcelOption",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "TryPythonSamples",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "PythonResetMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "PythonClearGlobals",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonResetRuntime",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "ShowExternalCodeDiagnostics",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "InitPyEditor",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupPythonChunkCommercialPreview",
+          "label": "",
+          "items": [
+            {
+              "id": "InsertPythonMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "InsertPython",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonInExcelOption",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "TryPythonSamples",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "PythonResetMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "PythonClearGlobals",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonResetRuntime",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "ShowExternalCodeDiagnostics",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "InitPyEditor",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupPythonChunkLFT",
+          "label": "",
+          "items": [
+            {
+              "id": "InsertPythonMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "InsertPython",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonInExcelOption",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "TryPythonSamples",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "PythonResetMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "PythonClearGlobals",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonResetRuntime",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "ShowExternalCodeDiagnostics",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "InitPyEditor",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupPythonChunkConsumerPreview",
+          "label": "",
+          "items": [
+            {
+              "id": "InsertPythonMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "InsertPython",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonInExcelOption",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "TryPythonSamples",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "PythonResetMenu",
+              "type": "splitButton",
+              "label": "",
+              "items": [
+                {
+                  "id": "PythonClearGlobals",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PythonResetRuntime",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "ShowExternalCodeDiagnostics",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "InitPyEditor",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupNamedCells",
+          "label": "Defined Names",
+          "items": [
+            {
+              "id": "NameManager",
+              "type": "button",
+              "label": "Name Manager"
+            },
+            {
+              "id": "NameDefineMenu",
+              "type": "splitButton",
+              "label": "Define Name",
+              "items": [
+                {
+                  "id": "NameDefine",
+                  "type": "button",
+                  "label": "Define Name..."
+                },
+                {
+                  "id": "NamesApply",
+                  "type": "button",
+                  "label": "Apply Names..."
+                }
+              ]
+            },
+            {
+              "id": "NameUseInFormula",
+              "type": "gallery",
+              "label": "Use in Formula",
+              "items": [
+                {
+                  "id": "NamePasteName",
+                  "type": "button",
+                  "label": "Paste Names..."
+                }
+              ]
+            },
+            {
+              "id": "NameCreateFromSelection",
+              "type": "button",
+              "label": "Create from Selection..."
+            }
+          ]
+        },
+        {
+          "id": "GroupFormulaAuditing",
+          "label": "Formula Auditing",
+          "items": [
+            {
+              "id": "TracePrecedents",
+              "type": "button",
+              "label": "Trace Precedents"
+            },
+            {
+              "id": "TraceDependents",
+              "type": "button",
+              "label": "Trace Dependents"
+            },
+            {
+              "id": "TraceRemoveArrowsMenu",
+              "type": "splitButton",
+              "label": "Remove Arrows",
+              "items": [
+                {
+                  "id": "TraceRemoveAllArrows",
+                  "type": "button",
+                  "label": "Remove Arrows"
+                },
+                {
+                  "id": "TracePrecedentsRemoveArrows",
+                  "type": "button",
+                  "label": "Remove Precedent Arrows"
+                },
+                {
+                  "id": "TraceDependentRemoveArrows",
+                  "type": "button",
+                  "label": "Remove Dependent Arrows"
+                }
+              ]
+            },
+            {
+              "id": "ShowFormulas",
+              "type": "toggleButton",
+              "label": "Show Formulas"
+            },
+            {
+              "id": "ErrorCheckingMenu",
+              "type": "splitButton",
+              "label": "Error Checking",
+              "items": [
+                {
+                  "id": "ErrorChecking",
+                  "type": "button",
+                  "label": "Error Checking..."
+                },
+                {
+                  "id": "TraceError",
+                  "type": "button",
+                  "label": "Trace Error"
+                },
+                {
+                  "id": "CircularReferences",
+                  "type": "gallery",
+                  "label": "Circular References"
+                }
+              ]
+            },
+            {
+              "id": "FormulaEvaluate",
+              "type": "button",
+              "label": "Evaluate Formula"
+            },
+            {
+              "id": "WatchWindow",
+              "type": "toggleButton",
+              "label": "Watch Window"
+            }
+          ]
+        },
+        {
+          "id": "GroupCalculation",
+          "label": "Calculation",
+          "items": [
+            {
+              "id": "CalculationOptionsMenu",
+              "type": "menu",
+              "label": "Calculation Options",
+              "items": [
+                {
+                  "id": "CalculationOptionsAutomatically",
+                  "type": "toggleButton",
+                  "label": "Automatic"
+                },
+                {
+                  "id": "CalculationOptionsAutomaticallyExceptDataTables",
+                  "type": "toggleButton",
+                  "label": "Automatic Except for Data Tables"
+                },
+                {
+                  "id": "CalculationOptionsManuallly",
+                  "type": "toggleButton",
+                  "label": "Manual"
+                },
+                {
+                  "id": "StaleValueNotification",
+                  "type": "toggleButton",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "CalculateNow",
+              "type": "button",
+              "label": "Calculate Now"
+            },
+            {
+              "id": "CalculateSheet",
+              "type": "button",
+              "label": "Calculate Sheet"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TabData",
+      "label": "Data",
+      "groups": [
+        {
+          "id": "GroupGetExternalData",
+          "label": "Get External Data",
+          "items": [
+            {
+              "id": "GetExternalDataFromAccess",
+              "type": "button",
+              "label": "From Access"
+            },
+            {
+              "id": "GetExternalDataFromWeb",
+              "type": "button",
+              "label": "From Web"
+            },
+            {
+              "id": "GetExternalDataFromText",
+              "type": "button",
+              "label": "From Text"
+            },
+            {
+              "id": "GetExternalDataFromOtherSources",
+              "type": "gallery",
+              "label": "From Other Sources"
+            },
+            {
+              "id": "GetExternalDataExistingConnections",
+              "type": "button",
+              "label": "Existing Connections"
+            }
+          ]
+        },
+        {
+          "id": "GroupPowerQueryGetTransformDataSubscription19",
+          "label": "Get & Transform Data",
+          "items": [
+            {
+              "id": "PowerQueryGetTransformDataMenuSubscription19",
+              "type": "menu",
+              "label": "Get Data",
+              "items": [
+                {
+                  "id": "PowerQueryModernGetData",
+                  "type": "button",
+                  "label": "Get Data (Preview)"
+                },
+                {
+                  "id": "PowerQueryGetTransformDataFromFileSubscription19",
+                  "type": "menu",
+                  "label": "From File",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromExcel",
+                      "type": "button",
+                      "label": "From Excel Workbook"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromText",
+                      "type": "button",
+                      "label": "From Text/CSV"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromXml",
+                      "type": "button",
+                      "label": "From XML"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromJson",
+                      "type": "button",
+                      "label": "From JSON"
+                    },
+                    {
+                      "id": "PowerQueryDataFromPDFFile",
+                      "type": "button",
+                      "label": "From PDF"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromFolder",
+                      "type": "button",
+                      "label": "From Folder"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSharePointFolder",
+                      "type": "button",
+                      "label": "From SharePoint Folder"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataFromDatabaseSubscription19",
+                  "type": "menu",
+                  "label": "From Database",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSqlServerDatabase",
+                      "type": "button",
+                      "label": "From SQL Server Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAccessDatabase",
+                      "type": "button",
+                      "label": "From Microsoft Access Database"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromAnalysisServices",
+                      "type": "button",
+                      "label": "From Analysis Services"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromSqlServerASServices",
+                      "type": "button",
+                      "label": "From SQL Server Analysis Services Database (Import)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromOracleDatabase",
+                      "type": "button",
+                      "label": "From Oracle Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromIbmDb2Database",
+                      "type": "button",
+                      "label": "From IBM Db2 Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMySqlDatabase",
+                      "type": "button",
+                      "label": "From MySQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromPostgreSqlDatabase",
+                      "type": "button",
+                      "label": "From PostgreSQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSybaseDatabase",
+                      "type": "button",
+                      "label": "From Sybase Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromTeradataDatabase",
+                      "type": "button",
+                      "label": "From Teradata Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSapHanaDatabase",
+                      "type": "button",
+                      "label": "From SAP HANA Database"
+                    },
+                    {
+                      "id": "PowerQueryDataFromSnowflake",
+                      "type": "button",
+                      "label": "From Snowflake"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataFromAzureSubscription19",
+                  "type": "menu",
+                  "label": "From Azure",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromAzureSqlDatabase",
+                      "type": "button",
+                      "label": "From Azure SQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAzureDataWarehouse",
+                      "type": "button",
+                      "label": "From Azure Synapse Analytics"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureHdInsight",
+                      "type": "button",
+                      "label": "From Azure HDInsight (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureBlob",
+                      "type": "button",
+                      "label": "From Azure Blob Storage"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureTable",
+                      "type": "button",
+                      "label": "From Azure Table Storage"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAzureDataLakeStore",
+                      "type": "button",
+                      "label": ""
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAzureDataLakeStoreGen2",
+                      "type": "button",
+                      "label": "From Azure Data Lake Storage Gen2"
+                    },
+                    {
+                      "id": "PowerQueryDataFromKusto",
+                      "type": "button",
+                      "label": "From Azure Data Explorer"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryDataFromPowerPlatform",
+                  "type": "menu",
+                  "label": "From Power Platform",
+                  "items": [
+                    {
+                      "id": "PowerBIData",
+                      "type": "button",
+                      "label": "From Power BI"
+                    },
+                    {
+                      "id": "PowerQueryDataFromPowerBIDataFlows",
+                      "type": "button",
+                      "label": "From Dataflows"
+                    },
+                    {
+                      "id": "PowerQueryDataFromPowerBIDataVerse",
+                      "type": "button",
+                      "label": "From Dataverse"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataFromOnlineServicesSubscription19",
+                  "type": "menu",
+                  "label": "From Online Services",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSharePointOnlineList",
+                      "type": "button",
+                      "label": "From SharePoint Online List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchangeOnline",
+                      "type": "button",
+                      "label": "From Microsoft Exchange Online"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromDynamicsCRM",
+                      "type": "button",
+                      "label": "From Dynamics 365 (online)"
+                    },
+                    {
+                      "id": "PowerQueryDataFromMicrosoftDynamics365BusinessCentral",
+                      "type": "button",
+                      "label": "From Dynamics 365 Business Central"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceObjects",
+                      "type": "button",
+                      "label": "From Salesforce Objects"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceReports",
+                      "type": "button",
+                      "label": "From Salesforce Reports"
+                    },
+                    {
+                      "id": "PowerQueryDataFromAdobeAnalytics",
+                      "type": "button",
+                      "label": "From Adobe Analytics"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataFromOtherSourceSubscription19",
+                  "type": "menu",
+                  "label": "From Other Sources",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromTable",
+                      "type": "button",
+                      "label": "From Table/Range"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWeb",
+                      "type": "button",
+                      "label": "From Web"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromMicrosoftQuery",
+                      "type": "button",
+                      "label": ""
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSharePointList",
+                      "type": "button",
+                      "label": "From SharePoint List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODataFeed",
+                      "type": "button",
+                      "label": "From OData Feed"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromHdfsFile",
+                      "type": "button",
+                      "label": "From Hadoop File (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromActiveDirectory",
+                      "type": "button",
+                      "label": "From Active Directory"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchange",
+                      "type": "button",
+                      "label": "From Microsoft Exchange"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODBC",
+                      "type": "button",
+                      "label": "From ODBC"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromOLEDB",
+                      "type": "button",
+                      "label": "From OLEDB"
+                    },
+                    {
+                      "id": "DataFromPicture",
+                      "type": "menu",
+                      "label": ""
+                    },
+                    {
+                      "id": "DataFromScreenshot",
+                      "type": "button",
+                      "label": ""
+                    },
+                    {
+                      "id": "DataFromClipboardImage",
+                      "type": "button",
+                      "label": ""
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromEmptyFormula",
+                      "type": "button",
+                      "label": "Blank Query"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryGetTransformDataLegacyWizard",
+                  "type": "gallery",
+                  "label": "Legacy Wizards"
+                },
+                {
+                  "id": "PowerQueryGetTransformDataCombineSubscription19",
+                  "type": "menu",
+                  "label": "Combine Queries",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryMerge",
+                      "type": "button",
+                      "label": "Merge"
+                    },
+                    {
+                      "id": "GetPowerQueryAppend",
+                      "type": "button",
+                      "label": "Append"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataLaunchQueryEditor",
+                  "type": "button",
+                  "label": "Launch Power Query Editor..."
+                },
+                {
+                  "id": "GetPowerQueryDataSourceSettings",
+                  "type": "button",
+                  "label": "Data Source Settings..."
+                },
+                {
+                  "id": "PowerQueryShowQuerySettings",
+                  "type": "button",
+                  "label": "Query Options"
+                }
+              ]
+            },
+            {
+              "id": "GetPowerQueryGetTransformDataFromText",
+              "type": "button",
+              "label": "From Text/CSV"
+            },
+            {
+              "id": "GetPowerQueryDataFromWeb",
+              "type": "button",
+              "label": "From Web"
+            },
+            {
+              "id": "GetPowerQueryGetTransformDataFromTable",
+              "type": "button",
+              "label": "From Table/Range"
+            },
+            {
+              "id": "DataFromPicture",
+              "type": "menu",
+              "label": "",
+              "items": [
+                {
+                  "id": "DataFromScreenshot",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "DataFromClipboardImage",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            },
+            {
+              "id": "PowerQueryRecentSources",
+              "type": "button",
+              "label": "Recent Sources"
+            },
+            {
+              "id": "GetTransformExistingConnections",
+              "type": "button",
+              "label": "Existing Connections"
+            }
+          ]
+        },
+        {
+          "id": "GroupPowerQueryGetTransformData",
+          "label": "",
+          "items": [
+            {
+              "id": "PowerQueryGetTransformDataMenu",
+              "type": "menu",
+              "label": "",
+              "items": [
+                {
+                  "id": "GetPowerQueryGetTransformDataFromFile",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromExcel",
+                      "type": "button",
+                      "label": "From Excel Workbook"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromText",
+                      "type": "button",
+                      "label": "From Text/CSV"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromXml",
+                      "type": "button",
+                      "label": "From XML"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromJson",
+                      "type": "button",
+                      "label": "From JSON"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromFolder",
+                      "type": "button",
+                      "label": "From Folder"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSharePointFolder",
+                      "type": "button",
+                      "label": "From SharePoint Folder"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryGetTransformDataFromDatabaseSubscription",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSqlServerDatabase",
+                      "type": "button",
+                      "label": "From SQL Server Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAccessDatabase",
+                      "type": "button",
+                      "label": "From Microsoft Access Database"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromAnalysisServices",
+                      "type": "button",
+                      "label": "From Analysis Services"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromSqlServerASServices",
+                      "type": "button",
+                      "label": "From SQL Server Analysis Services Database (Import)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromOracleDatabase",
+                      "type": "button",
+                      "label": "From Oracle Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromIbmDb2Database",
+                      "type": "button",
+                      "label": "From IBM Db2 Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMySqlDatabase",
+                      "type": "button",
+                      "label": "From MySQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromPostgreSqlDatabase",
+                      "type": "button",
+                      "label": "From PostgreSQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSybaseDatabase",
+                      "type": "button",
+                      "label": "From Sybase Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromTeradataDatabase",
+                      "type": "button",
+                      "label": "From Teradata Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSapHanaDatabase",
+                      "type": "button",
+                      "label": "From SAP HANA Database"
+                    },
+                    {
+                      "id": "PowerQueryDataFromSnowflake",
+                      "type": "button",
+                      "label": "From Snowflake"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataFromAzure",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromAzureSqlDatabase",
+                      "type": "button",
+                      "label": "From Azure SQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAzureDataWarehouse",
+                      "type": "button",
+                      "label": "From Azure Synapse Analytics"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureHdInsight",
+                      "type": "button",
+                      "label": "From Azure HDInsight (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureBlob",
+                      "type": "button",
+                      "label": "From Azure Blob Storage"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureTable",
+                      "type": "button",
+                      "label": "From Azure Table Storage"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAzureDataLakeStore",
+                      "type": "button",
+                      "label": ""
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataFromOnlineServices",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSharePointOnlineList",
+                      "type": "button",
+                      "label": "From SharePoint Online List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchangeOnline",
+                      "type": "button",
+                      "label": "From Microsoft Exchange Online"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromDynamicsCRM",
+                      "type": "button",
+                      "label": "From Dynamics 365 (online)"
+                    },
+                    {
+                      "id": "PowerQueryDataFromMicrosoftDynamics365BusinessCentral",
+                      "type": "button",
+                      "label": "From Dynamics 365 Business Central"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceObjects",
+                      "type": "button",
+                      "label": "From Salesforce Objects"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceReports",
+                      "type": "button",
+                      "label": "From Salesforce Reports"
+                    },
+                    {
+                      "id": "PowerQueryDataFromAdobeAnalytics",
+                      "type": "button",
+                      "label": "From Adobe Analytics"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryGetTransformDataFromOtherSource",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromTable",
+                      "type": "button",
+                      "label": "From Table/Range"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWeb",
+                      "type": "button",
+                      "label": "From Web"
+                    },
+                    {
+                      "id": "GetPowerQueryGetTransformDataFromMicrosoftQuery",
+                      "type": "button",
+                      "label": ""
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSharePointList",
+                      "type": "button",
+                      "label": "From SharePoint List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODataFeed",
+                      "type": "button",
+                      "label": "From OData Feed"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromHdfsFile",
+                      "type": "button",
+                      "label": "From Hadoop File (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromActiveDirectory",
+                      "type": "button",
+                      "label": "From Active Directory"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchange",
+                      "type": "button",
+                      "label": "From Microsoft Exchange"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODBC",
+                      "type": "button",
+                      "label": "From ODBC"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromOLEDB",
+                      "type": "button",
+                      "label": "From OLEDB"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromEmptyFormula",
+                      "type": "button",
+                      "label": "Blank Query"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryGetTransformDataLegacyWizard",
+                  "type": "gallery",
+                  "label": "Legacy Wizards"
+                },
+                {
+                  "id": "PowerQueryGetTransformDataCombine",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryMerge",
+                      "type": "button",
+                      "label": "Merge"
+                    },
+                    {
+                      "id": "GetPowerQueryAppend",
+                      "type": "button",
+                      "label": "Append"
+                    }
+                  ]
+                },
+                {
+                  "id": "PowerQueryGetTransformDataLaunchQueryEditor",
+                  "type": "button",
+                  "label": "Launch Power Query Editor..."
+                },
+                {
+                  "id": "GetPowerQueryDataSourceSettings",
+                  "type": "button",
+                  "label": "Data Source Settings..."
+                },
+                {
+                  "id": "PowerQueryShowQuerySettings",
+                  "type": "button",
+                  "label": "Query Options"
+                }
+              ]
+            },
+            {
+              "id": "GetPowerQueryGetTransformDataFromText",
+              "type": "button",
+              "label": "From Text/CSV"
+            },
+            {
+              "id": "GetPowerQueryDataFromWeb",
+              "type": "button",
+              "label": "From Web"
+            },
+            {
+              "id": "GetPowerQueryGetTransformDataFromTable",
+              "type": "button",
+              "label": "From Table/Range"
+            },
+            {
+              "id": "PowerQueryRecentSources",
+              "type": "button",
+              "label": "Recent Sources"
+            },
+            {
+              "id": "GetTransformExistingConnections",
+              "type": "button",
+              "label": "Existing Connections"
+            }
+          ]
+        },
+        {
+          "id": "GroupPowerQueryDataSubscription",
+          "label": "Get & Transform",
+          "items": [
+            {
+              "id": "FlyoutAnchorPowerQueryNewQuerySubscription",
+              "type": "menu",
+              "label": "New Query",
+              "items": [
+                {
+                  "id": "GetPowerQueryDataFromFileSubscription",
+                  "type": "menu",
+                  "label": "From File",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromExcel",
+                      "type": "button",
+                      "label": "From Excel Workbook"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromCsv",
+                      "type": "button",
+                      "label": "From CSV"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromXml",
+                      "type": "button",
+                      "label": "From XML"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromText",
+                      "type": "button",
+                      "label": "From Text"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromJson",
+                      "type": "button",
+                      "label": "From JSON"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromFolder",
+                      "type": "button",
+                      "label": "From Folder"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSharePointFolder",
+                      "type": "button",
+                      "label": "From SharePoint Folder"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromDatabaseSubscription",
+                  "type": "menu",
+                  "label": "From Database",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSqlServerDatabase",
+                      "type": "button",
+                      "label": "From SQL Server Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAccessDatabase",
+                      "type": "button",
+                      "label": "From Microsoft Access Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSqlServerASServices",
+                      "type": "button",
+                      "label": "From SQL Server Analysis Services Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromOracleDatabase",
+                      "type": "button",
+                      "label": "From Oracle Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromIbmDb2Database",
+                      "type": "button",
+                      "label": "From IBM Db2 Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMySqlDatabase",
+                      "type": "button",
+                      "label": "From MySQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromPostgreSqlDatabase",
+                      "type": "button",
+                      "label": "From PostgreSQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSybaseDatabase",
+                      "type": "button",
+                      "label": "From Sybase Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromTeradataDatabase",
+                      "type": "button",
+                      "label": "From Teradata Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSapHanaDatabase",
+                      "type": "button",
+                      "label": "From SAP HANA Database"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromAzureSubscription",
+                  "type": "menu",
+                  "label": "From Azure",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromAzureSqlDatabase",
+                      "type": "button",
+                      "label": "From Azure SQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAzureDataWarehouse",
+                      "type": "button",
+                      "label": "From Azure Synapse Analytics"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureHdInsight",
+                      "type": "button",
+                      "label": "From Azure HDInsight (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureBlob",
+                      "type": "button",
+                      "label": "From Azure Blob Storage"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureTable",
+                      "type": "button",
+                      "label": "From Azure Table Storage"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAzureDataLakeStore",
+                      "type": "button",
+                      "label": ""
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromOnlineServicesSubscription",
+                  "type": "menu",
+                  "label": "From Online Services",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSharePointOnlineList",
+                      "type": "button",
+                      "label": "From SharePoint Online List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchangeOnline",
+                      "type": "button",
+                      "label": "From Microsoft Exchange Online"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromDynamicsCRM",
+                      "type": "button",
+                      "label": "From Dynamics 365 (online)"
+                    },
+                    {
+                      "id": "PowerQueryDataFromMicrosoftDynamics365BusinessCentral",
+                      "type": "button",
+                      "label": "From Dynamics 365 Business Central"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceObjects",
+                      "type": "button",
+                      "label": "From Salesforce Objects"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceReports",
+                      "type": "button",
+                      "label": "From Salesforce Reports"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromOtherSourceSubscription",
+                  "type": "menu",
+                  "label": "From Other Sources",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromWeb",
+                      "type": "button",
+                      "label": "From Web"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSharePointList",
+                      "type": "button",
+                      "label": "From SharePoint List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODataFeed",
+                      "type": "button",
+                      "label": "From OData Feed"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromHdfsFile",
+                      "type": "button",
+                      "label": "From Hadoop File (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromActiveDirectory",
+                      "type": "button",
+                      "label": "From Active Directory"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchange",
+                      "type": "button",
+                      "label": "From Microsoft Exchange"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODBC",
+                      "type": "button",
+                      "label": "From ODBC"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromOLEDB",
+                      "type": "button",
+                      "label": "From OLEDB"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromEmptyFormula",
+                      "type": "button",
+                      "label": "Blank Query"
+                    }
+                  ]
+                },
+                {
+                  "id": "FlyoutAnchorPowerQueryCombineSubscription",
+                  "type": "menu",
+                  "label": "Combine Queries",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryMerge",
+                      "type": "button",
+                      "label": "Merge"
+                    },
+                    {
+                      "id": "GetPowerQueryAppend",
+                      "type": "button",
+                      "label": "Append"
+                    },
+                    {
+                      "id": "PowerQueryLaunchQueryEditor",
+                      "type": "button",
+                      "label": "Launch Power Query Editor"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataSourceSettings",
+                  "type": "button",
+                  "label": "Data Source Settings..."
+                },
+                {
+                  "id": "PowerQueryShowQuerySettings",
+                  "type": "button",
+                  "label": "Query Options"
+                }
+              ]
+            },
+            {
+              "id": "PowerQueryManageWorkbookQueries",
+              "type": "toggleButton",
+              "label": "Show Queries"
+            },
+            {
+              "id": "GetPowerQueryExcelDataFromTable",
+              "type": "button",
+              "label": "From Table"
+            },
+            {
+              "id": "PowerQueryRecentSources",
+              "type": "button",
+              "label": "Recent Sources"
+            }
+          ]
+        },
+        {
+          "id": "GroupPowerQueryData",
+          "label": "",
+          "items": [
+            {
+              "id": "FlyoutAnchorPowerQueryNewQuery",
+              "type": "menu",
+              "label": "",
+              "items": [
+                {
+                  "id": "GetPowerQueryDataFromFile",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromExcel",
+                      "type": "button",
+                      "label": "From Excel Workbook"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromCsv",
+                      "type": "button",
+                      "label": "From CSV"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromXml",
+                      "type": "button",
+                      "label": "From XML"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromText",
+                      "type": "button",
+                      "label": "From Text"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromFolder",
+                      "type": "button",
+                      "label": "From Folder"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromDatabase",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSqlServerDatabase",
+                      "type": "button",
+                      "label": "From SQL Server Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromAccessDatabase",
+                      "type": "button",
+                      "label": "From Microsoft Access Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSqlServerASServices",
+                      "type": "button",
+                      "label": "From SQL Server Analysis Services Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromOracleDatabase",
+                      "type": "button",
+                      "label": "From Oracle Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromIbmDb2Database",
+                      "type": "button",
+                      "label": "From IBM Db2 Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMySqlDatabase",
+                      "type": "button",
+                      "label": "From MySQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromPostgreSqlDatabase",
+                      "type": "button",
+                      "label": "From PostgreSQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSybaseDatabase",
+                      "type": "button",
+                      "label": "From Sybase Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromTeradataDatabase",
+                      "type": "button",
+                      "label": "From Teradata Database"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromAzure",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromAzureSqlDatabase",
+                      "type": "button",
+                      "label": "From Azure SQL Database"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureHdInsight",
+                      "type": "button",
+                      "label": "From Azure HDInsight (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureBlob",
+                      "type": "button",
+                      "label": "From Azure Blob Storage"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromWindowsAzureTable",
+                      "type": "button",
+                      "label": "From Azure Table Storage"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromOnlineServices",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromSharePointOnlineList",
+                      "type": "button",
+                      "label": "From SharePoint Online List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchangeOnline",
+                      "type": "button",
+                      "label": "From Microsoft Exchange Online"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromDynamicsCRM",
+                      "type": "button",
+                      "label": "From Dynamics 365 (online)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceObjects",
+                      "type": "button",
+                      "label": "From Salesforce Objects"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSalesforceReports",
+                      "type": "button",
+                      "label": "From Salesforce Reports"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataFromOtherSource",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryDataFromWeb",
+                      "type": "button",
+                      "label": "From Web"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromSharePointList",
+                      "type": "button",
+                      "label": "From SharePoint List"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODataFeed",
+                      "type": "button",
+                      "label": "From OData Feed"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromHdfsFile",
+                      "type": "button",
+                      "label": "From Hadoop File (HDFS)"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromActiveDirectory",
+                      "type": "button",
+                      "label": "From Active Directory"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromMicrosoftExchange",
+                      "type": "button",
+                      "label": "From Microsoft Exchange"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromODBC",
+                      "type": "button",
+                      "label": "From ODBC"
+                    },
+                    {
+                      "id": "GetPowerQueryDataFromEmptyFormula",
+                      "type": "button",
+                      "label": "Blank Query"
+                    }
+                  ]
+                },
+                {
+                  "id": "FlyoutAnchorPowerQueryCombine",
+                  "type": "menu",
+                  "label": "",
+                  "items": [
+                    {
+                      "id": "GetPowerQueryMerge",
+                      "type": "button",
+                      "label": "Merge"
+                    },
+                    {
+                      "id": "GetPowerQueryAppend",
+                      "type": "button",
+                      "label": "Append"
+                    },
+                    {
+                      "id": "PowerQueryLaunchQueryEditor",
+                      "type": "button",
+                      "label": "Launch Power Query Editor"
+                    }
+                  ]
+                },
+                {
+                  "id": "GetPowerQueryDataSourceSettings",
+                  "type": "button",
+                  "label": "Data Source Settings..."
+                },
+                {
+                  "id": "PowerQueryShowQuerySettings",
+                  "type": "button",
+                  "label": "Query Options"
+                }
+              ]
+            },
+            {
+              "id": "PowerQueryManageWorkbookQueries",
+              "type": "toggleButton",
+              "label": "Show Queries"
+            },
+            {
+              "id": "GetPowerQueryExcelDataFromTable",
+              "type": "button",
+              "label": "From Table"
+            },
+            {
+              "id": "PowerQueryRecentSources",
+              "type": "button",
+              "label": "Recent Sources"
+            }
+          ]
+        },
+        {
+          "id": "GroupConnections",
+          "label": "Connections",
+          "items": [
+            {
+              "id": "RefreshAllMenu",
+              "type": "splitButton",
+              "label": "Refresh",
+              "items": [
+                {
+                  "id": "RefreshAll",
+                  "type": "button",
+                  "label": "Refresh All"
+                },
+                {
+                  "id": "Refresh",
+                  "type": "button",
+                  "label": "Refresh"
+                },
+                {
+                  "id": "RefreshStatus",
+                  "type": "button",
+                  "label": "Refresh Status"
+                },
+                {
+                  "id": "RefreshCancel",
+                  "type": "button",
+                  "label": "Cancel Refresh"
+                },
+                {
+                  "id": "ConnectionProperties",
+                  "type": "button",
+                  "label": "Connection Properties..."
+                }
+              ]
+            },
+            {
+              "id": "Connections",
+              "type": "button",
+              "label": "Connections"
+            },
+            {
+              "id": "DataRangeProperties",
+              "type": "button",
+              "label": "Properties"
+            },
+            {
+              "id": "EditLinks",
+              "type": "button",
+              "label": "Edit Links"
+            }
+          ]
+        },
+        {
+          "id": "GroupDataQueriesAndConnections",
+          "label": "",
+          "items": [
+            {
+              "id": "RefreshAllMenu",
+              "type": "splitButton",
+              "label": "Refresh",
+              "items": [
+                {
+                  "id": "RefreshAll",
+                  "type": "button",
+                  "label": "Refresh All"
+                },
+                {
+                  "id": "Refresh",
+                  "type": "button",
+                  "label": "Refresh"
+                },
+                {
+                  "id": "RefreshStatus",
+                  "type": "button",
+                  "label": "Refresh Status"
+                },
+                {
+                  "id": "RefreshCancel",
+                  "type": "button",
+                  "label": "Cancel Refresh"
+                },
+                {
+                  "id": "ConnectionProperties",
+                  "type": "button",
+                  "label": "Connection Properties..."
+                }
+              ]
+            },
+            {
+              "id": "ShowQueriesAndConnections",
+              "type": "toggleButton",
+              "label": "Queries & Connections"
+            },
+            {
+              "id": "DataRangeProperties",
+              "type": "button",
+              "label": "Properties"
+            },
+            {
+              "id": "EditLinks",
+              "type": "button",
+              "label": "Edit Links"
+            }
+          ]
+        },
+        {
+          "id": "GroupDataQueriesAndConnectionsWorkbookLinks",
+          "label": "Queries & Connections",
+          "items": [
+            {
+              "id": "RefreshAllMenu",
+              "type": "splitButton",
+              "label": "Refresh",
+              "items": [
+                {
+                  "id": "RefreshAll",
+                  "type": "button",
+                  "label": "Refresh All"
+                },
+                {
+                  "id": "Refresh",
+                  "type": "button",
+                  "label": "Refresh"
+                },
+                {
+                  "id": "RefreshStatus",
+                  "type": "button",
+                  "label": "Refresh Status"
+                },
+                {
+                  "id": "RefreshCancel",
+                  "type": "button",
+                  "label": "Cancel Refresh"
+                },
+                {
+                  "id": "ConnectionProperties",
+                  "type": "button",
+                  "label": "Connection Properties..."
+                }
+              ]
+            },
+            {
+              "id": "ShowQueriesAndConnections",
+              "type": "toggleButton",
+              "label": "Queries & Connections"
+            },
+            {
+              "id": "DataRangeProperties",
+              "type": "button",
+              "label": "Properties"
+            },
+            {
+              "id": "WorkbookLinks",
+              "type": "button",
+              "label": "Workbook Links"
+            }
+          ]
+        },
+        {
+          "id": "GroupLinkedEntityConvert",
+          "label": "Data Types",
+          "items": [
+            {
+              "id": "ConvertToLinkedEntity",
+              "type": "gallery",
+              "label": "Data Types",
+              "items": [
+                {
+                  "id": "LinkedEntityMoreDataBtn",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupSortFilter",
+          "label": "Sort & Filter",
+          "items": [
+            {
+              "id": "SortAscendingExcel",
+              "type": "button",
+              "label": "Sort Ascending"
+            },
+            {
+              "id": "SortDescendingExcel",
+              "type": "button",
+              "label": "Sort Descending"
+            },
+            {
+              "id": "SortDialog",
+              "type": "button",
+              "label": "Sort..."
+            },
+            {
+              "id": "Filter",
+              "type": "toggleButton",
+              "label": "Filter"
+            },
+            {
+              "id": "SortClear",
+              "type": "button",
+              "label": "Clear"
+            },
+            {
+              "id": "FilterReapply",
+              "type": "button",
+              "label": "Reapply"
+            },
+            {
+              "id": "AdvancedFilterDialog",
+              "type": "button",
+              "label": "Advanced..."
+            }
+          ]
+        },
+        {
+          "id": "GroupDataTools",
+          "label": "Data Tools",
+          "items": [
+            {
+              "id": "ConvertTextToTable",
+              "type": "button",
+              "label": "Convert Text to Table..."
+            },
+            {
+              "id": "QuickCode",
+              "type": "button",
+              "label": "Flash Fill"
+            },
+            {
+              "id": "RemoveDuplicates",
+              "type": "button",
+              "label": "Remove Duplicates"
+            },
+            {
+              "id": "DataValidationMenu",
+              "type": "splitButton",
+              "label": "Data Validation",
+              "items": [
+                {
+                  "id": "DataValidation",
+                  "type": "button",
+                  "label": "Data Validation..."
+                },
+                {
+                  "id": "DataValidationCircleInvalid",
+                  "type": "button",
+                  "label": "Circle Invalid Data"
+                },
+                {
+                  "id": "DataValidationClearValidationCircles",
+                  "type": "button",
+                  "label": "Clear Validation Circles"
+                }
+              ]
+            },
+            {
+              "id": "Consolidate",
+              "type": "button",
+              "label": "Consolidate..."
+            },
+            {
+              "id": "AsppRelationships",
+              "type": "button",
+              "label": "Relationships"
+            },
+            {
+              "id": "DataModelManage",
+              "type": "button",
+              "label": "Manage Data Model"
+            }
+          ]
+        },
+        {
+          "id": "GroupForecast",
+          "label": "Forecast",
+          "items": [
+            {
+              "id": "WhatIfAnalysisMenu",
+              "type": "menu",
+              "label": "What-If Analysis",
+              "items": [
+                {
+                  "id": "ScenarioManager",
+                  "type": "button",
+                  "label": "Scenario Manager..."
+                },
+                {
+                  "id": "GoalSeek",
+                  "type": "button",
+                  "label": "Goal Seek..."
+                },
+                {
+                  "id": "DataTable",
+                  "type": "button",
+                  "label": "Data Table..."
+                }
+              ]
+            },
+            {
+              "id": "ForecastInsert",
+              "type": "button",
+              "label": "Forecast Sheet"
+            }
+          ]
+        },
+        {
+          "id": "GroupOutline",
+          "label": "Outline",
+          "items": [
+            {
+              "id": "OutlineGroupMenu",
+              "type": "splitButton",
+              "label": "Group",
+              "items": [
+                {
+                  "id": "OutlineGroup",
+                  "type": "button",
+                  "label": "Group..."
+                },
+                {
+                  "id": "OutlineAuto",
+                  "type": "button",
+                  "label": "Auto Outline"
+                }
+              ]
+            },
+            {
+              "id": "OutlineUngroupMenu",
+              "type": "splitButton",
+              "label": "Ungroup",
+              "items": [
+                {
+                  "id": "OutlineUngroup",
+                  "type": "button",
+                  "label": "Ungroup..."
+                },
+                {
+                  "id": "OutlineClear",
+                  "type": "button",
+                  "label": "Clear Outline"
+                }
+              ]
+            },
+            {
+              "id": "OutlineSubtotals",
+              "type": "button",
+              "label": "Subtotal"
+            },
+            {
+              "id": "OutlineShowDetail",
+              "type": "button",
+              "label": "Show Detail"
+            },
+            {
+              "id": "OutlineHideDetail",
+              "type": "button",
+              "label": "Hide Detail"
+            },
+            {
+              "id": "OutlineSettings",
+              "type": "button (dialogBoxLauncher)",
+              "label": "Group and Outline Settings"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TabReview",
+      "label": "Review",
+      "groups": [
+        {
+          "id": "GroupProofing",
+          "label": "Proofing",
+          "items": [
+            {
+              "id": "Spelling",
+              "type": "button",
+              "label": "Spelling..."
+            },
+            {
+              "id": "Thesaurus",
+              "type": "button",
+              "label": "Thesaurus..."
+            },
+            {
+              "id": "StatusWorkbookStatistics",
+              "type": "button",
+              "label": "Workbook Statistics"
+            }
+          ]
+        },
+        {
+          "id": "GroupPerformance",
+          "label": "",
+          "items": [
+            {
+              "id": "CheckPerformance",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupAccessibility",
+          "label": "Accessibility",
+          "items": [
+            {
+              "id": "MenuAccessibility",
+              "type": "splitButton",
+              "label": "Accessibility",
+              "items": [
+                {
+                  "id": "AccessibilityChecker",
+                  "type": "button",
+                  "label": "Check Accessibility"
+                },
+                {
+                  "id": "AltTextPaneRibbon",
+                  "type": "toggleButton",
+                  "label": "Alt Text"
+                },
+                {
+                  "id": "FormatAsTableGallery",
+                  "type": "gallery",
+                  "label": "Format as Table",
+                  "items": [
+                    {
+                      "id": "TableStyleNew",
+                      "type": "button",
+                      "label": "New Table Style..."
+                    },
+                    {
+                      "id": "PivotTableNewStyle",
+                      "type": "button",
+                      "label": "New PivotTable Style..."
+                    }
+                  ]
+                },
+                {
+                  "id": "UnmergeCells",
+                  "type": "button",
+                  "label": "Split Cells..."
+                },
+                {
+                  "id": "OpenOptionsEaseOfAcess",
+                  "type": "button",
+                  "label": "Options: Accessibility"
+                },
+                {
+                  "id": "AccessibilityHelp",
+                  "type": "button",
+                  "label": "Accessibility Help"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupInsights",
+          "label": "Insights",
+          "items": [
+            {
+              "id": "Insights",
+              "type": "button",
+              "label": "Smart Lookup"
+            }
+          ]
+        },
+        {
+          "id": "GroupLanguage",
+          "label": "Language",
+          "items": [
+            {
+              "id": "Translate",
+              "type": "button",
+              "label": "Translate"
+            },
+            {
+              "id": "Translator",
+              "type": "button",
+              "label": "Translate"
+            },
+            {
+              "id": "HangulHanjaConversion",
+              "type": "button",
+              "label": "Hangul Hanja Conversion..."
+            }
+          ]
+        },
+        {
+          "id": "GroupLineage",
+          "label": "",
+          "items": [
+            {
+              "id": "LineageShowChanges",
+              "type": "toggleButton",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupComments",
+          "label": "Comments",
+          "items": [
+            {
+              "id": "ReviewNewComment",
+              "type": "button",
+              "label": "New Comment"
+            },
+            {
+              "id": "ReviewDeleteComment",
+              "type": "button",
+              "label": "Delete"
+            },
+            {
+              "id": "ReviewPreviousComment",
+              "type": "button",
+              "label": "Previous"
+            },
+            {
+              "id": "ReviewNextComment",
+              "type": "button",
+              "label": "Next"
+            },
+            {
+              "id": "ReviewShowOrHideComment",
+              "type": "button",
+              "label": "Show/Hide Comment"
+            },
+            {
+              "id": "ReviewShowAllComments",
+              "type": "toggleButton",
+              "label": "Show All Comments"
+            }
+          ]
+        },
+        {
+          "id": "GroupThreadedComments",
+          "label": "",
+          "items": [
+            {
+              "id": "NewThreadedComment",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "ReviewDeleteComment",
+              "type": "button",
+              "label": "Delete"
+            },
+            {
+              "id": "PreviousThreadedComment",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "NextThreadedComment",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "ShowThreadedComments",
+              "type": "toggleButton",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupCommentsLegacy",
+          "label": "",
+          "items": [
+            {
+              "id": "ReviewNoteSplit",
+              "type": "menu",
+              "label": "",
+              "items": [
+                {
+                  "id": "NewCommentLegacy",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "PreviousCommentLegacy",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "NextCommentLegacy",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "ShowCommentLegacy",
+                  "type": "button",
+                  "label": ""
+                },
+                {
+                  "id": "ShowAllCommentsLegacy",
+                  "type": "toggleButton",
+                  "label": ""
+                },
+                {
+                  "id": "ConvertComments",
+                  "type": "button",
+                  "label": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupChangesExcel",
+          "label": "",
+          "items": [
+            {
+              "id": "SheetProtect",
+              "type": "button",
+              "label": "Protect Sheet..."
+            },
+            {
+              "id": "ReviewRestrictEditing",
+              "type": "toggleButton",
+              "label": "Protect Workbook..."
+            },
+            {
+              "id": "ReviewShareWorkbook",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "ReviewProtectAndShareWorkbook",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "ReviewAllowUsersToEditRanges",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "ReviewTrackChangesMenu",
+              "type": "menu",
+              "label": "",
+              "items": [
+                {
+                  "id": "ReviewHighlightChanges",
+                  "type": "button",
+                  "label": "Highlight Changes..."
+                },
+                {
+                  "id": "ReviewAcceptOrRejectChangeDialog",
+                  "type": "button",
+                  "label": "Accept/Reject Changes"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupProtectExcel",
+          "label": "Protect",
+          "items": [
+            {
+              "id": "SheetProtect",
+              "type": "button",
+              "label": "Protect Sheet..."
+            },
+            {
+              "id": "ReviewRestrictEditing",
+              "type": "toggleButton",
+              "label": "Protect Workbook..."
+            },
+            {
+              "id": "ReviewAllowUsersToEditRangesCoauth",
+              "type": "button",
+              "label": "Allow Edit Ranges"
+            },
+            {
+              "id": "SameAsName",
+              "type": "button",
+              "label": "Unshare Workbook"
+            }
+          ]
+        },
+        {
+          "id": "GroupInk",
+          "label": "Ink",
+          "items": [
+            {
+              "id": "InkingStart",
+              "type": "button",
+              "label": "Start Inking"
+            },
+            {
+              "id": "HideInkSplitButton",
+              "type": "splitButton",
+              "label": "Hide Ink Menu",
+              "items": [
+                {
+                  "id": "HideInk",
+                  "type": "toggleButton",
+                  "label": "Hide Ink"
+                },
+                {
+                  "id": "InkDeleteAllOnSheet",
+                  "type": "button",
+                  "label": "Delete All Ink on Sheet"
+                },
+                {
+                  "id": "InkDeleteAll",
+                  "type": "button",
+                  "label": "Delete All Ink"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupDebug",
+          "label": "Debug",
+          "items": [
+            {
+              "id": "CollaborateChanges",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TabView",
+      "label": "View",
+      "groups": [
+        {
+          "id": "GroupNamedSheetView",
+          "label": "",
+          "items": [
+            {
+              "id": "SheetViewComboBox",
+              "type": "comboBox",
+              "label": ""
+            },
+            {
+              "id": "KeepTemporarySheetView",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "ExitSheetView",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "NewSheetView",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "SheetViewOptions",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupWorkbookViews",
+          "label": "Workbook Views",
+          "items": [
+            {
+              "id": "ViewNormalViewExcel",
+              "type": "toggleButton",
+              "label": "Normal"
+            },
+            {
+              "id": "ViewPageBreakPreviewView",
+              "type": "toggleButton",
+              "label": "Page Break Preview"
+            },
+            {
+              "id": "ViewPageLayoutView",
+              "type": "toggleButton",
+              "label": "Page Layout"
+            },
+            {
+              "id": "ViewCustomViews",
+              "type": "button",
+              "label": "Custom Views..."
+            }
+          ]
+        },
+        {
+          "id": "GroupNightMode",
+          "label": "",
+          "items": [
+            {
+              "id": "DarkModeOn",
+              "type": "toggleButton",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupViewShowHide",
+          "label": "Show",
+          "items": [
+            {
+              "id": "ViewDocumentActionsPane",
+              "type": "toggleButton",
+              "label": "Document Actions"
+            },
+            {
+              "id": "NavigationPaneExcelFeature",
+              "type": "toggleButton",
+              "label": ""
+            },
+            {
+              "id": "FocusActiveCell",
+              "type": "toggleButton",
+              "label": ""
+            },
+            {
+              "id": "ViewRulerExcel",
+              "type": "checkBox",
+              "label": "Ruler"
+            },
+            {
+              "id": "GridlinesExcel",
+              "type": "checkBox",
+              "label": "View"
+            },
+            {
+              "id": "ViewFormulaBar",
+              "type": "checkBox",
+              "label": "Formula Bar"
+            },
+            {
+              "id": "ViewHeadings",
+              "type": "checkBox",
+              "label": "View"
+            },
+            {
+              "id": "DataTypeIcons",
+              "type": "checkBox",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "id": "GroupZoom",
+          "label": "Zoom",
+          "items": [
+            {
+              "id": "ZoomDialog",
+              "type": "button",
+              "label": "Zoom..."
+            },
+            {
+              "id": "ZoomCurrent100",
+              "type": "button",
+              "label": "100%"
+            },
+            {
+              "id": "ZoomToSelection",
+              "type": "toggleButton",
+              "label": "Zoom to Selection"
+            }
+          ]
+        },
+        {
+          "id": "GroupWindow",
+          "label": "Window",
+          "items": [
+            {
+              "id": "WindowNew",
+              "type": "button",
+              "label": "New Window"
+            },
+            {
+              "id": "WindowsArrangeAll",
+              "type": "button",
+              "label": "Arrange All"
+            },
+            {
+              "id": "ViewFreezePanesGallery",
+              "type": "gallery",
+              "label": "Freeze Panes"
+            },
+            {
+              "id": "WindowSplitToggle",
+              "type": "toggleButton",
+              "label": "Split"
+            },
+            {
+              "id": "WindowHide",
+              "type": "button",
+              "label": "Hide"
+            },
+            {
+              "id": "WindowUnhide",
+              "type": "button",
+              "label": "Unhide..."
+            },
+            {
+              "id": "ViewSideBySide",
+              "type": "toggleButton",
+              "label": "View Side by Side"
+            },
+            {
+              "id": "WindowSideBySideSynchronousScrolling",
+              "type": "toggleButton",
+              "label": "Synchronous Scrolling"
+            },
+            {
+              "id": "WindowResetPosition",
+              "type": "button",
+              "label": "Reset Window Position"
+            },
+            {
+              "id": "WindowSwitchWindowsMenuExcel",
+              "type": "menu",
+              "label": "Switch Windows"
+            }
+          ]
+        },
+        {
+          "id": "GroupMacros",
+          "label": "Macros",
+          "items": [
+            {
+              "id": "MenuMacros",
+              "type": "splitButton",
+              "label": "Macros",
+              "items": [
+                {
+                  "id": "PlayMacro",
+                  "type": "button",
+                  "label": "Macros"
+                },
+                {
+                  "id": "MacroRecord",
+                  "type": "button",
+                  "label": "Record Macro..."
+                },
+                {
+                  "id": "MacroRelativeReferences",
+                  "type": "toggleButton",
+                  "label": "Use Relative References"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GroupViewDebug",
+          "label": "Debug",
+          "items": [
+            {
+              "id": "DisableGdiHWAcceleration",
+              "type": "toggleButton",
+              "label": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "HelpTab",
+      "label": "Help",
+      "groups": [
+        {
+          "id": "GroupHelpAndSupport",
+          "label": "Help",
+          "items": [
+            {
+              "id": "Help",
+              "type": "button",
+              "label": "Help"
+            },
+            {
+              "id": "ContactUs",
+              "type": "button",
+              "label": "Contact Support..."
+            },
+            {
+              "id": "OfficeFeedbackHelpTab",
+              "type": "button",
+              "label": "Feedback"
+            },
+            {
+              "id": "OfficeFeedbackIcon",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "ShowTraining",
+              "type": "button",
+              "label": "Show Training"
+            },
+            {
+              "id": "WhatsNewRecentUpdates",
+              "type": "button",
+              "label": "What's New"
+            }
+          ]
+        },
+        {
+          "id": "GroupExcelCommunity",
+          "label": "",
+          "items": [
+            {
+              "id": "AskCommunity",
+              "type": "button",
+              "label": ""
+            },
+            {
+              "id": "BlogSite",
+              "type": "button",
+              "label": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "contextMenus": [
+    {
+      "id": "Cell",
+      "items": [
+        {
+          "label": "Cut",
+          "accessKey": "t",
+          "separatorBefore": false
+        },
+        {
+          "label": "Copy",
+          "accessKey": "C",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste",
+          "accessKey": "P",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste Special...",
+          "accessKey": "S",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste Table",
+          "accessKey": "P",
+          "separatorBefore": false
+        },
+        {
+          "label": "Smart Lookup",
+          "accessKey": "L",
+          "separatorBefore": true
+        },
+        {
+          "label": "Insert...",
+          "accessKey": "I",
+          "separatorBefore": false
+        },
+        {
+          "label": "Delete...",
+          "accessKey": "D",
+          "separatorBefore": false
+        },
+        {
+          "label": "Clear Contents",
+          "accessKey": "n",
+          "separatorBefore": false
+        },
+        {
+          "label": "Quick Analysis",
+          "accessKey": "Q",
+          "separatorBefore": true
+        },
+        {
+          "label": "Filter",
+          "accessKey": "e",
+          "separatorBefore": false,
+          "items": [
+            {
+              "label": "Clear Filter",
+              "accessKey": "e",
+              "separatorBefore": false
+            },
+            {
+              "label": "Reapply",
+              "accessKey": "R",
+              "separatorBefore": false
+            },
+            {
+              "label": "Filter by Selected Cell's Value",
+              "accessKey": "V",
+              "separatorBefore": true
+            },
+            {
+              "label": "Filter by Selected Cell's Color",
+              "accessKey": "C",
+              "separatorBefore": false
+            },
+            {
+              "label": "Filter by Selected Cell's Font Color",
+              "accessKey": "F",
+              "separatorBefore": false
+            },
+            {
+              "label": "Filter by Selected Cell's Icon",
+              "accessKey": "I",
+              "separatorBefore": false
+            }
+          ]
+        },
+        {
+          "label": "Sort",
+          "accessKey": "o",
+          "separatorBefore": false,
+          "items": [
+            {
+              "label": "Sort A to Z",
+              "accessKey": "S",
+              "separatorBefore": false
+            },
+            {
+              "label": "Sort Z to A",
+              "accessKey": "o",
+              "separatorBefore": false
+            },
+            {
+              "label": "Put Selected Cell Color On Top",
+              "accessKey": "C",
+              "separatorBefore": false
+            },
+            {
+              "label": "Put Selected Font Color On Top",
+              "accessKey": "F",
+              "separatorBefore": false
+            },
+            {
+              "label": "Put Selected Formatting Icon On Top",
+              "accessKey": "F",
+              "separatorBefore": false
+            },
+            {
+              "label": "Custom Sort...",
+              "accessKey": "u",
+              "separatorBefore": false
+            }
+          ]
+        },
+        {
+          "label": "Get Data from Table/Range...",
+          "accessKey": "G",
+          "separatorBefore": true
+        },
+        {
+          "label": "Insert Comment",
+          "accessKey": "m",
+          "separatorBefore": true
+        },
+        {
+          "label": "Format Cells...",
+          "accessKey": "F",
+          "separatorBefore": true
+        },
+        {
+          "label": "Pick From Drop-down List...",
+          "accessKey": "k",
+          "separatorBefore": false
+        },
+        {
+          "label": "Define Name...",
+          "accessKey": "a",
+          "separatorBefore": false
+        },
+        {
+          "label": "Hyperlink...",
+          "accessKey": "H",
+          "separatorBefore": true
+        },
+        {
+          "label": "Open Hyperlink",
+          "accessKey": "O",
+          "separatorBefore": false
+        },
+        {
+          "label": "Additional Actions",
+          "accessKey": "A",
+          "separatorBefore": true
+        }
+      ]
+    },
+    {
+      "id": "Column",
+      "items": [
+        {
+          "label": "Cut",
+          "accessKey": "t",
+          "separatorBefore": false
+        },
+        {
+          "label": "Copy",
+          "accessKey": "C",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste",
+          "accessKey": "P",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste Special...",
+          "accessKey": "S",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste Table",
+          "accessKey": "P",
+          "separatorBefore": false
+        },
+        {
+          "label": "Insert...",
+          "accessKey": "I",
+          "separatorBefore": false
+        },
+        {
+          "label": "Delete...",
+          "accessKey": "D",
+          "separatorBefore": false
+        },
+        {
+          "label": "Clear Contents",
+          "accessKey": "n",
+          "separatorBefore": false
+        },
+        {
+          "label": "Format Cells...",
+          "accessKey": "F",
+          "separatorBefore": true
+        },
+        {
+          "label": "Column Width...",
+          "accessKey": "W",
+          "separatorBefore": false
+        },
+        {
+          "label": "Hide",
+          "accessKey": "H",
+          "separatorBefore": false
+        },
+        {
+          "label": "Unhide",
+          "accessKey": "U",
+          "separatorBefore": false
+        }
+      ]
+    },
+    {
+      "id": "Row",
+      "items": [
+        {
+          "label": "Cut",
+          "accessKey": "t",
+          "separatorBefore": false
+        },
+        {
+          "label": "Copy",
+          "accessKey": "C",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste",
+          "accessKey": "P",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste Special...",
+          "accessKey": "S",
+          "separatorBefore": false
+        },
+        {
+          "label": "Paste Table",
+          "accessKey": "P",
+          "separatorBefore": false
+        },
+        {
+          "label": "Insert...",
+          "accessKey": "I",
+          "separatorBefore": false
+        },
+        {
+          "label": "Delete...",
+          "accessKey": "D",
+          "separatorBefore": false
+        },
+        {
+          "label": "Clear Contents",
+          "accessKey": "n",
+          "separatorBefore": false
+        },
+        {
+          "label": "Format Cells...",
+          "accessKey": "F",
+          "separatorBefore": true
+        },
+        {
+          "label": "Row Height...",
+          "accessKey": "R",
+          "separatorBefore": false
+        },
+        {
+          "label": "Hide",
+          "accessKey": "H",
+          "separatorBefore": false
+        },
+        {
+          "label": "Unhide",
+          "accessKey": "U",
+          "separatorBefore": false
+        }
+      ]
+    },
+    {
+      "id": "Ply",
+      "items": [
+        {
+          "label": "Insert...",
+          "accessKey": "I",
+          "separatorBefore": false
+        },
+        {
+          "label": "Delete",
+          "accessKey": "D",
+          "separatorBefore": false
+        },
+        {
+          "label": "Rename",
+          "accessKey": "R",
+          "separatorBefore": false
+        },
+        {
+          "label": "Move or Copy...",
+          "accessKey": "M",
+          "separatorBefore": false
+        },
+        {
+          "label": "View Code",
+          "accessKey": "V",
+          "separatorBefore": false
+        },
+        {
+          "label": "Protect Sheet...",
+          "accessKey": "P",
+          "separatorBefore": false
+        },
+        {
+          "label": "Tab Color",
+          "accessKey": "",
+          "separatorBefore": false
+        },
+        {
+          "label": "Hide",
+          "accessKey": "H",
+          "separatorBefore": true
+        },
+        {
+          "label": "Unhide...",
+          "accessKey": "U",
+          "separatorBefore": false
+        },
+        {
+          "label": "Select All Sheets",
+          "accessKey": "S",
+          "separatorBefore": true
+        }
+      ]
+    }
+  ]
+}

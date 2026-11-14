@@ -16,6 +16,11 @@ export type GridTheme = {
   fillPreview: string
   cornerTriangle: string
   spillBorder: string
+  /** Where frozen rows and columns end. */
+  freezeLine: string
+  /** The corner marks of a note (red) and a comment (purple). */
+  noteMark: string
+  commentMark: string
   /** Reference colours for a formula being typed (--ref-0 …). */
   refColors: string[]
 }
@@ -37,6 +42,9 @@ const TOKENS: Record<Exclude<keyof GridTheme, "refColors">, string> = {
   fillPreview: "--grid-fill-preview",
   cornerTriangle: "--grid-corner-triangle",
   spillBorder: "--grid-spill-border",
+  freezeLine: "--grid-freeze-line",
+  noteMark: "--grid-note-mark",
+  commentMark: "--grid-comment-mark",
 }
 
 /** Light defaults, used when no stylesheet is present (tests). */
@@ -57,6 +65,9 @@ export const LIGHT_THEME: GridTheme = {
   fillPreview: "#7a7a7a",
   cornerTriangle: "#b8b8b8",
   spillBorder: "#4a7bd0",
+  freezeLine: "#9e9e9e",
+  noteMark: "#e00000",
+  commentMark: "#8a3fd1",
   refColors: ["#2e6fd6", "#d13438", "#8a3ffc", "#0f8a3e", "#b83aa8", "#037f87", "#c25200", "#85593a"],
 }
 

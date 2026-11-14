@@ -8,7 +8,33 @@ import { roundDecimal } from "./rounding"
  * en-US separators. Used by the TEXT function now and by cell formatting in Phase 3.
  */
 
-export type FormatResult = { text: string; color?: string }
+/** `overflow`: a date or time out of Excel's range (the cell shows ####, TEXT gives #VALUE!). */
+export type FormatResult = { text: string; color?: string; overflow?: true }
+
+/**
+ * In cell mode (`formatWithCode(…, { cell: true })`), `_x` comes out as one private-use character standing for "a gap
+ * as wide as x" and `*x` as one standing for "x repeated to fill the cell". One character each, so the digit
+ * formatting (which reverses the integer part) can't split them. The grid's painter reads them with `formatMark`;
+ * TEXT has no width, so it shows a space and nothing.
+ */
+const PAD_BASE = 0xe100
+const FILL_BASE = 0xe200
+
+const markOf = (base: number, ch: string | undefined) => {
+  const code = ch?.charCodeAt(0) ?? 32
+  return String.fromCharCode(base + (code < 128 ? code : 32))
+}
+
+/** What a cell-mode character means: a gap as wide as `ch`, the fill character `ch`, or plain text. */
+export function formatMark(c: string): { kind: "pad" | "fill"; ch: string } | null {
+  const code = c.charCodeAt(0)
+  if (code >= PAD_BASE && code < PAD_BASE + 128) return { kind: "pad", ch: String.fromCharCode(code - PAD_BASE) }
+  if (code >= FILL_BASE && code < FILL_BASE + 128) return { kind: "fill", ch: String.fromCharCode(code - FILL_BASE) }
+  return null
+}
+
+/** Whether cell-mode text has gaps or a fill to lay out. */
+export const hasFormatMarks = (text: string) => /[\ue100-\ue27f]/.test(text)
 
 type Section = { tokens: Tok[]; condition?: (n: number) => boolean; color?: string; hasCondition: boolean }
 
@@ -26,12 +52,13 @@ type Tok =
 
 const cache = new Map<string, Section[]>()
 
-function parse(code: string): Section[] {
-  let sections = cache.get(code)
+function parse(code: string, cell = false): Section[] {
+  const key = cell ? "\u0001" + code : code
+  let sections = cache.get(key)
   if (sections) return sections
-  sections = splitSections(code).map(parseSection)
+  sections = splitSections(code).map((src) => parseSection(src, cell))
   if (cache.size > 500) cache.clear()
-  cache.set(code, sections)
+  cache.set(key, sections)
   return sections
 }
 
@@ -73,7 +100,7 @@ const COLORS: Record<string, string> = {
   cyan: "#00FFFF",
 }
 
-function parseSection(src: string): Section {
+function parseSection(src: string, cell = false): Section {
   const tokens: Tok[] = []
   const section: Section = { tokens, hasCondition: false }
   let i = 0
@@ -94,12 +121,13 @@ function parseSection(src: string): Section {
       continue
     }
     if (ch === "_") {
-      tokens.push({ t: "lit", s: " " })
+      tokens.push({ t: "lit", s: cell ? markOf(PAD_BASE, src[i + 1]) : " " })
       i += 2
       continue
     }
     if (ch === "*") {
       // Fill to the column width: in TEXT (no width) it shows nothing.
+      if (cell) tokens.push({ t: "lit", s: markOf(FILL_BASE, src[i + 1]) })
       i += 2
       continue
     }
@@ -187,8 +215,12 @@ function isDateSection(s: Section) {
 }
 
 /** Formats a number or text with a format code. */
-export function formatWithCode(value: number | string | boolean, code: string): FormatResult {
-  const sections = parse(code)
+export function formatWithCode(
+  value: number | string | boolean,
+  code: string,
+  options: { cell?: boolean } = {},
+): FormatResult {
+  const sections = parse(code, options.cell)
   if (typeof value === "boolean") return { text: value ? "TRUE" : "FALSE" }
   if (typeof value === "string") {
     const textSection =
@@ -202,8 +234,16 @@ export function formatWithCode(value: number | string | boolean, code: string): 
   const { section, negativeHasOwn } = pickSection(sections, value)
   const v = negativeHasOwn ? Math.abs(value) : value
   if (section.tokens.length === 0) return { text: "", color: section.color }
+  if (section.tokens.some((t) => t.t === "text") && !section.tokens.some((t) => t.t === "digit")) {
+    // @ with a number: the number as General text ("@" alone shows 1234.5678 as it is).
+    const n = String(Number(roundDecimal(v, 15 - Math.max(1, Math.floor(Math.log10(Math.abs(v) || 1)) + 1))))
+    return {
+      text: section.tokens.map((t) => (t.t === "text" ? n : t.t === "lit" ? t.s : "")).join(""),
+      color: section.color,
+    }
+  }
   if (isDateSection(section)) {
-    if (value < 0 || value > 2_958_465.99999) return { text: "#".repeat(10) }
+    if (value < 0 || value > 2_958_465.99999) return { text: "#".repeat(10), overflow: true }
     return { text: formatDate(v, section.tokens), color: section.color }
   }
   return { text: formatNumberTokens(v, section.tokens), color: section.color }
@@ -215,11 +255,12 @@ function pickSection(sections: Section[], n: number): { section: Section; negati
     // With conditions: the first two sections test them; the third is "everything else".
     for (let i = 0; i < Math.min(2, numeric.length); i++) {
       const s = numeric[i]
-      if (s.condition?.(n))
-        return { section: s, negativeHasOwn: i > 0 || (s.condition !== undefined && n < 0 && !s.condition(-1)) }
+      // A section picked by its condition shows no minus sign ([<0]"neg" shows "neg").
+      if (s.condition?.(n)) return { section: s, negativeHasOwn: n < 0 }
     }
+    // The "everything else" section: with two sections it keeps the sign ([>=1000]0,"K";0 shows -1235).
     const rest = numeric[2] ?? numeric[1]
-    if (rest && !rest.hasCondition) return { section: rest, negativeHasOwn: n < 0 }
+    if (rest && !rest.hasCondition) return { section: rest, negativeHasOwn: numeric.length > 2 && n < 0 }
     return { section: { tokens: [{ t: "lit", s: "#".repeat(10) }], hasCondition: false }, negativeHasOwn: false }
   }
   if (n > 0 || numeric.length === 1) return { section: numeric[0], negativeHasOwn: false }
@@ -312,15 +353,12 @@ function fillInteger(digits: string, tokens: Tok[], grouping: boolean): string {
       seen++
       result.push(di >= 0 ? digits[di--] : t.c === "0" ? "0" : t.c === "?" ? " " : "")
       if (seen === placeholders) while (di >= 0) result.push(digits[di--])
-    } else if (t.t === "lit") result.push(reverse(t.s))
+    } else if (t.t === "lit") result.push(t.s)
     else if (t.t === "percent") result.push("%")
   }
+  // The pieces were collected right to left; each piece reads left to right already.
   const text = result.reverse().join("")
   return grouping ? groupDigits(text) : text
-}
-
-function reverse(s: string) {
-  return [...s].reverse().join("")
 }
 
 /** Inserts thousands separators into the digit run of the integer text. */
@@ -331,17 +369,16 @@ function groupDigits(text: string): string {
 function fillFraction(digits: string, tokens: Tok[]): string {
   let di = 0
   const out: string[] = []
-  // Trailing # drop zeros; ? become spaces.
+  // Trailing zeros: # drops them, ? turns them into spaces, 0 keeps them.
   const placeholders = tokens.filter((t) => t.t === "digit") as { c: string }[]
-  let trimmed = digits
+  const shown = [...digits]
   for (let k = placeholders.length - 1; k >= 0; k--) {
-    if (placeholders[k].c === "0") break
-    if (trimmed[k] === "0") trimmed = trimmed.slice(0, k) + (placeholders[k].c === "?" ? " " : "")
-    else break
+    if (placeholders[k].c === "0" || shown[k] !== "0") break
+    shown[k] = placeholders[k].c === "?" ? " " : ""
   }
   for (const t of tokens) {
     if (t.t === "digit") {
-      if (di < trimmed.length) out.push(trimmed[di])
+      out.push(shown[di] ?? "")
       di++
     } else if (t.t === "lit") out.push(t.s)
     else if (t.t === "percent") out.push("%")
@@ -371,7 +408,9 @@ function formatScientific(v: number, tokens: Tok[], expIndex: number): string {
     mant = abs / 10 ** exp
     text = mant.toFixed(fracPlaceholders)
   }
-  const [i, f = ""] = text.split(".")
+  const [whole, f = ""] = text.split(".")
+  // Excel's quirk: zero in an engineering format fills every integer placeholder (##0.0E+0 shows 000.0E+0).
+  const i = abs === 0 && step > 1 ? "0".repeat(intPlaceholders) : whole
   const intTokens = point >= 0 ? mantissaTokens.slice(0, point) : mantissaTokens
   const mantText =
     fillInteger(i, intTokens, false) + (point >= 0 ? "." + fillFraction(f, mantissaTokens.slice(point + 1)) : "")
@@ -383,31 +422,39 @@ function formatScientific(v: number, tokens: Tok[], expIndex: number): string {
 function formatFraction(v: number, tokens: Tok[], slash: number, grouping: boolean): string {
   const negative = v < 0
   const abs = Math.abs(v)
-  const denomTokens = tokens.slice(slash + 1)
+  let denomTokens = tokens.slice(slash + 1)
+  // A fixed denominator ("?/8", "?/100"): its digits parse as literals and 0 placeholders.
+  let fixedText = ""
+  let k = 0
+  for (; k < denomTokens.length; k++) {
+    const t = denomTokens[k]
+    if (t.t === "lit" && /^\d$/.test(t.s)) fixedText += t.s
+    else if (t.t === "digit" && t.c === "0" && fixedText) fixedText += "0"
+    else break
+  }
+  const fixedDenom = /^[1-9]\d*$/.test(fixedText) ? Number(fixedText) : null
+  if (fixedDenom) denomTokens = denomTokens.slice(k)
   const denomDigits = denomTokens.filter((t) => t.t === "digit") as { c: string }[]
-  const fixedDenom = (() => {
-    const lit = denomTokens.find((t) => t.t === "lit" && /^\d+$/.test(t.s))
-    return lit && lit.t === "lit" ? Number(lit.s) : null
-  })()
   // Integer part: digit placeholders before the numerator, separated by a space literal.
   const before = tokens.slice(0, slash)
   let splitAt = -1
-  for (let k = before.length - 1; k >= 0; k--) {
-    if (before[k].t === "lit" && (before[k] as { s: string }).s.trim() === "") {
-      splitAt = k
+  for (let j = before.length - 1; j >= 0; j--) {
+    if (before[j].t === "lit" && (before[j] as { s: string }).s.trim() === "") {
+      splitAt = j
       break
     }
   }
   const hasWhole = splitAt > 0 && before.slice(0, splitAt).some((t) => t.t === "digit")
+  const numTokens = hasWhole ? before.slice(splitAt + 1) : before
   const whole = hasWhole ? Math.floor(abs) : 0
   const frac = abs - whole
-  const maxDen = fixedDenom ?? 10 ** denomDigits.length - 1
   let bestN = 0
   let bestD = 1
   if (fixedDenom) {
     bestD = fixedDenom
     bestN = Math.round(frac * fixedDenom)
   } else {
+    const maxDen = 10 ** denomDigits.length - 1
     let bestErr = Infinity
     for (let d = 1; d <= maxDen; d++) {
       const n = Math.round(frac * d)
@@ -426,14 +473,21 @@ function formatFraction(v: number, tokens: Tok[], slash: number, grouping: boole
   }
   const sign = negative ? "-" : ""
   const wholeText = hasWhole ? fillInteger(w === 0 ? "" : String(w), before.slice(0, splitAt), grouping) : ""
-  if (hasWhole && bestN === 0) {
-    const width = String(bestD).length * 2 + 2
-    return sign + (wholeText || "0") + " ".repeat(Math.max(0, width - 1))
-  }
-  const numTokens = hasWhole ? before.slice(splitAt + 1) : before
   const numText = fillInteger(String(bestN), numTokens, false)
-  const denText = fixedDenom ? String(fixedDenom) : String(bestD).padEnd(denomDigits.length, " ")
-  return sign + (hasWhole ? `${wholeText} ` : "") + numText.trimStart() + "/" + denText
+  const denText = fixedDenom
+    ? String(fixedDenom)
+    : String(bestD) + " ".repeat(Math.max(0, denomDigits.filter((d) => d.c === "?").length - String(bestD).length))
+  if (hasWhole && bestN === 0) {
+    // No fraction: the whole number, then spaces as wide as the fraction would be when it has ? placeholders.
+    const padded = [...numTokens, ...denomTokens].some((t) => t.t === "digit" && t.c === "?")
+    const width =
+      1 + numTokens.filter((t) => t.t === "digit").length + 1 + (fixedDenom ? fixedText.length : denomDigits.length)
+    return sign + (wholeText || "0") + (padded ? " ".repeat(width) : "")
+  }
+  // With no whole number the separator stays as a space only when the numerator pads with ?.
+  const firstNum = numTokens.find((t) => t.t === "digit") as { c: string } | undefined
+  const separator = !hasWhole ? "" : wholeText || firstNum?.c === "?" ? " " : ""
+  return sign + wholeText + separator + numText + "/" + denText
 }
 
 // ── Dates ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -458,15 +512,19 @@ function formatDate(serial: number, tokens: Tok[]): string {
   const fracCode = tokens.find((t) => t.t === "date" && t.code.startsWith(".")) as { code: string } | undefined
   const fracDigits = fracCode ? fracCode.code.length - 1 : 0
   // Round to the shown precision: whole seconds unless the format shows fractions.
-  const unit = 86_400 * 10 ** fracDigits
-  const total = Math.round(serial * unit) / unit
-  const day = Math.floor(total)
-  const secondsTotal = (total - day) * 86_400
+  // Whole units (seconds, or tenths… with .0) so 13:37:37.92 rounds to :38 without float drift.
+  const perSecond = 10 ** fracDigits
+  const unit = 86_400 * perSecond
+  const units = Math.round(serial * unit)
+  const day = Math.floor(units / unit)
+  const dayUnits = units - day * unit
   const date = serialToDate(day)
-  const hour = Math.floor(secondsTotal / 3600 + 1e-9)
-  const minute = Math.floor((secondsTotal - hour * 3600) / 60 + 1e-9)
-  const secondExact = secondsTotal - hour * 3600 - minute * 60
-  const second = Math.floor(secondExact + 1e-9)
+  const secondsOfDay = Math.floor(dayUnits / perSecond)
+  const hour = Math.floor(secondsOfDay / 3600)
+  const minute = Math.floor((secondsOfDay % 3600) / 60)
+  const second = secondsOfDay % 60
+  const fracUnits = dayUnits % perSecond
+  const elapsedSeconds = Math.floor(units / perSecond)
   const ampm = tokens.some((t) => t.t === "date" && (t.code === "AM/PM" || /^a\/p$/i.test(t.code)))
   const out: string[] = []
   for (let k = 0; k < tokens.length; k++) {
@@ -492,21 +550,15 @@ function formatDate(serial: number, tokens: Tok[]): string {
       const two = c.endsWith("2")
       const v =
         unitCode === "h"
-          ? Math.floor(total * 24 + 1e-9)
+          ? Math.floor(elapsedSeconds / 3600)
           : unitCode === "m"
-            ? Math.floor(total * 1440 + 1e-9)
-            : Math.round(total * 86_400)
+            ? Math.floor(elapsedSeconds / 60)
+            : elapsedSeconds
       out.push(String(v).padStart(two ? 2 : 1, "0"))
       continue
     }
     if (c.startsWith(".")) {
-      const frac = secondExact - second
-      out.push(
-        "." +
-          String(Math.round(frac * 10 ** fracDigits))
-            .padStart(fracDigits, "0")
-            .slice(0, fracDigits),
-      )
+      out.push("." + String(fracUnits).padStart(fracDigits, "0"))
       continue
     }
     if (c === "AM/PM") {

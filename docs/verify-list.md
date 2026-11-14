@@ -20,12 +20,51 @@ Built, but not yet checked against Excel or on a device.
 - [ ] Show Formulas (Ctrl+`): Excel also widens the columns; we don't yet.
 - [ ] Status bar in manual mode: when exactly "Calculate" appears and goes.
 
+## Against Excel (Phase 3)
+
+Ribbon and formatting:
+
+- [ ] Accounting drop-down codes for £, €, ¥ and CHF (built by analogy with the $ code; only $ was read from Excel).
+- [ ] Theme colour tints in the colour palettes (computed, not read).
+- [ ] KeyTip letters on every tab (from memory; Home's main ones were checked).
+- [ ] Center (and the other alignment buttons) toggling back to General on a second press (ExecuteMso didn't
+      toggle in the VM).
+- [ ] Ctrl+Shift+$ format (`$#,##0.00_);($#,##0.00)`).
+- [ ] Format Cells › Fill › Pattern style and colour: not built yet.
+
+Sheet tabs:
+
+- [ ] Tab look: active tab fill, underline and bold name; inactive coloured tabs filled with their colour and the
+      text colour on them (we switch to white below a luminance of 140).
+- [ ] Tab context menu "Insert...": Excel opens the Insert dialog (Worksheet, Chart, macro sheets); we insert a
+      worksheet at once.
+- [ ] Tab Color from the tab menu: Excel opens a submenu; we open the palette at the click.
+- [ ] Copy names ("Sheet1 (2)") when the name is already 29–31 characters long.
+- [ ] A cut pasted on another sheet: Excel moves the cells and references to them follow; we paste and clear the
+      source, so formulas that pointed at the source keep pointing there.
+- [ ] Clicking another sheet's tab while typing a formula: Excel points at the other sheet; we finish the entry first.
+- [ ] Not built: grouped sheets (Shift/Ctrl+click on tabs, Select All Sheets), View Code, Protect Sheet, F11 chart
+      sheet, the Activate dialog (we list the sheets in a menu on right-click of the scroll arrows). (Protect Sheet is
+      built now.)
+
+Phase 3, added at the end:
+
+- [ ] Review › Notes menu control ids (ReviewNewNote, ReviewShowOrHideNote, …): guessed, not read from Excel.
+- [ ] Freeze Panes menu ids and the CF preset colours (light red fill with dark red text etc.): from memory.
+- [ ] "Workbook is protected and cannot be changed." (our message for a structure change; Excel mostly greys the
+      commands out, which we do too).
+- [ ] Protect Workbook's ribbon id (ReviewRestrictEditing, taken from the labels file) and whether the button shows
+      pressed while protected.
+- [ ] Comment card layout and the note box size (144 × 79 px) against Excel's.
+
 ## On a device
 
 - [ ] Scrolling frame times in the Tauri window with GPU compositing (the 16 ms p95 budget; only measured on
       software rendering so far).
 - [ ] The .deb and AppImage on a second distribution.
 - [ ] Touch: pan and the larger hit targets under `pointer: coarse` (Android tablet, Phase 6).
+- [ ] Touch gestures on a real tablet: grippers, long press (500 ms), double tap, pinch, and the editor staying above
+      the keyboard. Only driven with synthetic touch events in WebKitGTK so far.
 
 ## Not built in Phase 1 (noted for later phases)
 

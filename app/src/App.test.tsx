@@ -92,4 +92,36 @@ describe("App shell", () => {
     expect(c.selection.ranges[0]).toEqual({ r0: 1, c0: 1, r1: 3, c1: 3 })
     expect(screen.queryByRole("dialog")).toBeNull()
   })
+
+  it("the cell menu follows Excel's list, with unbuilt items disabled", () => {
+    // Give the grid a size, so it lays out and a right-click hits a cell.
+    const saved = { observer: globalThis.ResizeObserver, rect: Element.prototype.getBoundingClientRect }
+    globalThis.ResizeObserver = class {
+      constructor(private readonly callback: () => void) {}
+      observe() {
+        this.callback()
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+    Element.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 800, 500)
+    try {
+      renderApp()
+    } finally {
+      globalThis.ResizeObserver = saved.observer
+      Element.prototype.getBoundingClientRect = saved.rect
+    }
+    const canvas = document.querySelector(".grid-canvas") as HTMLCanvasElement
+    fireEvent.contextMenu(canvas, { clientX: 120, clientY: 60 })
+    const menu = screen.queryByRole("menu")
+    expect(menu).not.toBeNull()
+    if (!menu) return
+    const labels = [...menu.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)
+    expect(labels).toContain("Format Cells...")
+    expect(labels).toContain("New Note")
+    expect(screen.getByRole("menuitem", { name: "New Note" })).toBeEnabled()
+    expect(screen.getByRole("menuitem", { name: "Define Name..." })).toBeEnabled()
+    expect(screen.getByRole("menuitem", { name: "Quick Analysis" })).toBeDisabled()
+    expect(screen.getByRole("menuitem", { name: "Format Cells..." })).toBeEnabled()
+  })
 })

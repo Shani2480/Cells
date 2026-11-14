@@ -9,6 +9,8 @@ export class Axis {
   /** Custom sizes (NaN = default); hidden entries keep their size here for Unhide. */
   private custom: Float64Array | null = null
   private hidden: Uint8Array | null = null
+  /** Sizes the app set itself to fit the content (rows Excel heightens for wrapped text or big fonts). */
+  private auto: Uint8Array | null = null
   /** Fenwick tree over (drawn size − default), 1-based. */
   private tree: Float64Array | null = null
   private customCount = 0
@@ -43,10 +45,16 @@ export class Axis {
     return this.hiddenCount > 0
   }
 
-  /** Sets a custom size; null returns the entry to the default. */
-  setSize(index: number, size: number | null) {
+  /** Whether the size was fitted to the content rather than set by the user (Excel's customHeight="0"). */
+  isAuto(index: number) {
+    return this.auto !== null && this.auto[index] === 1
+  }
+
+  /** Sets a custom size; null returns the entry to the default. `auto`: fitted to the content, not chosen. */
+  setSize(index: number, size: number | null, auto = false) {
     const before = this.size(index)
     this.ensure()
+    this.auto![index] = size !== null && auto ? 1 : 0
     const wasCustom = this.hasCustomSize(index)
     this.custom![index] = size === null ? Number.NaN : Math.max(0, size)
     this.customCount += (size === null ? 0 : 1) - (wasCustom ? 1 : 0)
@@ -133,6 +141,8 @@ export class Axis {
     this.custom.fill(Number.NaN, at, at + n)
     this.hidden!.copyWithin(at + n, at, this.count - n)
     this.hidden!.fill(0, at, at + n)
+    this.auto!.copyWithin(at + n, at, this.count - n)
+    this.auto!.fill(0, at, at + n)
     this.rebuild()
   }
 
@@ -145,12 +155,14 @@ export class Axis {
     this.custom.fill(Number.NaN, this.count - n)
     this.hidden!.copyWithin(at, at + n)
     this.hidden!.fill(0, this.count - n)
+    this.auto!.copyWithin(at, at + n)
+    this.auto!.fill(0, this.count - n)
     this.rebuild()
   }
 
   /** Entries with a custom size or hidden, in [from, to], for undo records. */
-  overrides(from: number, to: number): { index: number; size: number | null; hidden: boolean }[] {
-    const out: { index: number; size: number | null; hidden: boolean }[] = []
+  overrides(from: number, to: number): { index: number; size: number | null; hidden: boolean; auto?: true }[] {
+    const out: { index: number; size: number | null; hidden: boolean; auto?: true }[] = []
     const custom = this.custom
     const hiddenFlags = this.hidden
     if (!custom || !hiddenFlags || this.customCount + this.hiddenCount === 0) {
@@ -161,7 +173,12 @@ export class Axis {
       const size = custom[i]
       const hidden = hiddenFlags[i] === 1
       if (hidden || size === size) {
-        out.push({ index: i, size: size === size ? size : null, hidden })
+        out.push({
+          index: i,
+          size: size === size ? size : null,
+          hidden,
+          ...(this.auto![i] ? { auto: true as const } : {}),
+        })
       }
     }
     return out
@@ -171,6 +188,7 @@ export class Axis {
     if (!this.custom) {
       this.custom = new Float64Array(this.count).fill(Number.NaN)
       this.hidden = new Uint8Array(this.count)
+      this.auto = new Uint8Array(this.count)
       this.tree = new Float64Array(this.count + 1)
     }
   }

@@ -1,4 +1,4 @@
-import { ClipboardPaste, Copy, Scissors } from "lucide-react"
+import { ChevronRight, ClipboardPaste, Copy, Scissors, SquarePen } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 
@@ -10,6 +10,10 @@ export type MenuItem =
       icon?: ReactNode
       shortcut?: string
       disabled?: boolean
+      /** Tooltip (a disabled item says why: "Not built yet."). */
+      title?: string
+      /** Opens more choices (drawn with a ›). */
+      more?: boolean
       onSelect: () => void
     }
 
@@ -17,6 +21,7 @@ export const menuIcons = {
   cut: <Scissors size={15} strokeWidth={1.6} />,
   copy: <Copy size={15} strokeWidth={1.6} />,
   paste: <ClipboardPaste size={15} strokeWidth={1.6} />,
+  formatCells: <SquarePen size={15} strokeWidth={1.6} />,
 }
 
 /** A right-click menu at a point, kept inside the window. Closes at once on choice, Esc or a press elsewhere. */
@@ -88,21 +93,28 @@ export function ContextMenu({
         item.kind === "separator" ? (
           <div key={index} className="menu-separator" role="separator" />
         ) : (
-          <button
-            key={index}
-            type="button"
-            role="menuitem"
-            className="menu-row"
-            disabled={item.disabled}
-            onClick={() => {
-              onClose()
-              item.onSelect()
-            }}
-          >
-            <span className="menu-row-icon">{item.icon}</span>
-            <span>{item.label}</span>
-            {item.shortcut ? <span className="menu-row-shortcut">{item.shortcut}</span> : null}
-          </button>
+          <span key={index} className="menu-row-wrap" title={item.title}>
+            <button
+              type="button"
+              role="menuitem"
+              className="menu-row"
+              disabled={item.disabled}
+              aria-haspopup={item.more ? "menu" : undefined}
+              onClick={() => {
+                onClose()
+                item.onSelect()
+              }}
+            >
+              <span className="menu-row-icon">{item.icon}</span>
+              <span>{item.label}</span>
+              {item.shortcut ? <span className="menu-row-shortcut">{item.shortcut}</span> : null}
+              {item.more ? (
+                <span className="menu-row-shortcut">
+                  <ChevronRight size={14} strokeWidth={1.6} />
+                </span>
+              ) : null}
+            </button>
+          </span>
         ),
       )}
     </div>,

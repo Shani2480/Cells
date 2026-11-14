@@ -25,6 +25,9 @@ export function snapshot(sheet: Sheet) {
     cells,
     rows: sheet.rows.overrides(0, MAX_ROWS - 1),
     cols: sheet.cols.overrides(0, MAX_COLS - 1),
+    rowStyles: sheet.rowStyles.entries(),
+    colStyles: sheet.colStyles.entries(),
+    merges: [...sheet.merges.all].sort((a, b) => a.r0 - b.r0 || a.c0 - b.c0 || a.r1 - b.r1 || a.c1 - b.c1),
   }
 }
 

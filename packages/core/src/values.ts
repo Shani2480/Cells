@@ -1,3 +1,5 @@
+import { parseCurrency, parseDateTime, parseFraction } from "./entry-formats"
+
 /** Excel's error values. */
 export const ERROR_CODES = [
   "#NULL!",
@@ -49,7 +51,7 @@ const NUMBER_RE = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/
 // Thousands separators as Excel (en-US) accepts them: groups of exactly three digits after the first.
 const GROUPED_RE = /^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d*)?$/
 
-/** Parses typed text the way Excel does on entry (en-US); dates and currencies arrive with number formats in Phase 3. */
+/** Parses typed text the way Excel does on entry (en-US), with the number format Excel sets for dates, times, currency… */
 export function parseInput(text: string): ParsedInput | null {
   if (text === "") {
     return null
@@ -74,6 +76,15 @@ export function parseInput(text: string): ParsedInput | null {
   if (number) {
     return number
   }
+  // "(5)" is minus five.
+  const bracketed = /^\((.+)\)$/.exec(trimmed)
+  if (bracketed) {
+    const inner = parseNumberText(bracketed[1].trim())
+    if (inner && typeof inner.value === "number" && inner.value >= 0 && !bracketed[1].includes("%"))
+      return { ...inner, value: -inner.value }
+  }
+  const entry = parseCurrency(trimmed) ?? parseFraction(trimmed) ?? parseDateTime(trimmed)
+  if (entry) return { value: entry.value, numberFormat: entry.numberFormat }
   return { value: text }
 }
 
@@ -107,6 +118,8 @@ function parseNumberText(text: string): ParsedInput | null {
   if (percent) {
     const decimals = body.includes(".") ? body.split(".")[1].replace(/[eE].*/, "").length : 0
     parsed.numberFormat = decimals > 0 ? `0.${"0".repeat(Math.min(decimals, 30))}%` : "0%"
+  } else if (/e/i.test(body)) {
+    parsed.numberFormat = "0.00E+00"
   } else if (grouped) {
     parsed.numberFormat = body.includes(".") ? "#,##0.00" : "#,##0"
   }

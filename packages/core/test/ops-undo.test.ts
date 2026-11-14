@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Op } from "../src/ops"
+import { CLEAR_ALL } from "../src/styles"
 import { Workbook } from "../src/workbook"
 import { rng, snapshot } from "./helpers"
 
@@ -26,7 +27,26 @@ function randomOp(random: () => number): Op {
   if (roll < 0.65) return { kind: "deleteRows", sheet: 0, at: pick(30), count: 1 + pick(3) }
   if (roll < 0.72) return { kind: "insertCols", sheet: 0, at: col(), count: 1 + pick(2) }
   if (roll < 0.79) return { kind: "deleteCols", sheet: 0, at: pick(12), count: 1 + pick(2) }
+  if (roll < 0.82) {
+    const r0 = pick(20)
+    const c0 = pick(10)
+    const shape = random()
+    const range =
+      shape < 0.2
+        ? { r0: 0, r1: 1_048_575, c0, c1: c0 + pick(2) }
+        : shape < 0.4
+          ? { r0, r1: r0 + pick(2), c0: 0, c1: 16_383 }
+          : { r0, c0, r1: r0 + pick(4), c1: c0 + pick(3) }
+    const patches = [{ bold: true as const }, { fill: "#ffff00" }, { bold: null }, { numberFormat: "0.00" }, CLEAR_ALL]
+    return { kind: "format", sheet: 0, ranges: [range], patch: patches[pick(patches.length)] }
+  }
   if (roll < 0.86) {
+    const r0 = pick(20)
+    const c0 = pick(10)
+    const range = { r0, c0, r1: r0 + 1 + pick(2), c1: c0 + pick(2) }
+    return { kind: random() < 0.7 ? "merge" : "unmerge", sheet: 0, ranges: [range] }
+  }
+  if (roll < 0.9) {
     const r0 = pick(20)
     const c0 = pick(10)
     const range = { r0, c0, r1: r0 + pick(3), c1: c0 + pick(3) }

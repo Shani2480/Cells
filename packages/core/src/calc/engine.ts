@@ -280,7 +280,10 @@ export class CalcEngine {
   // ── Changes ──────────────────────────────────────────────────────────────────────────────────────────────────
 
   /** Brings formulas up to date after operations. Called by the workbook before it notifies its listeners. */
-  afterChanges(changes: readonly Change[]) {
+  afterChanges(all: readonly Change[]) {
+    // Formats only (bold, fills, merges): no value or formula moved.
+    const changes = all.some((c) => c.format) ? all.filter((c) => !c.format) : all
+    if (!changes.length) return
     if (changes.some((c) => c.structural)) {
       // Rows or columns moved: re-read every formula (their text was rewritten by the operation) and recalculate.
       this.clearAllSpills()

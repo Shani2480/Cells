@@ -1,37 +1,46 @@
-import { parseRange, type Range } from "@cells/core"
 import { useState } from "react"
+import type { Target } from "@/sheet/names"
 import { Dialog } from "./Dialog"
 
 /**
- * Go To (F5, Ctrl+G): the references visited before and a Reference box. Excel's Special… button belongs to Go To
+ * Go To (F5, Ctrl+G): the defined names and the references visited before, and a Reference box (a reference or a
+ * name). Excel's Special… button belongs to Go To
  * Special, which arrives with the data tools (Phase 4); it is left out rather than shown dead.
  */
 export function GoToDialog({
+  names = [],
   recent,
+  resolve,
   onGo,
   onClose,
 }: {
+  names?: readonly string[]
   recent: string[]
-  onGo: (range: Range, text: string) => void
+  resolve: (text: string) => Target | null
+  onGo: (target: Target, text: string) => void
   onClose: () => void
 }) {
   const [text, setText] = useState("")
   const [error, setError] = useState(false)
   const accept = () => {
-    const range = parseRange(text)
-    if (!range) {
+    const target = resolve(text)
+    if (!target) {
       setError(true)
       return
     }
-    onGo(range, text.trim().toUpperCase())
+    onGo(
+      target,
+      names.some((n) => n.toUpperCase() === text.trim().toUpperCase()) ? text.trim() : text.trim().toUpperCase(),
+    )
   }
+  const items = [...names, ...recent.filter((r) => !names.includes(r))]
   return (
     <Dialog title="Go To" onCancel={onClose} onAccept={accept} width={300}>
       <span className="dialog-label">
         <u>G</u>o to:
       </span>
       <div className="dialog-list" role="listbox" aria-label="Go to">
-        {recent.map((item) => (
+        {items.map((item) => (
           <button
             type="button"
             role="option"
@@ -40,8 +49,8 @@ export function GoToDialog({
             className={`dialog-list-item${item === text ? " is-selected" : ""}`}
             onClick={() => setText(item)}
             onDoubleClick={() => {
-              const range = parseRange(item)
-              if (range) onGo(range, item)
+              const target = resolve(item)
+              if (target) onGo(target, item)
             }}
           >
             {item}
