@@ -98,6 +98,7 @@ const OWN = new Set([
   "conditionalFormatting",
   "dataValidations",
   "legacyDrawing",
+  "tableParts",
 ])
 
 /** Unicode escapes Excel writes in text (`_x000D_`). */

@@ -39,7 +39,6 @@ import {
   DecreaseDecimalIcon,
   FillColorIcon,
   FontColorIcon,
-  FormatAsTableIcon,
   IncreaseDecimalIcon,
   MergeIcon,
   OrientationIcon,
@@ -753,13 +752,6 @@ export function homeCommands(): Command[] {
       ],
     },
     // The menu's commands live in cf-commands.tsx.
-    {
-      id: "FormatAsTableGallery",
-      label: "Format as Table",
-      description: "Quickly convert a range of cells to a table with its own style.",
-      keytip: "T",
-      largeIcon: <FormatAsTableIcon />,
-    },
     {
       id: "CellStylesGallery",
       label: "Cell Styles",

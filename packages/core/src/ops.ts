@@ -4,6 +4,7 @@ import type { CellData } from "./cell-store"
 import type { AnnotationWrite } from "./annotations"
 import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
 import { copyValidations, shiftValidations, type ValidationEntry } from "./validation"
+import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyAutoFilter, shiftAutoFilter, type AutoFilter } from "./filter"
 import { rewriteNames, type DefinedName, type SheetList } from "./names"
 import type { SheetProtection, WorkbookProtection } from "./protection"
@@ -57,6 +58,7 @@ export type Op =
       merges: Range[]
       conditional?: CFEntry[]
       validations?: ValidationEntry[]
+      tables?: Table[]
       annotations?: AnnotationWrite[]
       autoFilter?: AutoFilter | null
     }
@@ -64,6 +66,8 @@ export type Op =
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
   /** The sheet's whole list of Data Validation rules. */
   | { kind: "validations"; sheet: number; entries: ValidationEntry[] }
+  /** The sheet's whole list of tables (create, resize, rename, style, convert to range). */
+  | { kind: "tables"; sheet: number; tables: Table[] }
   /** Notes and comments: set or remove one cell's annotation each. */
   | { kind: "annotations"; sheet: number; writes: AnnotationWrite[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
@@ -183,6 +187,15 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
         change: { sheet: op.sheet, structural: false, format: true },
       }
     }
+    case "tables": {
+      const before = copyTables(sheet.tables)
+      sheet.tables = copyTables(op.tables)
+      // Structured references now point elsewhere: formulas are re-read (as after rows move).
+      return {
+        inverse: [{ kind: "tables", sheet: op.sheet, tables: before }],
+        change: { sheet: op.sheet, structural: true },
+      }
+    }
     case "annotations": {
       const before: AnnotationWrite[] = op.writes.map((w) => ({
         row: w.row,
@@ -259,6 +272,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     merges: sheet.merges.all.map((m) => ({ ...m })),
     conditional: copyEntries(sheet.conditional),
     validations: copyValidations(sheet.validations),
+    tables: copyTables(sheet.tables),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     autoFilter: copyAutoFilter(sheet.autoFilter),
   }
@@ -273,6 +287,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   sheet.merges.replace(op.merges.map((m) => ({ ...m })))
   if (op.conditional) sheet.conditional = copyEntries(op.conditional)
   if (op.validations) sheet.validations = copyValidations(op.validations)
+  if (op.tables) sheet.tables = copyTables(op.tables)
   if (op.annotations) {
     sheet.annotations.clear()
     for (const a of op.annotations) sheet.annotations.set(a.row, a.col, a.value)
@@ -289,6 +304,7 @@ function hasLayout(sheet: Sheet) {
     sheet.merges.size > 0 ||
     sheet.conditional.length > 0 ||
     sheet.validations.length > 0 ||
+    sheet.tables.length > 0 ||
     sheet.annotations.size > 0 ||
     sheet.autoFilter !== null
   )
@@ -343,9 +359,11 @@ function setCells(sheet: Sheet, op: Extract<Op, { kind: "setCells" }>): Applied 
   }
   // Undo writes the old contents in reverse, so a cell written twice ends with its first old content.
   previous.reverse()
+  // A header cell typed over renames its table column; structured references then read again.
+  const renamed = r1 >= 0 && syncTableHeaders(sheet, { r0, c0, r1, c1 })
   return {
     inverse: [{ kind: "setCells", sheet: op.sheet, cells: previous }],
-    change: { sheet: op.sheet, structural: false, range: r1 >= 0 ? { r0, c0, r1, c1 } : undefined },
+    change: { sheet: op.sheet, structural: renamed, range: r1 >= 0 ? { r0, c0, r1, c1 } : undefined },
   }
 }
 
@@ -382,6 +400,7 @@ function insertLines(
   shiftMerges(sheet, axis, at, count)
   shiftConditional(sheet, axis, at, count)
   shiftValidations(sheet, axis, at, count)
+  shiftTables(sheet, axis, at, count)
   sheet.annotations.shift(axis, at, count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
@@ -434,6 +453,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   shiftMerges(sheet, axis, at, -count)
   shiftConditional(sheet, axis, at, -count)
   shiftValidations(sheet, axis, at, -count)
+  shiftTables(sheet, axis, at, -count)
   sheet.annotations.shift(axis, at, -count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]

@@ -38,7 +38,8 @@ export function ValidationLayer({
     return { x, y, w: sheet.cols.size(c), h: sheet.rows.size(r) }
   }
 
-  const items = controller.validation.dropdownAt(row, col)
+  const list = controller.cellList(row, col)
+  const items = list?.items ?? null
   const editing = Boolean(controller.edit)
   const shown = visible(row, col) ? rect(row, col) : null
   // The list belongs to the cell it was opened on; moving away closes it.
@@ -46,8 +47,7 @@ export function ValidationLayer({
 
   const show = () => {
     if (!items) return
-    const value = controller.sheet.cells.get(row, col)?.value
-    const at = items.findIndex((i) => i === String(value ?? ""))
+    const at = items.findIndex((i) => i === list?.current)
     setPick(Math.max(0, at))
     setOpen({ row, col })
   }
@@ -73,7 +73,7 @@ export function ValidationLayer({
   const choose = (index: number) => {
     if (!items || items[index] === undefined) return
     setOpen(null)
-    controller.validation.pick(row, col, items[index])
+    list?.pick(items[index])
     onDone()
   }
 

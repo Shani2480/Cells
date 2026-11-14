@@ -2676,3 +2676,66 @@
 .dv-input-title {
   font-weight: 700;
 }
+
+/* ── Tables: Format as Table, Table Design, Create Table ── */
+.ribbon-tab.is-contextual {
+  color: var(--app-theme-primary);
+}
+
+.table-style-gallery {
+  display: flex;
+  max-height: calc(100vh - 220px);
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.table-style-grid {
+  display: grid;
+  grid-template-columns: repeat(7, auto);
+  gap: 2px;
+  padding: 2px 4px 6px;
+}
+
+.table-style-item {
+  display: grid;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  place-items: center;
+}
+
+.table-style-item:hover,
+.table-style-item:focus-visible {
+  border-color: var(--app-theme-primary);
+  background: var(--app-hover);
+  outline: none;
+}
+
+.table-style-item.is-current {
+  border-color: var(--app-theme-primary);
+  box-shadow: inset 0 0 0 1px var(--app-theme-primary);
+}
+
+.table-style-thumb {
+  display: block;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 12%);
+}
+
+/* The Quick Styles button's picture is the table's own style. */
+.ribbon-large .table-style-thumb {
+  width: 32px;
+  height: auto;
+}
+
+.ct-check {
+  margin-top: 8px;
+}
+
+.rt-note {
+  margin: 8px 0 0;
+  color: var(--app-ribbon-text);
+  font-size: 12px;
+  line-height: 1.4;
+}

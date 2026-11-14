@@ -7,6 +7,7 @@ import type { EvalContext } from "../formula/context"
 import { dateSerial, serialToDate } from "../formula/dates"
 import { evaluateFormula, refArea } from "../formula/evaluate"
 import { FUNCTIONS } from "../formula/functions"
+import { allTables, parseStructured, structuredArea, type Table } from "../table/table"
 import { parseFormula } from "../formula/parser"
 import { isMatrix, isRef, type Area, type Scalar, type Value } from "../formula/types"
 import type { Change } from "../ops"
@@ -102,6 +103,8 @@ export class CalcEngine {
   random: () => number = Math.random
   private nowSerial = 0
   private readonly evalStack: Formula[] = []
+  /** The workbook's tables, read again on rebuild (a table change is structural). */
+  tableList: { sheet: number; table: Table }[] = []
 
   constructor(private readonly host: CalcHost) {
     this.rebuild()
@@ -125,6 +128,7 @@ export class CalcEngine {
     this.wide.clear()
     this.volatiles.clear()
     this.spillers.clear()
+    this.tableList = allTables(this.host.sheets)
     this.host.sheets.forEach((sheet, s) => {
       sheet.cells.forEachFormula((row, col, input) => {
         const f = this.register(s, row, col, input)
@@ -152,7 +156,7 @@ export class CalcEngine {
     }
     if (f.ast) {
       const collected = { areas: [] as Area[], volatile: false }
-      this.collect(f.ast, sheet, collected, 0)
+      this.collect(f.ast, sheet, row, col, collected, 0)
       f.precedents = collected.areas
       f.volatile = collected.volatile
     }
@@ -178,7 +182,14 @@ export class CalcEngine {
   }
 
   /** Static precedents: every reference in the formula (names expanded), and whether it calls a volatile function. */
-  private collect(node: Node, sheet: number, out: { areas: Area[]; volatile: boolean }, depth: number) {
+  private collect(
+    node: Node,
+    sheet: number,
+    row: number,
+    col: number,
+    out: { areas: Area[]; volatile: boolean },
+    depth: number,
+  ) {
     if (depth > 64) return
     switch (node.type) {
       case "ref": {
@@ -207,27 +218,33 @@ export class CalcEngine {
       case "name": {
         const s = node.sheet === null ? sheet : this.sheetIndex(node.sheet)
         const def = s >= 0 ? this.host.definedName?.(node.name.toUpperCase(), s) : null
-        if (def) this.collect(def, s, out, depth + 1)
+        if (def) this.collect(def, s, row, col, out, depth + 1)
         return
       }
       case "func":
         if (FUNCTIONS.get(node.name)?.volatile) out.volatile = true
-        for (const a of node.args) this.collect(a, sheet, out, depth)
+        for (const a of node.args) this.collect(a, sheet, row, col, out, depth)
         return
       case "unary":
       case "percent":
-        this.collect(node.arg, sheet, out, depth)
+        this.collect(node.arg, sheet, row, col, out, depth)
         return
       case "spill":
-        this.collect(node.ref, sheet, out, depth)
+        this.collect(node.ref, sheet, row, col, out, depth)
         return
       case "paren":
-        this.collect(node.arg, sheet, out, depth)
+        this.collect(node.arg, sheet, row, col, out, depth)
         return
       case "binary":
-        this.collect(node.left, sheet, out, depth)
-        this.collect(node.right, sheet, out, depth)
+        this.collect(node.left, sheet, row, col, out, depth)
+        this.collect(node.right, sheet, row, col, out, depth)
         return
+      case "structured": {
+        const spec = parseStructured(node.text)
+        const area = spec ? structuredArea(spec, this.tableList, sheet, row, col) : null
+        if (area && typeof area !== "string") out.areas.push(area)
+        return
+      }
       case "array":
         return
       default:
@@ -894,6 +911,10 @@ class FormulaContext implements EvalContext {
 
   dynamicReference(area: Area) {
     this.dynamicAreas.push(area)
+  }
+
+  tables() {
+    return this.engine.tableList
   }
 
   cell(sheet: number, row: number, col: number): Scalar {

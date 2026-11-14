@@ -1,4 +1,7 @@
 import {
+  nextTableId,
+  renameTableInFormula,
+  type SheetSnapshot,
   hashPassword,
   hasPassword,
   passwordMatches,
@@ -169,7 +172,38 @@ export class SheetCommands {
     const name = named(n)
     snapshot.name = name
     snapshot.hidden = false
+    this.renameCopiedTables(snapshot)
     this.run([{ kind: "addSheet", sheet: before, name, snapshot }], "Copy Sheet", before)
+  }
+
+  /**
+   * Tables in a copied sheet get names of their own (Sales → Sales_2) and new ids; the copy's formulas that name them
+   * follow.
+   */
+  private renameCopiedTables(snapshot: SheetSnapshot) {
+    const tables = snapshot.tables ?? []
+    if (!tables.length) return
+    const wb = this.c.wb
+    const taken = new Set([
+      ...wb.sheets.flatMap((s) => s.tables.map((t) => t.name.toUpperCase())),
+      ...wb.names.all().map((n) => n.name.toUpperCase()),
+    ])
+    let id = nextTableId(wb.sheets)
+    for (const t of tables) {
+      const base = t.name.replace(/_\d+$/, "")
+      let n = 2
+      while (taken.has(`${base}_${n}`.toUpperCase())) n++
+      const name = `${base}_${n}`
+      taken.add(name.toUpperCase())
+      for (const w of snapshot.cells) {
+        const input = w.data?.input
+        const next = input ? renameTableInFormula(input, t.name, name) : null
+        if (next !== null && w.data) w.data = { ...w.data, input: next }
+      }
+      for (const c of t.columns) if (c.formula) c.formula = renameTableInFormula(c.formula, t.name, name) ?? c.formula
+      t.name = name
+      t.id = id++
+    }
   }
 
   /** Tab colour (null: No Color). */

@@ -1,4 +1,6 @@
 import {
+  copyTable,
+  type Table,
   type AutoFilter,
   type ColumnFilter,
   currentRegion,
@@ -51,6 +53,9 @@ export type SortTarget = { range: Range; header: boolean }
 
 /** Excel's names for a quick sort, by what the active cell's column holds. */
 export type SortLabels = { ascending: string; descending: string }
+
+/** A filter and where it lives: the sheet's AutoFilter (table null) or a table's Filter Button. */
+export type FilterHost = { filter: AutoFilter; table: Table | null }
 
 /**
  * Data › Sort & Filter: Sort A to Z / Z to A on the data around the active cell, the Sort dialog's sort, and the
@@ -227,20 +232,51 @@ export class DataCommands {
 
   // ── AutoFilter ──
 
-  /** Set by the grid: opens the dropdown of a filter column (Alt+Down on its header). */
-  openMenu: ((col: number) => void) | null = null
+  /** Set by the grid: opens the dropdown of a filter header cell (Alt+Down on it). */
+  openMenu: ((row: number, col: number) => void) | null = null
+  /** The header cell whose dropdown (or a dialog from it) is open: commands work on that filter. */
+  focus: { row: number; col: number } | null = null
 
-  /** Alt+Down on a header of the filter: its dropdown. False when the active cell isn't one. */
+  /** Every filter on the sheet: the sheet's AutoFilter and each table's Filter Button. */
+  hosts(): FilterHost[] {
+    const sheet = this.c.sheet
+    const out: FilterHost[] = sheet.autoFilter ? [{ filter: sheet.autoFilter, table: null }] : []
+    for (const table of sheet.tables) if (table.autoFilter) out.push({ filter: table.autoFilter, table })
+    return out
+  }
+
+  /** The filter whose header row has this cell. */
+  hostAt(row: number, col: number): FilterHost | null {
+    return (
+      this.hosts().find((h) => h.filter.range.r0 === row && col >= h.filter.range.c0 && col <= h.filter.range.c1) ??
+      null
+    )
+  }
+
+  /**
+   * The filter commands work on: the one whose dropdown is open, else the active cell's table, else the sheet's
+   * AutoFilter (Data › Clear and Reapply, the status bar's count).
+   */
+  host(): FilterHost | null {
+    if (this.focus) {
+      const h = this.hostAt(this.focus.row, this.focus.col)
+      if (h) return h
+    }
+    const t = this.c.tables.active()
+    if (t?.autoFilter) return { filter: t.autoFilter, table: t }
+    return this.c.sheet.autoFilter ? { filter: this.c.sheet.autoFilter, table: null } : null
+  }
+
+  /** Alt+Down on a header of a filter: its dropdown. False when the active cell isn't one. */
   openMenuAtActive(): boolean {
-    const f = this.c.sheet.autoFilter
     const { row, col } = this.c.selection.active
-    if (!f || !this.openMenu || row !== f.range.r0 || col < f.range.c0 || col > f.range.c1) return false
-    this.openMenu(col)
+    if (!this.openMenu || !this.hostAt(row, col)) return false
+    this.openMenu(row, col)
     return true
   }
 
   get autoFilter(): AutoFilter | null {
-    return this.c.sheet.autoFilter
+    return this.host()?.filter ?? null
   }
 
   /**
@@ -266,8 +302,10 @@ export class DataCommands {
   /** Ctrl+Shift+L: turns the AutoFilter on for the data, or off (showing every row it hid). */
   toggleFilter() {
     if (this.c.edit) this.c.commitEdit()
+    // Inside a table it is the table's Filter Button.
+    if (this.c.tables.active()) return this.c.tables.setOption("filter", !this.c.tables.option("filter"))
     if (this.c.sheet.autoFilter) {
-      this.setFilter(null, "Filter")
+      this.setFilter({ filter: this.c.sheet.autoFilter, table: null }, null, "Filter")
       return
     }
     const range = this.filterRange()
@@ -275,65 +313,83 @@ export class DataCommands {
       this.c.shell.alert("This can't be applied to the selected range. Select a single cell in a range and try again.")
       return
     }
-    this.setFilter({ range, columns: {} }, "Filter")
+    this.setFilter(null, { range, columns: {} }, "Filter")
   }
 
-  /** The filter's range grown down over rows typed under it since (Excel does this whenever a filter is applied). */
-  private extended(range: Range): Range {
+  /**
+   * The filter's range grown down over rows typed under it since (Excel does this whenever a filter is applied). A
+   * table's filter is the table's header and data rows.
+   */
+  private extended(host: FilterHost): Range {
+    const range = host.filter.range
+    if (host.table) return range
     const region = currentRegion(this.c.sheet, { row: range.r0, col: range.c0 })
     if (region.r0 > range.r0 || region.c0 > range.c0) return range
     return { ...range, r1: Math.max(range.r1, region.r1) }
   }
 
-  /** The ops that set `filter` and show and hide its rows (null: the filter goes and every row it hid shows). */
-  private filterOps(filter: AutoFilter | null): Op[] {
+  /**
+   * The ops that set a filter and show and hide its rows (null: the filter goes and every row it hid shows). `host`
+   * is the filter being changed (null: a new sheet AutoFilter).
+   */
+  filterOps(host: FilterHost | null, filter: AutoFilter | null): Op[] {
     const sheet = this.c.sheet
-    const shown = filter ?? (sheet.autoFilter ? { range: sheet.autoFilter.range, columns: {} } : null)
+    const old = host?.filter ?? null
+    const shown = filter ?? (old ? { range: old.range, columns: {} } : null)
     const rows = shown ? filterRowEntries(sheet, this.c.wb.styles, shown, todaySerial()) : []
-    return [{ kind: "autoFilter", sheet: this.c.sheetIndex, filter, ...(rows.length ? { rows } : {}) }]
+    const index = this.c.sheetIndex
+    if (host?.table) {
+      const table = host.table
+      const tables = sheet.tables.map((t) => (t === table ? { ...copyTable(t), autoFilter: filter } : t))
+      const ops: Op[] = [{ kind: "tables", sheet: index, tables }]
+      if (rows.length) ops.push({ kind: "axis", sheet: index, axis: "rows", entries: rows })
+      return ops
+    }
+    return [{ kind: "autoFilter", sheet: index, filter, ...(rows.length ? { rows } : {}) }]
   }
 
-  private setFilter(filter: AutoFilter | null, label: string): boolean {
+  private setFilter(host: FilterHost | null, filter: AutoFilter | null, label: string): boolean {
     const sel = this.c.selection
-    return this.c.transact(this.filterOps(filter), { label, before: sel, after: sel }) !== null
+    return this.c.transact(this.filterOps(host, filter), { label, before: sel, after: sel }) !== null
   }
 
   /** A column's filter from its dropdown (null clears it). The range takes in rows added under it first. */
   filterColumn(col: number, column: ColumnFilter | null): boolean {
-    const f = this.c.sheet.autoFilter
-    if (!f) return false
+    const host = this.host()
+    if (!host) return false
     if (this.c.edit) this.c.commitEdit()
-    const range = this.extended(f.range)
+    const f = host.filter
+    const range = this.extended(host)
     const columns = { ...f.columns }
     if (column) columns[col - range.c0] = column
     else delete columns[col - range.c0]
-    return this.setFilter({ ...f, range, columns }, "Filter")
+    return this.setFilter(host, { ...f, range, columns }, "Filter")
   }
 
   /** Data › Clear: every column's filter goes (the dropdowns stay) and all rows show. */
   clearFilters(): boolean {
-    const f = this.c.sheet.autoFilter
-    if (!f) return false
-    const { sort: _sort, ...rest } = f
-    return this.setFilter({ ...rest, columns: {} }, "Clear")
+    const host = this.host()
+    if (!host) return false
+    const { sort: _sort, ...rest } = host.filter
+    return this.setFilter(host, { ...rest, columns: {} }, "Clear")
   }
 
   /** Data › Reapply: the filters again, over the data as it is now. */
   reapply(): boolean {
-    const f = this.c.sheet.autoFilter
-    if (!f) return false
-    return this.setFilter({ ...f, range: this.extended(f.range) }, "Reapply")
+    const host = this.host()
+    if (!host) return false
+    return this.setFilter(host, { ...host.filter, range: this.extended(host) }, "Reapply")
   }
 
   /** Whether any column of the filter has a filter (Clear and the status bar's count). */
   get filtering(): boolean {
-    const f = this.c.sheet.autoFilter
+    const f = this.autoFilter
     return Boolean(f && Object.keys(f.columns).length)
   }
 
   /** "3 of 10 records found": the filter's data rows shown, and all of them. Null when nothing is filtered. */
   records(): { shown: number; total: number } | null {
-    const f = this.c.sheet.autoFilter
+    const f = this.autoFilter
     if (!f || !this.filtering) return null
     const rows = this.c.sheet.rows
     let shown = 0
@@ -343,10 +399,11 @@ export class DataCommands {
 
   /** Sort from a filter dropdown: the filter's data by that column; the button then shows the sort's arrow. */
   sortFiltered(col: number, descending: boolean, color?: { on: "cell" | "font"; color: string | null }): boolean {
-    const f = this.c.sheet.autoFilter
-    if (!f) return false
+    const host = this.host()
+    if (!host) return false
+    const f = host.filter
     if (this.c.edit) this.c.commitEdit()
-    const range = this.extended(f.range)
+    const range = this.extended(host)
     let ops: Op[]
     try {
       ops = sortOps(this.c.sheetIndex, this.c.sheet, this.c.wb.styles, range, {
@@ -364,11 +421,12 @@ export class DataCommands {
       }
       throw error
     }
-    ops.push({
-      kind: "autoFilter",
-      sheet: this.c.sheetIndex,
-      filter: { ...f, range, sort: { col: col - range.c0, descending } },
-    })
+    const sorted = { ...f, range, sort: { col: col - range.c0, descending } }
+    if (host.table) {
+      const table = host.table
+      const tables = this.c.sheet.tables.map((t) => (t === table ? { ...copyTable(t), autoFilter: sorted } : t))
+      ops.push({ kind: "tables", sheet: this.c.sheetIndex, tables })
+    } else ops.push({ kind: "autoFilter", sheet: this.c.sheetIndex, filter: sorted })
     const sel = this.c.selection
     return this.c.transact(ops, { label: "Sort", before: sel, after: sel }) !== null
   }

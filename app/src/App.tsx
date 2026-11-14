@@ -8,7 +8,7 @@ import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
 import type { RibbonEnv } from "@/ribbon/registry"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
-import { TABS } from "@/ribbon/tabs"
+import { TABLE_DESIGN, TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { whatsNewOnStart } from "@/about/release-notes"
 import { Dialog } from "@/shell/Dialog"
@@ -62,9 +62,12 @@ import {
 import { folderOf, type RecentFile } from "@/file/recent"
 import type { RecoveredFile } from "@/file/recovery"
 import { TextImportWizard } from "@/file/TextImportWizard"
+import { CreateTableDialog, ResizeTableDialog } from "@/shell/TableDialogs"
+import type { CreateTableInit } from "@/sheet/tables"
 import type { TextImport } from "@cells/io"
 
 const NOT_BUILT = "Not built yet."
+const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
 
 type DialogState =
   | { kind: "goto" }
@@ -90,6 +93,8 @@ type DialogState =
   | { kind: "sortWarning"; then: (expand: boolean) => void; warning?: "sort" | "duplicates" }
   | { kind: "removeDuplicates"; range: Range }
   | { kind: "dataValidation"; init: ValidationDialogInit }
+  | { kind: "createTable"; init: CreateTableInit }
+  | { kind: "resizeTable"; range: Range }
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
@@ -330,6 +335,8 @@ function WorkbookWindow({
       goToSpecial: () => setDialog({ kind: "goToSpecial" }),
       dataValidation: (init) => setDialog({ kind: "dataValidation", init }),
       validationAlert: (alert, answer) => setBadEntry({ alert, answer }),
+      createTable: (init) => setDialog({ kind: "createTable", init }),
+      resizeTable: (range) => setDialog({ kind: "resizeTable", range }),
       openCellList: () => window.dispatchEvent(new CustomEvent("cells:open-cell-list")),
     }
   }, [controller])
@@ -344,6 +351,12 @@ function WorkbookWindow({
     setDialog(null)
     focusGrid()
   }, [focusGrid])
+
+  /** A filter dialog works on the filter whose dropdown opened it (data.focus) until it closes. */
+  const closeFilterDialog = useCallback(() => {
+    controller.data.focus = null
+    closeDialog()
+  }, [controller, closeDialog])
 
   const copyToClipboard = async (cut: boolean) => {
     const content = controller.copy(cut)
@@ -577,7 +590,7 @@ function WorkbookWindow({
           <Ribbon
             env={env}
             registry={registry}
-            tabs={TABS}
+            tabs={controller.tables.active() ? TABS_IN_TABLE : TABS}
             onFile={() => setBackstage("home")}
             qatKeytips={qat.slice(0, 9).map((id, i) => ({
               key: String(i + 1),
@@ -694,11 +707,11 @@ function WorkbookWindow({
             controller={controller}
             col={dialog.request.col}
             preset={dialog.request.preset}
-            onClose={closeDialog}
+            onClose={closeFilterDialog}
           />
         ) : null}
         {dialog?.kind === "filter" && dialog.request.kind === "top10" ? (
-          <Top10Dialog controller={controller} col={dialog.request.col} onClose={closeDialog} />
+          <Top10Dialog controller={controller} col={dialog.request.col} onClose={closeFilterDialog} />
         ) : null}
         {dialog?.kind === "textToColumns" ? (
           <TextImportWizard
@@ -730,6 +743,12 @@ function WorkbookWindow({
               focusGrid()
             }}
           />
+        ) : null}
+        {dialog?.kind === "createTable" ? (
+          <CreateTableDialog controller={controller} init={dialog.init} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "resizeTable" ? (
+          <ResizeTableDialog controller={controller} range={dialog.range} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "removeDuplicates" ? (
           <RemoveDuplicatesDialog controller={controller} range={dialog.range} onClose={closeDialog} />

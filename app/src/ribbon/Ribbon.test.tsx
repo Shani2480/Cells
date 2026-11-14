@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/ui/tooltip"
 import { buildRegistry } from "./commands"
 import type { MenuEntry, RibbonEnv } from "./registry"
 import { Ribbon } from "./Ribbon"
-import { TABS, controlIds } from "./tabs"
+import { TABLE_DESIGN, TABS, controlIds } from "./tabs"
 
 function setup() {
   const c = new SheetController()
@@ -47,7 +47,7 @@ describe("command registry", () => {
       const menu = command?.menu ? (typeof command.menu === "function" ? command.menu(env) : command.menu) : []
       for (const entry of menu as MenuEntry[]) if (typeof entry === "string" && entry !== "-") check(entry)
     }
-    for (const tab of TABS) for (const id of controlIds(tab)) check(id)
+    for (const tab of [...TABS, TABLE_DESIGN]) for (const id of controlIds(tab)) check(id)
     expect([...new Set(missing)]).toEqual([])
   })
 
@@ -78,9 +78,10 @@ describe("ribbon", () => {
 
   it("a command that is not built yet is disabled and does nothing", () => {
     const { control } = setup()
-    const table = control("FormatAsTableGallery")
-    expect(table.getAttribute("aria-disabled")).toBe("true")
-    fireEvent.click(table)
+    fireEvent.click(screen.getByRole("tab", { name: "Insert" }))
+    const pivot = control("PivotTableInsert")
+    expect(pivot.getAttribute("aria-disabled")).toBe("true")
+    fireEvent.click(pivot)
     expect(document.querySelector(".popover")).toBeNull()
   })
 

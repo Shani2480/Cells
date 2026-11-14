@@ -4,6 +4,7 @@ import type { BinaryOp, Node, RefNode } from "./ast"
 import { compareScalars, DIV0, NA, NAME, NULL, NUM, REF, toNumber, toText, VALUE } from "./coerce"
 import type { EvalContext } from "./context"
 import { FUNCTIONS, type FnDef } from "./functions/registry"
+import { parseStructured, structuredArea, type StructuredSpec } from "../table/table"
 import {
   areaCols,
   areaRows,
@@ -66,7 +67,7 @@ export function evaluate(node: Node, ctx: EvalContext): Value {
     case "name":
       return resolveName(node.name, node.sheet, ctx)
     case "structured":
-      return REF
+      return resolveStructured(node.text, ctx)
     case "array":
       return matrix(
         node.rows.length,
@@ -135,6 +136,21 @@ function resolveRef(node: RefNode, ctx: EvalContext): Value {
   }
   const area = refArea(node, ctx)
   return isError(area) ? area : { kind: "ref", areas: [area] }
+}
+
+const structuredSpecs = new Map<string, StructuredSpec | null>()
+
+/** A structured reference's area in the workbook's tables, or the error it gives. */
+function resolveStructured(text: string, ctx: EvalContext): Value {
+  let spec = structuredSpecs.get(text)
+  if (spec === undefined) {
+    spec = parseStructured(text)
+    if (structuredSpecs.size > 5000) structuredSpecs.clear()
+    structuredSpecs.set(text, spec)
+  }
+  if (!spec) return REF
+  const area = structuredArea(spec, ctx.tables?.() ?? [], ctx.sheet, ctx.row, ctx.col)
+  return typeof area === "string" ? errorValue(area) : { kind: "ref", areas: [area] }
 }
 
 function resolveName(name: string, sheet: string | null, ctx: EvalContext): Value {

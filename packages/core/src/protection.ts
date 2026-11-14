@@ -220,6 +220,7 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
     case "layout":
     case "conditional":
     case "validations":
+    case "tables":
       return true
     default:
       return false

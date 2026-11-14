@@ -140,3 +140,47 @@ describe("Data Validation Excel 365 saved", () => {
     expect(rules(again.workbook)).toEqual(rules(read.workbook))
   })
 })
+
+describe("tables", () => {
+  it("reads Excel's table with its total row, and shows its references as Excel does", async () => {
+    const read = await openXlsx(fixture("features"), "features.xlsx")
+    const sheet = read.workbook.sheets[0]
+    expect(sheet.tables).toHaveLength(1)
+    const t = sheet.tables[0]
+    expect(t).toMatchObject({ name: "SalesTable", range: { r0: 0, c0: 0, r1: 6, c1: 3 }, header: true, totals: true })
+    expect(t.columns.map((c) => c.name)).toEqual(["Region", "Q1", "Q2", "Total"])
+    expect(t.columns[0].totalsLabel).toBe("Total")
+    expect(t.columns[3]).toMatchObject({ totals: "sum", formula: "B2+C2" })
+    expect(t).toMatchObject({ style: "TableStyleMedium2", rowStripes: true, columnStripes: false })
+    expect(sheet.cells.get(6, 3)?.input).toBe("=SUBTOTAL(109,[Total])")
+    expect(sheet.cells.get(1, 5)?.input).toBe("=SUM(SalesTable[Total])")
+    expect(sheet.cells.get(1, 5)?.value).toBe(sheet.cells.get(6, 3)?.value)
+  })
+
+  it("writes tables back as Excel does, with this-row references spelled out", async () => {
+    const wb = samples.tables()
+    expect(wb.sheets[0].cells.get(1, 3)?.value).toBe(3)
+    expect(wb.sheets[1].cells.get(0, 0)?.value).toBe(52)
+    const saved = await saveXlsx(wb)
+    const files = new Map((await readZip(saved)).map((e) => [e.normalizedName, new TextDecoder().decode(e.data)]))
+    const table = files.get("xl/tables/table1.xml")!
+    expect(table).toContain('ref="A1:D6" totalsRowCount="1"')
+    expect(table).toContain("<calculatedColumnFormula>Orders[[#This Row],[Qty]]*Orders[[#This Row],[Unit Price]]")
+    expect(table).toContain('<tableStyleInfo name="TableStyleLight9" showFirstColumn="1"')
+    expect(files.get("xl/worksheets/sheet1.xml")).toContain(
+      "<f>Orders[[#This Row],[Qty]]*Orders[[#This Row],[Unit Price]]</f>",
+    )
+    expect(files.get("xl/worksheets/sheet1.xml")).toMatch(
+      /<tableParts count="1"><tablePart r:id="rId\d+"\/><\/tableParts>/,
+    )
+    expect(files.get("[Content_Types].xml")).toContain("/xl/tables/table1.xml")
+    const again = await openXlsx(saved, "tables.xlsx")
+    expect(again.workbook.sheets[0].tables).toEqual(wb.sheets[0].tables)
+    expect(dump(again.workbook)).toEqual(dump(wb))
+    // Converted to a range: the table part goes.
+    again.workbook.sheets[0].tables = []
+    const plain = await saveXlsx(again.workbook, { source: again.source })
+    const names = (await readZip(plain)).map((e) => e.normalizedName)
+    expect(names.some((n) => n.startsWith("xl/tables/"))).toBe(false)
+  })
+})

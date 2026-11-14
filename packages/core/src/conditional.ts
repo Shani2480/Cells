@@ -1,3 +1,4 @@
+import { allTables } from "./table/table"
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import { copyFormula } from "./formula/adjust"
 import type { Node } from "./formula/ast"
@@ -197,6 +198,9 @@ export class ValueContext implements EvalContext {
   }
   sheetCount() {
     return this.sheets.length
+  }
+  tables() {
+    return allTables(this.sheets)
   }
   defined(name: string) {
     return (this.sheets as { names?: { node(name: string): Node | null } }).names?.node(name) ?? null

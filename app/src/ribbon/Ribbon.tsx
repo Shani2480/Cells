@@ -49,7 +49,7 @@ function writeCollapsed(value: boolean) {
 }
 
 /** KeyTips: off, showing the tabs' letters, or showing a tab's controls' letters (with what was typed so far). */
-type KeyTipState = null | { stage: "tabs" } | { stage: "tab"; typed: string }
+type KeyTipState = null | { stage: "tabs"; typed?: string } | { stage: "tab"; typed: string }
 
 export type RibbonHandle = {
   toggleCollapsed(): void
@@ -88,6 +88,10 @@ export function Ribbon({
   }, [openMenu, env])
   const [kt, setKt] = useState<KeyTipState>(null)
   const tab = tabs.find((t) => t.id === tabId) ?? tabs[0]
+  // A contextual tab that goes (the cell left the table) hands back to Home, as in Excel; it isn't picked again later.
+  useEffect(() => {
+    if (!tabs.some((t) => t.id === tabId)) setTabId(tabs[0].id)
+  }, [tabs, tabId])
   const rootRef = useRef<HTMLDivElement>(null)
 
   const toggleCollapsed = useCallback(() => {
@@ -188,7 +192,13 @@ export function Ribbon({
       if (event.key.length !== 1) return
       const letter = event.key.toUpperCase()
       if (kt?.stage === "tabs") {
-        const target = tabs.find((t) => t.keytip === letter)
+        // Contextual tabs have two letters (Table Design: J, T).
+        const typed = (kt.typed ?? "") + letter
+        const target = tabs.find((t) => t.keytip === typed)
+        if (!target && tabs.some((t) => t.keytip.startsWith(typed))) {
+          setKt({ stage: "tabs", typed })
+          return
+        }
         if (target) {
           setTabId(target.id)
           if (collapsed) setPeek(true)
@@ -275,7 +285,7 @@ export function Ribbon({
               type="button"
               role="tab"
               aria-selected={t.id === tab.id && showPanel}
-              className="ribbon-tab"
+              className={cn("ribbon-tab", t.contextual && "is-contextual")}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 if (collapsed) setPeek(!(peek && t.id === tab.id))

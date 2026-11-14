@@ -211,6 +211,52 @@ export function validation(): Workbook {
   return done(wb)
 }
 
+export function tables(): Workbook {
+  const wb = new Workbook(["Orders", "Summary"])
+  const [orders, summary] = wb.sheets
+  const rows: (string | number)[][] = [
+    ["Item", "Qty", "Unit Price", "Amount"],
+    ["Pen", 2, 1.5],
+    ["Book", 1, 12],
+    ["Cup", 4, 3],
+    ["Lamp", 1, 25],
+  ]
+  rows.forEach((r, row) => r.forEach((value, col) => orders.cells.set(row, col, { value })))
+  for (let row = 1; row <= 4; row++) orders.cells.set(row, 3, { value: 0, input: "=[@Qty]*[@[Unit Price]]" })
+  orders.cells.set(5, 0, { value: "Total" })
+  orders.cells.set(5, 1, { value: 0, input: "=SUBTOTAL(109,[Qty])" })
+  orders.cells.set(5, 3, { value: 0, input: "=SUBTOTAL(109,[Amount])" })
+  orders.tables = [
+    {
+      id: 1,
+      name: "Orders",
+      range: { r0: 0, c0: 0, r1: 5, c1: 3 },
+      header: true,
+      totals: true,
+      columns: [
+        { name: "Item", totalsLabel: "Total" },
+        { name: "Qty", totals: "sum" },
+        { name: "Unit Price" },
+        { name: "Amount", totals: "sum", formula: "[@Qty]*[@[Unit Price]]" },
+      ],
+      style: "TableStyleLight9",
+      firstColumn: true,
+      lastColumn: false,
+      rowStripes: true,
+      columnStripes: false,
+      // The table's own filter, with Qty filtered to 2 and 4 (Book and Lamp hidden; the totals leave them out).
+      autoFilter: { range: { r0: 0, c0: 0, r1: 4, c1: 3 }, columns: { 1: { kind: "values", values: ["2", "4"] } } },
+    },
+  ]
+  orders.rows.setHidden(2, true)
+  orders.rows.setHidden(4, true)
+  summary.cells.set(0, 0, { value: 0, input: "=SUM(Orders[Amount])" })
+  summary.cells.set(1, 0, { value: 0, input: "=COUNTA(Orders[[#Headers],[Item]:[Qty]])" })
+  summary.cells.set(2, 0, { value: 0, input: "=ROWS(Orders[#All])" })
+  summary.cells.set(3, 0, { value: 0, input: "=Orders[[#Totals],[Qty]]" })
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
   budget,
   formats,
@@ -218,6 +264,7 @@ export const samples: Record<string, () => Workbook> = {
   layout,
   protected: protectedBook,
   validation,
+  tables,
   big,
   empty,
 }

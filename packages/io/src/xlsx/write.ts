@@ -19,6 +19,7 @@ import {
   CT_PERSON,
   CT_SHARED_STRINGS,
   CT_STYLES,
+  CT_TABLE,
   CT_THREADED,
   CT_VML,
   CT_WORKSHEET,
@@ -33,6 +34,7 @@ import {
   REL_PERSON,
   REL_SHARED_STRINGS,
   REL_STYLES,
+  REL_TABLE,
   REL_THREADED,
   REL_VML,
   REL_WORKSHEET,
@@ -41,7 +43,8 @@ import { assemble, attrText, kid, raw, type Kept } from "./dom"
 import { formulaToFile } from "./formula"
 import type { XlsxSource } from "./read"
 import { DEFAULT_VIEW, type SheetView } from "./sheet-read"
-import { SharedStrings, writeSheet } from "./sheet-write"
+import { rangeRef, SharedStrings, writeSheet } from "./sheet-write"
+import { structuredToFile, tableXml } from "./table"
 import { StylesOut } from "./styles"
 
 export type SaveOptions = {
@@ -187,6 +190,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   const authors = new Set<string>()
   let dynamic = false
   const sheetEntries: string[] = []
+  const usedTables = new Set<string>()
 
   wb.sheets.forEach((sheet, i) => {
     const s = source?.sheets.get(sheet)
@@ -221,6 +225,16 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         for (const a of notes.persons) authors.add(a)
       }
     }
+    // Tables: each back in its own part (a new one gets a new part).
+    const tableParts: string[] = []
+    for (const t of sheet.tables) {
+      const part = s?.tables.find((x) => x.id === t.id)?.partName ?? freeName((n) => `/xl/tables/table${n}.xml`)
+      usedTables.add(partKey(part))
+      taken.add(partKey(part))
+      const toFile = (f: string) => formulaToFile(structuredToFile("=" + f, t.name))
+      put(part, CT_TABLE, tableXml(t, styles, rangeRef, toFile))
+      tableParts.push(addRel(partName, REL_TABLE, part))
+    }
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active }
     const written = writeSheet({
       sheet,
@@ -232,6 +246,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       source: s,
       spills: spills.get(i) ?? new Map(),
       legacyDrawing,
+      tableParts,
     })
     dynamic ||= written.dynamic
     put(partName, CT_WORKSHEET, written.xml)
@@ -240,6 +255,10 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       `<sheet${attrText({ name: sheet.name, sheetId: i + 1, state: sheet.hidden ? (s?.state === "veryHidden" ? "veryHidden" : "hidden") : undefined })} r:id="${rid}"/>`,
     )
   })
+
+  // Tables that are gone (converted to a range, or their sheet deleted) leave with their parts.
+  for (const p of [...parts.values()])
+    if (p.contentType === CT_TABLE && !usedTables.has(partKey(p.name))) remove(p.name)
 
   put(stylesName, CT_STYLES, styles.xml())
   addRel(main, REL_STYLES, stylesName)

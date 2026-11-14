@@ -4,6 +4,7 @@ import { CellStore } from "./cell-store"
 import { Annotations } from "./annotations"
 import type { CFEntry } from "./conditional"
 import type { ValidationEntry } from "./validation"
+import type { Table } from "./table/table"
 import type { AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
 
@@ -142,6 +143,8 @@ export class Sheet {
   conditional: CFEntry[] = []
   /** Data Validation rules (a cell has at most one). */
   validations: ValidationEntry[] = []
+  /** Tables (Excel's ListObjects) on the sheet. */
+  tables: Table[] = []
   /** Notes and comments by cell. */
   readonly annotations = new Annotations()
   /** Review › Protect Sheet; null when the sheet is not protected. */

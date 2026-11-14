@@ -7,7 +7,8 @@ import { pictureFor } from "./pictures"
 import { qatCommands } from "./qat-commands"
 import { reviewCommands } from "./review-commands"
 import { CommandRegistry, type Command, type RibbonEnv } from "./registry"
-import { TABS, controlIds } from "./tabs"
+import { TABLE_DESIGN, TABS, controlIds } from "./tabs"
+import { tableCommands } from "./table-commands"
 
 const large = { size: 32, strokeWidth: 1.25 }
 const small = { size: 16, strokeWidth: 1.6 }
@@ -291,9 +292,10 @@ export function buildRegistry(): CommandRegistry {
     ...reviewCommands(),
     ...formulaCommands(),
     ...qatCommands(),
+    ...tableCommands(),
     ...otherCommands(),
   )
-  for (const tab of TABS) {
+  for (const tab of [...TABS, TABLE_DESIGN]) {
     for (const id of controlIds(tab)) {
       if (!registry.get(id)) registry.add({ id, label: LABELS[id] ?? excelLabel(id) ?? id })
     }

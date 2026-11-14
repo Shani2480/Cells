@@ -1,4 +1,4 @@
-import { Workbook, type DefinedName, type Sheet, type WorkbookProtection } from "@cells/core"
+import { tableAt, Workbook, type DefinedName, type Sheet, type WorkbookProtection } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "../xml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
 import { themeColorsFrom, DEFAULT_THEME_COLORS, type ThemeColors } from "./colors"
@@ -10,6 +10,7 @@ import {
   REL_SHARED_STRINGS,
   REL_STYLES,
   REL_THEME,
+  REL_TABLE,
   REL_THREADED,
   REL_VML,
   REL_WORKSHEET,
@@ -18,6 +19,7 @@ import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from 
 import { formulaFromFile } from "./formula"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
+import { readTable, structuredFromFile } from "./table"
 
 /** What a saved file needs from the file it was opened from, to write back what Cells didn't read. */
 export type SheetSource = {
@@ -29,8 +31,10 @@ export type SheetSource = {
   colExtras: Map<number, string>
   /** "veryHidden" sheets stay very hidden. */
   state: string
-  /** The sheet's relationships other than the ones Cells writes (comments, VML, threaded comments). */
+  /** The sheet's relationships other than the ones Cells writes (comments, VML, threaded comments, tables). */
   rels: OpcRelationship[]
+  /** Each table's part, by table id, so a save writes it back in the same place. */
+  tables: { id: number; partName: string }[]
 }
 
 export type XlsxSource = {
@@ -61,6 +65,15 @@ export class XlsxError extends Error {
     super(message)
     this.name = "XlsxError"
   }
+}
+
+/** Whether any formula of the sheet may hold a structured reference (to another sheet's table). */
+function hasBracket(sheet: Sheet): boolean {
+  let found = false
+  sheet.cells.forEachFormula((_r, _c, input) => {
+    if (input.includes("[")) found = true
+  })
+  return found
 }
 
 const relOfType = (rels: OpcRelationship[], type: string) => rels.find((r) => r.type === type && r.partName)
@@ -226,6 +239,17 @@ export async function openXlsx(
       threaded: partText(pkg, relOfType(rels, REL_THREADED)?.partName),
       persons,
     })
+    const tables: { id: number; partName: string }[] = []
+    for (const r of rels) {
+      if (r.type !== REL_TABLE || !r.partName) continue
+      const table = readTable(partText(pkg, r.partName) ?? "", styles, warnings)
+      if (!table) {
+        warnings.push(`A table on ${sheet.name} couldn't be read; it was left out.`)
+        continue
+      }
+      sheet.tables.push(table)
+      tables.push({ id: table.id, partName: r.partName })
+    }
     sheetSources.set(sheet, {
       partName: rel.partName,
       rootTag: read.rootTag,
@@ -237,11 +261,30 @@ export async function openXlsx(
       // The notes' drawing goes (legacyDrawingHF, a header picture, uses the same type and stays).
       rels: rels.filter(
         (r) =>
-          r.type !== REL_COMMENTS && r.type !== REL_THREADED && !(r.type === REL_VML && r.id === read.legacyDrawing),
+          r.type !== REL_COMMENTS &&
+          r.type !== REL_THREADED &&
+          r.type !== REL_TABLE &&
+          !(r.type === REL_VML && r.id === read.legacyDrawing),
       ),
+      tables,
     })
     views.push(read.view)
     before += sizes[i]
+  }
+
+  // Structured references as Excel shows them ([@Qty], no table name inside the table), now that the tables are known.
+  for (const sheet of wb.sheets) {
+    if (!sheet.tables.length && !hasBracket(sheet)) continue
+    const changes: { row: number; col: number; input: string }[] = []
+    sheet.cells.forEachFormula((row, col, input) => {
+      if (input.includes("[")) {
+        const next = structuredFromFile(input, tableAt(sheet, row, col)?.name ?? null)
+        if (next !== input) changes.push({ row, col, input: next })
+      }
+    })
+    for (const c of changes) sheet.cells.set(c.row, c.col, { ...sheet.cells.get(c.row, c.col)!, input: c.input })
+    for (const t of sheet.tables)
+      for (const col of t.columns) if (col.formula) col.formula = structuredFromFile("=" + col.formula, t.name).slice(1)
   }
 
   // Defined names: workbook-wide ones Cells manages; the rest stay as read.

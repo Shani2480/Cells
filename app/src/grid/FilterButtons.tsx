@@ -8,8 +8,8 @@ import { colX, rowY, type GridLayout } from "./layout"
 const BUTTON = 17
 
 /**
- * The AutoFilter's dropdown buttons on its header row (a funnel on a filtered column, an arrow on the sorted one),
- * and the dropdown of the one that's open.
+ * The filter dropdown buttons on the header rows of the sheet's AutoFilter and of each table with its Filter Button
+ * on (a funnel on a filtered column, an arrow on the sorted one), and the dropdown of the one that's open.
  */
 export function FilterButtons({
   controller,
@@ -23,13 +23,11 @@ export function FilterButtons({
   /** Back to the sheet (focus the grid's input). */
   onDone: () => void
 }) {
-  const [open, setOpen] = useState<{ col: number; left: number; top: number } | null>(null)
+  const [open, setOpen] = useState<{ row: number; col: number; left: number; top: number } | null>(null)
   const sheet = controller.sheet
-  const filter = sheet.autoFilter
+  const hosts = controller.data.hosts()
 
-  const place = (col: number) => {
-    if (!filter) return null
-    const row = filter.range.r0
+  const place = (row: number, col: number) => {
     if (!layout.rows.some((l) => l.index === row) || !layout.cols.some((l) => l.index === col)) return null
     const w = sheet.cols.size(col)
     const h = sheet.rows.size(row)
@@ -43,76 +41,93 @@ export function FilterButtons({
 
   // Alt+Down on a header cell opens its dropdown.
   useEffect(() => {
-    controller.data.openMenu = (col) => {
-      const at = place(col)
+    controller.data.openMenu = (row, col) => {
+      const at = place(row, col)
       const host = document.querySelector<HTMLElement>("[data-testid=grid]")?.getBoundingClientRect()
       if (!at || !host) return
-      setOpen({ col, left: host.left + at.x * zoom, top: host.top + (at.y + at.size) * zoom + 1 })
+      controller.data.focus = { row, col }
+      setOpen({ row, col, left: host.left + at.x * zoom, top: host.top + (at.y + at.size) * zoom + 1 })
     }
     return () => {
       controller.data.openMenu = null
     }
   })
 
-  if (!filter) return null
-  const cols: number[] = []
-  for (let c = filter.range.c0; c <= filter.range.c1; c++) if (!sheet.cols.isHidden(c)) cols.push(c)
+  if (!hosts.length) return null
   const close = () => {
+    controller.data.focus = null
     setOpen(null)
     onDone()
   }
+  const isOpen = (row: number, col: number) => open?.row === row && open.col === col
   return (
     <>
-      {cols.map((col) => {
-        const at = place(col)
-        if (!at) return null
-        const offset = col - filter.range.c0
-        const filtered = Boolean(filter.columns[offset])
-        const sorted = filter.sort?.col === offset ? filter.sort : null
-        const header = sheet.cells.get(filter.range.r0, col)?.value
-        return (
-          <button
-            key={col}
-            type="button"
-            className={`filter-button${open?.col === col ? " is-open" : ""}`}
-            style={{ left: at.x * zoom, top: at.y * zoom, width: at.size * zoom, height: at.size * zoom }}
-            aria-label={`${header ?? ""} (${filtered ? "filtered" : "showing all"})`.trim()}
-            aria-haspopup="menu"
-            title={filtered ? `${header ?? ""}: filtered` : undefined}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect()
-              setOpen(open?.col === col ? null : { col, left: rect.left, top: rect.bottom + 1 })
-            }}
-          >
-            {filtered ? <Filter size={8 * zoom} strokeWidth={2} fill="currentColor" /> : null}
-            {sorted && !filtered ? (
-              sorted.descending ? (
-                <ArrowDown size={9 * zoom} strokeWidth={2} />
-              ) : (
-                <ArrowUp size={9 * zoom} strokeWidth={2} />
-              )
-            ) : null}
-            <svg
-              width={(filtered || sorted ? 5 : 7) * zoom}
-              height={(filtered || sorted ? 3 : 4) * zoom}
-              viewBox="0 0 7 4"
-              aria-hidden
+      {hosts.flatMap(({ filter }) => {
+        const row = filter.range.r0
+        const buttons = []
+        for (let col = filter.range.c0; col <= filter.range.c1; col++) {
+          if (sheet.cols.isHidden(col)) continue
+          const at = place(row, col)
+          if (!at) continue
+          const offset = col - filter.range.c0
+          const filtered = Boolean(filter.columns[offset])
+          const sorted = filter.sort?.col === offset ? filter.sort : null
+          const header = sheet.cells.get(row, col)?.value
+          buttons.push(
+            <button
+              key={`${row}:${col}`}
+              type="button"
+              className={`filter-button${isOpen(row, col) ? " is-open" : ""}`}
+              style={{ left: at.x * zoom, top: at.y * zoom, width: at.size * zoom, height: at.size * zoom }}
+              aria-label={`${header ?? ""} (${filtered ? "filtered" : "showing all"})`.trim()}
+              aria-haspopup="menu"
+              title={filtered ? `${header ?? ""}: filtered` : undefined}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect()
+                if (isOpen(row, col)) {
+                  controller.data.focus = null
+                  setOpen(null)
+                } else {
+                  controller.data.focus = { row, col }
+                  setOpen({ row, col, left: rect.left, top: rect.bottom + 1 })
+                }
+              }}
             >
-              <path d="M0 0h7L3.5 4z" fill="currentColor" />
-            </svg>
-          </button>
-        )
+              {filtered ? <Filter size={8 * zoom} strokeWidth={2} fill="currentColor" /> : null}
+              {sorted && !filtered ? (
+                sorted.descending ? (
+                  <ArrowDown size={9 * zoom} strokeWidth={2} />
+                ) : (
+                  <ArrowUp size={9 * zoom} strokeWidth={2} />
+                )
+              ) : null}
+              <svg
+                width={(filtered || sorted ? 5 : 7) * zoom}
+                height={(filtered || sorted ? 3 : 4) * zoom}
+                viewBox="0 0 7 4"
+                aria-hidden
+              >
+                <path d="M0 0h7L3.5 4z" fill="currentColor" />
+              </svg>
+            </button>,
+          )
+        }
+        return buttons
       })}
       {open ? (
         <FilterMenu
-          key={open.col}
+          key={`${open.row}:${open.col}`}
           controller={controller}
           col={open.col}
           left={open.left}
           top={open.top}
           onClose={close}
-          onDialog={(request) => controller.shell.filterDialog?.(request)}
+          onDialog={(request) => {
+            // The dialog keeps working on this dropdown's filter (the menu cleared it as it closed).
+            controller.data.focus = { row: open.row, col: open.col }
+            controller.shell.filterDialog?.(request)
+          }}
         />
       ) : null}
     </>

@@ -1,4 +1,5 @@
 import {
+  tableAt,
   columnName,
   isError,
   MAX_COLS,
@@ -22,6 +23,7 @@ import type { SheetSource } from "./read"
 import type { StylesOut } from "./styles"
 import { pxToColWidth, pxToPoints } from "./units"
 import { validationExtXml, validationsXml, withExt } from "./validation"
+import { structuredToFile } from "./table"
 
 /** The shared string table being written: each distinct text once, rich text as read where it is unchanged. */
 export class SharedStrings {
@@ -91,6 +93,8 @@ export type SheetWriteContext = {
   spills: ReadonlyMap<string, Range>
   /** The relationship id of the sheet's notes drawing, when it has notes. */
   legacyDrawing: string | null
+  /** The relationship ids of the sheet's table parts. */
+  tableParts?: string[]
 }
 
 export type SheetWritten = { xml: string; dynamic: boolean }
@@ -171,7 +175,8 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     if (formula) {
       const spill = ctx.spills.get(`${row},${col}`)
       const spillError = isError(value) && value.error === "#SPILL!"
-      const text = escapeXmlText(formulaToFile(formula))
+      const own = formula.includes("[") ? (tableAt(sheet, row, col)?.name ?? null) : null
+      const text = escapeXmlText(formulaToFile(formula.includes("[") ? structuredToFile(formula, own) : formula))
       if (spill || spillError) {
         dynamic = true
         const area = spill ? rangeRef(spill) : r
@@ -196,6 +201,9 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     conditionalFormatting: conditionalXml(sheet.conditional, styles, ctx.source?.keptConditional ?? []),
     dataValidations: validationsXml(sheet.validations, rangeRef),
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
+    tableParts: ctx.tableParts?.length
+      ? `<tableParts count="${ctx.tableParts.length}">${ctx.tableParts.map((id) => `<tablePart r:id="${id}"/>`).join("")}</tableParts>`
+      : "",
   }
   const kept: Kept[] = ctx.source?.kept.map((k) => ({ ...k })) ?? []
   const sheetPr = kept.find((k) => k.local === "sheetPr")

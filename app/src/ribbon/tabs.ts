@@ -26,7 +26,14 @@ export type Group = {
   keytip?: string
 }
 
-export type Tab = { id: string; label: string; keytip: string; groups: Group[] }
+export type Tab = {
+  id: string
+  label: string
+  keytip: string
+  groups: Group[]
+  /** Shown only while its object is selected (Table Design inside a table), after the other tabs. */
+  contextual?: boolean
+}
 
 const L = (id: string, label?: string): Column => ({ kind: "large", control: { kind: "large", id, label } })
 const S = (id: string, label?: string): Control => ({ kind: "small", id, label })
@@ -446,6 +453,46 @@ export const HELP: Tab = {
 }
 
 export const TABS: Tab[] = [HOME, INSERT, PAGE_LAYOUT, FORMULAS, DATA, REVIEW, VIEW, HELP]
+
+/**
+ * Table Design, while the active cell is in a table. Built from Excel 365 at a wide window (no reference screenshot
+ * in docs/reference yet). External Table Data (Export, Refresh, Unlink…) is left out: Cells has no linked tables.
+ */
+export const TABLE_DESIGN: Tab = {
+  id: "TabTableDesign",
+  label: "Table Design",
+  keytip: "JT",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupTableProperties",
+      label: "Properties",
+      columns: [smalls({ kind: "label", text: "Table Name:" }, F("TableName"), S("TableResize"))],
+    },
+    {
+      id: "GroupTableTools",
+      label: "Tools",
+      columns: [
+        smalls(S("TableSummarizeWithPivot"), S("TableRemoveDuplicates"), S("TableConvertToRange")),
+        L("TableInsertSlicer"),
+      ],
+    },
+    {
+      id: "GroupTableStyleOptions",
+      label: "Table Style Options",
+      columns: [
+        smalls(C("TableStyleHeaderRow"), C("TableStyleTotalRow"), C("TableStyleBandedRows")),
+        smalls(C("TableStyleFirstColumn"), C("TableStyleLastColumn"), C("TableStyleBandedColumns")),
+        smalls(C("TableStyleFilterButton")),
+      ],
+    },
+    {
+      id: "GroupTableStyles",
+      label: "Table Styles",
+      columns: [L("TableStylesGallery")],
+    },
+  ],
+}
 
 /** Every command id a tab shows, in order (for KeyTips, tests and Tell Me). */
 export function controlIds(tab: Tab): string[] {

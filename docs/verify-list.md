@@ -73,6 +73,11 @@ Phase 3, added at the end:
       Minimum) and the "extend to these cells" / "more than one type" questions against Excel's wording (written
       from memory). The in-cell list's look and the input message's place next to Excel's. Which entries each rule
       accepts was checked against Excel; the file round trip was checked in Excel and the Open XML SDK.
+- [ ] Tables: the Table Design tab (built from memory of Excel 365, no reference screenshot): its groups, the Table
+      Name box, the order of the style options, and Quick Styles against Excel's in-ribbon gallery. The Create Table and
+      Resize Table dialogs' wording. The gallery thumbnails next to Excel's. The name a copied sheet's table gets
+      (Cells writes Sales_2). The style colours, structured references and the file round trip (with a filtered
+      column) were checked in Excel and the Open XML SDK.
 
 ## On a device
 

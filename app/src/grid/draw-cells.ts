@@ -1,4 +1,13 @@
-import { hasFormatMarks, type Border, type CellValue, type CFResult, type Range } from "@cells/core"
+import {
+  hasFormatMarks,
+  tableAt,
+  tableCellLook,
+  withTableLook,
+  type Border,
+  type CellValue,
+  type CFResult,
+  type Range,
+} from "@cells/core"
 import { drawIcon } from "./cf-icons"
 import type { SheetController } from "@/sheet/controller"
 import {
@@ -90,11 +99,16 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   // Conditional formatting: what the rules do to each cell, and the look it gives.
   const cfOn = sheet.conditional.length > 0 || controller.conditional.preview !== null
   const cfOf = (r: number, c: number): CFResult | null => (cfOn ? controller.cfAt(r, c) : null)
+  // Tables: their style lies under the cells' own formats; conditional formatting goes over both.
+  const tablesOn = sheet.tables.length > 0
   const lookAt = (r: number, c: number, cf: CFResult | null = cfOf(r, c)): CellLook => {
     const id = sheet.styleAt(r, c)
-    if (!cf || (!cf.style && !cf.fill)) return lookOf(styles, id)
-    const merged = { ...styles.get(id), ...cf.style }
-    if (cf.fill) merged.fill = cf.fill
+    const table = tablesOn ? tableAt(sheet, r, c) : null
+    const tableLook = table ? tableCellLook(table, r, c) : null
+    const cfLook = cf && (cf.style || cf.fill)
+    if (!tableLook && !cfLook) return lookOf(styles, id)
+    const merged = { ...withTableLook(styles.get(id), tableLook), ...cf?.style }
+    if (cf?.fill) merged.fill = cf.fill
     return lookOf(controller.cfStyles, controller.cfStyles.intern(merged))
   }
   const bars: { rect: Rect; bar: NonNullable<CFResult["bar"]> }[] = []

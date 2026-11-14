@@ -10,6 +10,13 @@ const PICTURES: Record<string, LucideIcon> = {
   PivotTableInsert: L.TableProperties,
   PivotTableSuggestion: L.TableProperties,
   TableInsertExcel: L.Table2,
+  // Table Design
+  TableResize: L.Scaling,
+  TableSummarizeWithPivot: L.TableProperties,
+  TableRemoveDuplicates: L.CopyMinus,
+  TableConvertToRange: L.Grid3x3,
+  TableInsertSlicer: L.SlidersHorizontal,
+  TableStyleClear: L.Eraser,
   FlyoutAnchorInsertPictures: L.Image,
   ShapesInsertGallery: L.Shapes,
   IconInsertFromFile: L.Smile,

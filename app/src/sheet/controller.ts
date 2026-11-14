@@ -1,3 +1,4 @@
+import { TableCommands, type CreateTableInit } from "./tables"
 import { DEFAULT_VIEW as DEFAULT_FILE_VIEW, type SheetView as FileSheetView } from "@cells/io"
 import {
   MAX_COLS,
@@ -176,6 +177,10 @@ export type ShellRequests = {
   validationAlert?(alert: ValidationAlert, answer: (a: AlertAnswer) => void): void
   /** Alt+Down on a cell with an in-cell list: open it. */
   openCellList?(): void
+  /** Insert › Table (Ctrl+T): the Create Table dialog. */
+  createTable?(init: CreateTableInit): void
+  /** Table Design › Resize Table: the dialog, on the table's range. */
+  resizeTable?(range: Range): void
   /** Ctrl+1: the Format Cells dialog, on a tab. */
   formatCells(tab?: "number" | "alignment" | "font" | "border" | "fill" | "protection"): void
 }
@@ -248,6 +253,8 @@ export class SheetController {
   readonly data: DataCommands = new DataCommands(this)
   /** Data › Data Validation. */
   readonly validation: ValidationCommands = new ValidationCommands(this)
+  /** Insert › Table, Format as Table and the Table Design tab. */
+  readonly tables: TableCommands = new TableCommands(this)
   /** Find, Replace and Go To Special. */
   readonly find: FindCommands = new FindCommands(this)
   /** Defined names (Name Box, Define Name, Go To). */
@@ -801,8 +808,11 @@ export class SheetController {
     }
     const label = edit.text ? `Typing '${truncate(edit.text)}' in ${cellName(edit)}` : `Clear ${cellName(edit)}`
     this.clip = null
-    const ops: Op[] = [op]
+    // A new header renames its column, and formulas that name the column follow (Excel).
+    const ops: Op[] = [...this.tables.headerRenameOps(op), op]
     // A line break typed with Alt+Enter turns on Wrap Text for the cell (Excel), so the lines show.
+    if (!fill || isSingleCellOn(this.sheet, this.selection))
+      ops.push(...this.tables.entryOps(edit.row, edit.col, edit.text))
     if (edit.text.includes("\n") && !edit.text.startsWith("=")) {
       const ranges = fill && !isSingleCellOn(this.sheet, this.selection) ? this.selection.ranges : [rangeOf(edit)]
       if (ranges.some((r) => !this.wb.styles.get(this.sheet.styleAt(r.r0, r.c0)).wrap))
@@ -871,6 +881,13 @@ export class SheetController {
       return
     }
     if (single && (dir === "right" || dir === "left")) {
+      // Tab in a table wraps to the next row's first column; on the last cell it adds a row (Excel).
+      const wrap = this.tables.tabTarget(dir)
+      if (wrap) {
+        this.tabStartCol = null
+        this.setSelection(selectCell(wrap))
+        return
+      }
       this.tabStartCol ??= this.selection.active.col
     } else if (single) {
       this.tabStartCol = null
@@ -1459,6 +1476,19 @@ export class SheetController {
     this.setSelection(selection, active)
   }
 
+  /**
+   * A cell's in-cell dropdown: the function list on a table's total row, or a Data Validation list. `pick` puts an
+   * item in.
+   */
+  cellList(row: number, col: number): { items: string[]; current: string; pick: (item: string) => void } | null {
+    const totals = this.tables.totalsList(row, col)
+    if (totals) return { ...totals, pick: (item) => this.tables.pickTotal(row, col, item) }
+    const items = this.validation.dropdownAt(row, col)
+    if (!items) return null
+    const value = this.sheet.cells.get(row, col)?.value
+    return { items, current: String(value ?? ""), pick: (item) => this.validation.pick(row, col, item) }
+  }
+
   // ── Keyboard ───────────────────────────────────────────────────────────────────────────────────────────────
 
   /**
@@ -1553,7 +1583,7 @@ export class SheetController {
     if (alt && !primary && key === "ArrowDown" && this.data.openMenuAtActive()) return true
     if (alt && !primary && key === "ArrowDown" && this.shell.openCellList) {
       const { row, col } = this.selection.active
-      if (this.validation.dropdownAt(row, col)) {
+      if (this.cellList(row, col)) {
         this.shell.openCellList()
         return true
       }
@@ -1571,6 +1601,7 @@ export class SheetController {
       if (lower === "r") return (this.fillFromEdge("right"), true)
       if (lower === "u" && shift) return (this.toggleFormulaBarExpanded(), true)
       if (lower === "l" && shift) return (this.data.toggleFilter(), true)
+      if ((lower === "t" || lower === "l") && !shift) return (this.tables.openCreate(), true)
       if (lower === "f" && !shift) return (this.shell.findReplace?.("find"), true)
       if (lower === "h" && !shift) return (this.shell.findReplace?.("replace"), true)
       if (this.formatKey(key, shift)) return true
