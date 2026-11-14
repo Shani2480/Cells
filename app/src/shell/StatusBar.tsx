@@ -1,8 +1,8 @@
-import { formatGeneral, formatValue, selectionStats } from "@cells/core"
+import { cellName, formatGeneral, formatValue, selectionStats } from "@cells/core"
 import { useMemo, useSyncExternalStore } from "react"
 import type { SheetController } from "@/sheet/controller"
 
-const MODE_LABEL = { ready: "Ready", enter: "Enter", edit: "Edit" } as const
+const MODE_LABEL = { ready: "Ready", enter: "Enter", edit: "Edit", point: "Point" } as const
 
 /**
  * Mode (Ready / Enter / Edit), End Mode, and Average, Count and Sum of a multi-cell selection, as Excel's status
@@ -23,10 +23,19 @@ export function StatusBar({ controller }: { controller: SheetController }) {
   const { active } = selection
   const numberFormat = controller.wb.styles.get(controller.sheet.cells.style(active.row, active.col)).numberFormat
   const show = (value: number) => formatValue(value, numberFormat, 11) ?? formatGeneral(value, 16) ?? String(value)
+  const calc = controller.wb.calcStatus
+  // Excel names the cell when the circular reference is on the sheet in view.
+  const circular = calc.circular
+    ? calc.circular.sheet === controller.sheetIndex
+      ? `Circular References: ${cellName(calc.circular)}`
+      : "Circular References"
+    : null
   return (
     <footer className="status-bar" aria-label="Status bar">
       <span>{MODE_LABEL[controller.mode]}</span>
       {controller.endMode ? <span>End Mode</span> : null}
+      {circular ? <span>{circular}</span> : null}
+      {calc.mode === "manual" && calc.pending ? <span>Calculate</span> : null}
       {stats && stats.count >= 2 ? (
         <div className="status-bar-figures">
           {stats.numericCount > 0 && stats.average !== null ? <span>Average: {show(stats.average)}</span> : null}

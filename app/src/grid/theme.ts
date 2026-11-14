@@ -15,9 +15,12 @@ export type GridTheme = {
   selectionBorder: string
   fillPreview: string
   cornerTriangle: string
+  spillBorder: string
+  /** Reference colours for a formula being typed (--ref-0 …). */
+  refColors: string[]
 }
 
-const TOKENS: Record<keyof GridTheme, string> = {
+const TOKENS: Record<Exclude<keyof GridTheme, "refColors">, string> = {
   background: "--grid-bg",
   gridline: "--grid-line",
   text: "--grid-text",
@@ -33,6 +36,7 @@ const TOKENS: Record<keyof GridTheme, string> = {
   selectionBorder: "--grid-selection-border",
   fillPreview: "--grid-fill-preview",
   cornerTriangle: "--grid-corner-triangle",
+  spillBorder: "--grid-spill-border",
 }
 
 /** Light defaults, used when no stylesheet is present (tests). */
@@ -52,15 +56,18 @@ export const LIGHT_THEME: GridTheme = {
   selectionBorder: "#217346",
   fillPreview: "#7a7a7a",
   cornerTriangle: "#b8b8b8",
+  spillBorder: "#4a7bd0",
+  refColors: ["#2e6fd6", "#d13438", "#8a3ffc", "#0f8a3e", "#b83aa8", "#037f87", "#c25200", "#85593a"],
 }
 
 export function readGridTheme(element: Element): GridTheme {
   const style = getComputedStyle(element)
-  const theme = { ...LIGHT_THEME }
-  for (const key of Object.keys(TOKENS) as (keyof GridTheme)[]) {
+  const theme = { ...LIGHT_THEME, refColors: [...LIGHT_THEME.refColors] }
+  for (const key of Object.keys(TOKENS) as (keyof typeof TOKENS)[]) {
     const value = style.getPropertyValue(TOKENS[key]).trim()
     if (value) theme[key] = value
   }
+  theme.refColors = theme.refColors.map((fallback, i) => style.getPropertyValue(`--ref-${i}`).trim() || fallback)
   return theme
 }
 

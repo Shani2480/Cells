@@ -1,6 +1,8 @@
 import { MAX_COLS, MAX_ROWS, rangeCols, rangeRows, type Range } from "./address"
 import type { CellData } from "./cell-store"
 import { fillSeries } from "./fill"
+import { copyFormula } from "./formula/adjust"
+import { completeFormula } from "./formula/editing"
 import type { CellWrite, Op } from "./ops"
 import type { Sheet } from "./sheet"
 import { DEFAULT_STYLE_ID, type StyleTable } from "./styles"
@@ -11,6 +13,16 @@ export type CellBlock = {
   rows: number
   cols: number
   cells: (CellData | undefined)[][]
+  /** Where the block was copied from; pasted formulas move their relative references by the distance. */
+  origin?: { row: number; col: number }
+}
+
+/** A cell's content written `dr` rows and `dc` columns from where it was: formulas adjust relative references. */
+function moved(data: CellData, dr: number, dc: number): CellData {
+  const copy = { ...data }
+  delete copy.spill
+  if (copy.input?.startsWith("=")) copy.input = copyFormula(copy.input, dr, dc)
+  return copy
 }
 
 /**
@@ -19,7 +31,7 @@ export type CellBlock = {
  */
 export function contentForInput(styles: StyleTable, current: CellData | undefined, text: string): CellData | undefined {
   const style = current?.style ?? DEFAULT_STYLE_ID
-  const parsed = parseInput(text)
+  const parsed = parseInput(completeFormula(text))
   if (!parsed) {
     return style ? { style } : undefined
   }
@@ -49,19 +61,25 @@ export function writeInputOp(
   }
 }
 
-/** Ctrl+Enter: the same text into every selected cell. */
+/**
+ * Ctrl+Enter: the same text into every selected cell. A formula is written as typed in the active cell (`origin`)
+ * and moves its relative references for the others, as if copied there.
+ */
 export function fillInputOp(
   sheetIndex: number,
   sheet: Sheet,
   styles: StyleTable,
   ranges: readonly Range[],
   text: string,
+  origin?: { row: number; col: number },
 ): Op {
   const cells: CellWrite[] = []
+  const formula = origin && text.startsWith("=")
   for (const range of ranges) {
     for (let row = range.r0; row <= range.r1; row++) {
       for (let col = range.c0; col <= range.c1; col++) {
-        cells.push({ row, col, data: contentForInput(styles, sheet.cells.get(row, col), text) })
+        const typed = formula ? copyFormula(text, row - origin.row, col - origin.col) : text
+        cells.push({ row, col, data: contentForInput(styles, sheet.cells.get(row, col), typed) })
       }
     }
   }
@@ -89,7 +107,7 @@ export function readBlock(sheet: Sheet, range: Range): CellBlock {
   sheet.cells.forEach(range, (row, col, data) => {
     cells[row - range.r0][col - range.c0] = data
   })
-  return { rows, cols, cells }
+  return { rows, cols, cells, origin: { row: range.r0, col: range.c0 } }
 }
 
 /**
@@ -110,25 +128,28 @@ export function pasteArea(target: Range, block: CellBlock): Range {
 export function pasteBlockOp(sheetIndex: number, area: Range, block: CellBlock): Op {
   const cells: CellWrite[] = []
   for (let row = area.r0; row <= area.r1; row++) {
-    const source = block.cells[(row - area.r0) % block.rows]
+    const br = (row - area.r0) % block.rows
+    const source = block.cells[br]
     for (let col = area.c0; col <= area.c1; col++) {
-      const data = source[(col - area.c0) % block.cols]
-      cells.push({ row, col, data: data ? { ...data } : undefined })
+      const bc = (col - area.c0) % block.cols
+      const data = source[bc]
+      const origin = block.origin
+      const dr = origin ? row - (origin.row + br) : 0
+      const dc = origin ? col - (origin.col + bc) : 0
+      cells.push({ row, col, data: data ? moved(data, dr, dc) : undefined })
     }
   }
   return { kind: "setCells", sheet: sheetIndex, cells }
 }
 
-/** Cut then paste: the source empties, the block lands at `area`. The source is written first, so overlaps work. */
-export function moveBlockOps(sheetIndex: number, sheet: Sheet, source: Range, area: Range): Op[] {
-  const block = readBlock(sheet, source)
-  const clear: CellWrite[] = sheet.cells
-    .entries(source)
-    .map((entry) => ({ row: entry.row, col: entry.col, data: undefined }))
-  return [
-    { kind: "setCells", sheet: sheetIndex, cells: clear },
-    pasteBlockOp(sheetIndex, { ...area, r1: area.r0 + block.rows - 1, c1: area.c0 + block.cols - 1 }, block),
-  ]
+/** Cut then paste: the source empties and its cells land at `area`'s top-left; references to them follow. */
+export function moveBlockOps(sheetIndex: number, source: Range, area: Range): Op[] {
+  const dr = area.r0 - source.r0
+  const dc = area.c0 - source.c0
+  if (dr === 0 && dc === 0) return []
+  const r1 = Math.min(MAX_ROWS - 1, source.r1 + dr) - dr
+  const c1 = Math.min(MAX_COLS - 1, source.c1 + dc) - dc
+  return [{ kind: "moveCells", sheet: sheetIndex, source: { ...source, r1, c1 }, dr, dc }]
 }
 
 /** Plain text rows (from the clipboard) as a block of parsed cells. */
@@ -156,7 +177,7 @@ export function fillOp(sheetIndex: number, sheet: Sheet, source: Range, target: 
     const count = dir === 1 ? target.r1 - source.r1 : source.r0 - target.r0
     for (let c = 0; c < block.cols; c++) {
       const column = block.cells.map((row) => row[c])
-      fillSeries(column, count, dir, invert).forEach((data, k) => {
+      fillSeries(column, count, dir, invert, (input, steps) => copyFormula(input, steps, 0)).forEach((data, k) => {
         const row = dir === 1 ? source.r1 + 1 + k : source.r0 - 1 - k
         cells.push({ row, col: source.c0 + c, data })
       })
@@ -166,7 +187,7 @@ export function fillOp(sheetIndex: number, sheet: Sheet, source: Range, target: 
     const count = dir === 1 ? target.c1 - source.c1 : source.c0 - target.c0
     for (let r = 0; r < block.rows; r++) {
       const row = Array.from({ length: block.cols }, (_, c) => block.cells[r][c])
-      fillSeries(row, count, dir, invert).forEach((data, k) => {
+      fillSeries(row, count, dir, invert, (input, steps) => copyFormula(input, 0, steps)).forEach((data, k) => {
         const col = dir === 1 ? source.c1 + 1 + k : source.c0 - 1 - k
         cells.push({ row: source.r0 + r, col, data })
       })

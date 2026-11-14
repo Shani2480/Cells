@@ -3,12 +3,14 @@ import {
   MAX_ROWS,
   addRange,
   blockFromText,
+  canPointAt,
   cellName,
   clampCell,
   clearContentsOp,
   currentRegion,
   dataEdge,
   decodeTSV,
+  editReferences,
   editText,
   encodeHTML,
   encodeTSV,
@@ -18,13 +20,16 @@ import {
   fillInputOp,
   fillOp,
   formatValue,
+  functionsStartingWith,
   isSingleCell,
   isWholeColumns,
   isWholeRows,
   lastCell,
   moveBlockOps,
   moveWithinSelection,
+  nameAtCaret,
   pasteArea,
+  pointedText,
   pasteBlockOp,
   rangeCols,
   rangeName,
@@ -39,7 +44,10 @@ import {
   selectRows,
   selectionBounds,
   step,
+  toggleAbsolute,
   writeInputOp,
+  type EditReference,
+  type FunctionInfo,
   type CellAddress,
   type CellBlock,
   type Direction,
@@ -50,8 +58,14 @@ import {
   Workbook,
 } from "@cells/core"
 
-/** Ready: the grid has the keys. Enter: typing a fresh entry (arrows commit). Edit: F2 editing (arrows move the caret). */
-export type CellMode = "ready" | "enter" | "edit"
+/**
+ * Ready: the grid has the keys. Enter: typing a fresh entry (arrows commit). Edit: F2 editing (arrows move the
+ * caret). Point: a formula is pointing at cells (arrows and clicks write a reference).
+ */
+export type CellMode = "ready" | "enter" | "edit" | "point"
+
+/** The reference Point mode is writing: where it sits in the text and the cells it covers. */
+export type PointState = { start: number; end: number; anchor: CellAddress; focus: CellAddress }
 
 export type EditState = {
   row: number
@@ -60,7 +74,16 @@ export type EditState = {
   mode: "enter" | "edit"
   /** Where typing happens: in the cell or in the formula bar (Excel keeps both in step). */
   surface: "cell" | "bar"
+  /** The editor's selection in the text (equal when it is a caret). */
+  selStart: number
+  selEnd: number
+  point: PointState | null
+  /** The highlighted row of the function list. */
+  pick: number
 }
+
+/** The function list under the editor while a function name is typed. */
+export type Autocomplete = { start: number; prefix: string; items: FunctionInfo[]; pick: number }
 
 /** The marching-ants range after Copy or Cut, until Esc, a new entry or a paste of a cut. */
 export type ClipState = { range: Range; cut: boolean; text: string; block: CellBlock }
@@ -94,6 +117,8 @@ export class SheetController {
   edit: EditState | null = null
   clip: ClipState | null = null
   endMode = false
+  /** Ctrl+`: cells show their formulas instead of their values. */
+  showFormulas = false
   /** Preview of a fill-handle drag (the area it will fill). */
   fillPreview: Range | null = null
   /** Scroll position in sheet pixels at 100% (top-left of the cell area). */
@@ -123,7 +148,8 @@ export class SheetController {
   }
 
   get mode(): CellMode {
-    return this.edit ? this.edit.mode : "ready"
+    if (!this.edit) return "ready"
+    return this.edit.point ? "point" : this.edit.mode
   }
 
   subscribe = (listener: () => void) => {
@@ -172,7 +198,31 @@ export class SheetController {
   formulaBarText(): string {
     if (this.edit) return this.edit.text
     const { row, col } = this.selection.active
+    const anchor = this.spillAnchorOf(row, col)
+    if (anchor) return this.sheet.cells.input(anchor.row, anchor.col) ?? ""
     return this.sheet.cells.input(row, col) ?? editText(this.sheet.cells.value(row, col))
+  }
+
+  /** The active cell holds a spilled value: the formula bar shows its formula greyed out, as Excel does. */
+  get formulaBarGhost(): boolean {
+    if (this.edit) return false
+    const { row, col } = this.selection.active
+    return this.spillAnchorOf(row, col) !== null
+  }
+
+  /** The spill (anchor and area) covering a cell of this sheet, from the calculation status. */
+  spillAt(row: number, col: number) {
+    for (const spill of this.wb.calcStatus.spills) {
+      const r = spill.range
+      if (spill.sheet === this.sheetIndex && row >= r.r0 && row <= r.r1 && col >= r.c0 && col <= r.c1) return spill
+    }
+    return null
+  }
+
+  private spillAnchorOf(row: number, col: number): CellAddress | null {
+    if (!this.sheet.cells.isSpill(row, col)) return null
+    const spill = this.spillAt(row, col)
+    return spill && (spill.row !== row || spill.col !== col) ? { row: spill.row, col: spill.col } : null
   }
 
   // ── Editing ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -180,21 +230,134 @@ export class SheetController {
   /** Starts an entry: typing replaces (enter mode) or F2/double-click edits the content (edit mode). */
   beginEdit(mode: "enter" | "edit", text?: string, surface: "cell" | "bar" = "cell") {
     const { row, col } = this.selection.active
+    const initial = text ?? (mode === "edit" ? this.formulaBarText() : "")
     this.edit = {
       row,
       col,
       mode,
       surface,
-      text: text ?? (mode === "edit" ? this.formulaBarText() : ""),
+      text: initial,
+      selStart: initial.length,
+      selEnd: initial.length,
+      point: null,
+      pick: 0,
     }
     this.endMode = false
     this.scrollIntoView(this.selection.active)
     this.changed()
   }
 
-  setEditText(text: string) {
+  /** Typing changed the text: any reference being pointed at is finished. */
+  setEditText(text: string, selStart = text.length, selEnd = selStart) {
     if (!this.edit) return
-    this.edit = { ...this.edit, text }
+    this.edit = { ...this.edit, text, selStart, selEnd, point: null, pick: 0 }
+    this.changed()
+  }
+
+  /** The caret moved (click, Home/End, arrows in Edit mode). */
+  setEditSelection(selStart: number, selEnd = selStart) {
+    const edit = this.edit
+    if (!edit || (edit.selStart === selStart && edit.selEnd === selEnd)) return
+    const keepPoint = edit.point && selEnd === edit.point.end && selStart === selEnd
+    this.edit = { ...edit, selStart, selEnd, point: keepPoint ? edit.point : null, pick: 0 }
+    this.changed()
+  }
+
+  /** The references in the formula being typed (on this sheet), with their colours, for the editor and the grid. */
+  editReferences(): (EditReference & { pointing: boolean })[] {
+    const edit = this.edit
+    if (!edit || !edit.text.startsWith("=")) return []
+    const name = this.sheet.name.toLowerCase()
+    return editReferences(edit.text)
+      .filter((ref) => ref.sheet === null || ref.sheet.toLowerCase() === name)
+      .map((ref) => ({ ...ref, pointing: edit.point !== null && ref.start === edit.point.start }))
+  }
+
+  /** Whether a click on a cell (or an arrow key in Enter mode) writes a reference into the formula. */
+  get canPoint(): boolean {
+    const edit = this.edit
+    if (!edit || !edit.text.startsWith("=")) return false
+    return edit.point !== null || (edit.selStart === edit.selEnd && canPointAt(edit.text, edit.selEnd))
+  }
+
+  /** Point mode: writes (or rewrites) the reference to anchor…focus at the caret. */
+  pointAt(anchor: CellAddress, focus: CellAddress = anchor) {
+    const edit = this.edit
+    if (!edit) return
+    const range = {
+      r0: Math.min(anchor.row, focus.row),
+      r1: Math.max(anchor.row, focus.row),
+      c0: Math.min(anchor.col, focus.col),
+      c1: Math.max(anchor.col, focus.col),
+    }
+    const ref = pointedText(range)
+    const start = edit.point ? edit.point.start : edit.selStart
+    const end = edit.point ? edit.point.end : edit.selEnd
+    const text = edit.text.slice(0, start) + ref + edit.text.slice(end)
+    const caret = start + ref.length
+    this.edit = {
+      ...edit,
+      text,
+      selStart: caret,
+      selEnd: caret,
+      point: { start, end: caret, anchor, focus },
+      pick: 0,
+    }
+    this.scrollIntoView(focus)
+    this.changed()
+  }
+
+  /** Arrow keys in Point mode move (or with Shift extend) the pointed reference. */
+  pointArrow(dir: Direction, ctrl: boolean, shift: boolean) {
+    const edit = this.edit
+    if (!edit) return
+    const from = edit.point?.focus ?? { row: edit.row, col: edit.col }
+    const next = ctrl ? dataEdge(this.sheet, from, dir) : step(this.sheet, from, dir)
+    if (shift && edit.point) this.pointAt(edit.point.anchor, next)
+    else this.pointAt(next)
+  }
+
+  /** F4: cycles the $ signs of the reference at the caret and selects it. */
+  toggleAbsoluteReference() {
+    const edit = this.edit
+    if (!edit) return
+    const result = toggleAbsolute(edit.text, edit.selEnd)
+    if (!result) return
+    this.edit = { ...edit, text: result.text, selStart: result.start, selEnd: result.end, point: null }
+    this.changed()
+  }
+
+  /** The function list for the name being typed, if any. */
+  get autocomplete(): Autocomplete | null {
+    const edit = this.edit
+    if (!edit || !edit.text.startsWith("=") || edit.selStart !== edit.selEnd) return null
+    const name = nameAtCaret(edit.text, edit.selEnd)
+    if (!name) return null
+    const items = functionsStartingWith(name.prefix)
+    if (!items.length) return null
+    return { ...name, items, pick: Math.min(edit.pick, items.length - 1) }
+  }
+
+  /** Tab (or a click) in the function list: writes the name and an opening parenthesis. */
+  acceptAutocomplete(index?: number) {
+    const edit = this.edit
+    const list = this.autocomplete
+    if (!edit || !list) return false
+    const info = list.items[index ?? list.pick]
+    const before = edit.text.slice(0, list.start)
+    const after = edit.text.slice(edit.selEnd)
+    const insert = `${info.name}(`
+    const caret = before.length + insert.length
+    this.edit = { ...edit, text: before + insert + after, selStart: caret, selEnd: caret, point: null, pick: 0 }
+    this.changed()
+    return true
+  }
+
+  private movePick(delta: number) {
+    const list = this.autocomplete
+    if (!this.edit || !list) return
+    const pick = (list.pick + delta + list.items.length) % list.items.length
+    this.edit = { ...this.edit, pick }
     this.changed()
   }
 
@@ -228,7 +391,14 @@ export class SheetController {
     const before = this.selection
     let op: Op
     if (fill && !isSingleCell(this.selection)) {
-      op = fillInputOp(this.sheetIndex, this.sheet, this.wb.styles, this.selection.ranges, edit.text)
+      op = fillInputOp(
+        this.sheetIndex,
+        this.sheet,
+        this.wb.styles,
+        this.selection.ranges,
+        edit.text,
+        this.selection.active,
+      )
     } else {
       op = writeInputOp(this.sheetIndex, this.sheet, this.wb.styles, edit.row, edit.col, edit.text)
     }
@@ -534,7 +704,7 @@ export class SheetController {
     const before = this.selection
     if (own && this.clip?.cut) {
       const area = { r0: target.r0, c0: target.c0, r1: target.r0 + block.rows - 1, c1: target.c0 + block.cols - 1 }
-      const ops = moveBlockOps(this.sheetIndex, this.sheet, this.clip.range, area)
+      const ops = moveBlockOps(this.sheetIndex, this.clip.range, area)
       const after = selectRange(area, { row: area.r0, col: area.c0 })
       this.clip = null
       this.wb.transact(ops, { label: "Move", before, after })
@@ -765,6 +935,10 @@ export class SheetController {
       case "F5":
         this.shell.goTo()
         return true
+      case "F9":
+        // F9 and Shift+F9 calculate what changed (one engine for all sheets); Ctrl+Alt+F9 recalculates everything.
+        this.wb.calculate(primary && alt)
+        return true
       case "Delete":
         this.clearContents()
         return true
@@ -789,6 +963,7 @@ export class SheetController {
       if (key === " " && shift) return (this.selectEverything(), true)
       if (key === " ") return (this.selectColumns(), true)
       if (lower === "g") return (this.shell.goTo(), true)
+      if (key === "`" || key === "~") return (this.toggleShowFormulas(), true)
       if (lower === "d") return (this.fillFromEdge("down"), true)
       if (lower === "r") return (this.fillFromEdge("right"), true)
       if (key === "-" || key === "_") return (this.insertOrDelete("delete"), true)
@@ -817,8 +992,19 @@ export class SheetController {
     }
     if (key === "Enter") {
       if (alt) return false // Alt+Enter: a line break inside the cell; the editor inserts it.
+      if (primary && shift) {
+        // Ctrl+Shift+Enter: dynamic arrays make it the same as Enter for one cell; the cell stays active.
+        this.commitEdit()
+        return true
+      }
       this.commitEdit(primary)
       if (!primary) this.enterMove(shift ? "up" : "down")
+      return true
+    }
+    const list = this.autocomplete
+    if (list && key === "Tab" && !shift) return this.acceptAutocomplete()
+    if (list && !alt && (key === "ArrowDown" || key === "ArrowUp")) {
+      this.movePick(key === "ArrowDown" ? 1 : -1)
       return true
     }
     if (key === "Tab") {
@@ -830,11 +1016,19 @@ export class SheetController {
       this.toggleEditMode()
       return true
     }
+    if (key === "F4") {
+      this.toggleAbsoluteReference()
+      return true
+    }
     const arrows: Record<string, Direction> = {
       ArrowUp: "up",
       ArrowDown: "down",
       ArrowLeft: "left",
       ArrowRight: "right",
+    }
+    if (arrows[key] && this.edit.mode === "enter" && !alt && this.canPoint) {
+      this.pointArrow(arrows[key], primary, shift)
+      return true
     }
     if (arrows[key] && this.edit.mode === "enter" && this.edit.surface === "cell" && !alt) {
       this.commitEdit()
@@ -842,6 +1036,11 @@ export class SheetController {
       return true
     }
     return false
+  }
+
+  toggleShowFormulas() {
+    this.showFormulas = !this.showFormulas
+    this.changed()
   }
 
   // ── Status bar ─────────────────────────────────────────────────────────────────────────────────────────────

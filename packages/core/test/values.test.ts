@@ -35,7 +35,7 @@ describe("typed input", () => {
     expect(parseInput("FALSE")!.value).toBe(false)
     expect(parseInput("#n/a")!.value).toBe(errorValue("#N/A"))
     expect(parseInput("'123")).toEqual({ value: "123", input: "'123" })
-    expect(parseInput("=A1+1")).toEqual({ value: "=A1+1", input: "=A1+1", formula: true })
+    expect(parseInput("=A1+1")).toEqual({ value: "", input: "=A1+1", formula: true })
     expect(parseInput("=")!.value).toBe("=")
     expect(parseInput("")).toBeNull()
   })

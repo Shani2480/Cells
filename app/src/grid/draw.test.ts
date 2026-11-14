@@ -31,6 +31,7 @@ function recorder() {
     textAlign: "left" as CanvasTextAlign,
     textBaseline: "alphabetic" as CanvasTextBaseline,
     lineDashOffset: 0,
+    globalAlpha: 1,
     fillText(text: string, x: number, y: number) {
       texts.push({ text, x, y, align: this.textAlign })
     },

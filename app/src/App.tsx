@@ -12,6 +12,7 @@ import { SizeDialog } from "@/shell/SizeDialog"
 import { StatusBar } from "@/shell/StatusBar"
 import { TitleBar } from "@/shell/TitleBar"
 import { loadDemo } from "./demo"
+import { startCalculation } from "./engine-host/host"
 
 type DialogState =
   | { kind: "goto" }
@@ -31,7 +32,13 @@ function useSystemColorScheme() {
 }
 
 export function App({ controller: given }: { controller?: SheetController } = {}) {
-  const controller = useMemo(() => given ?? new SheetController(), [given])
+  const controller = useMemo(() => {
+    if (given) return given
+    const created = new SheetController()
+    // Formulas calculate in a worker; the grid shows the values as they come back.
+    startCalculation(created.wb)
+    return created
+  }, [given])
   const platform = usePlatform()
   const [dialog, setDialog] = useState<DialogState>(null)
   const [menu, setMenu] = useState<GridContextMenu | null>(null)

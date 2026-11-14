@@ -2,6 +2,60 @@
 
 Newest first. Each entry: what changed, how it was checked, what is still open.
 
+## 2026-11-14 — Phase 2: formula and calculation engine
+
+**Built**
+
+- Formula language: lexer and parser for Excel's grammar (A1 and R1C1 references, mixed `$`, ranges, whole rows and
+  columns, 3-D and cross-sheet references, `#REF!` references, array constants, the spill `#` and implicit `@`),
+  printing back to text, number literals cut to 15 significant digits as Excel does.
+- Values and coercion as Excel: text ↔ number ↔ date, logicals, the error values and how each propagates.
+- Calculation: dependency graph with per-cell and per-range links, dirty marking and evaluation in dependency order
+  without recursion, volatile functions, circular references (the status bar names the cell), automatic and manual
+  mode, F9 and Ctrl+Alt+F9, dynamic arrays with spilling, `#SPILL!` and the spill border.
+- 262 functions (maths, statistics, logical, information, text, dates and times, lookup including XLOOKUP, XMATCH
+  and FILTER/SORT/UNIQUE, financial, aggregate, arrays such as SEQUENCE and MMULT, and LET). LAMBDA is not built.
+- Structural edits rewrite formulas: inserting and deleting rows, columns and cells, cut and paste (`moveCells`), copy
+  and fill adjust relative references; undo restores the original text.
+- The engine runs in a Web Worker (`app/src/engine-host`): the UI applies operations at once and gets the values
+  back as patches.
+- Formula editing: references coloured in the cell and the bar with matching boxes on the grid, Point mode (arrows,
+  click and drag, Shift to extend), F4, the function list while typing (Tab inserts), the argument tooltip with the
+  current argument in bold, Ctrl+`(show formulas), Ctrl+Shift+Enter, missing`)` added on entry, the spilled
+  cells' formula shown grey in the bar.
+
+**Checked against Excel** (16.0, build 17932, US locale)
+
+- 719 formulas evaluated by Excel in `tests/excel-golden/` (two rejected by Excel and skipped). All match to 15
+  significant digits except four listed in `known-differences.json`: RATE (×2), IRR and XIRR, where Excel's solver
+  stops earlier than ours. A known difference that starts matching fails the test, so the list stays honest.
+- Numeric details found on the way and copied: whole powers by repeated squaring (FV, PV, EFFECT too; PMT, IPMT and
+  PPMT use `exp(n·log1p(r))`), FACT multiplying downwards, odd roots of negative numbers, variance as Σx² − (Σx)²/n,
+  MOD by `fmod` with the divisor's sign, INT/FLOOR/CEILING rounding to 15 digits first, COUNTIF's numeric criterion
+  matching numeric text, AND/OR skipping text arguments, scaling commas after the last digit in TEXT formats, LEFT,
+  RIGHT and MID not splitting surrogate pairs.
+
+**Deviations from PLAN.md**
+
+- The UI still holds the whole workbook (without calculating it) next to the worker's copy, rather than only what
+  is on screen. It keeps editing and drawing synchronous; memory is the cost. To revisit when files get large
+  (Phase 4).
+- Ctrl+Shift+Enter enters the formula like Enter: with dynamic arrays Excel 365 spills either way. Legacy array
+  formulas (`{=…}`) are not made.
+- ROMAN writes the classic form only; the concise forms (ROMAN(x, 1…4)) are not done.
+- R1C1 is parsed but there is no R1C1 display option yet; defined names and iterative calculation are not built.
+  The calculation-mode switch has no UI until the ribbon (Phase 3); F9 and the status bar's "Calculate" work.
+
+**Measured** (core benchmarks, this machine shared with other builds, load average 8–25 on 16 cores)
+
+- 100,000-formula chain, recalculation after editing its first cell: 150–200 ms when the machine is quiet,
+  200–600 ms under load. Budget 200 ms: passes in a quiet moment, fails under load.
+- 50,000 VLOOKUPs over 10,000 rows, all recalculated: 490 ms (budget 1 s).
+- Inserting a row above 100,000 formulas (rewrite and rebuild): 1.2 s, undo 1.5 s (budgets 2 s and 3 s).
+- Editing one value under `SUM(A:A)` with 50,000 values: 14 ms.
+
+**Open**: see `docs/verify-list.md`.
+
 ## 2026-11-14 — Phase 1: grid, editing, clipboard, rows and columns
 
 **Built**

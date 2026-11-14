@@ -1,0 +1,17 @@
+{"excel": "16.0 build 17932", "cell": "Z100", "cases": [
+{"formula": "=SUBTOTAL(9,A1:A8)", "value": 25.5},
+{"formula": "=SUBTOTAL(1,A1:A8)", "value": 3.1875},
+{"formula": "=SUBTOTAL(2,C1:C8)", "value": 3.0},
+{"formula": "=SUBTOTAL(3,C1:C8)", "value": 7.0},
+{"formula": "=SUBTOTAL(4,A1:A8)", "value": 10.0},
+{"formula": "=SUBTOTAL(7,A1:A8)", "value": 3.8908087664575417},
+{"formula": "=SUBTOTAL(109,A1:A8)", "value": 25.5},
+{"formula": "=SUBTOTAL(12,A1:A8)", "value": {"error": "#VALUE!"}},
+{"formula": "=AGGREGATE(9,6,A1:A8,H5:H6)", "value": 25.5},
+{"formula": "=AGGREGATE(14,6,A1:A8,2)", "value": 7.0},
+{"formula": "=AGGREGATE(15,0,A1:A8,1)", "value": -2.0},
+{"formula": "=AGGREGATE(12,4,A1:A8)", "value": 2.5},
+{"formula": "=AGGREGATE(16,0,A1:A8,0.5)", "value": 2.5},
+{"formula": "=AGGREGATE(9,0,H5:H6)", "value": {"error": "#DIV/0!"}},
+{"formula": "=AGGREGATE(4,6,H5,A1)", "value": 1.0}
+]}

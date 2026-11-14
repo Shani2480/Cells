@@ -8,6 +8,8 @@ export type CellData = {
   input?: string
   /** Style id in the workbook's StyleTable; absent means 0 (default). */
   style?: number
+  /** The value was spilled here by a dynamic array formula (it is not the cell's own content). */
+  spill?: true
 }
 
 export type CellEntry = { row: number; col: number; data: CellData }
@@ -21,6 +23,8 @@ class Chunk {
   readonly values: (CellValue | undefined)[] = new Array(CHUNK_SIZE)
   inputs: Map<number, string> | null = null
   styles: Uint32Array | null = null
+  /** Offsets whose value was spilled by an array formula. */
+  spills: Set<number> | null = null
   /** Cells with a value. */
   valueCount = 0
   /** Cells with a value or a style. */
@@ -62,7 +66,39 @@ export class CellStore {
     if (input !== undefined) data.input = input
     const style = chunk.styles?.[offset] ?? 0
     if (style !== 0) data.style = style
+    if (chunk.spills?.has(offset)) data.spill = true
     return data
+  }
+
+  /** True when the cell's value was spilled by an array formula. */
+  isSpill(row: number, col: number): boolean {
+    return this.chunk(row, col)?.spills?.has(row & CHUNK_MASK) ?? false
+  }
+
+  /** A formula's calculated value: replaces the value only, keeping the formula text and the style. */
+  setComputed(row: number, col: number, value: CellValue | undefined) {
+    const chunk = this.chunk(row, col)
+    const offset = row & CHUNK_MASK
+    this.put(row, col, value, chunk?.inputs?.get(offset), chunk?.styles?.[offset] ?? 0, false)
+  }
+
+  /** A spilled value (or undefined to take it away), keeping the cell's style. */
+  setSpill(row: number, col: number, value: CellValue | undefined) {
+    const chunk = this.chunk(row, col)
+    const style = chunk?.styles?.[row & CHUNK_MASK] ?? 0
+    this.put(row, col, value, undefined, style, value !== undefined)
+  }
+
+  /** Visits every stored formula (input starting with "="). */
+  forEachFormula(visit: (row: number, col: number, input: string) => void) {
+    for (const [col, column] of this.columns) {
+      for (const [key, chunk] of column.chunks) {
+        if (!chunk.inputs) continue
+        for (const [offset, input] of chunk.inputs) {
+          if (input.startsWith("=")) visit((key << CHUNK_BITS) + offset, col, input)
+        }
+      }
+    }
   }
 
   value(row: number, col: number): CellValue | undefined {
@@ -83,10 +119,24 @@ export class CellStore {
 
   /** Replaces everything stored for the cell; `undefined` or an empty record removes it. */
   set(row: number, col: number, data: CellData | undefined) {
-    this.put(row, col, data?.value, data?.value !== undefined ? data?.input : undefined, data?.style ?? 0)
+    this.put(
+      row,
+      col,
+      data?.value,
+      data?.value !== undefined ? data?.input : undefined,
+      data?.style ?? 0,
+      data?.spill === true,
+    )
   }
 
-  private put(row: number, col: number, value: CellValue | undefined, input: string | undefined, style: number) {
+  private put(
+    row: number,
+    col: number,
+    value: CellValue | undefined,
+    input: string | undefined,
+    style: number,
+    spill: boolean,
+  ) {
     const stored = value !== undefined || style !== 0
     let column = this.columns.get(col)
     if (!column) {
@@ -119,6 +169,8 @@ export class CellStore {
     } else if (chunk.styles) {
       chunk.styles[offset] = 0
     }
+    if (spill && value !== undefined) (chunk.spills ??= new Set()).add(offset)
+    else chunk.spills?.delete(offset)
 
     const valueDelta = (value !== undefined ? 1 : 0) - (hadValue ? 1 : 0)
     const storedDelta = (stored ? 1 : 0) - (wasStored ? 1 : 0)
@@ -295,6 +347,7 @@ export class CellStore {
         if (input !== undefined) (target!.inputs ??= new Map()).set(to, input)
         const style = from.styles?.[offset] ?? 0
         if (style !== 0) (target!.styles ??= new Uint32Array(CHUNK_SIZE))[to] = style
+        if (from.spills?.has(offset)) (target!.spills ??= new Set()).add(to)
         if (value !== undefined) target!.valueCount++
         target!.storedCount++
       }

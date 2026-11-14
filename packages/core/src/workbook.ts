@@ -1,4 +1,7 @@
+import { CalcEngine, cellOfKey, type CalcMode } from "./calc/engine"
+import type { Range } from "./address"
 import { applyOp, type Change, type Op } from "./ops"
+import type { CellValue } from "./values"
 import { Sheet } from "./sheet"
 import { StyleTable } from "./styles"
 
@@ -21,7 +24,73 @@ export type TransactionOptions<Meta> = {
   history?: boolean
 }
 
-export type WorkbookListener = (changes: readonly Change[]) => void
+/** `ops` are the operations just applied, in order (empty for calculated values arriving from a worker). */
+export type WorkbookListener = (changes: readonly Change[], ops: readonly Op[]) => void
+
+export type SpillArea = { sheet: number; row: number; col: number; range: Range }
+
+/** What the status bar and the grid need to know about calculation. */
+export type CalcStatus = {
+  mode: CalcMode
+  /** Manual mode with changes not yet calculated ("Calculate" in the status bar). */
+  pending: boolean
+  circular: { sheet: number; row: number; col: number } | null
+  spills: readonly SpillArea[]
+}
+
+/**
+ * Who calculates. By default the workbook's own engine, right after each change; the app swaps in a calculator
+ * that forwards operations to a Web Worker and applies the values it sends back.
+ */
+export interface Calculator {
+  afterOps(ops: readonly Op[], changes: readonly Change[]): void
+  calculate(full: boolean): void
+  setMode(mode: CalcMode): void
+  status(): CalcStatus
+}
+
+/** Calculated values from an engine elsewhere: changed cells (formula results and spills) and the new status. */
+export type ValuePatch = {
+  cells: { sheet: number; row: number; col: number; value: CellValue | undefined; spill: boolean }[]
+  status: CalcStatus
+}
+
+/** Collects what the engine wrote since the last call (its change log must be on). */
+export function takePatch(wb: Workbook<unknown>): ValuePatch {
+  const log = wb.calc.changeLog
+  const cells: ValuePatch["cells"] = []
+  if (log) {
+    for (const key of log) {
+      const { sheet, row, col } = cellOfKey(key)
+      const store = wb.sheets[sheet]?.cells
+      if (!store) continue
+      cells.push({ sheet, row, col, value: store.value(row, col), spill: store.isSpill(row, col) })
+    }
+    log.clear()
+  }
+  return { cells, status: localStatus(wb.calc) }
+}
+
+function localStatus(engine: CalcEngine): CalcStatus {
+  return { mode: engine.mode, pending: engine.pending, circular: engine.circular, spills: engine.spillAreas() }
+}
+
+class LocalCalculator implements Calculator {
+  constructor(private readonly engine: CalcEngine) {}
+  afterOps(_ops: readonly Op[], changes: readonly Change[]) {
+    this.engine.afterChanges(changes)
+  }
+  calculate(full: boolean) {
+    this.engine.calculateNow(full)
+  }
+  setMode(mode: CalcMode) {
+    this.engine.mode = mode
+    if (mode === "automatic" && this.engine.pending) this.engine.calculateNow(false)
+  }
+  status() {
+    return localStatus(this.engine)
+  }
+}
 
 /** Excel keeps 100 undo levels. */
 export const DEFAULT_UNDO_LIMIT = 100
@@ -35,10 +104,58 @@ export class Workbook<Meta = unknown> {
   private readonly listeners = new Set<WorkbookListener>()
   /** Bumped on every change; views compare it to know when to redraw. */
   version = 0
+  /** The workbook's own engine. It calculates unless another calculator is set (see setCalculator). */
+  readonly calc: CalcEngine
+  private calculator: Calculator
 
   constructor(sheetNames: string[] = ["Sheet1"], undoLimit = DEFAULT_UNDO_LIMIT) {
     this.sheets = sheetNames.map((name) => new Sheet(name))
     this.undoLimit = undoLimit
+    this.calc = new CalcEngine(this)
+    this.calculator = new LocalCalculator(this.calc)
+  }
+
+  /** Hands calculation to another calculator (the worker host). The own engine then stays idle. */
+  setCalculator(calculator: Calculator) {
+    this.calculator = calculator
+  }
+
+  get calcStatus(): CalcStatus {
+    return this.calculator.status()
+  }
+
+  /** F9 / Shift+F9 / Ctrl+Alt+F9: recalculates and tells listeners. */
+  calculate(full = false) {
+    this.calculator.calculate(full)
+    this.version++
+    this.emit([], [])
+  }
+
+  setCalcMode(mode: CalcMode) {
+    this.calculator.setMode(mode)
+    this.version++
+    this.emit([], [])
+  }
+
+  /** Writes values calculated elsewhere (no undo step: they follow from the operations already applied). */
+  applyPatch(patch: ValuePatch) {
+    const touched = new Map<number, Range>()
+    for (const { sheet, row, col, value, spill } of patch.cells) {
+      const cells = this.sheets[sheet]?.cells
+      if (!cells) continue
+      if (spill || cells.isSpill(row, col)) cells.setSpill(row, col, value)
+      else if (cells.input(row, col)?.startsWith("=")) cells.setComputed(row, col, value)
+      const r = touched.get(sheet)
+      touched.set(
+        sheet,
+        r
+          ? { r0: Math.min(r.r0, row), c0: Math.min(r.c0, col), r1: Math.max(r.r1, row), c1: Math.max(r.c1, col) }
+          : { r0: row, c0: col, r1: row, c1: col },
+      )
+    }
+    this.version++
+    const changes: Change[] = [...touched].map(([sheet, range]) => ({ sheet, structural: false, range }))
+    this.emit(changes, [])
   }
 
   subscribe(listener: WorkbookListener) {
@@ -54,6 +171,7 @@ export class Workbook<Meta = unknown> {
       return null
     }
     const { inverse, changes } = this.run(ops)
+    const applied = ops
     const entry: UndoEntry<Meta> = {
       label: options.label,
       undo: inverse,
@@ -68,7 +186,7 @@ export class Workbook<Meta = unknown> {
       }
       this.redoStack.length = 0
     }
-    this.emit(changes)
+    this.emit(changes, applied)
     return entry
   }
 
@@ -98,10 +216,11 @@ export class Workbook<Meta = unknown> {
     if (!entry) {
       return null
     }
-    const { inverse, changes } = this.run(entry.undo)
+    const applied = entry.undo
+    const { inverse, changes } = this.run(applied)
     entry.redo = inverse
     this.redoStack.push(entry)
-    this.emit(changes)
+    this.emit(changes, applied)
     return entry
   }
 
@@ -110,10 +229,11 @@ export class Workbook<Meta = unknown> {
     if (!entry) {
       return null
     }
-    const { inverse, changes } = this.run(entry.redo)
+    const applied = entry.redo
+    const { inverse, changes } = this.run(applied)
     entry.undo = inverse
     this.undoStack.push(entry)
-    this.emit(changes)
+    this.emit(changes, applied)
     return entry
   }
 
@@ -131,13 +251,14 @@ export class Workbook<Meta = unknown> {
       inverses.push(applied.inverse)
       changes.push(applied.change)
     }
+    this.calculator.afterOps(ops, changes)
     this.version++
     return { inverse: inverses.reverse().flat(), changes }
   }
 
-  private emit(changes: Change[]) {
+  private emit(changes: Change[], ops: readonly Op[]) {
     for (const listener of this.listeners) {
-      listener(changes)
+      listener(changes, ops)
     }
   }
 }

@@ -191,6 +191,7 @@ export function fillSeries(
   count: number,
   dir: 1 | -1,
   invert = false,
+  moveFormula?: (input: string, steps: number) => string,
 ): (CellData | undefined)[] {
   const n = source.length
   const items = source.map(classify)
@@ -215,6 +216,9 @@ export function fillSeries(
     } else {
       const copied = source[j]
       data = copied && (copied.value !== undefined || copied.input !== undefined) ? { ...copied } : undefined
+      // A copied formula moves its relative references by the distance from its source cell.
+      if (data?.input?.startsWith("=") && moveFormula) data.input = moveFormula(data.input, p - j)
+      if (data) delete data.spill
     }
     if (style) {
       data = { ...(data ?? {}), style }

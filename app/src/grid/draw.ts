@@ -39,6 +39,7 @@ export type Painter = Pick<
   textAlign: CanvasTextAlign
   textBaseline: CanvasTextBaseline
   lineDashOffset: number
+  globalAlpha: number
 }
 
 export type DrawOptions = {
@@ -66,6 +67,13 @@ function cellText(
   measure: (t: string) => number,
 ): CellText | null {
   const sheet = controller.sheet
+  if (controller.showFormulas) {
+    // Ctrl+`: formulas as typed, left-aligned.
+    const input = sheet.cells.input(row, col)
+    if (input?.startsWith("=")) return { text: input, align: "left", numeric: false }
+    // A spill's other cells hold no formula of their own; Excel leaves them blank here.
+    if (sheet.cells.isSpill(row, col)) return null
+  }
   const value: CellValue | undefined = sheet.cells.value(row, col)
   if (value === undefined) return null
   const style = controller.wb.styles.get(sheet.cells.style(row, col))
@@ -343,6 +351,46 @@ function drawSelection({ painter: p, layout, controller, theme, antsOffset }: Dr
     p.setLineDash([3, 2])
     p.strokeRect(Math.round(rect.x) + 0.5, Math.round(rect.y) + 0.5, Math.round(rect.w) - 2, Math.round(rect.h) - 2)
     p.setLineDash([])
+  }
+
+  // A spill range shows a thin blue border while one of its cells is active.
+  const spill = controller.edit ? null : controller.spillAt(selection.active.row, selection.active.col)
+  if (spill) {
+    const rect = clampRect(rangeRect(controller, layout, spill.range), layout)
+    p.strokeStyle = theme.spillBorder
+    p.lineWidth = 1
+    p.strokeRect(Math.round(rect.x) + 0.5, Math.round(rect.y) + 0.5, Math.round(rect.w) - 1, Math.round(rect.h) - 1)
+  }
+
+  // References of the formula being typed: tinted and outlined in their colours; the one being pointed at with ants.
+  for (const ref of controller.editReferences()) {
+    const rect = clampRect(rangeRect(controller, layout, ref.range), layout)
+    if (rect.w <= 0 || rect.h <= 0) continue
+    const color = theme.refColors[ref.color % theme.refColors.length]
+    p.fillStyle = color
+    p.globalAlpha = 0.1
+    p.fillRect(rect.x, rect.y, rect.w, rect.h)
+    p.globalAlpha = 1
+    p.strokeStyle = color
+    p.lineWidth = 1
+    if (ref.pointing) {
+      p.setLineDash([4, 3])
+      p.lineDashOffset = -antsOffset
+    }
+    p.strokeRect(Math.round(rect.x) + 0.5, Math.round(rect.y) + 0.5, Math.round(rect.w) - 2, Math.round(rect.h) - 2)
+    if (ref.pointing) {
+      p.setLineDash([])
+      p.lineDashOffset = 0
+    } else {
+      // Corner handles, as Excel draws them.
+      for (const [x, y] of [
+        [rect.x, rect.y],
+        [rect.x + rect.w - 1, rect.y],
+        [rect.x, rect.y + rect.h - 1],
+        [rect.x + rect.w - 1, rect.y + rect.h - 1],
+      ])
+        p.fillRect(Math.round(x) - 2, Math.round(y) - 2, 4, 4)
+    }
   }
 
   if (controller.clip) {

@@ -1,6 +1,7 @@
 import { parseRange } from "@cells/core"
 import { Check, X } from "lucide-react"
-import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
+import { FormulaAssist, FormulaHighlight } from "@/grid/FormulaAssist"
 import { usePlatform } from "@/platform/context"
 import type { SheetController } from "@/sheet/controller"
 import { keyInputFrom } from "@/sheet/keys"
@@ -26,10 +27,18 @@ export function FormulaBar({
   const editing = controller.edit
   const text = controller.formulaBarText()
 
-  useEffect(() => {
+  const [scrollLeft, setScrollLeft] = useState(0)
+  useLayoutEffect(() => {
     const bar = barRef.current
-    if (bar && bar.value !== text) bar.value = text
-  }, [text])
+    if (!bar) return
+    if (bar.value !== text) bar.value = text
+    // Typing here, or pointing at cells from here: keep the caret where the controller put it.
+    if (editing?.surface === "bar" && document.activeElement === bar) {
+      if (bar.selectionStart !== editing.selStart || bar.selectionEnd !== editing.selEnd)
+        bar.setSelectionRange(editing.selStart, editing.selEnd)
+    }
+    setScrollLeft(bar.scrollLeft)
+  }, [text, editing])
 
   const goToName = () => {
     const range = nameDraft ? parseRange(nameDraft) : null
@@ -94,30 +103,53 @@ export function FormulaBar({
           fx
         </span>
       </div>
-      <textarea
-        ref={barRef}
-        className="formula-input"
-        aria-label="Formula Bar"
-        rows={1}
-        wrap="off"
-        spellCheck={false}
-        defaultValue={text}
-        onFocus={() => {
-          if (controller.edit) controller.setEditSurface("bar")
-          else controller.beginEdit("edit", undefined, "bar")
-        }}
-        onInput={(event) => {
-          if (!controller.edit) controller.beginEdit("edit", event.currentTarget.value, "bar")
-          else controller.setEditText(event.currentTarget.value)
-        }}
-        onKeyDown={(event) => {
-          const input = keyInputFrom(event, platform.os)
-          if (controller.edit && controller.keyEditing(input)) {
-            event.preventDefault()
-            onFocusGrid()
+      <div className="formula-input-wrap">
+        <FormulaHighlight controller={controller} className="formula-input-highlight" scrollLeft={scrollLeft} />
+        <textarea
+          ref={barRef}
+          className={
+            "formula-input" +
+            (editing?.text.startsWith("=") ? " has-highlight" : "") +
+            (controller.formulaBarGhost ? " is-ghost" : "")
           }
-        }}
-      />
+          aria-label="Formula Bar"
+          rows={1}
+          wrap="off"
+          spellCheck={false}
+          defaultValue={text}
+          onFocus={() => {
+            // A spilled cell has no formula of its own to edit (its anchor has).
+            if (controller.formulaBarGhost) return
+            if (controller.edit) controller.setEditSurface("bar")
+            else controller.beginEdit("edit", undefined, "bar")
+          }}
+          onInput={(event) => {
+            const { value, selectionStart, selectionEnd } = event.currentTarget
+            if (!controller.edit) controller.beginEdit("edit", value, "bar")
+            else controller.setEditText(value, selectionStart, selectionEnd)
+          }}
+          onSelect={(event) => {
+            // Only when the textarea shows the entry's current text (otherwise the offsets are stale).
+            const edit = controller.edit
+            if (edit?.surface === "bar" && event.currentTarget.value === edit.text)
+              controller.setEditSelection(event.currentTarget.selectionStart, event.currentTarget.selectionEnd)
+            setScrollLeft(event.currentTarget.scrollLeft)
+          }}
+          onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}
+          onKeyDown={(event) => {
+            const input = keyInputFrom(event, platform.os)
+            if (controller.edit && controller.keyEditing(input)) {
+              event.preventDefault()
+              // Keys that keep the entry open (F4, pointing, the function list) keep the formula bar focused.
+              if (!controller.edit) onFocusGrid()
+            }
+          }}
+          readOnly={controller.formulaBarGhost}
+        />
+        {editing?.surface === "bar" ? (
+          <FormulaAssist controller={controller} style={{ left: 0, top: 26 }} onPick={() => barRef.current?.focus()} />
+        ) : null}
+      </div>
     </div>
   )
 }

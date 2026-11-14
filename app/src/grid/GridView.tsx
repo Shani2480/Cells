@@ -5,6 +5,7 @@ import type { SheetController } from "@/sheet/controller"
 import { keyInputFrom } from "@/sheet/keys"
 import { autofitColumnWidth, autofitRowHeight, columnWidthLabel, rowHeightLabel } from "./autofit"
 import { drawGrid } from "./draw"
+import { FormulaAssist, FormulaHighlight } from "./FormulaAssist"
 import { cellAt, computeLayout, hitTest, rangeRect, type GridLayout, type Hit } from "./layout"
 import { CELL_FONT, LIGHT_THEME, readGridTheme, type GridTheme } from "./theme"
 import { Scrollbar } from "./Scrollbar"
@@ -16,6 +17,8 @@ type Drag =
   | { kind: "rows"; anchor: number }
   | { kind: "cols"; anchor: number }
   | { kind: "fill"; source: Range }
+  /** Point mode: dragging over cells writes a range reference into the formula. */
+  | { kind: "point"; anchor: CellAddress }
   | { kind: "resize-col"; col: number; startX: number; startSize: number; size: number }
   | { kind: "resize-row"; row: number; startY: number; startSize: number; size: number }
   | {
@@ -97,7 +100,8 @@ export function GridView({
   }, [])
 
   // Marching ants while something is on our clipboard.
-  const hasClip = controller.clip !== null
+  // Marching ants also run round the reference Point mode is writing.
+  const hasClip = controller.clip !== null || Boolean(controller.edit?.point)
   useEffect(() => {
     if (!hasClip) return
     const timer = window.setInterval(() => setAntsOffset((offset) => (offset + 1) % 7), 70)
@@ -150,9 +154,11 @@ export function GridView({
       if (document.activeElement === input) input.select()
       return
     }
-    if (editing.surface === "cell" && input.value !== editing.text && !composingRef.current) {
-      input.value = editing.text
-      input.setSelectionRange(editing.text.length, editing.text.length)
+    if (editing.surface === "cell" && !composingRef.current) {
+      // The controller changed the text (pointing, F4, a picked function) or the selection: follow it.
+      if (input.value !== editing.text) input.value = editing.text
+      if (input.selectionStart !== editing.selStart || input.selectionEnd !== editing.selEnd)
+        input.setSelectionRange(editing.selStart, editing.selEnd)
     }
     if (editing.surface === "bar" && input.value !== editing.text) {
       input.value = editing.text
@@ -211,6 +217,9 @@ export function GridView({
       case "fill":
         controller.fillPreview = fillTarget(drag.source, address)
         controller.changed()
+        break
+      case "point":
+        controller.pointAt(drag.anchor, address)
         break
       case "resize-col": {
         const size = Math.max(0, Math.round(drag.startSize + (x - drag.startX)))
@@ -280,7 +289,18 @@ export function GridView({
     if (event.button !== 0) return
     event.preventDefault()
     if (controller.edit) {
-      // Clicking another cell finishes the entry (point mode for formulas arrives in Phase 2).
+      if (hit.zone === "cell" && controller.canPoint) {
+        // Point mode: the click writes a reference into the formula; dragging makes it a range.
+        const cell = { row: hit.row, col: hit.col }
+        const point = controller.edit.point
+        const anchor = shift && point ? point.anchor : cell
+        controller.pointAt(anchor, cell)
+        dragRef.current = { kind: "point", anchor }
+        pointerRef.current = { x, y, ctrl }
+        canvasRef.current!.setPointerCapture(event.pointerId)
+        return
+      }
+      // Clicking another cell finishes the entry.
       controller.commitEdit()
     }
     focusInput()
@@ -403,6 +423,8 @@ export function GridView({
       controller.pointerCell({ row: drag.row, col: drag.col }, { shift: false, ctrl: false })
     }
     controller.changed()
+    // Pointing from the formula bar keeps typing there.
+    if (drag.kind === "point" && controller.edit?.surface === "bar") return
     focusInput()
   }
 
@@ -460,14 +482,23 @@ export function GridView({
   }
 
   const onInput = (event: React.FormEvent<HTMLTextAreaElement>) => {
-    const value = event.currentTarget.value
+    const { value, selectionStart, selectionEnd } = event.currentTarget
     if (!controller.edit) {
       if (composingRef.current) return
       // A printable key replaced the placeholder space: start a new entry with it.
       controller.beginEdit("enter", value)
       return
     }
-    controller.setEditText(value)
+    controller.setEditText(value, selectionStart, selectionEnd)
+  }
+
+  const onSelect = (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const edit = controller.edit
+    if (edit?.surface !== "cell" || composingRef.current) return
+    // A selection event can arrive while the textarea still shows older text (before the controller's change is
+    // drawn); its offsets would be stale.
+    if (event.currentTarget.value !== edit.text) return
+    controller.setEditSelection(event.currentTarget.selectionStart, event.currentTarget.selectionEnd)
   }
 
   const onCompositionStart = () => {
@@ -481,7 +512,8 @@ export function GridView({
 
   const onCompositionEnd = (event: React.CompositionEvent<HTMLTextAreaElement>) => {
     composingRef.current = false
-    controller.setEditText(event.currentTarget.value)
+    const { value, selectionStart, selectionEnd } = event.currentTarget
+    controller.setEditText(value, selectionStart, selectionEnd)
   }
 
   const onCopy = (event: React.ClipboardEvent<HTMLTextAreaElement>, cut: boolean) => {
@@ -555,14 +587,17 @@ export function GridView({
           })
         }}
       />
+      {editing ? (
+        <FormulaHighlight controller={controller} className="cell-editor-highlight" style={editorStyle} />
+      ) : null}
       <textarea
         ref={inputRef}
         className={
-          editing && editing.surface === "cell"
+          (editing && editing.surface === "cell"
             ? "cell-editor is-editing"
             : editing
               ? "cell-editor is-mirror"
-              : "cell-editor"
+              : "cell-editor") + (editing?.text.startsWith("=") ? " has-highlight" : "")
         }
         style={editorStyle}
         aria-label="Cell editor"
@@ -573,6 +608,7 @@ export function GridView({
         wrap="off"
         onKeyDown={onKeyDown}
         onInput={onInput}
+        onSelect={onSelect}
         onFocus={() => controller.setEditSurface("cell")}
         onCompositionStart={onCompositionStart}
         onCompositionEnd={onCompositionEnd}
@@ -581,6 +617,16 @@ export function GridView({
         onPaste={onPaste}
         readOnly={editing?.surface === "bar"}
       />
+      {editing && editing.surface === "cell" && layout ? (
+        <FormulaAssist
+          controller={controller}
+          style={{
+            left: Number(editorStyle.left ?? 0),
+            top: Number(editorStyle.top ?? 0) + Number(editorStyle.height ?? 0) + 3,
+          }}
+          onPick={focusInput}
+        />
+      ) : null}
       {resizeTip ? (
         <div className="resize-tip" style={{ left: resizeTip.x + 12, top: resizeTip.y + 4 }}>
           {resizeTip.text}

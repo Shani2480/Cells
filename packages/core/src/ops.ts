@@ -1,6 +1,7 @@
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import type { Axis } from "./axis"
 import type { CellData } from "./cell-store"
+import { moveMapper, rewriteFormula, shiftMapper, type RefMapper } from "./formula/adjust"
 import type { Sheet } from "./sheet"
 
 /** One cell's new content; `data: undefined` clears it. */
@@ -26,6 +27,11 @@ export type Op =
   /** Delete the cells in `range`, pulling the cells below up or the cells to the right left. */
   | { kind: "deleteCells"; sheet: number; range: Range; shift: "up" | "left" }
   | { kind: "axis"; sheet: number; axis: AxisName; entries: AxisEntry[] }
+  /**
+   * Cut and paste: the cells in `source` move by (dr, dc), overwriting what was there. References anywhere in the
+   * workbook that point into the source follow the cells.
+   */
+  | { kind: "moveCells"; sheet: number; source: Range; dr: number; dc: number }
 
 /** What an operation touched, for redraws and (from Phase 2) recalculation. */
 export type Change = { sheet: number; structural: boolean; range?: Range }
@@ -41,20 +47,50 @@ export function applyOp(sheets: readonly Sheet[], op: Op): Applied {
     case "setCells":
       return setCells(sheet, op)
     case "insertRows":
-      return insertLines(sheet, op.sheet, "rows", op.at, op.count)
+      return insertLines(sheets, op.sheet, "rows", op.at, op.count)
     case "deleteRows":
-      return deleteLines(sheet, op.sheet, "rows", op.at, op.count)
+      return deleteLines(sheets, op.sheet, "rows", op.at, op.count)
     case "insertCols":
-      return insertLines(sheet, op.sheet, "cols", op.at, op.count)
+      return insertLines(sheets, op.sheet, "cols", op.at, op.count)
     case "deleteCols":
-      return deleteLines(sheet, op.sheet, "cols", op.at, op.count)
+      return deleteLines(sheets, op.sheet, "cols", op.at, op.count)
     case "insertCells":
-      return insertCells(sheet, op.sheet, op.range, op.shift)
+      return insertCells(sheets, op.sheet, op.range, op.shift)
     case "deleteCells":
-      return deleteCells(sheet, op.sheet, op.range, op.shift)
+      return deleteCells(sheets, op.sheet, op.range, op.shift)
     case "axis":
       return setAxis(sheet, op.sheet, op.axis, op.entries)
+    case "moveCells":
+      return moveCells(sheets, op)
   }
+}
+
+/**
+ * Rewrites the references of every formula in the workbook that points at sheet `target`, before the cells move.
+ * Returns setCells ops that put the old texts back; they run after the structural inverse, which has moved the
+ * cells back to where they were when the texts were recorded.
+ */
+function rewriteReferences(sheets: readonly Sheet[], target: number, map: RefMapper): Op[] {
+  const targetName = sheets[target].name
+  const undo: Op[] = []
+  sheets.forEach((sheet, index) => {
+    const edits: { row: number; col: number; text: string }[] = []
+    sheet.cells.forEachFormula((row, col, input) => {
+      // Formulas on other sheets can only point here through a sheet prefix.
+      if (index !== target && !input.includes("!")) return
+      const text = rewriteFormula(input, sheet.name, targetName, map)
+      if (text !== null) edits.push({ row, col, text })
+    })
+    if (!edits.length) return
+    const previous: CellWrite[] = []
+    for (const edit of edits) {
+      const data = sheet.cells.get(edit.row, edit.col)!
+      previous.push({ row: edit.row, col: edit.col, data })
+      sheet.cells.set(edit.row, edit.col, { ...data, input: edit.text })
+    }
+    undo.push({ kind: "setCells", sheet: index, cells: previous })
+  })
+  return undo
 }
 
 function setCells(sheet: Sheet, op: Extract<Op, { kind: "setCells" }>): Applied {
@@ -89,11 +125,13 @@ function lineRange(axis: AxisName, from: number, to: number): Range {
   return axis === "rows" ? { r0: from, r1: to, c0: 0, c1: MAX_COLS - 1 } : { r0: 0, r1: MAX_ROWS - 1, c0: from, c1: to }
 }
 
-function insertLines(sheet: Sheet, index: number, axis: AxisName, at: number, count: number): Applied {
+function insertLines(sheets: readonly Sheet[], index: number, axis: AxisName, at: number, count: number): Applied {
+  const sheet = sheets[index]
   const size = axis === "rows" ? MAX_ROWS : MAX_COLS
   // Lines pushed off the end are lost; keep them so undo can restore them.
   const dropped = sheet.cells.entries(lineRange(axis, size - count, size - 1))
   const droppedAxis = axisOf(sheet, axis).overrides(size - count, size - 1)
+  const texts = rewriteReferences(sheets, index, shiftMapper(axis, at, count))
   if (axis === "rows") {
     sheet.cells.shiftRows(at, count)
   } else {
@@ -107,13 +145,16 @@ function insertLines(sheet: Sheet, index: number, axis: AxisName, at: number, co
   if (droppedAxis.length) {
     inverse.push({ kind: "axis", sheet: index, axis, entries: droppedAxis })
   }
+  inverse.push(...texts)
   return { inverse, change: { sheet: index, structural: true } }
 }
 
-function deleteLines(sheet: Sheet, index: number, axis: AxisName, at: number, count: number): Applied {
+function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at: number, count: number): Applied {
+  const sheet = sheets[index]
   const range = lineRange(axis, at, at + count - 1)
   const removed = sheet.cells.entries(range)
   const removedAxis = axisOf(sheet, axis).overrides(at, at + count - 1)
+  const texts = rewriteReferences(sheets, index, shiftMapper(axis, at, -count))
   sheet.cells.clear(range)
   if (axis === "rows") {
     sheet.cells.shiftRows(at + count, -count)
@@ -128,17 +169,22 @@ function deleteLines(sheet: Sheet, index: number, axis: AxisName, at: number, co
   if (removedAxis.length) {
     inverse.push({ kind: "axis", sheet: index, axis, entries: removedAxis })
   }
+  inverse.push(...texts)
   return { inverse, change: { sheet: index, structural: true } }
 }
 
-function insertCells(sheet: Sheet, index: number, range: Range, shift: "down" | "right"): Applied {
+function insertCells(sheets: readonly Sheet[], index: number, range: Range, shift: "down" | "right"): Applied {
+  const sheet = sheets[index]
   let dropped
+  let texts: Op[]
   if (shift === "down") {
     const n = range.r1 - range.r0 + 1
+    texts = rewriteReferences(sheets, index, shiftMapper("rows", range.r0, n, [range.c0, range.c1]))
     dropped = sheet.cells.entries({ r0: MAX_ROWS - n, r1: MAX_ROWS - 1, c0: range.c0, c1: range.c1 })
     sheet.cells.shiftRows(range.r0, n, range.c0, range.c1)
   } else {
     const n = range.c1 - range.c0 + 1
+    texts = rewriteReferences(sheets, index, shiftMapper("cols", range.c0, n, [range.r0, range.r1]))
     dropped = sheet.cells.entries({ r0: range.r0, r1: range.r1, c0: MAX_COLS - n, c1: MAX_COLS - 1 })
     sheet.cells.shiftCols(range.c0, n, range.r0, range.r1)
   }
@@ -146,11 +192,25 @@ function insertCells(sheet: Sheet, index: number, range: Range, shift: "down" | 
   if (dropped.length) {
     inverse.push({ kind: "setCells", sheet: index, cells: dropped })
   }
+  inverse.push(...texts)
   return { inverse, change: { sheet: index, structural: true } }
 }
 
-function deleteCells(sheet: Sheet, index: number, range: Range, shift: "up" | "left"): Applied {
+function deleteCells(sheets: readonly Sheet[], index: number, range: Range, shift: "up" | "left"): Applied {
+  const sheet = sheets[index]
   const removed = sheet.cells.entries(range)
+  const texts =
+    shift === "up"
+      ? rewriteReferences(
+          sheets,
+          index,
+          shiftMapper("rows", range.r0, -(range.r1 - range.r0 + 1), [range.c0, range.c1]),
+        )
+      : rewriteReferences(
+          sheets,
+          index,
+          shiftMapper("cols", range.c0, -(range.c1 - range.c0 + 1), [range.r0, range.r1]),
+        )
   sheet.cells.clear(range)
   if (shift === "up") {
     sheet.cells.shiftRows(range.r1 + 1, -(range.r1 - range.r0 + 1), range.c0, range.c1)
@@ -161,6 +221,7 @@ function deleteCells(sheet: Sheet, index: number, range: Range, shift: "up" | "l
   if (removed.length) {
     inverse.push({ kind: "setCells", sheet: index, cells: removed })
   }
+  inverse.push(...texts)
   return { inverse, change: { sheet: index, structural: true } }
 }
 
@@ -180,4 +241,30 @@ function setAxis(sheet: Sheet, index: number, name: AxisName, entries: AxisEntry
     inverse: [{ kind: "axis", sheet: index, axis: name, entries: previous }],
     change: { sheet: index, structural: true },
   }
+}
+
+function moveCells(sheets: readonly Sheet[], op: Extract<Op, { kind: "moveCells" }>): Applied {
+  const { source, dr, dc } = op
+  const sheet = sheets[op.sheet]
+  // The texts' undo goes last: it restores formulas at their old places once the cells are back.
+  const texts = rewriteReferences(sheets, op.sheet, moveMapper(source, dr, dc))
+  const moved = sheet.cells.entries(source)
+  const dest = { r0: source.r0 + dr, r1: source.r1 + dr, c0: source.c0 + dc, c1: source.c1 + dc }
+  const previous = new Map<string, CellWrite>()
+  const remember = (row: number, col: number) => {
+    const key = `${row},${col}`
+    if (!previous.has(key)) previous.set(key, { row, col, data: sheet.cells.get(row, col) })
+  }
+  for (const entry of moved) remember(entry.row, entry.col)
+  for (const entry of sheet.cells.entries(dest)) remember(entry.row, entry.col)
+  for (const entry of moved) remember(entry.row + dr, entry.col + dc)
+  sheet.cells.clear(source)
+  sheet.cells.clear(dest)
+  for (const entry of moved) {
+    const data = { ...entry.data }
+    delete data.spill
+    sheet.cells.set(entry.row + dr, entry.col + dc, data)
+  }
+  const inverse: Op[] = [{ kind: "setCells", sheet: op.sheet, cells: [...previous.values()] }, ...texts]
+  return { inverse, change: { sheet: op.sheet, structural: true } }
 }

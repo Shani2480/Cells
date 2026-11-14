@@ -58,7 +58,8 @@ export function parseInput(text: string): ParsedInput | null {
     return { value: text.slice(1), input: text }
   }
   if (text.startsWith("=") && text.length > 1) {
-    return { value: text, input: text, formula: true }
+    // The value is a placeholder until the engine calculates (at once, or when the worker answers): show nothing.
+    return { value: "", input: text, formula: true }
   }
   const trimmed = text.trim()
   const upper = trimmed.toUpperCase()
@@ -116,7 +117,7 @@ function parseNumberText(text: string): ParsedInput | null {
  * Excel keeps the first 15 significant digits of a typed number and drops the rest (it does not round):
  * "1234567890123456789" is stored as 1234567890123450000.
  */
-function truncateDigits(body: string): string {
+export function truncateDigits(body: string): string {
   const match = /^([+-]?)(\d*)\.?(\d*)(?:[eE]([+-]?\d+))?$/.exec(body)
   if (!match) return body
   const [, sign, intPart, fracPart, exp] = match

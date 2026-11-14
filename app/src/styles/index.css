@@ -54,6 +54,16 @@
   --grid-corner-triangle: #b8b8b8;
   --grid-scrollbar-thumb: #c2c2c2;
   --grid-scrollbar-thumb-hover: #a6a6a6;
+  /* Spill ranges and the colours of references in a formula being typed (text, grid outline and tint). */
+  --grid-spill-border: #4a7bd0;
+  --ref-0: #2e6fd6;
+  --ref-1: #d13438;
+  --ref-2: #8a3ffc;
+  --ref-3: #0f8a3e;
+  --ref-4: #b83aa8;
+  --ref-5: #037f87;
+  --ref-6: #c25200;
+  --ref-7: #85593a;
 
   color-scheme: light;
 }
@@ -99,6 +109,15 @@
   --grid-corner-triangle: #6a6a6a;
   --grid-scrollbar-thumb: #5a5a5a;
   --grid-scrollbar-thumb-hover: #777777;
+  --grid-spill-border: #7aa6ee;
+  --ref-0: #6ea2ff;
+  --ref-1: #ff7b7f;
+  --ref-2: #b78cff;
+  --ref-3: #5cc98a;
+  --ref-4: #e486d8;
+  --ref-5: #4fc4cc;
+  --ref-6: #f0954f;
+  --ref-7: #c9a07e;
 
   color-scheme: dark;
 }
@@ -387,6 +406,134 @@ html.is-browser .app-window-frame {
 
 .cell-editor.is-mirror {
   caret-color: transparent;
+}
+
+/* A formula: the editor's own text turns transparent over a copy with coloured references. */
+.cell-editor.has-highlight,
+.formula-input.has-highlight {
+  color: transparent;
+}
+
+.cell-editor.is-editing.has-highlight,
+.cell-editor.is-mirror.has-highlight {
+  background: transparent;
+}
+
+.cell-editor-highlight {
+  position: absolute;
+  z-index: 1;
+  overflow: hidden;
+  padding: var(--editor-pad, 1px) 2px 0 3px;
+  background: var(--grid-bg);
+  box-shadow: 0 0 0 2px var(--grid-selection-border);
+  color: var(--grid-text);
+  font: 14.67px var(--font-cell);
+  line-height: 18px;
+  pointer-events: none;
+  white-space: pre;
+}
+
+.formula-input-wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+}
+
+.formula-input-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 3px 7px;
+  color: var(--app-ribbon-text);
+  font: 14.67px var(--font-cell);
+  line-height: 17px;
+  pointer-events: none;
+  white-space: pre;
+}
+
+.formula-input-wrap .formula-input {
+  position: relative;
+  background: transparent;
+}
+
+.formula-input-wrap::before {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: var(--app-field-bg);
+  content: "";
+}
+
+.formula-input.is-ghost {
+  color: var(--app-ribbon-disabled);
+}
+
+.formula-assist {
+  position: absolute;
+  z-index: 6;
+  color: var(--app-ribbon-text);
+  font-size: 12px;
+}
+
+.formula-list {
+  min-width: 180px;
+  max-height: 240px;
+  margin: 0;
+  padding: 2px 0;
+  overflow-y: auto;
+  border: 1px solid var(--app-popover-border);
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+  list-style: none;
+}
+
+.formula-list li {
+  display: flex;
+  height: 22px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 4px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.formula-list li.is-picked {
+  background: var(--app-hover);
+}
+
+.formula-list-icon {
+  width: 18px;
+  color: var(--app-ribbon-muted);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+}
+
+.formula-list-note {
+  max-width: 320px;
+  margin-top: 2px;
+  padding: 4px 8px;
+  border: 1px solid var(--app-popover-border);
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+}
+
+.formula-tip {
+  padding: 3px 8px;
+  border: 1px solid var(--app-popover-border);
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+  white-space: nowrap;
+}
+
+.formula-tip-name {
+  color: var(--ref-0);
+}
+
+.formula-tip .is-current {
+  font-weight: 700;
 }
 
 .grid-scrollbar {

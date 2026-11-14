@@ -264,3 +264,86 @@ describe("fill and structure", () => {
     expect(c.endMode).toBe(false)
   })
 })
+
+describe("typing formulas", () => {
+  const typeAt = (c: SheetController, text: string) => {
+    if (!c.edit) c.beginEdit("enter", "")
+    c.setEditText((c.edit?.text ?? "") + text)
+  }
+
+  it("points at cells with the arrow keys, Shift extends, and the entry is calculated", () => {
+    const c = setup()
+    type(c, "5")
+    press(c, "Enter")
+    type(c, "7")
+    press(c, "Enter") // A3 is active
+    typeAt(c, "=")
+    expect(c.canPoint).toBe(true)
+    press(c, "ArrowUp")
+    press(c, "ArrowUp")
+    expect(c.edit?.text).toBe("=A1")
+    expect(c.mode).toBe("point")
+    press(c, "ArrowDown", { shift: true })
+    expect(c.edit?.text).toBe("=A1:A2")
+    typeAt(c, "+")
+    expect(c.mode).toBe("enter")
+    press(c, "ArrowUp")
+    expect(c.edit?.text).toBe("=A1:A2+A2")
+    press(c, "Enter")
+    expect(c.sheet.cells.input(2, 0)).toBe("=A1:A2+A2")
+    expect(active(c)).toBe("A4")
+  })
+
+  it("arrow keys commit when the caret is not where a reference can go", () => {
+    const c = setup()
+    typeAt(c, "=5")
+    press(c, "ArrowDown")
+    expect(c.edit).toBeNull()
+    expect(value(c, "A1")).toBe(5)
+  })
+
+  it("clicking writes a reference (pointAt) and F4 cycles its $ signs", () => {
+    const c = setup()
+    typeAt(c, "=SUM(")
+    c.pointAt({ row: 1, col: 1 }, { row: 3, col: 2 })
+    expect(c.edit?.text).toBe("=SUM(B2:C4")
+    expect(c.editReferences()).toMatchObject([{ range: { r0: 1, c0: 1, r1: 3, c1: 2 }, pointing: true }])
+    press(c, "F4")
+    expect(c.edit?.text).toBe("=SUM($B$2:$C$4")
+    press(c, "Enter")
+    // The missing parenthesis is added on entry.
+    expect(c.sheet.cells.input(0, 0)).toBe("=SUM($B$2:$C$4)")
+  })
+
+  it("offers functions as their names are typed; Tab inserts one", () => {
+    const c = setup()
+    typeAt(c, "=su")
+    const list = c.autocomplete!
+    expect(list.items[0].name).toBe("SUBSTITUTE")
+    press(c, "ArrowDown")
+    expect(c.autocomplete!.items[c.autocomplete!.pick].name).toBe("SUBTOTAL")
+    press(c, "ArrowDown")
+    press(c, "Tab")
+    expect(c.edit?.text).toBe("=SUM(")
+    expect(c.autocomplete).toBeNull()
+  })
+
+  it("Ctrl+` shows formulas, F9 calculates in manual mode, Ctrl+Shift+Enter stays put", () => {
+    const c = setup()
+    typeAt(c, "=1+1")
+    press(c, "Enter", { primary: true, shift: true })
+    expect(active(c)).toBe("A1")
+    expect(value(c, "A1")).toBe(2)
+    press(c, "`", { primary: true })
+    expect(c.showFormulas).toBe(true)
+    c.wb.setCalcMode("manual")
+    typeAt(c, "=NOW()*0+3")
+    press(c, "Enter")
+    c.selectCellAt({ row: 1, col: 1 })
+    typeAt(c, "=A1*2")
+    press(c, "Enter")
+    expect(value(c, "B2")).toBe(6)
+    press(c, "F9")
+    expect(c.wb.calcStatus.pending).toBe(false)
+  })
+})

@@ -15,6 +15,11 @@ Built, but not yet checked against Excel or on a device.
 - [ ] Status bar figures: Average/Sum shown in General at 11 characters ("44.56333333"); check large sums and
       formatted active cells.
 
+- [ ] Reference colours (the eight in order) and the box style of pointed references, light and dark.
+- [ ] Function list: which functions Excel lists for a prefix and in what order (we list alphabetically, 12 at most).
+- [ ] Show Formulas (Ctrl+`): Excel also widens the columns; we don't yet.
+- [ ] Status bar in manual mode: when exactly "Calculate" appears and goes.
+
 ## On a device
 
 - [ ] Scrolling frame times in the Tauri window with GPU compositing (the 16 ms p95 budget; only measured on
