@@ -1,5 +1,5 @@
 import { parseCell, parseInput, Workbook, type CellWrite } from "@cells/core"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createEngine } from "./engine"
 import { inProcessPort, WorkerCalculator } from "./host"
 import type { FromWorker, Port, ToWorker } from "./protocol"
@@ -111,5 +111,24 @@ describe("calculation in a worker", () => {
     flush()
     expect(value(wb, "A1")).toBe(8)
     expect(wb.sheets[1].cells.value(0, 0)).toBe(4)
+  })
+
+  it("a file the worker opens sends back the values it had to calculate (a CSV's formulas, dynamic arrays)", async () => {
+    const { openText, openXlsx, saveXlsx } = await import("@cells/io")
+    const port = inProcessPort()
+    const csv = new TextEncoder().encode("2,=A1*10\n")
+    const ui = (await openText(csv, "data.csv", { calculate: false })).workbook
+    expect(value(ui, "B1")).toBe("")
+    new WorkerCalculator(ui, port, { bytes: csv, name: "data.csv", text: {} })
+    await vi.waitFor(() => expect(value(ui, "B1")).toBe(20))
+
+    const source = new Workbook(["Sheet1"])
+    source.sheets[0].cells.set(0, 0, { value: 0, input: "=SEQUENCE(3)" })
+    source.calc.rebuild()
+    source.calculate(true)
+    const bytes = await saveXlsx(source, { fileName: "seq.xlsx" })
+    const opened = (await openXlsx(bytes, "seq.xlsx", { calculate: false })).workbook
+    new WorkerCalculator(opened, inProcessPort(), { bytes, name: "seq.xlsx" })
+    await vi.waitFor(() => expect(value(opened, "A3")).toBe(3))
   })
 })

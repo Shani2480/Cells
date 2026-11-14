@@ -1,5 +1,5 @@
 import { takePatch, Workbook } from "@cells/core"
-import { openXlsx } from "@cells/io"
+import { openText, openXlsx } from "@cells/io"
 import type { FromWorker, ToWorker } from "./protocol"
 
 /**
@@ -15,11 +15,16 @@ export function createEngine(send: (message: FromWorker) => void) {
     switch (message.type) {
       case "open":
         try {
-          wb = (await openXlsx(message.bytes, message.name)).workbook
+          // Opened without calculating: what needs calculating (dynamic arrays, a CSV's formulas) is calculated
+          // below, once changes are logged, so the values go back to the UI.
+          wb = message.text
+            ? (await openText(message.bytes, message.name, { ...message.text, calculate: false })).workbook
+            : (await openXlsx(message.bytes, message.name, { calculate: false })).workbook
         } catch {
           wb = new Workbook()
         }
         wb.calc.changeLog = new Set()
+        wb.calculate(false)
         break
       case "init":
         wb = new Workbook(message.sheets)

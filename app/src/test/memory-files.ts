@@ -39,6 +39,20 @@ export class MemoryFiles implements FilePort {
     return Boolean(ref.path && this.disk.has(ref.path))
   }
 
+  private dropHandler: ((file: { ref: FileRef; bytes: Uint8Array }) => void) | null = null
+
+  onDrop(handler: (file: { ref: FileRef; bytes: Uint8Array }) => void) {
+    this.dropHandler = handler
+    return () => {
+      this.dropHandler = null
+    }
+  }
+
+  /** A file dropped on the window. */
+  drop(path: string) {
+    this.dropHandler?.({ ref: this.ref(path), bytes: this.disk.get(path)! })
+  }
+
   ref(path: string): FileRef {
     return { name: path.split("/").pop()!, path }
   }

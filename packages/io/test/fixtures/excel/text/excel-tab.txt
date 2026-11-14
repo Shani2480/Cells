@@ -1,0 +1,4 @@
+plain	"a,""b"""	"line1
+line2"	1234567.891	1.23457E+11	0.3	3/14/2026 12:00	12.5%	"($1,234.50)"	#DIV/0!	TRUE	é ü ?? ??	 lead space	semi;colon	"tab	here"	1.23457E+19	quote	Total: 5
+																	
+	row3																

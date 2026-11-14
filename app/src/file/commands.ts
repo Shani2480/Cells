@@ -1,11 +1,17 @@
+import type { CellWrite } from "@cells/core"
+import { decodeText, placeCells, sheetNameFor, splitText, type TextImport } from "@cells/io"
 import type { FilePort, FileRef } from "@cells/platform"
 import {
   classifyOpenError,
+  extensionOf,
   FileProblem,
+  isTextFile,
   newDocument,
   openDocument,
   OPEN_TYPES,
+  packageName,
   saveTypes,
+  TEXT_TYPES,
   titleOf,
   type WorkbookDocument,
 } from "./document"
@@ -25,7 +31,15 @@ export interface FileUi {
   /** Things the person should know about a file that opened (features left out). */
   notice(lines: string[], fileName: string): void
   recentChanged(list: RecentFile[]): void
+  /** The Text Import Wizard for a text file; null when cancelled. */
+  textImport(bytes: Uint8Array, fileName: string): Promise<TextImport | null>
+  /** A question with OK and Cancel; true for OK. */
+  confirm(message: string): Promise<boolean>
 }
+
+/** Excel's message when a workbook of several sheets is saved as CSV or text. */
+export const ONE_SHEET_MESSAGE =
+  "The selected file type does not support workbooks that contain multiple sheets. To save only the active sheet, click OK. To save all sheets, save them one at a time under different file names, or choose a file type that supports multiple sheets."
 
 /**
  * File › New, Open, Save, Save As and Close, plus AutoRecover. One workbook per window: opening another file asks to
@@ -65,11 +79,12 @@ export class FileCommands {
     const doc = this.doc
     if (!doc.dirty || doc.recoveredEdits === doc.edits || this.busy) return false
     const edits = doc.edits
-    const bytes = await doc.bytes()
+    // Always a whole workbook (a CSV's copy keeps every sheet and format).
+    const bytes = await doc.bytes(packageName(doc.fileName))
     await keepRecovery({
       id: doc.id,
       title: doc.title,
-      fileName: doc.fileName,
+      fileName: packageName(doc.fileName),
       path: doc.ref?.path,
       saved: Date.now(),
       bytes,
@@ -129,15 +144,21 @@ export class FileCommands {
     return this.openBytes(bytes, ref)
   }
 
-  /** A file dropped on the window or passed by the system. */
+  /** A file dropped on the window or passed by the system. A .txt or .tsv goes through the Text Import Wizard. */
   async openBytes(bytes: Uint8Array, ref: FileRef, remember = true): Promise<boolean> {
     if (this.busy) return false
     if (!(await this.confirmClose())) return false
+    let text: TextImport | undefined
+    if (isTextFile(ref.name) && extensionOf(ref.name) !== "csv") {
+      const choices = await this.ui.textImport(bytes, ref.name)
+      if (!choices) return false
+      text = choices
+    }
     this.busy = true
     const label = `Opening ${ref.name}`
     this.ui.progress({ label, done: 0 })
     try {
-      const doc = await openDocument(bytes, ref, (done) => this.ui.progress({ label, done }))
+      const doc = await openDocument(bytes, ref, (done) => this.ui.progress({ label, done }), true, text)
       this.replace(doc)
       if (remember && doc.ref) this.ui.recentChanged(touchRecent(ref, this.files.remembersFiles))
       if (doc.warnings.length) this.ui.notice(doc.warnings, ref.name)
@@ -175,6 +196,9 @@ export class FileCommands {
   private async write(ref: FileRef): Promise<boolean> {
     if (this.busy) return false
     const doc = this.doc
+    // CSV and text hold one sheet: Excel saves the active one after asking.
+    if (isTextFile(ref.name) && doc.controller.wb.sheets.length > 1 && !(await this.ui.confirm(ONE_SHEET_MESSAGE)))
+      return false
     this.busy = true
     this.ui.progress({ label: `Saving ${ref.name}`, done: null })
     try {
@@ -220,7 +244,7 @@ export class FileCommands {
     if (this.busy) return false
     if (!(await this.confirmClose())) return false
     try {
-      const doc = await openDocument(file.bytes, { name: file.fileName })
+      const doc = await openDocument(file.bytes, { name: packageName(file.fileName) })
       doc.ref = null
       doc.fileName = `${titleOf(file.fileName)} (Recovered).xlsx`
       // Unsaved until the person saves it.
@@ -232,6 +256,29 @@ export class FileCommands {
       this.ui.problem(classifyOpenError(error, file.bytes, file.fileName))
       return false
     }
+  }
+
+  /**
+   * Data › From Text/CSV: a CSV or text file, through the Text Import Wizard, onto a new sheet after the active one
+   * (one step to undo).
+   */
+  async importText(): Promise<boolean> {
+    let picked: { ref: FileRef; bytes: Uint8Array } | null
+    try {
+      picked = await this.files.pickOpen(TEXT_TYPES)
+    } catch (error) {
+      this.ui.problem(classifyOpenError(error, null, "the file"))
+      return false
+    }
+    if (!picked) return false
+    const choices = await this.ui.textImport(picked.bytes, picked.ref.name)
+    if (!choices) return false
+    const c = this.doc.controller
+    const rows = splitText(decodeText(picked.bytes, choices.encoding).text, choices)
+    const cells: CellWrite[] = []
+    await placeCells(c.wb.styles, rows, choices, (row, col, data) => cells.push({ row, col, data }))
+    c.sheets.importSheet(sheetNameFor(picked.ref.name), cells)
+    return true
   }
 
   discardRecovered(file: RecoveredFile): Promise<void> {

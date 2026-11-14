@@ -1725,3 +1725,220 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* ── Text Import Wizard ─────────────────────────────────────────────────────────────────────────────────── */
+
+.tiw {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.tiw-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px 10px;
+  border: 1px solid var(--app-divider);
+  border-radius: 4px;
+}
+
+.tiw-fieldset legend {
+  padding: 0 4px;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+}
+
+.tiw-choice {
+  min-width: 96px;
+}
+
+.tiw-hint {
+  margin: 0;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tiw-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  align-items: center;
+}
+
+.tiw-number {
+  width: 72px;
+}
+
+.tiw-other {
+  width: 32px;
+  text-align: center;
+}
+
+.tiw-columns {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 1.2fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.tiw-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.tiw-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tiw-caption {
+  margin: 0 0 -4px;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+}
+
+.tiw-help {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tiw-lines,
+.tiw-preview,
+.tiw-fixed {
+  height: 168px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+  color: var(--app-ribbon-text);
+  font:
+    12px/18px ui-monospace,
+    "Cascadia Mono",
+    Consolas,
+    "DejaVu Sans Mono",
+    monospace;
+}
+
+.tiw-lines {
+  padding: 4px 0;
+  white-space: pre;
+}
+
+.tiw-lines .is-skipped {
+  color: var(--app-ribbon-disabled);
+}
+
+.tiw-line-no {
+  display: inline-block;
+  width: 4ch;
+  margin-right: 1ch;
+  color: var(--app-ribbon-muted);
+  text-align: right;
+}
+
+.tiw-preview table {
+  border-collapse: collapse;
+}
+
+.tiw-preview th,
+.tiw-preview td {
+  max-width: 220px;
+  padding: 0 8px;
+  overflow: hidden;
+  border-right: 1px solid var(--app-divider);
+  text-overflow: ellipsis;
+  white-space: pre;
+  text-align: left;
+}
+
+.tiw-preview th {
+  position: sticky;
+  top: 0;
+  background: var(--app-ribbon-card);
+  font: 600 12px var(--font-ui);
+  cursor: default;
+}
+
+.tiw-preview .is-selected {
+  background: var(--app-theme-primary);
+  color: #fff;
+}
+
+.tiw-preview td.is-skipped:not(.is-selected) {
+  color: var(--app-ribbon-disabled);
+}
+
+.tiw-fixed {
+  white-space: pre;
+}
+
+.tiw-fixed-body {
+  position: relative;
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  padding-bottom: 4px;
+  cursor: crosshair;
+}
+
+.tiw-measure {
+  position: absolute;
+  visibility: hidden;
+}
+
+.tiw-ruler {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--app-divider);
+  background: var(--app-ribbon-card);
+  color: var(--app-ribbon-muted);
+  width: max-content;
+  min-width: 100%;
+}
+
+.tiw-break {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  margin-left: -3px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+
+.tiw-break::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 0;
+  left: 3px;
+  border-left: 1px solid var(--app-ribbon-text);
+}
+
+.tiw-break::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 0;
+  border: 4px solid transparent;
+  border-top-color: var(--app-ribbon-text);
+}
+
+@media (max-width: 680px) {
+  .tiw-columns {
+    grid-template-columns: 1fr;
+  }
+}

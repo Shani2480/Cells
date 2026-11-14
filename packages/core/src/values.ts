@@ -107,7 +107,8 @@ function parseNumberText(text: string): ParsedInput | null {
   if (!NUMBER_RE.test(body)) {
     return null
   }
-  let value = Number(truncateDigits(body))
+  // "-0" is 0 (Excel has no negative zero).
+  let value = Number(truncateDigits(body)) + 0
   if (!Number.isFinite(value)) {
     return null
   }

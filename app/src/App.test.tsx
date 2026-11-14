@@ -188,4 +188,12 @@ describe("File commands in the window", () => {
     expect(screen.getByRole("button", { name: "Blank workbook" })).toBeInTheDocument()
     expect(screen.getByRole("list", { name: "Recent files" })).toBeInTheDocument()
   })
+
+  it("a CSV dropped on the window opens", async () => {
+    renderApp()
+    files.disk.set("/home/alex/Dropped.csv", new TextEncoder().encode("a,b\n1,2\n"))
+    act(() => files.drop("/home/alex/Dropped.csv"))
+    expect((await screen.findAllByText("Dropped - Cells", {}, { timeout: 5000 })).length).toBeGreaterThan(0)
+    expect(screen.getByRole("tab", { name: "Dropped" })).toBeInTheDocument()
+  })
 })

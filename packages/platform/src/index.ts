@@ -66,4 +66,6 @@ export interface FilePort {
   pickSave(suggestedName: string, types: FileType[]): Promise<FileRef | null>
   write(ref: FileRef, bytes: Uint8Array): Promise<void>
   exists(ref: FileRef): Promise<boolean>
+  /** Calls back with a file dropped on the window (the first, when several are). Returns an unsubscribe function. */
+  onDrop(handler: (file: { ref: FileRef; bytes: Uint8Array }) => void): () => void
 }

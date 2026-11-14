@@ -53,6 +53,8 @@ import {
 } from "@/file/FileDialogs"
 import { folderOf, type RecentFile } from "@/file/recent"
 import type { RecoveredFile } from "@/file/recovery"
+import { TextImportWizard } from "@/file/TextImportWizard"
+import type { TextImport } from "@cells/io"
 
 const NOT_BUILT = "Not built yet."
 
@@ -105,6 +107,12 @@ export function App({ controller: given }: { controller?: SheetController } = {}
   const [notice, setNotice] = useState<{ fileName: string; lines: string[] } | null>(null)
   const [recovered, setRecovered] = useState<RecoveredFile[]>([])
   const [recent, setRecent] = useState<RecentFile[]>([])
+  const [importing, setImporting] = useState<{
+    bytes: Uint8Array
+    fileName: string
+    answer: (choices: TextImport | null) => void
+  } | null>(null)
+  const [question, setQuestion] = useState<{ message: string; answer: (ok: boolean) => void } | null>(null)
   const [files] = useState(
     () =>
       new FileCommands(
@@ -116,6 +124,8 @@ export function App({ controller: given }: { controller?: SheetController } = {}
           progress: setProgress,
           notice: (lines, fileName) => setNotice({ lines, fileName }),
           recentChanged: setRecent,
+          textImport: (bytes, fileName) => new Promise((answer) => setImporting({ bytes, fileName, answer })),
+          confirm: (message) => new Promise((answer) => setQuestion({ message, answer })),
         },
         first,
       ),
@@ -140,6 +150,16 @@ export function App({ controller: given }: { controller?: SheetController } = {}
           if (ok) await files.discardRecovered({ id: files.doc.id } as RecoveredFile)
           return ok
         })
+      }),
+    [platform, files],
+  )
+
+  // A file dropped on the window opens, as in Excel (not while a dialog is open).
+  useEffect(
+    () =>
+      platform.files.onDrop(({ ref, bytes }) => {
+        if (document.querySelector('[aria-modal="true"]')) return
+        void files.openBytes(bytes, ref)
       }),
     [platform, files],
   )
@@ -177,6 +197,36 @@ export function App({ controller: given }: { controller?: SheetController } = {}
             asking.answer(choice)
           }}
         />
+      ) : null}
+      {importing ? (
+        <TextImportWizard
+          bytes={importing.bytes}
+          fileName={importing.fileName}
+          onFinish={(choices) => {
+            setImporting(null)
+            importing.answer(choices)
+          }}
+          onCancel={() => {
+            setImporting(null)
+            importing.answer(null)
+          }}
+        />
+      ) : null}
+      {question ? (
+        <Dialog
+          title="Cells"
+          width={440}
+          onAccept={() => {
+            setQuestion(null)
+            question.answer(true)
+          }}
+          onCancel={() => {
+            setQuestion(null)
+            question.answer(false)
+          }}
+        >
+          <p className="dialog-message">{question.message}</p>
+        </Dialog>
       ) : null}
       {problem ? <FileProblemDialog problem={problem} onClose={() => setProblem(null)} /> : null}
       {notice && !problem ? (

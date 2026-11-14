@@ -105,5 +105,35 @@ export function webFiles(): FilePort {
     async exists(ref) {
       return Boolean(ref.handle)
     },
+    onDrop(handler) {
+      if (!w) return () => {}
+      const hasFiles = (event: DragEvent) => Boolean(event.dataTransfer?.types.includes("Files"))
+      const over = (event: DragEvent) => {
+        if (!hasFiles(event)) return
+        event.preventDefault()
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"
+      }
+      const drop = (event: DragEvent) => {
+        if (!hasFiles(event)) return
+        event.preventDefault()
+        const item = [...(event.dataTransfer?.items ?? [])].find((i) => i.kind === "file")
+        // Chromium hands over a handle, so Save can write back to the dropped file.
+        const handled = item as (DataTransferItem & { getAsFileSystemHandle?: () => Promise<unknown> }) | undefined
+        const pending = access && handled?.getAsFileSystemHandle ? handled.getAsFileSystemHandle() : null
+        const file = item?.getAsFile() ?? event.dataTransfer?.files[0]
+        if (!file) return
+        void Promise.all([file.arrayBuffer(), pending?.catch(() => null) ?? null]).then(([buffer, handle]) => {
+          const ref: FileRef = { name: file.name }
+          if (handle && (handle as { kind?: string }).kind === "file") ref.handle = handle
+          handler({ ref, bytes: new Uint8Array(buffer) })
+        })
+      }
+      w.addEventListener("dragover", over)
+      w.addEventListener("drop", drop)
+      return () => {
+        w.removeEventListener("dragover", over)
+        w.removeEventListener("drop", drop)
+      }
+    },
   }
 }

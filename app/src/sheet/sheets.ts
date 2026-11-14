@@ -5,6 +5,7 @@ import {
   nextSheetName,
   sheetNameProblem,
   snapshotSheet,
+  type CellWrite,
   type Op,
   type SheetProtection,
 } from "@cells/core"
@@ -93,6 +94,20 @@ export class SheetCommands {
   insert(at = this.c.sheetIndex) {
     const name = nextSheetName(this.names)
     this.run([{ kind: "addSheet", sheet: at, name }], "Insert Sheet", at)
+  }
+
+  /** A new sheet after the active one holding imported cells (Data › From Text/CSV); a taken name gets " (2)". */
+  importSheet(name: string, cells: CellWrite[]) {
+    const names = this.names.map((n) => n.toLowerCase())
+    let unique = name
+    for (let n = 2; names.includes(unique.toLowerCase()); n++) {
+      const suffix = ` (${n})`
+      unique = name.slice(0, 31 - suffix.length) + suffix
+    }
+    const at = this.c.sheetIndex + 1
+    const ops: Op[] = [{ kind: "addSheet", sheet: at, name: unique }]
+    if (cells.length) ops.push({ kind: "setCells", sheet: at, cells })
+    this.run(ops, "Import Text", at)
   }
 
   canRemove(index = this.c.sheetIndex): boolean {

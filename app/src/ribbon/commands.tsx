@@ -41,6 +41,13 @@ const LABELS: Record<string, string> = {
 
 /** Commands on the other tabs that already work. */
 function otherCommands(): Command[] {
+  const fromText: Command = {
+    id: "GetPowerQueryGetTransformDataFromText",
+    label: "From Text/CSV",
+    description: "Import data from a text or CSV file onto a new sheet, choosing how its columns split.",
+    run: (env) => void env.files?.importText(),
+    enabled: (env) => Boolean(env.files),
+  }
   const gridlines: Command = {
     id: "GridlinesExcel",
     label: "Gridlines",
@@ -54,6 +61,7 @@ function otherCommands(): Command[] {
     pressed: (env) => env.c.showGridlines,
   }
   return [
+    fromText,
     gridlines,
     { ...gridlines, id: "ViewSheetGridlines", label: "View", keytip: "VG" },
     {

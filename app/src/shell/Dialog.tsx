@@ -15,6 +15,7 @@ export function Dialog({
   acceptLabel = "OK",
   cancelLabel = "Cancel",
   extra,
+  actions,
 }: {
   title: string
   onCancel: () => void
@@ -26,6 +27,8 @@ export function Dialog({
   cancelLabel?: string | null
   /** A third button between OK and Cancel (Excel's "Don't Save"). */
   extra?: { label: string; onSelect: () => void }
+  /** Buttons of its own in place of OK and Cancel (a wizard's Back, Next and Finish). */
+  actions?: ReactNode
 }) {
   const titleId = useId()
   const ref = useRef<HTMLDivElement>(null)
@@ -80,18 +83,22 @@ export function Dialog({
         </div>
         <div className="dialog-body">{children}</div>
         <div className="dialog-actions">
-          <button type="button" className="dialog-btn is-primary" onClick={onAccept}>
-            {acceptLabel}
-          </button>
-          {extra ? (
-            <button type="button" className="dialog-btn" onClick={extra.onSelect}>
-              {extra.label}
-            </button>
-          ) : null}
-          {cancelLabel === null ? null : (
-            <button type="button" className="dialog-btn" onClick={onCancel}>
-              {cancelLabel}
-            </button>
+          {actions ?? (
+            <>
+              <button type="button" className="dialog-btn is-primary" onClick={onAccept}>
+                {acceptLabel}
+              </button>
+              {extra ? (
+                <button type="button" className="dialog-btn" onClick={extra.onSelect}>
+                  {extra.label}
+                </button>
+              ) : null}
+              {cancelLabel === null ? null : (
+                <button type="button" className="dialog-btn" onClick={onCancel}>
+                  {cancelLabel}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

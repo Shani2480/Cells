@@ -1,5 +1,6 @@
 import type { FilePort, FileRef } from "@cells/platform"
 import { invoke } from "@tauri-apps/api/core"
+import { getCurrentWebview } from "@tauri-apps/api/webview"
 import { open, save } from "@tauri-apps/plugin-dialog"
 import { readFile, writeFile } from "@tauri-apps/plugin-fs"
 
@@ -48,6 +49,28 @@ export function tauriFiles(): FilePort {
       if (!ref.path) return false
       if (isContentUri(ref.path)) return true
       return invoke<boolean>("workbook_exists", { path: ref.path })
+    },
+    onDrop(handler) {
+      let disposed = false
+      let unlisten: (() => void) | undefined
+      void getCurrentWebview()
+        .onDragDropEvent((event) => {
+          if (event.payload.type !== "drop") return
+          const path = event.payload.paths[0]
+          if (!path) return
+          void readPath(path).then(
+            (bytes) => handler({ ref: { name: baseName(path), path }, bytes }),
+            () => undefined,
+          )
+        })
+        .then((fn) => {
+          unlisten = fn
+          if (disposed) fn()
+        })
+      return () => {
+        disposed = true
+        unlisten?.()
+      }
     },
   }
 }

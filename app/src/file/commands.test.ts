@@ -1,17 +1,33 @@
-import { saveXlsx } from "@cells/io"
+import { decodeText, defaultImport, saveXlsx, type TextImport } from "@cells/io"
 import { Workbook } from "@cells/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MemoryFiles } from "@/test/memory-files"
 import { FileCommands, type FileUi, type SaveChoice } from "./commands"
 import { newDocument, type WorkbookDocument } from "./document"
 
-function setup(answer: SaveChoice = "cancel") {
+function setup(answer: SaveChoice = "cancel", wizard: Partial<TextImport> | null = {}, ok = true) {
   const files = new MemoryFiles()
   const shown: WorkbookDocument[] = []
-  const ui: FileUi & { problems: string[]; asked: string[]; notices: string[][] } = {
+  const ui: FileUi & {
+    problems: string[]
+    asked: string[]
+    notices: string[][]
+    wizards: string[]
+    confirms: string[]
+  } = {
     problems: [],
     asked: [],
     notices: [],
+    wizards: [],
+    confirms: [],
+    textImport: async (bytes, fileName) => {
+      ui.wizards.push(fileName)
+      return wizard ? { ...defaultImport(decodeText(bytes).text, fileName), ...wizard } : null
+    },
+    confirm: async (message) => {
+      ui.confirms.push(message)
+      return ok
+    },
     show: (doc) => shown.push(doc),
     askSave: async (title) => {
       ui.asked.push(title)
@@ -142,5 +158,102 @@ describe("FileCommands", () => {
     await commands.newWorkbook()
     await commands.close()
     expect(shown.map((d) => d.title)).toEqual(["Book2", "Book3"])
+  })
+
+  it("a CSV opens at once, keeps its delimiter and encoding, and saves back the same way", async () => {
+    const { files, ui, shown, commands } = setup()
+    // Windows-1252, semicolons, as a European export would be.
+    const ansi = new Uint8Array([
+      ...new TextEncoder().encode("Item;Cost\r\nCaf"),
+      0xe9,
+      ...new TextEncoder().encode(";3\r\n"),
+    ])
+    files.disk.set("/home/alex/export.csv", ansi)
+    files.nextOpen = "/home/alex/export.csv"
+    expect(await commands.open()).toBe(true)
+    expect(ui.wizards).toEqual([])
+    const doc = shown.at(-1)!
+    const sheet = doc.controller.wb.sheets[0]
+    expect(sheet.name).toBe("export")
+    expect(sheet.cells.get(1, 0)?.value).toBe("Café")
+    expect(sheet.cells.get(1, 1)?.value).toBe(3)
+    enter(doc, "4")
+    expect(await commands.save()).toBe(true)
+    expect([...files.disk.get("/home/alex/export.csv")!]).toEqual([
+      ...new TextEncoder().encode("4;Cost\r\nCaf"),
+      0xe9,
+      ...new TextEncoder().encode(";3\r\n"),
+    ])
+  })
+
+  it("a .txt goes through the Text Import Wizard; Cancel there opens nothing", async () => {
+    const cancelled = setup("cancel", null)
+    cancelled.files.disk.set("/home/alex/log.txt", new TextEncoder().encode("a\tb\n1\t2\n"))
+    cancelled.files.nextOpen = "/home/alex/log.txt"
+    expect(await cancelled.commands.open()).toBe(false)
+    expect(cancelled.ui.wizards).toEqual(["log.txt"])
+    expect(cancelled.shown).toHaveLength(0)
+
+    const { files, shown, commands } = setup("cancel", { columns: ["text"] })
+    files.disk.set("/home/alex/log.txt", new TextEncoder().encode("id\tqty\n007\t2\n"))
+    files.nextOpen = "/home/alex/log.txt"
+    expect(await commands.open()).toBe(true)
+    const sheet = shown.at(-1)!.controller.wb.sheets[0]
+    expect(sheet.cells.get(1, 0)?.value).toBe("007")
+    expect(sheet.cells.get(1, 1)?.value).toBe(2)
+  })
+
+  it("saving several sheets as CSV asks first and writes the active sheet", async () => {
+    const no = setup("cancel", {}, false)
+    no.commands.doc.controller.sheets.insert()
+    no.files.nextSave = "/home/alex/out.csv"
+    expect(await no.commands.saveAs()).toBe(false)
+    expect(no.ui.confirms).toHaveLength(1)
+    expect(no.files.writes).toEqual([])
+
+    const { files, commands } = setup()
+    const c = commands.doc.controller
+    enter(commands.doc, "a,b")
+    c.sheets.insert()
+    enter(commands.doc, "second")
+    files.nextSave = "/home/alex/out.csv"
+    expect(await commands.saveAs()).toBe(true)
+    expect(new TextDecoder("utf-8", { ignoreBOM: true }).decode(files.disk.get("/home/alex/out.csv")!)).toBe(
+      "\ufeffsecond\r\n",
+    )
+    expect(commands.doc.fileName).toBe("out.csv")
+    expect(c.wb.sheets).toHaveLength(2)
+  })
+
+  it("AutoRecover keeps a CSV's copy as a whole workbook", async () => {
+    const { files, commands } = setup()
+    const keep = vi.spyOn(await import("./recovery"), "keepRecovery")
+    files.disk.set("/home/alex/list.csv", new TextEncoder().encode("x\n"))
+    files.nextOpen = "/home/alex/list.csv"
+    await commands.open()
+    enter(commands.doc, "y")
+    expect(await commands.autoRecover()).toBe(true)
+    const kept = keep.mock.calls.at(-1)![0]
+    expect(kept.fileName).toBe("list.xlsx")
+    expect([...kept.bytes.slice(0, 2)]).toEqual([0x50, 0x4b])
+  })
+
+  it("Data › From Text/CSV puts the file on a new sheet after the active one, undone in one step", async () => {
+    const { files, ui, commands } = setup("cancel", { delimiters: [";"], columns: ["general", "skip", "text"] })
+    files.disk.set("/home/alex/rates.csv", new TextEncoder().encode("1;x;01\n2;y;02\n"))
+    files.nextOpen = "/home/alex/rates.csv"
+    const c = commands.doc.controller
+    expect(await commands.importText()).toBe(true)
+    expect(ui.wizards).toEqual(["rates.csv"])
+    expect(c.wb.sheets.map((s) => s.name)).toEqual(["Sheet1", "rates"])
+    expect(c.sheetIndex).toBe(1)
+    expect(c.wb.sheets[1].cells.get(1, 0)?.value).toBe(2)
+    expect(c.wb.sheets[1].cells.get(1, 1)?.value).toBe("02")
+    files.nextOpen = "/home/alex/rates.csv"
+    await commands.importText()
+    expect(c.wb.sheets.map((s) => s.name)).toEqual(["Sheet1", "rates", "rates (2)"])
+    c.undo()
+    c.undo()
+    expect(c.wb.sheets.map((s) => s.name)).toEqual(["Sheet1"])
   })
 })

@@ -8,7 +8,10 @@ import {
   type Workbook,
 } from "@cells/core"
 import { createEngine } from "./engine"
-import type { FromWorker, Port } from "./protocol"
+import type { FromWorker, Port, ToWorker } from "./protocol"
+
+/** The file the UI opened, for the worker to open too. */
+export type OpenedFile = Omit<Extract<ToWorker, { type: "open" }>, "type">
 
 const IDLE: CalcStatus = { mode: "automatic", pending: false, circular: null, spills: [] }
 
@@ -25,10 +28,10 @@ export class WorkerCalculator implements Calculator {
   constructor(
     private readonly wb: Workbook<unknown>,
     private readonly port: Port,
-    file?: { bytes: Uint8Array; name: string },
+    file?: OpenedFile,
   ) {
     port.listen((message) => this.receive(message))
-    if (file) port.post({ type: "open", bytes: file.bytes, name: file.name })
+    if (file) port.post({ type: "open", ...file })
     else port.post({ type: "init", sheets: wb.sheets.map((s) => s.name), ops: snapshotOps(wb) })
     this.outstanding++
     wb.setCalculator(this)
@@ -111,10 +114,7 @@ export function inProcessPort(): Port {
 }
 
 /** Moves calculation of `wb` into a worker when the platform has workers; otherwise it stays in-process. */
-export function startCalculation(
-  wb: Workbook<unknown>,
-  file?: { bytes: Uint8Array; name: string },
-): WorkerCalculator | null {
+export function startCalculation(wb: Workbook<unknown>, file?: OpenedFile): WorkerCalculator | null {
   if (typeof Worker === "undefined") return null
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" })
   return new WorkerCalculator(wb, workerPort(worker), file)

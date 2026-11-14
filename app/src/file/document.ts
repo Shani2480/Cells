@@ -1,26 +1,51 @@
 import { Workbook, type Selection } from "@cells/core"
-import { openXlsx, saveXlsx, type XlsxSource } from "@cells/io"
+import {
+  openText,
+  openXlsx,
+  saveText,
+  saveXlsx,
+  textSaveFor,
+  type TextImport,
+  type TextSave,
+  type XlsxSource,
+} from "@cells/io"
 import type { FileRef, FileType } from "@cells/platform"
 import { SheetController } from "@/sheet/controller"
 import { startCalculation, type WorkerCalculator } from "@/engine-host/host"
 
-/** The workbook formats Cells opens and saves (CSV follows in this phase). */
+export const PACKAGE_EXTENSIONS = ["xlsx", "xlsm", "xltx", "xltm"]
+export const TEXT_EXTENSIONS = ["csv", "txt", "tsv"]
+
+/** Text files Cells opens: CSV opens at once; .txt and .tsv go through the Text Import Wizard, as in Excel. */
+export const TEXT_TYPES: FileType[] = [{ name: "Text Files", extensions: TEXT_EXTENSIONS }]
+
+/** The Open dialog's types; the first (everything Cells opens) is the default. */
 export const OPEN_TYPES: FileType[] = [
-  { name: "All Excel Files", extensions: ["xlsx", "xlsm", "xltx", "xltm"] },
+  { name: "All Excel Files", extensions: [...PACKAGE_EXTENSIONS, ...TEXT_EXTENSIONS] },
   { name: "Excel Workbook", extensions: ["xlsx"] },
   { name: "Excel Macro-Enabled Workbook", extensions: ["xlsm"] },
   { name: "Excel Template", extensions: ["xltx", "xltm"] },
+  ...TEXT_TYPES,
 ]
 
-/** Save As types, Excel's names; the first is the default. A macro-enabled file keeps its type first. */
+/** Save As types, Excel's names; the first is the default, the file's own type. */
 export function saveTypes(fileName: string): FileType[] {
-  const workbook = { name: "Excel Workbook", extensions: ["xlsx"] }
-  const macro = { name: "Excel Macro-Enabled Workbook", extensions: ["xlsm"] }
-  const template = { name: "Excel Template", extensions: ["xltx"] }
-  return /\.xlsm$/i.test(fileName) ? [macro, workbook, template] : [workbook, macro, template]
+  const types = [
+    { name: "Excel Workbook", extensions: ["xlsx"] },
+    { name: "Excel Macro-Enabled Workbook", extensions: ["xlsm"] },
+    { name: "Excel Template", extensions: ["xltx"] },
+    { name: "CSV UTF-8 (Comma delimited)", extensions: ["csv"] },
+    { name: "Text (Tab delimited)", extensions: ["txt"] },
+  ]
+  const own = types.findIndex((t) => t.extensions.includes(extensionOf(fileName)))
+  return own > 0 ? [types[own], ...types.filter((_, i) => i !== own)] : types
 }
 
 export const extensionOf = (name: string) => /\.([^.]+)$/.exec(name)?.[1]?.toLowerCase() ?? ""
+export const isTextFile = (name: string) => TEXT_EXTENSIONS.includes(extensionOf(name))
+/** The name an .xlsx copy of the workbook takes (AutoRecover keeps one even for a CSV). */
+export const packageName = (fileName: string) =>
+  PACKAGE_EXTENSIONS.includes(extensionOf(fileName)) ? fileName : `${titleOf(fileName)}.xlsx`
 /** The title bar's name: the file name without its extension. */
 export const titleOf = (fileName: string) => fileName.replace(/\.[^.]+$/, "")
 
@@ -36,6 +61,8 @@ export class WorkbookDocument {
   /** "Budget.xlsx", or "Book1.xlsx" for a new workbook. */
   fileName: string
   source: XlsxSource | null
+  /** A text file's own way of writing (delimiter, encoding), so Save writes it back the same; null for a workbook. */
+  text: TextSave | null
   /** Edits (operations applied) since the workbook was made; compared with the count at the last save. */
   edits = 0
   savedEdits = 0
@@ -46,12 +73,19 @@ export class WorkbookDocument {
 
   constructor(
     readonly controller: SheetController,
-    o: { ref?: FileRef | null; fileName?: string; source?: XlsxSource | null; warnings?: string[] } = {},
+    o: {
+      ref?: FileRef | null
+      fileName?: string
+      source?: XlsxSource | null
+      text?: TextSave | null
+      warnings?: string[]
+    } = {},
     private readonly calc: WorkerCalculator | null = null,
   ) {
     this.ref = o.ref ?? null
     this.fileName = o.fileName ?? "Book1.xlsx"
     this.source = o.source ?? null
+    this.text = o.text ?? null
     this.warnings = o.warnings ?? []
     this.unsubscribe = controller.wb.subscribe((_changes, ops) => {
       if (ops.length) {
@@ -70,10 +104,11 @@ export class WorkbookDocument {
     return this.edits !== this.savedEdits
   }
 
-  /** The bytes of an .xlsx save (for Save, Save As and AutoRecover). */
+  /** The file's bytes in the format its name asks for: a workbook, or the active sheet as CSV or text. */
   async bytes(fileName = this.fileName): Promise<Uint8Array> {
     const c = this.controller
     if (c.edit) c.commitEdit()
+    if (isTextFile(fileName)) return saveText(c.wb, c.sheetIndex, this.textSave(fileName))
     return saveXlsx(c.wb, {
       source: this.source,
       fileName,
@@ -82,8 +117,14 @@ export class WorkbookDocument {
     })
   }
 
+  /** How a text file of this name is written: the way it was read when it's the same kind of file. */
+  private textSave(fileName: string): TextSave {
+    return this.text && extensionOf(fileName) === extensionOf(this.fileName) ? this.text : textSaveFor(fileName)
+  }
+
   /** After a successful save to `ref`. */
   saved(ref: FileRef, edits: number) {
+    this.text = isTextFile(ref.name) ? this.textSave(ref.name) : null
     this.ref = ref
     this.fileName = ref.name
     this.savedEdits = edits
@@ -120,13 +161,15 @@ export async function openDocument(
   ref: FileRef,
   progress?: (done: number) => void,
   worker = true,
+  /** For a text file: the Text Import Wizard's choices (a .csv opens with the defaults). */
+  text?: Partial<TextImport>,
 ): Promise<WorkbookDocument> {
   const ext = extensionOf(ref.name)
-  if (!["xlsx", "xlsm", "xltx", "xltm"].includes(ext)) throw new FileProblem("type", ref.name)
+  if (!PACKAGE_EXTENSIONS.includes(ext) && !TEXT_EXTENSIONS.includes(ext)) throw new FileProblem("type", ref.name)
   let last = 0
-  const read = await openXlsx(bytes, ref.name, {
+  const options = {
     calculate: !worker,
-    progress: async (done) => {
+    progress: async (done: number) => {
       progress?.(done)
       // Yield about every 50 ms of work.
       const now = performance.now()
@@ -135,7 +178,17 @@ export async function openDocument(
         await nextFrame()
       }
     },
-  })
+  }
+  if (TEXT_EXTENSIONS.includes(ext)) {
+    const read = await openText(bytes, ref.name, { ...text, ...options })
+    const wb = read.workbook as unknown as Workbook<Selection>
+    const controller = new SheetController(wb)
+    controller.loadViews(read.views, read.activeSheet)
+    const calc = worker ? startCalculation(wb, { bytes, name: ref.name, text: text ?? {} }) : null
+    const save: TextSave = { delimiter: read.delimiter, encoding: read.encoding, bom: read.bom }
+    return new WorkbookDocument(controller, { ref, fileName: ref.name, text: save, warnings: read.warnings }, calc)
+  }
+  const read = await openXlsx(bytes, ref.name, options)
   const wb = read.workbook as unknown as Workbook<Selection>
   const controller = new SheetController(wb)
   controller.loadViews(read.views, read.activeSheet)

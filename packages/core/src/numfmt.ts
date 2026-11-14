@@ -331,11 +331,25 @@ function lastIndex<T>(arr: T[], f: (x: T) => boolean) {
 /** Rounds half away from zero on the 15-digit decimal value (as Excel displays) and writes it without exponent. */
 function roundHalfAway(x: number, digits: number): string {
   const rounded = roundDecimal(x, digits)
-  return rounded.toLocaleString("en-US", {
-    useGrouping: false,
-    minimumFractionDigits: digits,
-    maximumFractionDigits: Math.min(digits, 100),
-  })
+  // Already rounded to `digits` decimals, so toFixed writes exactly those digits (and is far quicker than Intl).
+  if (rounded < 1e21 && digits <= 100) return rounded.toFixed(digits)
+  return plainFormatter(digits).format(rounded)
+}
+
+const plainFormatters = new Map<number, Intl.NumberFormat>()
+
+/** Large numbers without an exponent ("1000000000000000000000"); one formatter per number of decimals. */
+function plainFormatter(digits: number): Intl.NumberFormat {
+  let f = plainFormatters.get(digits)
+  if (!f) {
+    f = new Intl.NumberFormat("en-US", {
+      useGrouping: false,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: Math.min(digits, 100),
+    })
+    plainFormatters.set(digits, f)
+  }
+  return f
 }
 
 /**
