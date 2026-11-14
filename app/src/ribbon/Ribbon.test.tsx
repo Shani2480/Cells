@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/ui/tooltip"
 import { buildRegistry } from "./commands"
 import type { MenuEntry, RibbonEnv } from "./registry"
 import { Ribbon } from "./Ribbon"
-import { TABLE_DESIGN, TABS, controlIds } from "./tabs"
+import { CHART_DESIGN, TABLE_DESIGN, TABS, controlIds } from "./tabs"
 
 function setup() {
   const c = new SheetController()
@@ -47,7 +47,7 @@ describe("command registry", () => {
       const menu = command?.menu ? (typeof command.menu === "function" ? command.menu(env) : command.menu) : []
       for (const entry of menu as MenuEntry[]) if (typeof entry === "string" && entry !== "-") check(entry)
     }
-    for (const tab of [...TABS, TABLE_DESIGN]) for (const id of controlIds(tab)) check(id)
+    for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN]) for (const id of controlIds(tab)) check(id)
     expect([...new Set(missing)]).toEqual([])
   })
 

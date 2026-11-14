@@ -1,3 +1,4 @@
+import type { SheetChart } from "./chart"
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import { Axis } from "./axis"
 import { CellStore } from "./cell-store"
@@ -145,6 +146,8 @@ export class Sheet {
   validations: ValidationEntry[] = []
   /** Tables (Excel's ListObjects) on the sheet. */
   tables: Table[] = []
+  /** Charts on the sheet, in drawing order (the last on top). */
+  charts: SheetChart[] = []
   /** Notes and comments by cell. */
   readonly annotations = new Annotations()
   /** Review › Protect Sheet; null when the sheet is not protected. */

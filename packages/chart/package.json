@@ -1,0 +1,22 @@
+{
+  "name": "@cells/chart",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Charts: the chart model, its SVG renderer and DrawingML chart parts. Shared with Inkspire (copied from it; PLAN.md Phase 5 makes it one package). Pure TypeScript, no DOM.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "d3-geo": "^3.1.1",
+    "saxes": "^6.0.0",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
+    "@types/geojson": "*",
+    "@types/topojson-client": "^3.1.5"
+  }
+}

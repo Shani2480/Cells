@@ -5,6 +5,7 @@ import type { AnnotationWrite } from "./annotations"
 import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
 import { copyValidations, shiftValidations, type ValidationEntry } from "./validation"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
+import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
 import { copyAutoFilter, shiftAutoFilter, type AutoFilter } from "./filter"
 import { rewriteNames, type DefinedName, type SheetList } from "./names"
 import type { SheetProtection, WorkbookProtection } from "./protection"
@@ -59,6 +60,7 @@ export type Op =
       conditional?: CFEntry[]
       validations?: ValidationEntry[]
       tables?: Table[]
+      charts?: SheetChart[]
       annotations?: AnnotationWrite[]
       autoFilter?: AutoFilter | null
     }
@@ -68,6 +70,8 @@ export type Op =
   | { kind: "validations"; sheet: number; entries: ValidationEntry[] }
   /** The sheet's whole list of tables (create, resize, rename, style, convert to range). */
   | { kind: "tables"; sheet: number; tables: Table[] }
+  /** The sheet's whole list of charts (insert, move, resize, change, delete). */
+  | { kind: "charts"; sheet: number; charts: SheetChart[] }
   /** Notes and comments: set or remove one cell's annotation each. */
   | { kind: "annotations"; sheet: number; writes: AnnotationWrite[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
@@ -196,6 +200,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
         change: { sheet: op.sheet, structural: true },
       }
     }
+    case "charts": {
+      const before = copyCharts(sheet.charts)
+      sheet.charts = copyCharts(op.charts)
+      return {
+        inverse: [{ kind: "charts", sheet: op.sheet, charts: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
     case "annotations": {
       const before: AnnotationWrite[] = op.writes.map((w) => ({
         row: w.row,
@@ -273,6 +285,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     conditional: copyEntries(sheet.conditional),
     validations: copyValidations(sheet.validations),
     tables: copyTables(sheet.tables),
+    charts: copyCharts(sheet.charts),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     autoFilter: copyAutoFilter(sheet.autoFilter),
   }
@@ -288,6 +301,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   if (op.conditional) sheet.conditional = copyEntries(op.conditional)
   if (op.validations) sheet.validations = copyValidations(op.validations)
   if (op.tables) sheet.tables = copyTables(op.tables)
+  if (op.charts) sheet.charts = copyCharts(op.charts)
   if (op.annotations) {
     sheet.annotations.clear()
     for (const a of op.annotations) sheet.annotations.set(a.row, a.col, a.value)
@@ -305,6 +319,7 @@ function hasLayout(sheet: Sheet) {
     sheet.conditional.length > 0 ||
     sheet.validations.length > 0 ||
     sheet.tables.length > 0 ||
+    sheet.charts.length > 0 ||
     sheet.annotations.size > 0 ||
     sheet.autoFilter !== null
   )
@@ -334,6 +349,15 @@ function rewriteReferences(sheets: readonly Sheet[], target: number, map: RefMap
       sheet.cells.set(edit.row, edit.col, { ...data, input: edit.text })
     }
     undo.push({ kind: "setCells", sheet: index, cells: previous })
+  })
+  // Charts' series ranges (always with their sheet's name) follow too.
+  sheets.forEach((sheet, index) => {
+    if (!sheet.charts.length) return
+    const before = copyCharts(sheet.charts)
+    let changed = false
+    for (const chart of sheet.charts)
+      if (rewriteChartRefs(chart, (ref) => rewriteFormula(ref, sheet.name, targetName, map))) changed = true
+    if (changed) undo.push({ kind: "charts", sheet: index, charts: before })
   })
   const host = sheets[0]?.name ?? targetName
   const names = rewriteNames(sheets as SheetList, (ref) => rewriteFormula(ref, host, targetName, map))
@@ -401,6 +425,7 @@ function insertLines(
   shiftConditional(sheet, axis, at, count)
   shiftValidations(sheet, axis, at, count)
   shiftTables(sheet, axis, at, count)
+  shiftCharts(sheet.charts, axis, at, count)
   sheet.annotations.shift(axis, at, count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
@@ -454,6 +479,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   shiftConditional(sheet, axis, at, -count)
   shiftValidations(sheet, axis, at, -count)
   shiftTables(sheet, axis, at, -count)
+  shiftCharts(sheet.charts, axis, at, -count)
   sheet.annotations.shift(axis, at, -count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]

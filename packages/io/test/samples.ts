@@ -1,5 +1,14 @@
 // A made-up corpus: workbooks built in code that cover what the xlsx reader and writer handle.
-import { DEFAULT_VALIDATION, errorValue, hashPassword, Workbook, type CellData, type CFEntry } from "@cells/core"
+import { defaultChartSpec } from "@cells/chart"
+import {
+  chartRefsFor,
+  DEFAULT_VALIDATION,
+  errorValue,
+  hashPassword,
+  Workbook,
+  type CellData,
+  type CFEntry,
+} from "@cells/core"
 
 const done = (wb: Workbook) => {
   wb.calc.rebuild()
@@ -257,6 +266,39 @@ export function tables(): Workbook {
   return done(wb)
 }
 
+/** Two charts on a sheet of quarterly sales: a column chart of both regions and a pie of one quarter's. */
+export function charts(): Workbook {
+  const wb = new Workbook(["Sales"])
+  const [sheet] = wb.sheets
+  const rows: (string | number)[][] = [
+    ["Quarter", "North", "South"],
+    ["Q1", 120, 80],
+    ["Q2", 150, 95],
+    ["Q3", 135, 110],
+    ["Q4", 170, 125],
+  ]
+  rows.forEach((r, row) => r.forEach((value, col) => sheet.cells.set(row, col, { value })))
+  const column = { ...defaultChartSpec("column"), categories: [], series: [], title: { show: true, text: "Sales" } }
+  const pie = { ...defaultChartSpec("pie"), categories: [], series: [], title: { show: true, text: "North" } }
+  sheet.charts = [
+    {
+      id: 1,
+      name: "Chart 1",
+      anchor: { from: { row: 1, col: 4, x: 10, y: 5 }, to: { row: 16, col: 11, x: 0, y: 0 } },
+      spec: column as unknown as Record<string, unknown>,
+      refs: chartRefsFor(sheet, { r0: 0, c0: 0, r1: 4, c1: 2 }),
+    },
+    {
+      id: 2,
+      name: "Chart 2",
+      anchor: { from: { row: 18, col: 4, x: 0, y: 0 }, to: { row: 33, col: 11, x: 0, y: 0 } },
+      spec: pie as unknown as Record<string, unknown>,
+      refs: chartRefsFor(sheet, { r0: 0, c0: 0, r1: 4, c1: 1 }),
+    },
+  ]
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
   budget,
   formats,
@@ -265,6 +307,7 @@ export const samples: Record<string, () => Workbook> = {
   protected: protectedBook,
   validation,
   tables,
+  charts,
   big,
   empty,
 }

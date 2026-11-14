@@ -209,6 +209,7 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
     case "deleteCols":
       return !p.deleteColumns
     case "annotations":
+    case "charts":
       return !p.editObjects
     case "autoFilter":
       // Use AutoFilter lets filters change; turning the filter on or off never works on a protected sheet.

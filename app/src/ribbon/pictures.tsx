@@ -10,6 +10,15 @@ const PICTURES: Record<string, LucideIcon> = {
   PivotTableInsert: L.TableProperties,
   PivotTableSuggestion: L.TableProperties,
   TableInsertExcel: L.Table2,
+  // Chart Design
+  ChartAddElementMenu: L.ChartColumnIncreasing,
+  ChartQuickLayoutGallery: L.LayoutTemplate,
+  ChartColorsGallery: L.Palette,
+  ChartStylesGallery: L.Brush,
+  ChartSwitchRowColumn: L.ArrowLeftRight,
+  ChartSelectData: L.TableProperties,
+  ChartChangeType: L.ChartColumnBig,
+  ChartMove: L.Move,
   // Table Design
   TableResize: L.Scaling,
   TableSummarizeWithPivot: L.TableProperties,

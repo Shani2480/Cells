@@ -1,9 +1,10 @@
 import { MAX_ROWS, rangeOf, type CellAddress, type Range } from "@cells/core"
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { usePlatform } from "@/platform/context"
 import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
 import { keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
+import { ChartLayer } from "./ChartLayer"
 import { FilterButtons } from "./FilterButtons"
 import { ValidationLayer } from "./ValidationLayer"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
@@ -166,6 +167,16 @@ export function GridView({
     return () => window.clearInterval(timer)
   }, [hasClip])
 
+  // The layout of this render: worked out here rather than in the drawing effect, so the layers over the canvas (charts,
+  // filter buttons, list arrows) place themselves by the scroll and sizes just drawn, not the ones before.
+  const zoomNow = controller.zoom
+  const layoutNow = useMemo(
+    () => (size.width === 0 ? null : computeLayout(controller, size.width / zoomNow, size.height / zoomNow, measure)),
+    // version: the controller's state changed.
+    [controller, version, size, measure, zoomNow],
+  )
+  layoutRef.current = layoutNow ?? layoutRef.current
+
   // Draw on every change (state, size, theme, ants), at most once per frame.
   useLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -177,8 +188,8 @@ export function GridView({
     }
     // Zoom: the layout is in sheet pixels (the canvas size divided by the zoom); drawing scales back up.
     const zoom = controller.zoom
-    const layout = computeLayout(controller, size.width / zoom, size.height / zoom, measure)
-    layoutRef.current = layout
+    const layout = layoutNow
+    if (!layout) return
     const viewWidth = size.width / zoom - layout.rowHeaderWidth
     const viewHeight = size.height / zoom - layout.headerHeight
     if (controller.viewWidth !== viewWidth || controller.viewHeight !== viewHeight) {
@@ -192,7 +203,7 @@ export function GridView({
     drawGrid({ painter: ctx, layout, controller, theme: themeRef.current, dpr: dpr * zoom, measure, antsOffset })
     // Dev builds record draw times for the frame-time checks (scripts read the "cells:draw" measures).
     if (import.meta.env.DEV) performance.measure("cells:draw", { start, end: performance.now() })
-  }, [controller, version, size, measure, antsOffset, themeVersion])
+  }, [controller, layoutNow, size, measure, antsOffset, themeVersion])
 
   // Keep keyboard focus on the hidden input whenever no other control has it.
   const focusInput = useCallback(() => {
@@ -837,6 +848,7 @@ export function GridView({
           onPick={focusInput}
         />
       ) : null}
+      {layout ? <ChartLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
       {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
       {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
       {layout ? (

@@ -8,7 +8,7 @@ import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
 import type { RibbonEnv } from "@/ribbon/registry"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
-import { TABLE_DESIGN, TABS } from "@/ribbon/tabs"
+import { CHART_DESIGN, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { whatsNewOnStart } from "@/about/release-notes"
 import { Dialog } from "@/shell/Dialog"
@@ -63,11 +63,13 @@ import { folderOf, type RecentFile } from "@/file/recent"
 import type { RecoveredFile } from "@/file/recovery"
 import { TextImportWizard } from "@/file/TextImportWizard"
 import { CreateTableDialog, ResizeTableDialog } from "@/shell/TableDialogs"
+import { SelectDataDialog } from "@/shell/SelectDataDialog"
 import type { CreateTableInit } from "@/sheet/tables"
 import type { TextImport } from "@cells/io"
 
 const NOT_BUILT = "Not built yet."
 const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
+const TABS_IN_CHART = [...TABS, CHART_DESIGN]
 
 type DialogState =
   | { kind: "goto" }
@@ -94,6 +96,7 @@ type DialogState =
   | { kind: "removeDuplicates"; range: Range }
   | { kind: "dataValidation"; init: ValidationDialogInit }
   | { kind: "createTable"; init: CreateTableInit }
+  | { kind: "selectData" }
   | { kind: "resizeTable"; range: Range }
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
@@ -336,6 +339,8 @@ function WorkbookWindow({
       dataValidation: (init) => setDialog({ kind: "dataValidation", init }),
       validationAlert: (alert, answer) => setBadEntry({ alert, answer }),
       createTable: (init) => setDialog({ kind: "createTable", init }),
+      chartData: () => setDialog({ kind: "selectData" }),
+      showTab: (id) => ribbonHandle.current?.showTab(id),
       resizeTable: (range) => setDialog({ kind: "resizeTable", range }),
       openCellList: () => window.dispatchEvent(new CustomEvent("cells:open-cell-list")),
     }
@@ -590,7 +595,7 @@ function WorkbookWindow({
           <Ribbon
             env={env}
             registry={registry}
-            tabs={controller.tables.active() ? TABS_IN_TABLE : TABS}
+            tabs={controller.charts.active() ? TABS_IN_CHART : controller.tables.active() ? TABS_IN_TABLE : TABS}
             onFile={() => setBackstage("home")}
             qatKeytips={qat.slice(0, 9).map((id, i) => ({
               key: String(i + 1),
@@ -744,6 +749,7 @@ function WorkbookWindow({
             }}
           />
         ) : null}
+        {dialog?.kind === "selectData" ? <SelectDataDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "createTable" ? (
           <CreateTableDialog controller={controller} init={dialog.init} onClose={closeDialog} />
         ) : null}

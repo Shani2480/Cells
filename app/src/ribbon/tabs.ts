@@ -455,6 +455,28 @@ export const HELP: Tab = {
 export const TABS: Tab[] = [HOME, INSERT, PAGE_LAYOUT, FORMULAS, DATA, REVIEW, VIEW, HELP]
 
 /**
+ * Chart Design, while a chart is selected (Excel 365 at a wide window, from memory: no reference screenshot yet). The
+ * Format tab isn't built.
+ */
+export const CHART_DESIGN: Tab = {
+  id: "TabChartDesign",
+  label: "Chart Design",
+  keytip: "JC",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupChartLayouts",
+      label: "Chart Layouts",
+      columns: [L("ChartAddElementMenu"), L("ChartQuickLayoutGallery")],
+    },
+    { id: "GroupChartStyles", label: "Chart Styles", columns: [L("ChartColorsGallery"), L("ChartStylesGallery")] },
+    { id: "GroupChartData", label: "Data", columns: [L("ChartSwitchRowColumn"), L("ChartSelectData")] },
+    { id: "GroupChartType", label: "Type", columns: [L("ChartChangeType")] },
+    { id: "GroupChartLocation", label: "Location", columns: [L("ChartMove")] },
+  ],
+}
+
+/**
  * Table Design, while the active cell is in a table. Built from Excel 365 at a wide window (no reference screenshot
  * in docs/reference yet). External Table Data (Export, Refresh, Unlink…) is left out: Cells has no linked tables.
  */

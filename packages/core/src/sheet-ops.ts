@@ -3,6 +3,7 @@ import type { AnnotationWrite } from "./annotations"
 import { copyEntries, type CFEntry } from "./conditional"
 import { copyValidations, type ValidationEntry } from "./validation"
 import { copyTables, type Table } from "./table/table"
+import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
 import { rewriteNames, type SheetList } from "./names"
 import { copyAutoFilter, type AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
@@ -28,6 +29,7 @@ export type SheetSnapshot = {
   conditional?: CFEntry[]
   validations?: ValidationEntry[]
   tables?: Table[]
+  charts?: SheetChart[]
   annotations?: AnnotationWrite[]
   protection?: SheetProtection | null
   autoFilter?: AutoFilter | null
@@ -55,6 +57,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     conditional: copyEntries(sheet.conditional),
     validations: copyValidations(sheet.validations),
     tables: copyTables(sheet.tables),
+    charts: copyCharts(sheet.charts),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     protection: sheet.protection ? { ...sheet.protection } : null,
     autoFilter: copyAutoFilter(sheet.autoFilter),
@@ -80,6 +83,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.conditional = copyEntries(s.conditional ?? [])
   sheet.validations = copyValidations(s.validations ?? [])
   sheet.tables = copyTables(s.tables ?? [])
+  sheet.charts = copyCharts(s.charts ?? [])
   for (const a of s.annotations ?? []) sheet.annotations.set(a.row, a.col, a.value)
   sheet.protection = s.protection ? { ...s.protection } : null
   sheet.autoFilter = copyAutoFilter(s.autoFilter ?? null)
@@ -102,6 +106,13 @@ function renameRefs(sheets: Sheet[], from: string, to: string | null): Op[] {
       sheet.cells.set(row, col, { ...data, input: text })
     })
     if (previous.length) undo.push({ kind: "setCells", sheet: index, cells: previous })
+    if (sheet.charts.length) {
+      const before = copyCharts(sheet.charts)
+      let changed = false
+      for (const chart of sheet.charts)
+        if (rewriteChartRefs(chart, (ref) => renameSheetRefs(ref, from, to))) changed = true
+      if (changed) undo.push({ kind: "charts", sheet: index, charts: before })
+    }
   })
   const names = rewriteNames(sheets as SheetList, (ref) => renameSheetRefs(ref, from, to))
   if (names) undo.push({ kind: "names", names })

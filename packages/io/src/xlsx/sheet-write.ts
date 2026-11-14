@@ -93,6 +93,8 @@ export type SheetWriteContext = {
   spills: ReadonlyMap<string, Range>
   /** The relationship id of the sheet's notes drawing, when it has notes. */
   legacyDrawing: string | null
+  /** The relationship id of the sheet's drawing (charts, and pictures kept from the file). */
+  drawing?: string | null
   /** The relationship ids of the sheet's table parts. */
   tableParts?: string[]
 }
@@ -200,6 +202,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
       : "",
     conditionalFormatting: conditionalXml(sheet.conditional, styles, ctx.source?.keptConditional ?? []),
     dataValidations: validationsXml(sheet.validations, rangeRef),
+    drawing: ctx.drawing ? `<drawing r:id="${ctx.drawing}"/>` : "",
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
     tableParts: ctx.tableParts?.length
       ? `<tableParts count="${ctx.tableParts.length}">${ctx.tableParts.map((id) => `<tablePart r:id="${id}"/>`).join("")}</tableParts>`

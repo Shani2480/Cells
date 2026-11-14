@@ -73,6 +73,8 @@ export type SheetRead = {
   kept: Kept[]
   /** The vmlDrawing relationship of the sheet's notes (legacyDrawing), dropped and written anew. */
   legacyDrawing: string | null
+  /** The relationship of the sheet's drawing (charts, pictures), read and written anew. */
+  drawing: string | null
   /** The file had dynamic-array formulas: their spilled cells need calculating. */
   dynamic: boolean
   /** Conditional formats Cells doesn't model, as `conditionalFormatting` elements to write back as read. */
@@ -97,6 +99,7 @@ const OWN = new Set([
   "mergeCells",
   "conditionalFormatting",
   "dataValidations",
+  "drawing",
   "legacyDrawing",
   "tableParts",
 ])
@@ -140,6 +143,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let rootTag = ""
   let view: SheetView = { ...DEFAULT_VIEW }
   let legacyDrawing: string | null = null
+  let drawing: string | null = null
   let dynamic = false
   const conditional: XDoc[] = []
   const keptConditional: string[] = []
@@ -370,6 +374,14 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
       case "dataValidations":
         sheet.validations.unshift(...readValidations(parseFragment(source, rootTag).root))
         break
+      case "drawing":
+        drawing =
+          at(
+            parseFragment(source, rootTag).root,
+            "id",
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+          ) ?? null
+        break
       case "legacyDrawing":
         legacyDrawing =
           at(
@@ -430,7 +442,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   // Excel groups the elements by range; ids follow priority, the order Cells keeps them in.
   sheet.conditional = rules.sort((a, b) => a.priority - b.priority).map((r, i) => ({ ...r.entry, id: i + 1 }))
 
-  return { view, rootTag, kept, legacyDrawing, dynamic, keptConditional, rowExtras, colExtras }
+  return { view, rootTag, kept, legacyDrawing, drawing, dynamic, keptConditional, rowExtras, colExtras }
 }
 
 /** Text that the entry parser would turn into something else ("123", "=1", "TRUE") keeps an apostrophe. */

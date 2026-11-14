@@ -7,7 +7,15 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
 const allowed = {
   core: [],
   platform: ["@cells/core"],
-  io: ["@cells/core", "@zip.js/zip.js", "saxes"],
+  io: ["@cells/core", "@cells/chart", "@zip.js/zip.js", "saxes"],
+  chart: [
+    "d3-geo",
+    "geojson",
+    "saxes",
+    "topojson-client",
+    "world-atlas/countries-110m.json",
+    "us-atlas/states-10m.json",
+  ],
 }
 const importRe = /(?:import|export)\s[^"']*?from\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g
 const problems = []

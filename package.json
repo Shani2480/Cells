@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
-    "typecheck": "tsc -p packages/core && tsc -p packages/io && tsc -p packages/platform && tsc -p app",
+    "typecheck": "tsc -p packages/core && tsc -p packages/io && tsc -p packages/chart && tsc -p packages/platform && tsc -p app",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run --project core --project app",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@cells/chart": "*",
     "@cells/core": "*",
     "@cells/io": "*",
     "@cells/platform": "*",

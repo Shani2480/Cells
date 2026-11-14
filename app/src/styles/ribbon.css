@@ -2739,3 +2739,223 @@
   font-size: 12px;
   line-height: 1.4;
 }
+
+/* ── Charts on the sheet ── */
+.chart-layer {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.chart-frame {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: default;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Charts are paper: they keep their own colours in dark mode, as Excel's do. */
+.chart-svg {
+  display: block;
+}
+
+.chart-frame.is-selected {
+  outline: 1px solid var(--chart-select, #8a8a8a);
+  outline-offset: 0;
+}
+
+.chart-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--chart-select, #8a8a8a);
+  border-radius: 50%;
+  margin: -4px 0 0 -4px;
+  background: #fff;
+}
+
+.chart-handle.is-nw {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+.chart-handle.is-n {
+  left: 50%;
+  top: 0;
+  cursor: ns-resize;
+}
+.chart-handle.is-ne {
+  left: 100%;
+  top: 0;
+  cursor: nesw-resize;
+}
+.chart-handle.is-e {
+  left: 100%;
+  top: 50%;
+  cursor: ew-resize;
+}
+.chart-handle.is-se {
+  left: 100%;
+  top: 100%;
+  cursor: nwse-resize;
+}
+.chart-handle.is-s {
+  left: 50%;
+  top: 100%;
+  cursor: ns-resize;
+}
+.chart-handle.is-sw {
+  left: 0;
+  top: 100%;
+  cursor: nesw-resize;
+}
+.chart-handle.is-w {
+  left: 0;
+  top: 50%;
+  cursor: ew-resize;
+}
+
+.chart-ghost {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed var(--chart-select, #5a5a5a);
+  pointer-events: none;
+}
+
+/* Chart galleries (Insert › Charts, Chart Design) */
+.chart-gallery {
+  display: flex;
+  max-height: calc(100vh - 220px);
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.chart-gallery-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px 4px 6px;
+}
+
+.chart-preview-grid {
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+}
+
+.chart-gallery-item {
+  display: grid;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  place-items: center;
+}
+
+.chart-gallery-item:hover,
+.chart-gallery-item:focus-visible {
+  border-color: var(--app-theme-primary);
+  background: var(--app-hover);
+  outline: none;
+}
+
+.chart-type-icon,
+.chart-preview {
+  display: block;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 10%);
+}
+
+.chart-elements {
+  display: grid;
+  max-height: calc(100vh - 220px);
+  grid-template-columns: repeat(2, minmax(160px, auto));
+  gap: 4px 12px;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.chart-element-choices {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-element-choice {
+  padding: 3px 8px 3px 22px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  font: inherit;
+  text-align: left;
+}
+
+.chart-element-choice:hover {
+  background: var(--app-hover);
+}
+
+.chart-element-choice.is-on {
+  background: linear-gradient(var(--app-theme-primary), var(--app-theme-primary)) 8px 50% / 6px 6px no-repeat;
+  font-weight: 600;
+}
+
+.chart-colors {
+  min-width: 220px;
+  padding: 4px;
+}
+
+.chart-palette {
+  display: flex;
+  width: 100%;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  gap: 2px;
+}
+
+.chart-palette span {
+  width: 24px;
+  height: 14px;
+}
+
+.chart-palette:hover,
+.chart-palette.is-on {
+  border-color: var(--app-theme-primary);
+}
+
+/* Select Data Source */
+.sd-switch {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.sd-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.sd-lists > div {
+  min-width: 0;
+}
+
+.sd-actions {
+  display: flex;
+  min-height: 30px;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.sd-list {
+  height: 140px;
+  overflow-y: auto;
+}

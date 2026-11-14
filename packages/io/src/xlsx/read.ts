@@ -16,6 +16,7 @@ import {
   REL_WORKSHEET,
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from "./dom"
+import { readDrawing, REL_DRAWING, type DrawingSource } from "./drawing"
 import { formulaFromFile } from "./formula"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
@@ -35,6 +36,8 @@ export type SheetSource = {
   rels: OpcRelationship[]
   /** Each table's part, by table id, so a save writes it back in the same place. */
   tables: { id: number; partName: string }[]
+  /** The sheet's drawing: its charts' parts and the anchors Cells keeps as they came. */
+  drawing?: DrawingSource
 }
 
 export type XlsxSource = {
@@ -204,6 +207,7 @@ export async function openXlsx(
   })
   const total = sizes.reduce((a, b) => a + b, 0) || 1
   let before = 0
+  let chartIds = 0
   for (const [i, node] of sheetNodes.entries()) {
     const sheet = wb.sheets[i]
     const state = at(node, "state") ?? "visible"
@@ -250,6 +254,20 @@ export async function openXlsx(
       sheet.tables.push(table)
       tables.push({ id: table.id, partName: r.partName })
     }
+    const drawingRel = rels.find((r) => r.id === read.drawing && r.type === REL_DRAWING)
+    const drawingXml = partText(pkg, drawingRel?.partName)
+    const drawing =
+      drawingRel?.partName && drawingXml
+        ? readDrawing(
+            drawingRel.partName,
+            drawingXml,
+            relationshipsFor(pkg, drawingRel.partName),
+            sheet,
+            (name) => partText(pkg, name),
+            () => ++chartIds,
+            warnings,
+          )
+        : undefined
     sheetSources.set(sheet, {
       partName: rel.partName,
       rootTag: read.rootTag,
@@ -264,9 +282,11 @@ export async function openXlsx(
           r.type !== REL_COMMENTS &&
           r.type !== REL_THREADED &&
           r.type !== REL_TABLE &&
+          !(drawing && r.id === read.drawing) &&
           !(r.type === REL_VML && r.id === read.legacyDrawing),
       ),
       tables,
+      drawing,
     })
     views.push(read.view)
     before += sizes[i]

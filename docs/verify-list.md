@@ -81,6 +81,13 @@ Phase 3, added at the end:
 - [ ] Flash Fill: its results next to Excel's on the same examples (the patterns were written from Excel's documented
       examples, not run in Excel), and the wording of the "no pattern" message (from memory). Excel's live suggestion
       while typing (grey preview, Enter accepts) and the Flash Fill Options button aren't built.
+- [ ] Charts: the Chart Design tab, its galleries (Quick Layout, Change Colors, Chart Styles) and the Insert galleries'
+      sections were built from memory of Excel 365, not checked against screenshots. When the data has as many rows as
+      columns, Cells runs the series down the columns (Excel's own rule for that case is unchecked). Charts Cells writes
+      opened in Excel with no repair and the right =SERIES formulas, and an untouched Excel chart is written back as it
+      came; how Excel draws a Cells chart (colours, fonts) next to Cells' picture is unchecked. Not built yet: the Format
+      tab, the Insert Chart dialog (All Charts, the "More … Charts" rows), Move Chart, chart sheets, and charts the chart
+      package can't read (kept in the file, not shown).
 
 ## On a device
 

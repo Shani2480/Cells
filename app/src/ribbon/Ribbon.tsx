@@ -55,6 +55,8 @@ export type RibbonHandle = {
   toggleCollapsed(): void
   /** Search results that open a menu or a box: shows the tab with the control and opens it. False if no tab has it. */
   show(id: string): boolean
+  /** Selects a tab, now or as soon as it shows (a contextual tab after the object it belongs to is made). */
+  showTab(id: string): void
 }
 
 export function Ribbon({
@@ -121,8 +123,16 @@ export function Ribbon({
     [tabs, collapsed, registry],
   )
 
+  const [wantTab, setWantTab] = useState<string | null>(null)
   useEffect(() => {
-    handle?.({ toggleCollapsed, show })
+    if (wantTab && tabs.some((t) => t.id === wantTab)) {
+      setTabId(wantTab)
+      setWantTab(null)
+    }
+  }, [wantTab, tabs])
+
+  useEffect(() => {
+    handle?.({ toggleCollapsed, show, showTab: setWantTab })
   }, [handle, toggleCollapsed, show])
 
   const afterRun = useCallback(() => {

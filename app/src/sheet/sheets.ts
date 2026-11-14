@@ -1,4 +1,5 @@
 import {
+  copiedSheetCharts,
   nextTableId,
   renameTableInFormula,
   type SheetSnapshot,
@@ -173,6 +174,7 @@ export class SheetCommands {
     snapshot.name = name
     snapshot.hidden = false
     this.renameCopiedTables(snapshot)
+    snapshot.charts = copiedSheetCharts(snapshot.charts ?? [], this.c.wb.sheets, sheet, name)
     this.run([{ kind: "addSheet", sheet: before, name, snapshot }], "Copy Sheet", before)
   }
 

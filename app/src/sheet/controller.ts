@@ -1,3 +1,4 @@
+import { ChartCommands } from "./charts"
 import { TableCommands, type CreateTableInit } from "./tables"
 import { DEFAULT_VIEW as DEFAULT_FILE_VIEW, type SheetView as FileSheetView } from "@cells/io"
 import {
@@ -179,6 +180,10 @@ export type ShellRequests = {
   openCellList?(): void
   /** Insert › Table (Ctrl+T): the Create Table dialog. */
   createTable?(init: CreateTableInit): void
+  /** Selects a ribbon tab (Chart Design after a chart is inserted). */
+  showTab?(id: string): void
+  /** Chart Design › Select Data: the Select Data Source dialog for the selected chart. */
+  chartData?(): void
   /** Table Design › Resize Table: the dialog, on the table's range. */
   resizeTable?(range: Range): void
   /** Ctrl+1: the Format Cells dialog, on a tab. */
@@ -255,6 +260,8 @@ export class SheetController {
   readonly validation: ValidationCommands = new ValidationCommands(this)
   /** Insert › Table, Format as Table and the Table Design tab. */
   readonly tables: TableCommands = new TableCommands(this)
+  /** Charts: inserting, selecting, moving and the Chart Design tab. */
+  readonly charts: ChartCommands = new ChartCommands(this)
   /** Find, Replace and Go To Special. */
   readonly find: FindCommands = new FindCommands(this)
   /** Defined names (Name Box, Define Name, Go To). */
@@ -509,6 +516,8 @@ export class SheetController {
   // ── Selection ──────────────────────────────────────────────────────────────────────────────────────────────
 
   setSelection(selection: Selection, reveal: CellAddress | null = selection.focus) {
+    // Selecting cells leaves a selected chart.
+    this.charts.selected = null
     this.selection = this.mergeAware(selection)
     this.lastCtrlARegion = null
     if (reveal) this.scrollIntoView(reveal)
@@ -1504,6 +1513,12 @@ export class SheetController {
       ArrowLeft: "left",
       ArrowRight: "right",
     }
+    // A selected chart: Delete removes it, Esc goes back to the cells.
+    if (this.charts.selected !== null && !primary && !alt) {
+      if (key === "Delete" || key === "Backspace") return (this.charts.delete(), true)
+      if (key === "Escape") return (this.charts.select(null), true)
+    }
+    if (key === "F1" && alt && !primary && !shift) return (this.charts.insert(), true)
     if (arrows[key] && !alt) {
       this.arrow(arrows[key], primary, shift)
       return true

@@ -40,6 +40,7 @@ import {
   REL_WORKSHEET,
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
+import { writeDrawing } from "./drawing"
 import { formulaToFile } from "./formula"
 import type { XlsxSource } from "./read"
 import { DEFAULT_VIEW, type SheetView } from "./sheet-read"
@@ -118,6 +119,15 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     if (!name) return
     parts.delete(partKey(name))
     relGroups.delete(partKey(name))
+  }
+  /** A part and what only it uses: a chart's style, colours, shapes and embedded workbook go with it. */
+  const removeTree = (name: string) => {
+    const key = partKey(name)
+    const children = relGroups.get(key) ?? []
+    remove(name)
+    for (const r of children)
+      if (r.targetMode !== "External" && r.partName && /^\/xl\/(charts|drawings|embeddings)\//i.test(r.partName))
+        removeTree(r.partName)
   }
   const rels = (part: string) => {
     const key = part === "" ? "" : partKey(part)
@@ -235,6 +245,13 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       put(part, CT_TABLE, tableXml(t, styles, rangeRef, toFile))
       tableParts.push(addRel(partName, REL_TABLE, part))
     }
+    const drawing = writeDrawing(wb, sheet, partName, s?.drawing, {
+      put,
+      removeTree,
+      addRel,
+      rels,
+      freeName,
+    })
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active }
     const written = writeSheet({
       sheet,
@@ -246,6 +263,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       source: s,
       spills: spills.get(i) ?? new Map(),
       legacyDrawing,
+      drawing,
       tableParts,
     })
     dynamic ||= written.dynamic
