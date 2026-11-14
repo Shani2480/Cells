@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import type { TextImport } from "@cells/io"
 import { describe, expect, it, vi } from "vitest"
+import { TEXT_COLUMNS_DEFAULT } from "@/sheet/text-columns"
 import { TextImportWizard } from "./TextImportWizard"
 
 const bytes = (text: string) => new TextEncoder().encode(text)
@@ -36,6 +37,7 @@ describe("Text Import Wizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finish" }))
     expect(onFinish).toHaveBeenCalledWith(
       expect.objectContaining({ kind: "delimited", delimiters: [";"], columns: ["text", "general", "DMY"] }),
+      "",
     )
   })
 
@@ -47,7 +49,7 @@ describe("Text Import Wizard", () => {
     fireEvent.doubleClick(screen.getByRole("separator", { name: "Column break at 10" }))
     expect(screen.queryByRole("separator")).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: "Finish" }))
-    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ kind: "fixed", breaks: [] }))
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ kind: "fixed", breaks: [] }), "")
   })
 
   it("start row, other delimiter and Cancel", () => {
@@ -61,5 +63,31 @@ describe("Text Import Wizard", () => {
     expect(onFinish.mock.calls[0][0].delimiters).toContain("|")
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
     expect(onCancel).toHaveBeenCalled()
+  })
+})
+
+describe("Convert Text to Columns Wizard", () => {
+  it("splits each cell, has no file choices, and hands back the destination", () => {
+    const done = vi.fn()
+    render(
+      <TextImportWizard
+        cells={["Ann Lee", "Bo Chan"]}
+        destination="$A$1"
+        initial={TEXT_COLUMNS_DEFAULT}
+        onFinish={done}
+        onCancel={() => {}}
+      />,
+    )
+    expect(screen.getByText("Convert Text to Columns Wizard - Step 1 of 3")).toBeInTheDocument()
+    expect(screen.queryByText(/Start import at row/)).toBeNull()
+    expect(screen.getByText("Preview of selected data:")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Next >" }))
+    fireEvent.click(screen.getByRole("checkbox", { name: "Tab" }))
+    fireEvent.click(screen.getByRole("checkbox", { name: "Space" }))
+    expect(screen.getByRole("cell", { name: "Chan" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Next >" }))
+    fireEvent.change(screen.getByRole("textbox", { name: "Destination" }), { target: { value: "$C$1" } })
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }))
+    expect(done).toHaveBeenCalledWith(expect.objectContaining({ delimiters: [" "] }), "$C$1")
   })
 })

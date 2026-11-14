@@ -6,13 +6,24 @@ import {
   type Op,
   guessHeader,
   isDateFormat,
+  removeDuplicatesOps,
   selectRange,
   SortError,
   sortOps,
   type Range,
   type SortOptions,
 } from "@cells/core"
+import type { TextImport } from "@cells/io"
 import { todaySerial, type SheetController } from "./controller"
+import {
+  columnTexts,
+  NOTHING_TO_PARSE,
+  ONE_COLUMN_ONLY,
+  REPLACE_DESTINATION,
+  TEXT_COLUMNS_DEFAULT,
+  textColumnsRange,
+  textToColumnsOps,
+} from "./text-columns"
 
 /** What the Custom AutoFilter dialog opens with: the first condition's operator (and a second for Between). */
 export type CustomPreset = { first: CustomOperator; second?: CustomOperator; and?: boolean }
@@ -132,6 +143,86 @@ export class DataCommands {
     if (!entry) return false
     this.c.setSelection(after, null)
     return true
+  }
+
+  // ── Remove Duplicates ──
+
+  /** Data › Remove Duplicates: the dialog on the data around the selection (asking first when there's more beside it). */
+  openRemoveDuplicates() {
+    const selected = this.sortRange()
+    const single = this.c.selection.ranges[0]
+    const multi = single.r0 !== single.r1 || single.c0 !== single.c1
+    const open = (range: Range) => {
+      this.c.setSelection(selectRange(range, this.c.selection.active), null)
+      this.c.shell.removeDuplicates?.(range)
+    }
+    if (multi && this.dataBeside(selected)) {
+      this.c.shell.sortWarning?.(
+        (expand) => open(expand ? currentRegion(this.c.sheet, this.c.selection.active) : selected),
+        "duplicates",
+      )
+      return
+    }
+    open(selected)
+  }
+
+  /** Removes the rows that repeat the chosen columns, in one undo step, and says how many went (as Excel). */
+  removeDuplicates(range: Range, columns: number[], header: boolean): number {
+    if (this.c.edit) this.c.commitEdit()
+    const result = removeDuplicatesOps(this.c.sheetIndex, this.c.sheet, this.c.wb.styles, range, columns, header)
+    if (result.ops.length) {
+      const sel = this.c.selection
+      if (!this.c.transact(result.ops, { label: "Remove Duplicates", before: sel, after: sel })) return 0
+    }
+    this.c.shell.alert(
+      result.removed
+        ? `${result.removed} duplicate value${result.removed === 1 ? "" : "s"} found and removed; ${result.remain} unique value${result.remain === 1 ? "" : "s"} remain${result.remain === 1 ? "s" : ""}.`
+        : "No duplicate values found.",
+    )
+    return result.removed
+  }
+
+  // ── Text to Columns ──
+
+  /** The wizard's last choices, which it opens with next time (Excel keeps them for the session). */
+  textColumns: TextImport = TEXT_COLUMNS_DEFAULT
+
+  /** Data › Text to Columns: one column of cells (the active cell's column of its region), then the wizard. */
+  openTextToColumns() {
+    if (this.c.edit) this.c.commitEdit()
+    const { ranges, active } = this.c.selection
+    if (ranges.length > 1 || ranges[0].c0 !== ranges[0].c1) {
+      this.c.shell.alert(ONE_COLUMN_ONLY)
+      return
+    }
+    const range = textColumnsRange(this.c.sheet, ranges[0], active)
+    const texts = columnTexts(this.c.sheet, this.c.wb.styles, range)
+    if (texts.every((t) => t === "")) {
+      this.c.shell.alert(NOTHING_TO_PARSE)
+      return
+    }
+    this.c.setSelection(selectRange(range, active), null)
+    this.c.shell.textToColumns?.(range, texts)
+  }
+
+  /** Splits the column into the cells from `dest`, in one undo step; asks first when that replaces other data. */
+  textToColumns(range: Range, choices: TextImport, dest: { row: number; col: number }) {
+    this.textColumns = { ...choices, columns: [] }
+    const { ops, overwrites } = textToColumnsOps(
+      this.c.sheetIndex,
+      this.c.sheet,
+      this.c.wb.styles,
+      range,
+      choices,
+      dest,
+    )
+    if (!ops.length) return
+    const run = () => {
+      const sel = this.c.selection
+      this.c.transact(ops, { label: "Text to Columns", before: sel, after: sel })
+    }
+    if (overwrites) this.c.shell.confirm(REPLACE_DESTINATION, run)
+    else run()
   }
 
   // ── AutoFilter ──

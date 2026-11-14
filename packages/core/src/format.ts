@@ -1,5 +1,5 @@
-import { formatWithCode } from "./numfmt"
-import { isError, type CellValue } from "./values"
+import { formatWithCode, isDateFormat } from "./numfmt"
+import { editText, isError, numberToEditText, type CellValue } from "./values"
 
 /**
  * Display text for a value. Phase 1 covers General and the formats Excel sets on entry ("0%", "0.00%", "#,##0",
@@ -107,4 +107,24 @@ export function displayText(value: CellValue | undefined, numberFormat?: string)
     return formatted && numberFormat.includes("@") ? formatWithCode(value, numberFormat).text : value
   if (typeof value === "number" && formatted) return formatWithCode(value, numberFormat).text
   return formatValue(value) ?? String(value)
+}
+
+/**
+ * The text the formula bar shows for a cell without a formula, as Excel's: a date as m/d/yyyy (with the time when it
+ * has one), a time as h:mm:ss AM/PM, a percentage as 100%, anything else as typed.
+ */
+export function editTextFor(value: CellValue | undefined, numberFormat?: string): string {
+  if (typeof value === "number" && numberFormat) {
+    const plain = numberFormat.replace(/"[^"]*"|\\.|\[[^\]]*\]/g, "")
+    if (isDateFormat(numberFormat) && value >= 0 && value < 2958466) {
+      const hasTime = /[hs]|AM\/PM|A\/P/i.test(plain)
+      const whole = Math.abs(value - Math.round(value)) < 1 / 86400 / 2
+      const date = !hasTime || value >= 1
+      const time = hasTime || !whole
+      const code = [date ? "m/d/yyyy" : "", time ? "h:mm:ss AM/PM" : ""].filter(Boolean).join(" ")
+      return formatWithCode(value, code).text
+    }
+    if (plain.includes("%")) return numberToEditText(Number((value * 100).toPrecision(15))) + "%"
+  }
+  return editText(value)
 }

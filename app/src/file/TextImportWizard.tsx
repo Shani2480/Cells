@@ -13,6 +13,7 @@ import {
 import { useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
 import { Dialog } from "@/shell/Dialog"
+import { splitCell } from "@/sheet/text-columns"
 
 const PREVIEW_ROWS = 100
 
@@ -26,39 +27,58 @@ const DELIMITERS = [
 /**
  * Excel's Text Import Wizard, in its three steps: how the data is laid out (delimited or fixed width, the first row,
  * the file's encoding), where the columns split, and each column's format. Finish hands back the choices.
+ *
+ * Given `cells` instead of a file it is the Convert Text to Columns Wizard: no first row or file origin, each cell
+ * split on its own, and a Destination on the last step.
  */
 export function TextImportWizard({
   bytes,
-  fileName,
+  fileName = "",
+  cells,
+  destination: initialDestination = "",
+  initial: given,
   onFinish,
   onCancel,
 }: {
-  bytes: Uint8Array
-  fileName: string
-  onFinish: (choices: TextImport) => void
+  bytes?: Uint8Array
+  fileName?: string
+  cells?: string[]
+  destination?: string
+  initial?: TextImport
+  onFinish: (choices: TextImport, destination: string) => void
   onCancel: () => void
 }) {
-  const first = useMemo(() => decodeText(bytes), [bytes])
+  const columnsMode = cells !== undefined
+  const first = useMemo(
+    () =>
+      cells ? { text: cells.join("\n"), encoding: "utf-8" as TextEncoding } : decodeText(bytes ?? new Uint8Array()),
+    [bytes, cells],
+  )
+  const [destination, setDestination] = useState(initialDestination)
   const [step, setStep] = useState(1)
   const [encoding, setEncoding] = useState<TextEncoding>(first.encoding)
   const text = useMemo(
-    () => (encoding === first.encoding ? first.text : decodeText(bytes, encoding).text),
+    () => (encoding === first.encoding || !bytes ? first.text : decodeText(bytes, encoding).text),
     [bytes, encoding, first],
   )
-  const initial = useMemo(() => defaultImport(first.text, fileName), [first, fileName])
-  const [kind, setKind] = useState<TextImport["kind"]>(() => (looksFixed(first.text) ? "fixed" : "delimited"))
+  const initial = useMemo(() => given ?? defaultImport(first.text, fileName), [given, first, fileName])
+  const [kind, setKind] = useState<TextImport["kind"]>(() =>
+    given ? given.kind : looksFixed(first.text) ? "fixed" : "delimited",
+  )
   const [startRow, setStartRow] = useState(1)
   const [delimiters, setDelimiters] = useState<string[]>(initial.delimiters)
   const [other, setOther] = useState("")
-  const [consecutive, setConsecutive] = useState(false)
-  const [qualifier, setQualifier] = useState<string | null>('"')
+  const [consecutive, setConsecutive] = useState(initial.consecutive)
+  const [qualifier, setQualifier] = useState<string | null>(initial.qualifier)
   const lines = useMemo(() => textLines(text, PREVIEW_ROWS + 1000), [text])
-  const [breaks, setBreaks] = useState<number[]>(() => detectBreaks(textLines(first.text, 200)))
+  const [breaks, setBreaks] = useState<number[]>(() =>
+    given?.breaks.length ? given.breaks : detectBreaks(textLines(first.text, 200)),
+  )
   const [columns, setColumns] = useState<ColumnFormat[]>([])
   const [selected, setSelected] = useState(0)
   const [advanced, setAdvanced] = useState(false)
-  const [decimal, setDecimal] = useState(".")
-  const [thousands, setThousands] = useState(",")
+  const [decimal, setDecimal] = useState(initial.decimal)
+  const [thousands, setThousands] = useState(initial.thousands)
 
   const choices: TextImport = {
     encoding,
@@ -73,7 +93,10 @@ export function TextImportWizard({
     thousands,
   }
   const preview = useMemo(
-    () => splitText(text, { ...choices, columns: [] }, PREVIEW_ROWS),
+    () =>
+      cells
+        ? cells.slice(0, PREVIEW_ROWS).map((t) => splitCell(t, { ...choices, columns: [] }))
+        : splitText(text, { ...choices, columns: [] }, PREVIEW_ROWS),
     [text, kind, startRow, delimiters.join(""), other, consecutive, qualifier, breaks.join(",")],
   )
   const width = Math.max(1, ...preview.map((r) => r.length))
@@ -85,14 +108,16 @@ export function TextImportWizard({
     setColumns(next)
   }
 
-  const next = () => (step < 3 ? setStep(step + 1) : onFinish(choices))
+  const finish = () => onFinish(choices, destination)
+  const next = () => (step < 3 ? setStep(step + 1) : finish())
+  const wizard = columnsMode ? "Convert Text to Columns Wizard" : "Text Import Wizard"
   const toggle = (char: string, on: boolean) =>
     setDelimiters((list) => (on ? [...list.filter((c) => c !== char), char] : list.filter((c) => c !== char)))
   const dateFormat = DATE_ORDERS.find((o) => o === formatOf(selected)) ?? "MDY"
 
   return (
     <Dialog
-      title={`Text Import Wizard - Step ${step} of 3`}
+      title={`${wizard} - Step ${step} of 3`}
       width={640}
       onCancel={onCancel}
       onAccept={next}
@@ -107,7 +132,7 @@ export function TextImportWizard({
           <button type="button" className="dialog-btn" disabled={step === 3} onClick={() => setStep(step + 1)}>
             Next &gt;
           </button>
-          <button type="button" className="dialog-btn is-primary" onClick={() => onFinish(choices)}>
+          <button type="button" className="dialog-btn is-primary" onClick={finish}>
             Finish
           </button>
         </>
@@ -133,34 +158,36 @@ export function TextImportWizard({
                 <span className="tiw-hint">Fields are aligned in columns with spaces between each field.</span>
               </label>
             </fieldset>
-            <div className="tiw-row">
-              <label className="dialog-label">
-                Start import at row:{" "}
-                <input
-                  className="dialog-field tiw-number"
-                  type="number"
-                  min={1}
-                  max={Math.max(1, lines.length)}
-                  value={startRow}
-                  onChange={(e) => setStartRow(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
-                />
-              </label>
-              <label className="dialog-label">
-                File origin:{" "}
-                <select
-                  className="dialog-field"
-                  value={encoding}
-                  onChange={(e) => setEncoding(e.target.value as TextEncoding)}
-                >
-                  {TEXT_ENCODINGS.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <p className="tiw-caption">Preview of file {fileName}.</p>
+            {columnsMode ? null : (
+              <div className="tiw-row">
+                <label className="dialog-label">
+                  Start import at row:{" "}
+                  <input
+                    className="dialog-field tiw-number"
+                    type="number"
+                    min={1}
+                    max={Math.max(1, lines.length)}
+                    value={startRow}
+                    onChange={(e) => setStartRow(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
+                  />
+                </label>
+                <label className="dialog-label">
+                  File origin:{" "}
+                  <select
+                    className="dialog-field"
+                    value={encoding}
+                    onChange={(e) => setEncoding(e.target.value as TextEncoding)}
+                  >
+                    {TEXT_ENCODINGS.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+            <p className="tiw-caption">{columnsMode ? "Preview of selected data:" : `Preview of file ${fileName}.`}</p>
             <pre className="tiw-lines" aria-label="Preview">
               {lines.slice(0, PREVIEW_ROWS).map((line, i) => (
                 <div key={i} className={cn(i + 1 < startRow && "is-skipped")}>
@@ -292,6 +319,17 @@ export function TextImportWizard({
                 <p className="tiw-hint">
                   'General' converts numeric values to numbers, date values to dates, and all remaining values to text.
                 </p>
+                {columnsMode ? (
+                  <label className="dialog-label">
+                    Destination:{" "}
+                    <input
+                      className="dialog-field"
+                      aria-label="Destination"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    />
+                  </label>
+                ) : null}
                 <button type="button" className="dialog-btn" onClick={() => setAdvanced(!advanced)}>
                   Advanced...
                 </button>

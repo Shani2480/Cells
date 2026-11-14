@@ -65,6 +65,10 @@ Phase 3, added at the end:
 - [ ] Filter by Color with "No Fill" saved from Cells (written as a fill of pattern none; Excel's own form for it
       wasn't captured, Excel reapplies it correctly).
 - [ ] The Sort dialog's layout against Excel's.
+- [ ] Text to Columns: the wizard's three steps against Excel's Convert Text to Columns Wizard, and its messages
+      (one column only, nothing to parse, replace the destination). The splitting was checked against Excel.
+- [ ] Remove Duplicates: the wording of the result message and the warning, and the dialog's layout, against
+      Excel's (the rules for which values match were checked).
 
 ## On a device
 

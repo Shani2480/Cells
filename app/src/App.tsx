@@ -1,9 +1,10 @@
-import { rangeName, type Range } from "@cells/core"
+import { parseCell, rangeName, type Range } from "@cells/core"
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
 import { GridView, type GridContextMenu } from "@/grid/GridView"
 import { usePlatform } from "@/platform/context"
 import { SheetController } from "@/sheet/controller"
+import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
 import type { RibbonEnv } from "@/ribbon/registry"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
@@ -11,6 +12,8 @@ import { TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { whatsNewOnStart } from "@/about/release-notes"
 import { Dialog } from "@/shell/Dialog"
+import { RemoveDuplicatesDialog } from "@/shell/RemoveDuplicatesDialog"
+import { FindReplaceDialog, GoToSpecialDialog } from "@/shell/FindDialogs"
 import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
 import type { FilterDialogRequest } from "@/sheet/data"
 import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
@@ -82,8 +85,12 @@ type DialogState =
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
-  | { kind: "sortWarning"; then: (expand: boolean) => void }
+  | { kind: "sortWarning"; then: (expand: boolean) => void; warning?: "sort" | "duplicates" }
+  | { kind: "removeDuplicates"; range: Range }
+  | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
+  | { kind: "findReplace"; tab: "find" | "replace"; n: number }
+  | { kind: "goToSpecial" }
   | { kind: "cfNew"; start: string }
   | null
 
@@ -310,9 +317,13 @@ function WorkbookWindow({
         }),
       formatCells: (tab) => setDialog({ kind: "formatCells", tab }),
       insertFunction: () => setDialog({ kind: "insertFunction" }),
-      sortWarning: (then) => setDialog({ kind: "sortWarning", then }),
+      sortWarning: (then, warning) => setDialog({ kind: "sortWarning", then, warning }),
+      removeDuplicates: (range) => setDialog({ kind: "removeDuplicates", range }),
+      textToColumns: (range, texts) => setDialog({ kind: "textToColumns", range, texts }),
       sortDialog: (range) => setDialog({ kind: "sort", range }),
       filterDialog: (request) => setDialog({ kind: "filter", request }),
+      findReplace: (tab) => setDialog({ kind: "findReplace", tab, n: Date.now() }),
+      goToSpecial: () => setDialog({ kind: "goToSpecial" }),
     }
   }, [controller])
 
@@ -621,6 +632,7 @@ function WorkbookWindow({
             recent={recent}
             resolve={(text) => controller.names.resolve(text)}
             onGo={goTo}
+            onSpecial={() => setDialog({ kind: "goToSpecial" })}
             onClose={closeDialog}
           />
         ) : null}
@@ -666,6 +678,10 @@ function WorkbookWindow({
         {dialog?.kind === "sort" ? (
           <SortDialog controller={controller} range={dialog.range} onClose={closeDialog} />
         ) : null}
+        {dialog?.kind === "findReplace" ? (
+          <FindReplaceDialog key={dialog.n} controller={controller} tab={dialog.tab} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "goToSpecial" ? <GoToSpecialDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "filter" && dialog.request.kind === "custom" ? (
           <CustomFilterDialog
             controller={controller}
@@ -677,8 +693,30 @@ function WorkbookWindow({
         {dialog?.kind === "filter" && dialog.request.kind === "top10" ? (
           <Top10Dialog controller={controller} col={dialog.request.col} onClose={closeDialog} />
         ) : null}
+        {dialog?.kind === "textToColumns" ? (
+          <TextImportWizard
+            cells={dialog.texts}
+            destination={absoluteName({ row: dialog.range.r0, col: dialog.range.c0 })}
+            initial={controller.data.textColumns}
+            onCancel={closeDialog}
+            onFinish={(choices, destination) => {
+              const at = parseCell(destination.replace(/\$/g, "").trim())
+              if (!at) {
+                controller.shell.alert("The destination reference is not valid.")
+                return
+              }
+              const range = dialog.range
+              closeDialog()
+              controller.data.textToColumns(range, choices, at)
+            }}
+          />
+        ) : null}
+        {dialog?.kind === "removeDuplicates" ? (
+          <RemoveDuplicatesDialog controller={controller} range={dialog.range} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "sortWarning" ? (
           <SortWarningDialog
+            kind={dialog.warning}
             onClose={closeDialog}
             onChoose={(expand) => {
               setDialog(null)

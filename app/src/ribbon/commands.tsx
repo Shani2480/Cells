@@ -60,8 +60,26 @@ function otherCommands(): Command[] {
     },
     pressed: (env) => env.c.showGridlines,
   }
+  const removeDuplicates: Command = {
+    id: "RemoveDuplicates",
+    label: "Remove Duplicates",
+    description:
+      "Delete duplicate rows from a sheet. You can choose which columns should be checked for duplicate information.",
+    keytip: "M",
+    run: (env) => env.c.data.openRemoveDuplicates(),
+  }
+  const textToColumns: Command = {
+    id: "ConvertTextToTable",
+    label: "Text to Columns",
+    description:
+      "Split a single column of text into multiple columns. For example, you can separate a column of full names into separate first and last name columns.",
+    keytip: "E",
+    run: (env) => env.c.data.openTextToColumns(),
+  }
   return [
     fromText,
+    removeDuplicates,
+    textToColumns,
     gridlines,
     { ...gridlines, id: "ViewSheetGridlines", label: "View", keytip: "VG" },
     {

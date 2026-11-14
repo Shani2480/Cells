@@ -16,7 +16,7 @@ import {
   dataEdge,
   decodeTSV,
   editReferences,
-  editText,
+  editTextFor,
   encodeHTML,
   encodeTSV,
   expandToColumns,
@@ -75,6 +75,7 @@ import {
 import { FormatCommands, NUMBER_FORMATS } from "./format"
 import { AnnotationCommands } from "./annotations"
 import { DataCommands, type FilterDialogRequest } from "./data"
+import { FindCommands } from "./find"
 import { NameCommands } from "./names"
 import { ConditionalCommands } from "./conditional"
 import { SHEET_MESSAGES, SheetCommands } from "./sheets"
@@ -155,9 +156,17 @@ export type ShellRequests = {
   /** Shift+F3: Insert Function. */
   insertFunction?(): void
   /** Excel's Sort Warning: expand the selection to the data beside it, or sort only the selection. */
-  sortWarning?(then: (expand: boolean) => void): void
+  sortWarning?(then: (expand: boolean) => void, kind?: "sort" | "duplicates"): void
   /** Data › Sort: the Sort dialog, on a range. */
   sortDialog?(range: Range): void
+  /** Remove Duplicates' dialog for a range. */
+  removeDuplicates?(range: Range): void
+  /** Data › Text to Columns: the Convert Text to Columns Wizard for a column of cells and their texts. */
+  textToColumns?(range: Range, texts: string[]): void
+  /** Find and Replace, on its Find or Replace tab. */
+  findReplace?(tab: "find" | "replace"): void
+  /** Go To Special. */
+  goToSpecial?(): void
   /** Custom AutoFilter or Top 10 AutoFilter, from a filter dropdown. */
   filterDialog?(request: FilterDialogRequest): void
   /** Ctrl+1: the Format Cells dialog, on a tab. */
@@ -230,6 +239,8 @@ export class SheetController {
   /** Notes and comments. */
   readonly annotations: AnnotationCommands = new AnnotationCommands(this)
   readonly data: DataCommands = new DataCommands(this)
+  /** Find, Replace and Go To Special. */
+  readonly find: FindCommands = new FindCommands(this)
   /** Defined names (Name Box, Define Name, Go To). */
   readonly names: NameCommands = new NameCommands(this)
   /** What a cell shows in its column (the view knows the fonts and widths); used by Increase/Decrease Decimal. */
@@ -527,7 +538,10 @@ export class SheetController {
     const { row, col } = this.selection.active
     const anchor = this.spillAnchorOf(row, col)
     if (anchor) return this.sheet.cells.input(anchor.row, anchor.col) ?? ""
-    return this.sheet.cells.input(row, col) ?? editText(this.sheet.cells.value(row, col))
+    return (
+      this.sheet.cells.input(row, col) ??
+      editTextFor(this.sheet.cells.value(row, col), this.wb.styles.get(this.sheet.styleAt(row, col)).numberFormat)
+    )
   }
 
   /** The active cell holds a spilled value: the formula bar shows its formula greyed out, as Excel does. */
@@ -1470,7 +1484,15 @@ export class SheetController {
         this.sheets.insert()
         return true
       case "F5":
-        this.shell.goTo()
+        // Shift+F5 is Find, as in Excel.
+        if (shift) this.shell.findReplace?.("find")
+        else this.shell.goTo()
+        return true
+      case "F4":
+        // Shift+F4: Find Next with the last search (Ctrl+Shift+F4: the previous one).
+        if (!shift || alt) return false
+        if (this.find.last.text) this.find.next(this.find.last, primary)
+        else this.shell.findReplace?.("find")
         return true
       case "F9":
         // F9 and Shift+F9 calculate what changed (one engine for all sheets); Ctrl+Alt+F9 recalculates everything.
@@ -1507,6 +1529,8 @@ export class SheetController {
       if (lower === "r") return (this.fillFromEdge("right"), true)
       if (lower === "u" && shift) return (this.toggleFormulaBarExpanded(), true)
       if (lower === "l" && shift) return (this.data.toggleFilter(), true)
+      if (lower === "f" && !shift) return (this.shell.findReplace?.("find"), true)
+      if (lower === "h" && !shift) return (this.shell.findReplace?.("replace"), true)
       if (this.formatKey(key, shift)) return true
       if (key === "-") return (this.insertOrDelete("delete"), true)
       if (key === "+" || (key === "=" && shift)) return (this.insertOrDelete("insert"), true)

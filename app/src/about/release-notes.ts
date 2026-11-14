@@ -19,6 +19,11 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Big files show their progress while opening. If a file can't be opened, Cells says why (damaged, password-protected, the old .xls format) and lists anything it left out.",
       "Sort: Sort A to Z and Z to A on the data around the cell (headers stay on top), and the Sort dialog for several levels, cell or font colour, custom lists like Jan, Feb, Mar, case-sensitive sorting and left-to-right. The order is checked against Excel.",
       "Filter (Ctrl+Shift+L): a dropdown on each header with sorting, a search box, a list of values to tick (dates by year, month and day), Text, Number and Date Filters, Top 10, Above Average and Filter by Color. The status bar counts the rows shown; Clear and Reapply are on the Data tab. Filters open and save with Excel files, and give the same rows as Excel.",
+      "Find and Replace (Ctrl+F, Ctrl+H, Shift+F4 for the next match): in the sheet or the whole workbook, in formulas, values, notes or comments, with wildcards, Match case and Match entire cell contents, and Find All's list of matches. The dialog stays open while you work in the sheet.",
+      "Go To Special (Ctrl+G › Special…): blanks, constants, formulas, notes, current region and array, row and column differences, precedents, dependents, the last cell, visible cells only and conditional formats.",
+      'Remove Duplicates (Data tab): pick the columns to compare, with or without a header row; duplicate rows go and the rest move up, compared the way Excel does (12 and 12.0 match, "apple" and "Apple" match).',
+      "Text to Columns (Data tab): split a column by a delimiter or at fixed widths, set each new column's format, and choose where the result goes. It splits the way Excel does, formulas included.",
+      "The formula bar shows a date as 3/19/2026 and a percentage as 100%, as Excel does, instead of the number underneath.",
     ],
   },
   {

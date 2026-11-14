@@ -342,13 +342,33 @@ function SortOptionsDialog({
   )
 }
 
-/** Excel's Sort Warning: data next to the selection won't be sorted unless the selection grows. */
-export function SortWarningDialog({ onChoose, onClose }: { onChoose: (expand: boolean) => void; onClose: () => void }) {
+/**
+ * Excel's Sort Warning (and Remove Duplicates Warning): data next to the selection won't be included unless the
+ * selection grows.
+ */
+export function SortWarningDialog({
+  onChoose,
+  onClose,
+  kind = "sort",
+}: {
+  onChoose: (expand: boolean) => void
+  onClose: () => void
+  kind?: "sort" | "duplicates"
+}) {
   const [expand, setExpand] = useState(true)
+  const sort = kind === "sort"
   return (
-    <Dialog title="Sort Warning" width={420} acceptLabel="Sort" onCancel={onClose} onAccept={() => onChoose(expand)}>
+    <Dialog
+      title={sort ? "Sort Warning" : "Remove Duplicates Warning"}
+      width={420}
+      acceptLabel={sort ? "Sort" : "Remove Duplicates..."}
+      onCancel={onClose}
+      onAccept={() => onChoose(expand)}
+    >
       <p className="dialog-message">
-        Cells found data next to your selection. Since you have not selected this data, it will not be sorted.
+        {sort
+          ? "Cells found data next to your selection. Since you have not selected this data, it will not be sorted."
+          : "Cells found data next to your selection. Since you have not selected this data, it will not be considered."}
       </p>
       <p className="dialog-message sort-warning-ask">What do you want to do?</p>
       <div className="dialog-group" role="radiogroup" aria-label="What do you want to do?">

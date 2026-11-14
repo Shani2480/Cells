@@ -1693,3 +1693,14 @@ html.is-browser .app-window-frame {
 .ribbon-host {
   display: contents;
 }
+
+/* A modeless dialog (Find and Replace): the sheet underneath stays usable. */
+.dialog-backdrop.is-modeless {
+  background: transparent;
+  pointer-events: none;
+}
+
+.dialog-backdrop.is-modeless > .dialog {
+  pointer-events: auto;
+  box-shadow: var(--app-popover-shadow);
+}

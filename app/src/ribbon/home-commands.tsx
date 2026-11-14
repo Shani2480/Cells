@@ -164,6 +164,8 @@ function autoSum(env: RibbonEnv, fn: string) {
   if (text.endsWith("()")) env.c.setEditText(text, text.length - 1)
 }
 
+const ALL_TYPES = { numbers: true, text: true, logicals: true, errors: true }
+
 export function homeCommands(): Command[] {
   const cmds: Command[] = [
     // ── Clipboard ──
@@ -1103,14 +1105,43 @@ export function homeCommands(): Command[] {
         "SelectionPane",
       ],
     },
-    { id: "FindDialogExcel", label: "Find...", shortcut: "Ctrl+F" },
-    { id: "ReplaceDialog", label: "Replace...", shortcut: "Ctrl+H" },
+    {
+      id: "FindDialogExcel",
+      label: "Find...",
+      description: "Find text in the sheet or the workbook.",
+      shortcut: "Ctrl+F",
+      run: (env) => env.c.shell.findReplace?.("find"),
+    },
+    {
+      id: "ReplaceDialog",
+      label: "Replace...",
+      description: "Search for text and replace it with different text.",
+      shortcut: "Ctrl+H",
+      run: (env) => env.c.shell.findReplace?.("replace"),
+    },
     { id: "GoTo", label: "Go To...", shortcut: "Ctrl+G", run: (env) => env.dialog("goto") },
-    { id: "GoToSpecial", label: "Go To Special..." },
-    { id: "SelectFormulas", label: "Formulas" },
+    {
+      id: "GoToSpecial",
+      label: "Go To Special...",
+      description: "Select cells by what they hold: blanks, formulas, constants, differences and more.",
+      run: (env) => env.c.shell.goToSpecial?.(),
+    },
+    {
+      id: "SelectFormulas",
+      label: "Formulas",
+      run: (env) => env.c.find.special({ kind: "formulas", types: ALL_TYPES }),
+    },
     { id: "SelectNotes", label: "Notes", run: (env) => env.c.annotations.selectAll("note") },
-    { id: "SelectConditionalFormatting", label: "Conditional Formatting" },
-    { id: "SelectConstants", label: "Constants" },
+    {
+      id: "SelectConditionalFormatting",
+      label: "Conditional Formatting",
+      run: (env) => env.c.find.special({ kind: "conditionalFormats", same: false }),
+    },
+    {
+      id: "SelectConstants",
+      label: "Constants",
+      run: (env) => env.c.find.special({ kind: "constants", types: ALL_TYPES }),
+    },
     { id: "SelectDataValidation", label: "Data Validation" },
     { id: "SelectObjects", label: "Select Objects" },
     { id: "SelectionPane", label: "Selection Pane..." },

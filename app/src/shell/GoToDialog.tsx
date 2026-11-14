@@ -4,20 +4,22 @@ import { Dialog } from "./Dialog"
 
 /**
  * Go To (F5, Ctrl+G): the defined names and the references visited before, and a Reference box (a reference or a
- * name). Excel's Special… button belongs to Go To
- * Special, which arrives with the data tools (Phase 4); it is left out rather than shown dead.
+ * name), and Special… for Go To Special.
  */
 export function GoToDialog({
   names = [],
   recent,
   resolve,
   onGo,
+  onSpecial,
   onClose,
 }: {
   names?: readonly string[]
   recent: string[]
   resolve: (text: string) => Target | null
   onGo: (target: Target, text: string) => void
+  /** Special…: Go To Special. */
+  onSpecial?: () => void
   onClose: () => void
 }) {
   const [text, setText] = useState("")
@@ -35,7 +37,28 @@ export function GoToDialog({
   }
   const items = [...names, ...recent.filter((r) => !names.includes(r))]
   return (
-    <Dialog title="Go To" onCancel={onClose} onAccept={accept} width={300}>
+    <Dialog
+      title="Go To"
+      onCancel={onClose}
+      onAccept={accept}
+      width={300}
+      actions={
+        <div className="fr-actions">
+          {onSpecial ? (
+            <button type="button" className="dialog-btn" onClick={onSpecial}>
+              <u>S</u>pecial...
+            </button>
+          ) : null}
+          <span className="fr-gap" />
+          <button type="button" className="dialog-btn is-primary" onClick={accept}>
+            OK
+          </button>
+          <button type="button" className="dialog-btn" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      }
+    >
       <span className="dialog-label">
         <u>G</u>o to:
       </span>

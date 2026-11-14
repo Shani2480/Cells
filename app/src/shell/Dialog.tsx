@@ -16,6 +16,7 @@ export function Dialog({
   cancelLabel = "Cancel",
   extra,
   actions,
+  modeless = false,
 }: {
   title: string
   onCancel: () => void
@@ -29,6 +30,8 @@ export function Dialog({
   extra?: { label: string; onSelect: () => void }
   /** Buttons of its own in place of OK and Cancel (a wizard's Back, Next and Finish). */
   actions?: ReactNode
+  /** The sheet stays usable while it's open (Find and Replace): no backdrop, Esc only from inside it. */
+  modeless?: boolean
 }) {
   const titleId = useId()
   const ref = useRef<HTMLDivElement>(null)
@@ -47,6 +50,7 @@ export function Dialog({
         // Only the dialog on top (Manage Rules can open New Rule over itself).
         const dialogs = document.querySelectorAll(".dialog")
         if (dialogs[dialogs.length - 1] !== ref.current) return
+        if (modeless && !ref.current?.contains(document.activeElement)) return
         event.preventDefault()
         event.stopPropagation()
         onCancel()
@@ -54,18 +58,18 @@ export function Dialog({
     }
     window.addEventListener("keydown", onKey, true)
     return () => window.removeEventListener("keydown", onKey, true)
-  }, [onCancel])
+  }, [onCancel, modeless])
 
   return createPortal(
     <div
-      className="dialog-backdrop"
+      className={modeless ? "dialog-backdrop is-modeless" : "dialog-backdrop"}
       onPointerDown={(event) => event.target === event.currentTarget && event.preventDefault()}
     >
       <div
         ref={ref}
         className="dialog"
         role="dialog"
-        aria-modal="true"
+        aria-modal={modeless ? undefined : "true"}
         aria-labelledby={titleId}
         style={{ width }}
         onKeyDown={(event) => {

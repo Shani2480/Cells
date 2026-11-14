@@ -1,0 +1,895 @@
+{
+  "_comment": "Excel 365 Range.Find/FindNext (after C4) and Range.Replace on the probe sheet; see find.test.ts",
+  "find": [
+    {
+      "text": "apple",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C2"]
+    },
+    {
+      "text": "apple",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C2", "C3"]
+    },
+    {
+      "text": "apple",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B2"]
+    },
+    {
+      "text": "Apple",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C2"]
+    },
+    {
+      "text": "Apple",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C2", "C3"]
+    },
+    {
+      "text": "Apple",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B2"]
+    },
+    {
+      "text": "1,234",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "1,234",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["C1"]
+    },
+    {
+      "text": "1,234",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "1234",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["C1"]
+    },
+    {
+      "text": "1234",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "1234",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "SUM",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A2"]
+    },
+    {
+      "text": "SUM",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "SUM",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "10",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A2", "B2", "B3"]
+    },
+    {
+      "text": "10",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B2", "B3"]
+    },
+    {
+      "text": "10",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "*",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3", "A4", "B4", "C4"]
+    },
+    {
+      "text": "*",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3", "A4", "B4", "C4"]
+    },
+    {
+      "text": "*",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B2"]
+    },
+    {
+      "text": "x~*y",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A3"]
+    },
+    {
+      "text": "x~*y",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A3"]
+    },
+    {
+      "text": "x~*y",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "?",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3", "A4", "B4", "C4"]
+    },
+    {
+      "text": "?",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3", "A4", "B4", "C4"]
+    },
+    {
+      "text": "?",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B2"]
+    },
+    {
+      "text": "a~?c",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B4"]
+    },
+    {
+      "text": "a~?c",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B4"]
+    },
+    {
+      "text": "a~?c",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "!",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["C3"]
+    },
+    {
+      "text": "!",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["C3"]
+    },
+    {
+      "text": "!",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "pie",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1"]
+    },
+    {
+      "text": "pie",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1"]
+    },
+    {
+      "text": "pie",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "100%",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "100%",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "100%",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "100",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B3"]
+    },
+    {
+      "text": "100",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B3"]
+    },
+    {
+      "text": "100",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "TRUE",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A4"]
+    },
+    {
+      "text": "TRUE",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A4"]
+    },
+    {
+      "text": "TRUE",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "Jan",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "Jan",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "Jan",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "3-Mar",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "3-Mar",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "3-Mar",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "46100",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "46100",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "46100",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "note",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "note",
+      "lookIn": "values",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": []
+    },
+    {
+      "text": "note",
+      "lookIn": "notes",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B2"]
+    },
+    {
+      "text": "apple",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": false,
+      "matchCase": true,
+      "cells": ["B1", "C2"]
+    },
+    {
+      "text": "apple",
+      "lookIn": "formulas",
+      "entire": true,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B1"]
+    },
+    {
+      "text": "a*",
+      "lookIn": "formulas",
+      "entire": true,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["A1", "B1", "B4"]
+    },
+    {
+      "text": "apple",
+      "lookIn": "formulas",
+      "entire": false,
+      "byColumns": true,
+      "matchCase": false,
+      "cells": ["A1", "B1", "C2"]
+    },
+    {
+      "text": "10",
+      "lookIn": "values",
+      "entire": true,
+      "byColumns": false,
+      "matchCase": false,
+      "cells": ["B2"]
+    }
+  ],
+  "replace": [
+    {
+      "text": "1",
+      "with": "2",
+      "entire": false,
+      "matchCase": false,
+      "cells": {
+        "E1": {
+          "input": "Apple pie",
+          "type": "String"
+        },
+        "F1": {
+          "input": "apple",
+          "type": "String"
+        },
+        "G1": {
+          "input": "2234.5",
+          "type": "Double"
+        },
+        "E2": {
+          "input": "=SUM(G2,20)",
+          "type": "Double"
+        },
+        "F2": {
+          "input": "20",
+          "type": "Double"
+        },
+        "G2": {
+          "input": "pineapple",
+          "type": "String"
+        },
+        "E3": {
+          "input": "x*y",
+          "type": "String"
+        },
+        "F3": {
+          "input": "200",
+          "type": "Double"
+        },
+        "G3": {
+          "input": "=F2&\"!\"",
+          "type": "String"
+        },
+        "E4": {
+          "input": "TRUE",
+          "type": "Boolean"
+        },
+        "F4": {
+          "input": "a?c",
+          "type": "String"
+        },
+        "G4": {
+          "input": "46110",
+          "type": "Double"
+        }
+      }
+    },
+    {
+      "text": "apple",
+      "with": "PEAR",
+      "entire": false,
+      "matchCase": false,
+      "cells": {
+        "E1": {
+          "input": "PEAR pie",
+          "type": "String"
+        },
+        "F1": {
+          "input": "PEAR",
+          "type": "String"
+        },
+        "G1": {
+          "input": "1234.5",
+          "type": "Double"
+        },
+        "E2": {
+          "input": "=SUM(G1,10)",
+          "type": "Double"
+        },
+        "F2": {
+          "input": "10",
+          "type": "Double"
+        },
+        "G2": {
+          "input": "pinePEAR",
+          "type": "String"
+        },
+        "E3": {
+          "input": "x*y",
+          "type": "String"
+        },
+        "F3": {
+          "input": "100",
+          "type": "Double"
+        },
+        "G3": {
+          "input": "=F1&\"!\"",
+          "type": "String"
+        },
+        "E4": {
+          "input": "TRUE",
+          "type": "Boolean"
+        },
+        "F4": {
+          "input": "a?c",
+          "type": "String"
+        },
+        "G4": {
+          "input": "46100",
+          "type": "Double"
+        }
+      }
+    },
+    {
+      "text": "Apple",
+      "with": "x",
+      "entire": false,
+      "matchCase": true,
+      "cells": {
+        "E1": {
+          "input": "x pie",
+          "type": "String"
+        },
+        "F1": {
+          "input": "apple",
+          "type": "String"
+        },
+        "G1": {
+          "input": "1234.5",
+          "type": "Double"
+        },
+        "E2": {
+          "input": "=SUM(G1,10)",
+          "type": "Double"
+        },
+        "F2": {
+          "input": "10",
+          "type": "Double"
+        },
+        "G2": {
+          "input": "pineapple",
+          "type": "String"
+        },
+        "E3": {
+          "input": "x*y",
+          "type": "String"
+        },
+        "F3": {
+          "input": "100",
+          "type": "Double"
+        },
+        "G3": {
+          "input": "=F1&\"!\"",
+          "type": "String"
+        },
+        "E4": {
+          "input": "TRUE",
+          "type": "Boolean"
+        },
+        "F4": {
+          "input": "a?c",
+          "type": "String"
+        },
+        "G4": {
+          "input": "46100",
+          "type": "Double"
+        }
+      }
+    },
+    {
+      "text": "a*",
+      "with": "Z",
+      "entire": false,
+      "matchCase": false,
+      "cells": {
+        "E1": {
+          "input": "Z",
+          "type": "String"
+        },
+        "F1": {
+          "input": "Z",
+          "type": "String"
+        },
+        "G1": {
+          "input": "1234.5",
+          "type": "Double"
+        },
+        "E2": {
+          "input": "=SUM(G1,10)",
+          "type": "Double"
+        },
+        "F2": {
+          "input": "10",
+          "type": "Double"
+        },
+        "G2": {
+          "input": "pineZ",
+          "type": "String"
+        },
+        "E3": {
+          "input": "x*y",
+          "type": "String"
+        },
+        "F3": {
+          "input": "100",
+          "type": "Double"
+        },
+        "G3": {
+          "input": "=F1&\"!\"",
+          "type": "String"
+        },
+        "E4": {
+          "input": "TRUE",
+          "type": "Boolean"
+        },
+        "F4": {
+          "input": "Z",
+          "type": "String"
+        },
+        "G4": {
+          "input": "46100",
+          "type": "Double"
+        }
+      }
+    },
+    {
+      "text": "10",
+      "with": "11",
+      "entire": true,
+      "matchCase": false,
+      "cells": {
+        "E1": {
+          "input": "Apple pie",
+          "type": "String"
+        },
+        "F1": {
+          "input": "apple",
+          "type": "String"
+        },
+        "G1": {
+          "input": "1234.5",
+          "type": "Double"
+        },
+        "E2": {
+          "input": "=SUM(G1,10)",
+          "type": "Double"
+        },
+        "F2": {
+          "input": "11",
+          "type": "Double"
+        },
+        "G2": {
+          "input": "pineapple",
+          "type": "String"
+        },
+        "E3": {
+          "input": "x*y",
+          "type": "String"
+        },
+        "F3": {
+          "input": "100",
+          "type": "Double"
+        },
+        "G3": {
+          "input": "=F1&\"!\"",
+          "type": "String"
+        },
+        "E4": {
+          "input": "TRUE",
+          "type": "Boolean"
+        },
+        "F4": {
+          "input": "a?c",
+          "type": "String"
+        },
+        "G4": {
+          "input": "46100",
+          "type": "Double"
+        }
+      }
+    },
+    {
+      "text": "SUM",
+      "with": "MAX",
+      "entire": false,
+      "matchCase": false,
+      "cells": {
+        "E1": {
+          "input": "Apple pie",
+          "type": "String"
+        },
+        "F1": {
+          "input": "apple",
+          "type": "String"
+        },
+        "G1": {
+          "input": "1234.5",
+          "type": "Double"
+        },
+        "E2": {
+          "input": "=MAX(G1,10)",
+          "type": "Double"
+        },
+        "F2": {
+          "input": "10",
+          "type": "Double"
+        },
+        "G2": {
+          "input": "pineapple",
+          "type": "String"
+        },
+        "E3": {
+          "input": "x*y",
+          "type": "String"
+        },
+        "F3": {
+          "input": "100",
+          "type": "Double"
+        },
+        "G3": {
+          "input": "=F1&\"!\"",
+          "type": "String"
+        },
+        "E4": {
+          "input": "TRUE",
+          "type": "Boolean"
+        },
+        "F4": {
+          "input": "a?c",
+          "type": "String"
+        },
+        "G4": {
+          "input": "46100",
+          "type": "Double"
+        }
+      }
+    },
+    {
+      "text": "p",
+      "with": "",
+      "entire": false,
+      "matchCase": false,
+      "cells": {
+        "E1": {
+          "input": "Ale ie",
+          "type": "String"
+        },
+        "F1": {
+          "input": "ale",
+          "type": "String"
+        },
+        "G1": {
+          "input": "1234.5",
+          "type": "Double"
+        },
+        "E2": {
+          "input": "=SUM(G1,10)",
+          "type": "Double"
+        },
+        "F2": {
+          "input": "10",
+          "type": "Double"
+        },
+        "G2": {
+          "input": "ineale",
+          "type": "String"
+        },
+        "E3": {
+          "input": "x*y",
+          "type": "String"
+        },
+        "F3": {
+          "input": "100",
+          "type": "Double"
+        },
+        "G3": {
+          "input": "=F1&\"!\"",
+          "type": "String"
+        },
+        "E4": {
+          "input": "TRUE",
+          "type": "Boolean"
+        },
+        "F4": {
+          "input": "a?c",
+          "type": "String"
+        },
+        "G4": {
+          "input": "46100",
+          "type": "Double"
+        }
+      }
+    }
+  ]
+}
