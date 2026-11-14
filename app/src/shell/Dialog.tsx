@@ -69,6 +69,8 @@ export function Dialog({
         aria-labelledby={titleId}
         style={{ width }}
         onKeyDown={(event) => {
+          // A dialog opened over this one (through a portal) handled it already.
+          if (event.defaultPrevented) return
           if (event.key === "Enter" && !(event.target instanceof HTMLButtonElement && event.target.type === "button")) {
             event.preventDefault()
             onAccept()

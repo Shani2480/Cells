@@ -1,3 +1,4 @@
+import { formatWithCode } from "./numfmt"
 import { isError, type CellValue } from "./values"
 
 /**
@@ -93,4 +94,17 @@ export function generalAlign(value: CellValue | undefined): HorizontalAlign {
   if (typeof value === "number") return "right"
   if (typeof value === "boolean" || isError(value)) return "center"
   return "left"
+}
+
+/**
+ * The text a cell shows, as the grid draws it in a default-width column (General numbers in 11 characters):
+ * what AutoFilter compares and what CSV saves.
+ */
+export function displayText(value: CellValue | undefined, numberFormat?: string): string {
+  if (value === undefined) return ""
+  const formatted = numberFormat && numberFormat !== "General"
+  if (typeof value === "string")
+    return formatted && numberFormat.includes("@") ? formatWithCode(value, numberFormat).text : value
+  if (typeof value === "number" && formatted) return formatWithCode(value, numberFormat).text
+  return formatValue(value) ?? String(value)
 }

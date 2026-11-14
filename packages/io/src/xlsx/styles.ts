@@ -176,6 +176,18 @@ export class StylesIn {
     return style
   }
 
+  /** A Filter by Color's colour from its dxf: the solid fill's colour (cell) or the font's; null for none. */
+  filterColor(index: number, cell: boolean): string | null {
+    const dxf = this.dxfs[index]
+    if (!dxf) return null
+    // Excel writes both kinds as a solid fill in fgColor (a font colour too); a font colour of its own also reads.
+    const font = cell ? null : this.color(kid(kid(dxf, "font"), "color"))
+    if (font) return font
+    const p = kid(kid(dxf, "fill"), "patternFill")
+    if (!p || at(p, "patternType") === "none") return null
+    return this.color(kid(p, "fgColor")) ?? this.color(kid(p, "bgColor"))
+  }
+
   /** The Cells differential format (conditional formatting) of dxf `index`. */
   dxfStyle(index: number): CFStyle {
     const dxf = this.dxfs[index]
@@ -396,6 +408,17 @@ export class StylesOut {
     }
     if (style.fill) x += `<fill><patternFill>${colorXml("bgColor", style.fill)}</patternFill></fill>`
     if (style.borderLeft || style.borderRight || style.borderTop || style.borderBottom) x += this.borderXml(style)
+    return this.dxfs.add(`<dxf>${x}</dxf>`)
+  }
+
+  /**
+   * The dxf of a Filter by Color, as Excel writes it: the colour as a solid fill's fgColor, for a font colour too
+   * (the filter's cellColor="0" says which). No Fill / Automatic is a fill of pattern none.
+   */
+  filterDxf(_cell: boolean, color: string | null): number {
+    const x = color
+      ? `<fill><patternFill patternType="solid">${colorXml("fgColor", color)}<bgColor rgb="FFFFFFFF"/></patternFill></fill>`
+      : `<fill><patternFill patternType="none"/></fill>`
     return this.dxfs.add(`<dxf>${x}</dxf>`)
   }
 

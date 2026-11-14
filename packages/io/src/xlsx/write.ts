@@ -1,4 +1,4 @@
-import type { Range, Sheet, Workbook } from "@cells/core"
+import { columnName, quoteSheet, type Range, type Sheet, type Workbook } from "@cells/core"
 import {
   allowsMacros,
   mainContentTypeFor,
@@ -368,6 +368,16 @@ function definedNamesXml(wb: Workbook, source: XlsxSource | null): string {
     items.push(
       `<definedName${attrText({ name: n.name, comment: n.comment })}>${escapeXmlText(formulaToFile("=" + n.ref))}</definedName>`,
     )
+  // Excel's hidden name for each sheet's AutoFilter range.
+  wb.sheets.forEach((sheet, index) => {
+    if (!sheet.autoFilter) return
+    const r = sheet.autoFilter.range
+    const abs = (row: number, col: number) => "$" + columnName(col) + "$" + (row + 1)
+    const ref = quoteSheet(sheet.name) + "!" + abs(r.r0, r.c0) + ":" + abs(r.r1, r.c1)
+    items.push(
+      `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">${escapeXmlText(ref)}</definedName>`,
+    )
+  })
   for (const k of source?.keptNames ?? []) {
     if (!k.sheet) {
       items.push(k.xml)

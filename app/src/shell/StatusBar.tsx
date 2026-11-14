@@ -42,6 +42,7 @@ export function StatusBar({ controller, onZoomDialog }: { controller: SheetContr
   const numberFormat = controller.wb.styles.get(controller.sheet.cells.style(active.row, active.col)).numberFormat
   const show = (value: number) => formatValue(value, numberFormat, 11) ?? formatGeneral(value, 16) ?? String(value)
   const calc = controller.wb.calcStatus
+  const records = controller.data.records()
   // Excel names the cell when the circular reference is on the sheet in view.
   const circular = calc.circular
     ? calc.circular.sheet === controller.sheetIndex
@@ -51,6 +52,11 @@ export function StatusBar({ controller, onZoomDialog }: { controller: SheetContr
   return (
     <footer className="status-bar" aria-label="Status bar">
       <span>{MODE_LABEL[controller.mode]}</span>
+      {records && controller.mode === "ready" ? (
+        <span>
+          {records.shown} of {records.total} records found
+        </span>
+      ) : null}
       {controller.endMode ? <span>End Mode</span> : null}
       {circular ? <span>{circular}</span> : null}
       {calc.mode === "manual" && calc.pending ? <span>Calculate</span> : null}

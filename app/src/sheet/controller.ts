@@ -74,6 +74,7 @@ import {
 } from "@cells/core"
 import { FormatCommands, NUMBER_FORMATS } from "./format"
 import { AnnotationCommands } from "./annotations"
+import { DataCommands, type FilterDialogRequest } from "./data"
 import { NameCommands } from "./names"
 import { ConditionalCommands } from "./conditional"
 import { SHEET_MESSAGES, SheetCommands } from "./sheets"
@@ -153,6 +154,12 @@ export type ShellRequests = {
   alert(message: string, then?: () => void): void
   /** Shift+F3: Insert Function. */
   insertFunction?(): void
+  /** Excel's Sort Warning: expand the selection to the data beside it, or sort only the selection. */
+  sortWarning?(then: (expand: boolean) => void): void
+  /** Data › Sort: the Sort dialog, on a range. */
+  sortDialog?(range: Range): void
+  /** Custom AutoFilter or Top 10 AutoFilter, from a filter dropdown. */
+  filterDialog?(request: FilterDialogRequest): void
   /** Ctrl+1: the Format Cells dialog, on a tab. */
   formatCells(tab?: "number" | "alignment" | "font" | "border" | "fill" | "protection"): void
 }
@@ -165,7 +172,7 @@ const FIT_KEYS = new Set(["fontSize", "fontName", "wrap", "rotation", "indent", 
 const FIT_LIMIT = 20_000
 
 /** Today as a date serial (local time), for "A Date Occurring" rules. */
-function todaySerial(): number {
+export function todaySerial(): number {
   const now = new Date()
   return dateSerial(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }
@@ -222,6 +229,7 @@ export class SheetController {
   readonly sheets: SheetCommands = new SheetCommands(this)
   /** Notes and comments. */
   readonly annotations: AnnotationCommands = new AnnotationCommands(this)
+  readonly data: DataCommands = new DataCommands(this)
   /** Defined names (Name Box, Define Name, Go To). */
   readonly names: NameCommands = new NameCommands(this)
   /** What a cell shows in its column (the view knows the fonts and widths); used by Increase/Decrease Decimal. */
@@ -1485,6 +1493,7 @@ export class SheetController {
         this.changed()
         return true
     }
+    if (alt && !primary && key === "ArrowDown" && this.data.openMenuAtActive()) return true
     if (primary && !alt) {
       const lower = key.toLowerCase()
       if (lower === "z" && !shift) return (this.undo(), true)
@@ -1497,6 +1506,7 @@ export class SheetController {
       if (lower === "d") return (this.fillFromEdge("down"), true)
       if (lower === "r") return (this.fillFromEdge("right"), true)
       if (lower === "u" && shift) return (this.toggleFormulaBarExpanded(), true)
+      if (lower === "l" && shift) return (this.data.toggleFilter(), true)
       if (this.formatKey(key, shift)) return true
       if (key === "-") return (this.insertOrDelete("delete"), true)
       if (key === "+" || (key === "=" && shift)) return (this.insertOrDelete("insert"), true)

@@ -210,6 +210,9 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
       return !p.deleteColumns
     case "annotations":
       return !p.editObjects
+    case "autoFilter":
+      // Use AutoFilter lets filters change; turning the filter on or off never works on a protected sheet.
+      return !p.autoFilter || (sheet.autoFilter === null) !== (op.filter === null)
     case "insertCells":
     case "deleteCells":
     case "merge":

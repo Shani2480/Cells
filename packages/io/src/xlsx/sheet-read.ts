@@ -22,6 +22,7 @@ import {
   type TimePeriod,
 } from "@cells/core"
 import { escapeXml } from "../xml"
+import { readAutoFilter } from "./autofilter"
 import { scanXml } from "./scan"
 import { at, kid, kids, parseFragment, raw, type Kept, type XDoc, type XNode } from "./dom"
 import { formulaFromFile } from "./formula"
@@ -91,6 +92,7 @@ const OWN = new Set([
   "cols",
   "sheetData",
   "sheetProtection",
+  "autoFilter",
   "mergeCells",
   "conditionalFormatting",
   "legacyDrawing",
@@ -351,6 +353,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         break
       case "sheetProtection":
         sheet.protection = readProtection(parseFragment(source, rootTag).root)
+        break
+      case "autoFilter":
+        sheet.autoFilter = readAutoFilter(parseFragment(source, rootTag).root, ctx.styles, warnings)
         break
       case "conditionalFormatting":
         conditional.push(parseFragment(source, rootTag))

@@ -3,6 +3,7 @@ import type { Axis } from "./axis"
 import type { CellData } from "./cell-store"
 import type { AnnotationWrite } from "./annotations"
 import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
+import { copyAutoFilter, shiftAutoFilter, type AutoFilter } from "./filter"
 import { rewriteNames, type DefinedName, type SheetList } from "./names"
 import type { SheetProtection, WorkbookProtection } from "./protection"
 import { formatRanges, recordBounds, restoreStyles, shiftMerges, type StyleRecord } from "./formatting"
@@ -55,6 +56,7 @@ export type Op =
       merges: Range[]
       conditional?: CFEntry[]
       annotations?: AnnotationWrite[]
+      autoFilter?: AutoFilter | null
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -62,6 +64,11 @@ export type Op =
   | { kind: "annotations"; sheet: number; writes: AnnotationWrite[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
+  /**
+   * Data › Filter: the sheet's AutoFilter (null: none), with the rows it hides or shows (Excel hides filtered rows,
+   * so the row entries come from the filter, worked out where today's date is known).
+   */
+  | { kind: "autoFilter"; sheet: number; filter: AutoFilter | null; rows?: AxisEntry[] }
   /** Protect Sheet (with the options) or Unprotect Sheet (null). */
   | { kind: "protect"; sheet: number; protection: SheetProtection | null }
   /** Protect Workbook (Structure) or Unprotect Workbook (null). */
@@ -175,6 +182,16 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
         change: { sheet: op.sheet, structural: false, format: true },
       }
     }
+    case "autoFilter": {
+      const before = copyAutoFilter(sheet.autoFilter)
+      sheet.autoFilter = copyAutoFilter(op.filter)
+      const rows = op.rows?.length ? setAxis(sheet, op.sheet, "rows", op.rows) : null
+      const undoRows = rows ? (rows.inverse[0] as Extract<Op, { kind: "axis" }>).entries : undefined
+      return {
+        inverse: [{ kind: "autoFilter", sheet: op.sheet, filter: before, ...(undoRows ? { rows: undoRows } : {}) }],
+        change: rows?.change.structural ? rows.change : { sheet: op.sheet, structural: false, format: true },
+      }
+    }
     case "protect": {
       const before = sheet.protection ? { ...sheet.protection } : null
       sheet.protection = op.protection ? { ...op.protection } : null
@@ -229,6 +246,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     merges: sheet.merges.all.map((m) => ({ ...m })),
     conditional: copyEntries(sheet.conditional),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
+    autoFilter: copyAutoFilter(sheet.autoFilter),
   }
 }
 
@@ -244,6 +262,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
     sheet.annotations.clear()
     for (const a of op.annotations) sheet.annotations.set(a.row, a.col, a.value)
   }
+  if (op.autoFilter !== undefined) sheet.autoFilter = copyAutoFilter(op.autoFilter)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -254,7 +273,8 @@ function hasLayout(sheet: Sheet) {
     sheet.colStyles.size > 0 ||
     sheet.merges.size > 0 ||
     sheet.conditional.length > 0 ||
-    sheet.annotations.size > 0
+    sheet.annotations.size > 0 ||
+    sheet.autoFilter !== null
   )
 }
 
@@ -346,6 +366,7 @@ function insertLines(
   shiftMerges(sheet, axis, at, count)
   shiftConditional(sheet, axis, at, count)
   sheet.annotations.shift(axis, at, count)
+  if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
   if (layout) inverse.push(layout)
@@ -396,6 +417,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   shiftMerges(sheet, axis, at, -count)
   shiftConditional(sheet, axis, at, -count)
   sheet.annotations.shift(axis, at, -count)
+  if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
   if (layout) inverse.push(layout)
   if (removed.length) {

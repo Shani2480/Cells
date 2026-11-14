@@ -57,6 +57,15 @@ Phase 3, added at the end:
       pressed while protected.
 - [ ] Comment card layout and the note box size (144 × 79 px) against Excel's.
 
+## Against Excel (Phase 4, data tools)
+
+- [ ] The filter dropdown's look next to Excel's (built from memory of Excel 365, no reference screenshot): widths,
+      the search box, the value list and the order of the submenus.
+- [ ] The filter button's funnel and sort-arrow glyphs at 100% and 200%.
+- [ ] Filter by Color with "No Fill" saved from Cells (written as a fill of pattern none; Excel's own form for it
+      wasn't captured, Excel reapplies it correctly).
+- [ ] The Sort dialog's layout against Excel's.
+
 ## On a device
 
 - [ ] Scrolling frame times in the Tauri window with GPU compositing (the 16 ms p95 budget; only measured on

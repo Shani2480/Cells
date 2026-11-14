@@ -11,6 +11,8 @@ export type GridTheme = {
   headerSelectedBar: string
   headerFullBackground: string
   headerFullText: string
+  /** Row numbers of a filtered range (Excel draws them blue). */
+  headerFilteredText: string
   selectionFill: string
   selectionBorder: string
   fillPreview: string
@@ -37,6 +39,7 @@ const TOKENS: Record<Exclude<keyof GridTheme, "refColors">, string> = {
   headerSelectedBar: "--grid-header-selected-bar",
   headerFullBackground: "--grid-header-full-bg",
   headerFullText: "--grid-header-full-text",
+  headerFilteredText: "--grid-header-filtered-text",
   selectionFill: "--grid-selection-fill",
   selectionBorder: "--grid-selection-border",
   fillPreview: "--grid-fill-preview",
@@ -58,6 +61,7 @@ export const LIGHT_THEME: GridTheme = {
   headerSelectedBackground: "#e1f1e7",
   headerSelectedText: "#0e5c2f",
   headerSelectedBar: "#217346",
+  headerFilteredText: "#0b62c4",
   headerFullBackground: "#c9e7d4",
   headerFullText: "#0e5c2f",
   selectionFill: "rgb(0 0 0 / 0.09)",

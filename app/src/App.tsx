@@ -1,4 +1,4 @@
-import { rangeName } from "@cells/core"
+import { rangeName, type Range } from "@cells/core"
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
 import { GridView, type GridContextMenu } from "@/grid/GridView"
@@ -11,6 +11,9 @@ import { TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { whatsNewOnStart } from "@/about/release-notes"
 import { Dialog } from "@/shell/Dialog"
+import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
+import type { FilterDialogRequest } from "@/sheet/data"
+import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
 import { FormatCellsDialog, type FormatTab } from "@/shell/format-cells/FormatCellsDialog"
 import { TooltipProvider } from "@/ui/tooltip"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
@@ -78,6 +81,9 @@ type DialogState =
         | "insertFunction"
     }
   | { kind: "cfQuick"; quick: QuickKind }
+  | { kind: "sort"; range: Range }
+  | { kind: "sortWarning"; then: (expand: boolean) => void }
+  | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "cfNew"; start: string }
   | null
 
@@ -304,6 +310,9 @@ function WorkbookWindow({
         }),
       formatCells: (tab) => setDialog({ kind: "formatCells", tab }),
       insertFunction: () => setDialog({ kind: "insertFunction" }),
+      sortWarning: (then) => setDialog({ kind: "sortWarning", then }),
+      sortDialog: (range) => setDialog({ kind: "sort", range }),
+      filterDialog: (request) => setDialog({ kind: "filter", request }),
     }
   }, [controller])
 
@@ -654,6 +663,30 @@ function WorkbookWindow({
           <NewRuleDialog controller={controller} start={dialog.start} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "defineName" ? <DefineNameDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "sort" ? (
+          <SortDialog controller={controller} range={dialog.range} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "filter" && dialog.request.kind === "custom" ? (
+          <CustomFilterDialog
+            controller={controller}
+            col={dialog.request.col}
+            preset={dialog.request.preset}
+            onClose={closeDialog}
+          />
+        ) : null}
+        {dialog?.kind === "filter" && dialog.request.kind === "top10" ? (
+          <Top10Dialog controller={controller} col={dialog.request.col} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "sortWarning" ? (
+          <SortWarningDialog
+            onClose={closeDialog}
+            onChoose={(expand) => {
+              setDialog(null)
+              dialog.then(expand)
+              focusGrid()
+            }}
+          />
+        ) : null}
         {dialog?.kind === "insertFunction" ? (
           <InsertFunctionDialog
             onClose={closeDialog}

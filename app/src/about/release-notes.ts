@@ -17,6 +17,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Save As CSV UTF-8 or Text (Tab delimited), written as Excel writes them; with several sheets Cells asks first and saves the active one.",
       "Drop a workbook or CSV on the window to open it.",
       "Big files show their progress while opening. If a file can't be opened, Cells says why (damaged, password-protected, the old .xls format) and lists anything it left out.",
+      "Sort: Sort A to Z and Z to A on the data around the cell (headers stay on top), and the Sort dialog for several levels, cell or font colour, custom lists like Jan, Feb, Mar, case-sensitive sorting and left-to-right. The order is checked against Excel.",
+      "Filter (Ctrl+Shift+L): a dropdown on each header with sorting, a search box, a list of values to tick (dates by year, month and day), Text, Number and Date Filters, Top 10, Above Average and Filter by Color. The status bar counts the rows shown; Clear and Reapply are on the Data tab. Filters open and save with Excel files, and give the same rows as Excel.",
     ],
   },
   {

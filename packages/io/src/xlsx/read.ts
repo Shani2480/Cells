@@ -250,6 +250,8 @@ export async function openXlsx(
   for (const n of kids(kid(root, "definedNames"), "definedName")) {
     const name = at(n, "name") ?? ""
     const hidden = at(n, "hidden") === "1" || at(n, "hidden") === "true"
+    // The filter's hidden name is written anew from each sheet's AutoFilter.
+    if (name === "_xlnm._FilterDatabase") continue
     if (at(n, "localSheetId") !== undefined || hidden || name.startsWith("_xlnm.") || name.startsWith("_xl")) {
       const local = at(n, "localSheetId")
       keptNames.push({ xml: raw(wbDoc, n), sheet: local !== undefined ? (wb.sheets[Number(local)] ?? null) : null })

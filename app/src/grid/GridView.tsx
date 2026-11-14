@@ -4,6 +4,7 @@ import { usePlatform } from "@/platform/context"
 import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
 import { keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
+import { FilterButtons } from "./FilterButtons"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
 import { drawGrid } from "./draw"
 import { lookOf, shownText } from "./cell-look"
@@ -835,6 +836,7 @@ export function GridView({
           onPick={focusInput}
         />
       ) : null}
+      {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
       {layout ? (
         <AnnotationLayer
           controller={controller}

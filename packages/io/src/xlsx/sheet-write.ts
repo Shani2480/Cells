@@ -12,6 +12,7 @@ import {
   type StyleTable,
 } from "@cells/core"
 import { escapeXml, escapeXmlText } from "../xml"
+import { autoFilterXml } from "./autofilter"
 import { argb } from "./colors"
 import { NS_MAIN, NS_R } from "./constants"
 import { assemble, attrText, type Kept } from "./dom"
@@ -187,6 +188,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     cols: colsXml(sheet, xf, ctx.source?.colExtras),
     sheetData: rowParts.length ? `<sheetData>${rowParts.join("")}</sheetData>` : `<sheetData/>`,
     sheetProtection: protectionXml(sheet),
+    autoFilter: sheet.autoFilter ? autoFilterXml(sheet.autoFilter, styles, rangeRef) : "",
     mergeCells: sheet.merges.size
       ? `<mergeCells count="${sheet.merges.size}">${sheet.merges.all.map((m) => `<mergeCell ref="${rangeRef(m)}"/>`).join("")}</mergeCells>`
       : "",

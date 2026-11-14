@@ -3,6 +3,7 @@ import { Axis } from "./axis"
 import { CellStore } from "./cell-store"
 import { Annotations } from "./annotations"
 import type { CFEntry } from "./conditional"
+import type { AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
 
 /**
@@ -142,6 +143,8 @@ export class Sheet {
   readonly annotations = new Annotations()
   /** Review › Protect Sheet; null when the sheet is not protected. */
   protection: SheetProtection | null = null
+  /** Data › Filter: the AutoFilter range and its column filters; null when the sheet has none. */
+  autoFilter: AutoFilter | null = null
 
   constructor(name: string) {
     this.name = name

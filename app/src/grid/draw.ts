@@ -348,7 +348,9 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
     p.restore()
   }
 
-  // Row headers.
+  // Row headers (a filtered range's row numbers in blue, as Excel).
+  const af = controller.sheet.autoFilter
+  const filtered = af && Object.keys(af.columns).length ? af.range : null
   p.fillStyle = theme.headerBackground
   p.fillRect(0, headerHeight, rowHeaderWidth, height - headerHeight)
   for (const row of layout.rows) {
@@ -364,7 +366,15 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
       p.fillStyle = theme.headerSelectedBar
       p.fillRect(rowHeaderWidth - 2, row.start, 2, row.size)
     }
-    p.fillStyle = state === "full" ? theme.headerFullText : state ? theme.headerSelectedText : theme.headerText
+    const inFilter = filtered !== null && row.index > filtered.r0 && row.index <= filtered.r1
+    p.fillStyle =
+      state === "full"
+        ? theme.headerFullText
+        : inFilter
+          ? theme.headerFilteredText
+          : state
+            ? theme.headerSelectedText
+            : theme.headerText
     p.save()
     p.beginPath()
     p.rect(0, row.start, rowHeaderWidth, row.size)

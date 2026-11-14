@@ -47,6 +47,7 @@
   --grid-header-bg: #f5f5f5;
   --grid-header-line: #d4d4d4;
   --grid-header-text: #424242;
+  --grid-header-filtered-text: #0b62c4;
   --grid-header-selected-bg: #e1f1e7;
   --grid-header-selected-text: #0e5c2f;
   --grid-header-selected-bar: #217346;
@@ -105,6 +106,7 @@
   --grid-header-bg: #2a2a2a;
   --grid-header-line: #444444;
   --grid-header-text: #c8c8c8;
+  --grid-header-filtered-text: #6cb4ff;
   --grid-header-selected-bg: #24432f;
   --grid-header-selected-text: #a6e3bf;
   --grid-header-selected-bar: #4fae7c;
