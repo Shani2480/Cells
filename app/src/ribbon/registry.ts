@@ -1,3 +1,4 @@
+import type { FileCommands } from "@/file/commands"
 import type { ReactNode } from "react"
 import type { SheetController } from "@/sheet/controller"
 
@@ -17,6 +18,8 @@ export type RibbonEnv = {
   toggleRibbon(): void
   /** Opens the File view on a page ("info", "about"). */
   backstage(page?: string): void
+  /** File › New, Open, Save… (absent in tests that only drive the ribbon). */
+  files?: FileCommands
 }
 
 export type MenuEntry =

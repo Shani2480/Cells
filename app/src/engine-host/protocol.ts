@@ -3,6 +3,8 @@ import type { CalcMode, Op, ValuePatch } from "@cells/core"
 /** Messages from the UI to the calculation worker. */
 export type ToWorker =
   | { type: "init"; sheets: string[]; ops: Op[] }
+  /** Opens the same file the UI opened (cheaper than sending every cell over). */
+  | { type: "open"; bytes: Uint8Array; name: string }
   | { type: "ops"; ops: Op[] }
   | { type: "calculate"; full: boolean }
   | { type: "mode"; mode: CalcMode }

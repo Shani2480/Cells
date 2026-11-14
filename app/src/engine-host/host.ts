@@ -25,9 +25,11 @@ export class WorkerCalculator implements Calculator {
   constructor(
     private readonly wb: Workbook<unknown>,
     private readonly port: Port,
+    file?: { bytes: Uint8Array; name: string },
   ) {
     port.listen((message) => this.receive(message))
-    port.post({ type: "init", sheets: wb.sheets.map((s) => s.name), ops: snapshotOps(wb) })
+    if (file) port.post({ type: "open", bytes: file.bytes, name: file.name })
+    else port.post({ type: "init", sheets: wb.sheets.map((s) => s.name), ops: snapshotOps(wb) })
     this.outstanding++
     wb.setCalculator(this)
   }
@@ -53,6 +55,11 @@ export class WorkerCalculator implements Calculator {
 
   status() {
     return this.current
+  }
+
+  /** Stops the worker (the workbook was closed or replaced). */
+  stop() {
+    this.port.close?.()
   }
 
   private receive(message: FromWorker) {
@@ -104,8 +111,11 @@ export function inProcessPort(): Port {
 }
 
 /** Moves calculation of `wb` into a worker when the platform has workers; otherwise it stays in-process. */
-export function startCalculation(wb: Workbook<unknown>): WorkerCalculator | null {
+export function startCalculation(
+  wb: Workbook<unknown>,
+  file?: { bytes: Uint8Array; name: string },
+): WorkerCalculator | null {
   if (typeof Worker === "undefined") return null
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" })
-  return new WorkerCalculator(wb, workerPort(worker))
+  return new WorkerCalculator(wb, workerPort(worker), file)
 }

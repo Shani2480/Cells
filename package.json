@@ -1,7 +1,7 @@
 {
   "name": "cells",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "The Cells authors",
   "license": "MIT",
   "type": "module",
@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
-    "typecheck": "tsc -p packages/core && tsc -p packages/platform && tsc -p app",
+    "typecheck": "tsc -p packages/core && tsc -p packages/io && tsc -p packages/platform && tsc -p app",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run --project core --project app",
@@ -21,11 +21,14 @@
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@cells/core": "*",
+    "@cells/io": "*",
     "@cells/platform": "*",
     "@fontsource-variable/geist": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-clipboard-manager": "^2",
+    "@tauri-apps/plugin-dialog": "^2.8.4",
+    "@tauri-apps/plugin-fs": "^2.7.1",
     "lucide-react": "^1.55.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

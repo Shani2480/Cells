@@ -1,6 +1,7 @@
 import type { Platform } from "@cells/platform"
 import { readText, writeHtml, writeText } from "@tauri-apps/plugin-clipboard-manager"
 import { getCurrentWindow } from "@tauri-apps/api/window"
+import { tauriFiles } from "./tauri-files"
 import { webPlatform } from "./web"
 
 export function isTauri() {
@@ -12,6 +13,7 @@ export function tauriPlatform(): Platform {
   const appWindow = getCurrentWindow()
   return {
     os: webPlatform.os === "web" ? "linux" : webPlatform.os,
+    files: tauriFiles(),
     clipboard: {
       async write(content) {
         if (content.html) await writeHtml(content.html, content.text)
@@ -34,6 +36,22 @@ export function tauriPlatform(): Platform {
       setTitle: async (title) => {
         document.title = title
         await appWindow.setTitle(title)
+      },
+      onCloseRequested(allow) {
+        let disposed = false
+        let unlisten: (() => void) | undefined
+        void appWindow
+          .onCloseRequested(async (event) => {
+            if (!(await allow())) event.preventDefault()
+          })
+          .then((fn) => {
+            unlisten = fn
+            if (disposed) fn()
+          })
+        return () => {
+          disposed = true
+          unlisten?.()
+        }
       },
       onMaximizedChange(callback) {
         let disposed = false

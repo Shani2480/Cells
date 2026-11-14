@@ -6,6 +6,17 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "0.4.0",
+    date: "2026-11-14",
+    notes: [
+      "Open and save Excel workbooks (.xlsx, .xlsm and templates). Files made in Excel come back out with their charts, pictures, macros and other parts Cells doesn't show yet kept as they were.",
+      "File › Home, New, Open, Save As and Info, with a Recent list you can pin files to. Ctrl+N, Ctrl+O, Ctrl+S, F12 and Ctrl+W work as in Excel.",
+      "Cells asks to save your changes before closing or opening another file, and the title bar shows the workbook's name.",
+      "AutoRecover keeps a copy of unsaved work every two minutes. If Cells closes unexpectedly, Document Recovery offers it the next time.",
+      "Big files show their progress while opening. If a file can't be opened, Cells says why (damaged, password-protected, the old .xls format) and lists anything it left out.",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-14",
     notes: [

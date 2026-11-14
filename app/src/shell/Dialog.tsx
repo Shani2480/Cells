@@ -14,6 +14,7 @@ export function Dialog({
   width = 320,
   acceptLabel = "OK",
   cancelLabel = "Cancel",
+  extra,
 }: {
   title: string
   onCancel: () => void
@@ -23,6 +24,8 @@ export function Dialog({
   acceptLabel?: string
   /** null: a message with OK only. */
   cancelLabel?: string | null
+  /** A third button between OK and Cancel (Excel's "Don't Save"). */
+  extra?: { label: string; onSelect: () => void }
 }) {
   const titleId = useId()
   const ref = useRef<HTMLDivElement>(null)
@@ -80,6 +83,11 @@ export function Dialog({
           <button type="button" className="dialog-btn is-primary" onClick={onAccept}>
             {acceptLabel}
           </button>
+          {extra ? (
+            <button type="button" className="dialog-btn" onClick={extra.onSelect}>
+              {extra.label}
+            </button>
+          ) : null}
           {cancelLabel === null ? null : (
             <button type="button" className="dialog-btn" onClick={onCancel}>
               {cancelLabel}

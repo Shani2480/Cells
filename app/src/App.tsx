@@ -42,7 +42,17 @@ import { QuickAccess, TellMe } from "@/shell/QuickAccess"
 import { loadQat, saveQat } from "@/ribbon/qat-commands"
 import { TitleBar } from "@/shell/TitleBar"
 import { loadDemo } from "./demo"
-import { startCalculation } from "./engine-host/host"
+import { FileCommands, type SaveChoice } from "@/file/commands"
+import { newDocument, type FileProblem, type WorkbookDocument } from "@/file/document"
+import {
+  FileNoticeDialog,
+  FileProblemDialog,
+  FileProgress,
+  RecoveryDialog,
+  SaveChangesDialog,
+} from "@/file/FileDialogs"
+import { folderOf, type RecentFile } from "@/file/recent"
+import type { RecoveredFile } from "@/file/recovery"
 
 const NOT_BUILT = "Not built yet."
 
@@ -80,14 +90,126 @@ function useSystemColorScheme() {
   }, [])
 }
 
+/**
+ * The window: one workbook at a time, with File › New, Open, Save, Save As and Close, AutoRecover and Document
+ * Recovery. Opening a file replaces the workbook (after asking to save changes); the workbook's own view below is
+ * built anew for each one.
+ */
 export function App({ controller: given }: { controller?: SheetController } = {}) {
-  const controller = useMemo(() => {
-    if (given) return given
-    const created = new SheetController()
-    // Formulas calculate in a worker; the grid shows the values as they come back.
-    startCalculation(created.wb)
-    return created
-  }, [given])
+  const platform = usePlatform()
+  const [first] = useState(() => newDocument(given))
+  const [doc, setDoc] = useState<WorkbookDocument>(first)
+  const [progress, setProgress] = useState<{ label: string; done: number | null } | null>(null)
+  const [asking, setAsking] = useState<{ title: string; answer: (choice: SaveChoice) => void } | null>(null)
+  const [problem, setProblem] = useState<FileProblem | null>(null)
+  const [notice, setNotice] = useState<{ fileName: string; lines: string[] } | null>(null)
+  const [recovered, setRecovered] = useState<RecoveredFile[]>([])
+  const [recent, setRecent] = useState<RecentFile[]>([])
+  const [files] = useState(
+    () =>
+      new FileCommands(
+        platform.files,
+        {
+          show: setDoc,
+          askSave: (title) => new Promise((answer) => setAsking({ title, answer })),
+          problem: setProblem,
+          progress: setProgress,
+          notice: (lines, fileName) => setNotice({ lines, fileName }),
+          recentChanged: setRecent,
+        },
+        first,
+      ),
+  )
+
+  useEffect(() => {
+    setRecent(files.recent)
+    loadDemo(first.controller, new URLSearchParams(window.location.search).get("demo"))
+    files.startAutoRecover()
+    void files.recovered().then((list) => {
+      if (list.length) setRecovered(list)
+    })
+    return () => files.stop()
+  }, [files, first])
+
+  // Closing the window asks about unsaved changes (a browser tab can only show its own prompt).
+  useEffect(
+    () =>
+      platform.window.onCloseRequested(() => {
+        if (!platform.window.controllable) return !files.doc.dirty
+        return files.confirmClose().then(async (ok) => {
+          if (ok) await files.discardRecovered({ id: files.doc.id } as RecoveredFile)
+          return ok
+        })
+      }),
+    [platform, files],
+  )
+
+  // Excel's file shortcuts, from anywhere but an open dialog.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (document.querySelector('[aria-modal="true"]')) return
+      const primary = event.ctrlKey || event.metaKey
+      const key = event.key.toLowerCase()
+      let run: (() => Promise<boolean>) | null = null
+      if (primary && !event.altKey && !event.shiftKey && key === "n") run = () => files.newWorkbook()
+      else if ((primary && !event.altKey && key === "o") || (primary && key === "f12")) run = () => files.open()
+      else if (primary && !event.altKey && !event.shiftKey && key === "s") run = () => files.save()
+      else if (!primary && !event.altKey && key === "f12") run = () => files.saveAs()
+      else if (primary && !event.altKey && (key === "w" || key === "f4")) run = () => files.close()
+      if (!run) return
+      event.preventDefault()
+      event.stopPropagation()
+      void run()
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
+  }, [files])
+
+  return (
+    <>
+      <WorkbookWindow key={doc.id} doc={doc} files={files} recentFiles={recent} />
+      {progress ? <FileProgress label={progress.label} done={progress.done} /> : null}
+      {asking ? (
+        <SaveChangesDialog
+          title={asking.title}
+          onChoose={(choice) => {
+            setAsking(null)
+            asking.answer(choice)
+          }}
+        />
+      ) : null}
+      {problem ? <FileProblemDialog problem={problem} onClose={() => setProblem(null)} /> : null}
+      {notice && !problem ? (
+        <FileNoticeDialog fileName={notice.fileName} lines={notice.lines} onClose={() => setNotice(null)} />
+      ) : null}
+      {recovered.length && !asking ? (
+        <RecoveryDialog
+          files={recovered}
+          onOpen={(file) => {
+            setRecovered((list) => list.filter((f) => f !== file))
+            void files.openRecovered(file)
+          }}
+          onDiscard={(file) => {
+            setRecovered((list) => list.filter((f) => f !== file))
+            void files.discardRecovered(file)
+          }}
+          onClose={() => setRecovered([])}
+        />
+      ) : null}
+    </>
+  )
+}
+
+function WorkbookWindow({
+  doc,
+  files,
+  recentFiles,
+}: {
+  doc: WorkbookDocument
+  files: FileCommands
+  recentFiles: RecentFile[]
+}) {
+  const controller = doc.controller
   const platform = usePlatform()
   const [dialog, setDialog] = useState<DialogState>(null)
   const [menu, setMenu] = useState<GridContextMenu | null>(null)
@@ -117,8 +239,7 @@ export function App({ controller: given }: { controller?: SheetController } = {}
 
   useEffect(() => {
     if (!platform.window.controllable) document.documentElement.classList.add("is-browser")
-    loadDemo(controller, new URLSearchParams(window.location.search).get("demo"))
-  }, [controller, platform])
+  }, [platform])
 
   useEffect(() => {
     controller.shell = {
@@ -336,7 +457,8 @@ export function App({ controller: given }: { controller?: SheetController } = {}
     paste: () => void pasteFromClipboard(),
     dialog: openDialog,
     toggleRibbon: () => ribbonHandle.current?.toggleCollapsed(),
-    backstage: (page) => setBackstage(page ?? "account"),
+    backstage: (page) => setBackstage(page ?? "home"),
+    files,
   }
 
   // Ctrl+F1 shows or hides the ribbon's commands, from anywhere.
@@ -363,7 +485,7 @@ export function App({ controller: given }: { controller?: SheetController } = {}
       <div className="app-window-frame">
         <TitleBar
           controller={controller}
-          title="Book1 - Cells"
+          title={`${doc.title} - Cells`}
           qat={<QuickAccess registry={registry} env={env} ids={qat} onChange={setQat} onDone={focusGrid} />}
           search={
             <TellMe
@@ -379,7 +501,7 @@ export function App({ controller: given }: { controller?: SheetController } = {}
             env={env}
             registry={registry}
             tabs={TABS}
-            onFile={() => setBackstage("account")}
+            onFile={() => setBackstage("home")}
             qatKeytips={qat.slice(0, 9).map((id, i) => ({
               key: String(i + 1),
               run: () => {
@@ -526,6 +648,15 @@ export function App({ controller: given }: { controller?: SheetController } = {}
         {backstage ? (
           <Backstage
             page={backstage}
+            files={files}
+            recent={recentFiles}
+            file={{
+              title: doc.title,
+              fileName: doc.fileName,
+              folder: folderOf(doc.ref?.path),
+              saved: !doc.dirty,
+              hasFile: Boolean(doc.ref?.path || doc.ref?.handle),
+            }}
             onClose={() => {
               setBackstage(null)
               focusGrid()

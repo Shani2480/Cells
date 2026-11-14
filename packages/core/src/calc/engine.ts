@@ -109,8 +109,12 @@ export class CalcEngine {
 
   // ── Registration ─────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** Re-reads every formula of the workbook (after structural changes or loading). */
-  rebuild() {
+  /**
+   * Re-reads every formula of the workbook (after structural changes or loading). `trusted`: the stored values are
+   * already right (a file saved with its calculated values), so the formulas start calculated and only what changes
+   * from now on recalculates. Otherwise they all wait for the next calculation.
+   */
+  rebuild(trusted = false) {
     // Spilled values must go through clearSpill (they live in the cell store); the rest is dropped wholesale.
     for (const f of this.spillers) if (f.spill) this.clearSpill(f, null)
     this.formulas.clear()
@@ -122,7 +126,10 @@ export class CalcEngine {
     this.volatiles.clear()
     this.spillers.clear()
     this.host.sheets.forEach((sheet, s) => {
-      sheet.cells.forEachFormula((row, col, input) => this.register(s, row, col, input))
+      sheet.cells.forEachFormula((row, col, input) => {
+        const f = this.register(s, row, col, input)
+        if (trusted) f.state = State.Clean
+      })
     })
   }
 
@@ -496,7 +503,11 @@ export class CalcEngine {
     const dirty: Formula[] = []
     if (full) {
       this.cache.clear()
-      for (const f of this.formulas.values()) this.markDirty(f, dirty)
+      // Formulas registered but never calculated (just loaded) are already dirty; they count too.
+      for (const f of this.formulas.values()) {
+        f.state = State.Dirty
+        dirty.push(f)
+      }
     } else {
       for (const f of this.formulas.values()) if (f.state === State.Dirty) dirty.push(f)
       for (const k of this.volatiles) this.markDirty(this.formulas.get(k)!, dirty)

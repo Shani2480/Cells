@@ -1,3 +1,4 @@
+import { DEFAULT_VIEW as DEFAULT_FILE_VIEW, type SheetView as FileSheetView } from "@cells/io"
 import {
   MAX_COLS,
   PROTECTED_MESSAGE,
@@ -369,6 +370,66 @@ export class SheetController {
     this.fillPreview = null
     this.endMode = false
     this.changed()
+  }
+
+  // ── Views as files keep them ─────────────────────────────────────────────────────────────────────────────
+
+  /** Takes each sheet's view from an opened file (selection, scroll, frozen panes, zoom, gridlines) and shows `active`. */
+  loadViews(views: readonly FileSheetView[], active: number) {
+    this.wb.sheets.forEach((sheet, i) => {
+      const v = views[i]
+      if (!v) return
+      const ranges = v.selection.length
+        ? v.selection
+        : [{ r0: v.active.row, c0: v.active.col, r1: v.active.row, c1: v.active.col }]
+      const activeRange = Math.max(
+        0,
+        ranges.findIndex(
+          (r) => v.active.row >= r.r0 && v.active.row <= r.r1 && v.active.col >= r.c0 && v.active.col <= r.c1,
+        ),
+      )
+      this.views.set(sheet, {
+        selection: { ranges, active: v.active, activeRange, anchor: v.active, focus: v.active },
+        scrollX: sheet.cols.offset(v.topLeft.col),
+        scrollY: sheet.rows.offset(v.topLeft.row),
+        freeze: v.freeze,
+        zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom)),
+        showGridlines: v.showGridlines,
+        showHeadings: v.showHeadings,
+      })
+    })
+    // Make the target load its view: activate() reads the stored view only when the shown sheet changes.
+    this.shown = null as unknown as Sheet
+    this.activate(Math.min(Math.max(0, active), this.wb.sheets.length - 1))
+  }
+
+  /** Each sheet's view, for saving. */
+  saveViews(): FileSheetView[] {
+    return this.wb.sheets.map((sheet, i) => {
+      const live = sheet === this.shown
+      const v = live
+        ? {
+            selection: this.selection,
+            scrollX: this.scrollX,
+            scrollY: this.scrollY,
+            freeze: this.freeze,
+            zoom: this.zoom,
+            showGridlines: this.showGridlines,
+            showHeadings: this.showHeadings,
+          }
+        : this.views.get(sheet)
+      if (!v) return { ...DEFAULT_FILE_VIEW, selected: i === this.sheetIndex }
+      return {
+        freeze: v.freeze,
+        zoom: v.zoom,
+        showGridlines: v.showGridlines,
+        showHeadings: v.showHeadings,
+        topLeft: { row: sheet.rows.indexAt(v.scrollY), col: sheet.cols.indexAt(v.scrollX) },
+        active: v.selection.active,
+        selection: [...v.selection.ranges],
+        selected: i === this.sheetIndex,
+      }
+    })
   }
 
   /** What conditional formatting does to a cell of the sheet shown (null: nothing). */

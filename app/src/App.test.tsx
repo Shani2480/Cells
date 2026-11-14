@@ -4,6 +4,7 @@ import type { Platform } from "@cells/platform"
 import { App } from "./App"
 import { PlatformContext } from "./platform/context"
 import { SheetController } from "./sheet/controller"
+import { MemoryFiles } from "./test/memory-files"
 
 const platform: Platform = {
   os: "linux",
@@ -16,7 +17,9 @@ const platform: Platform = {
     isMaximized: async () => false,
     setTitle: async () => {},
     onMaximizedChange: () => () => {},
+    onCloseRequested: () => () => {},
   },
+  files: new MemoryFiles(),
 }
 
 function renderApp() {
@@ -123,5 +126,66 @@ describe("App shell", () => {
     expect(screen.getByRole("menuitem", { name: "Define Name..." })).toBeEnabled()
     expect(screen.getByRole("menuitem", { name: "Quick Analysis" })).toBeDisabled()
     expect(screen.getByRole("menuitem", { name: "Format Cells..." })).toBeEnabled()
+  })
+})
+
+describe("File commands in the window", () => {
+  const files = platform.files as MemoryFiles
+
+  function edit(c: SheetController, text: string) {
+    act(() => {
+      c.beginEdit("enter", text)
+      c.commitEdit()
+    })
+  }
+
+  it("Ctrl+S on a new workbook asks where, then the title shows the file's name", async () => {
+    const c = renderApp()
+    edit(c, "42")
+    files.nextSave = "/home/alex/Answers.xlsx"
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "s", ctrlKey: true })
+    })
+    await vi.waitFor(() => expect(files.disk.has("/home/alex/Answers.xlsx")).toBe(true))
+    await vi.waitFor(() => expect(screen.getByText("Answers - Cells")).toBeInTheDocument())
+  })
+
+  it("Ctrl+N with unsaved changes asks to save; Don't Save opens a new workbook", async () => {
+    const c = renderApp()
+    edit(c, "7")
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "n", ctrlKey: true })
+    })
+    expect(await screen.findByText(/Want to save your changes to/)).toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Don't Save" }))
+    })
+    await vi.waitFor(() => expect(screen.queryByText(/Want to save/)).toBeNull())
+    expect(screen.getAllByText("Book2 - Cells").length).toBeGreaterThan(0)
+    expect(screen.getByDisplayValue("A1")).toBeInTheDocument()
+  })
+
+  it("Ctrl+O opens a workbook in place of the untouched one", async () => {
+    renderApp()
+    const { Workbook } = await import("@cells/core")
+    const { saveXlsx } = await import("@cells/io")
+    const wb = new Workbook()
+    wb.sheets[0].cells.set(0, 0, { value: "Hello" })
+    files.disk.set("/home/alex/Hello.xlsx", await saveXlsx(wb, { fileName: "Hello.xlsx" }))
+    files.nextOpen = "/home/alex/Hello.xlsx"
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "o", ctrlKey: true })
+    })
+    expect((await screen.findAllByText("Hello - Cells", {}, { timeout: 5000 })).length).toBeGreaterThan(0)
+    expect(screen.getByDisplayValue("A1")).toBeInTheDocument()
+  })
+
+  it("File opens on Home, with the Recent list", async () => {
+    renderApp()
+    fireEvent.click(screen.getByRole("button", { name: "File" }))
+    expect(screen.getByRole("dialog", { name: "File" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/^Good (morning|afternoon|evening)$/)
+    expect(screen.getByRole("button", { name: "Blank workbook" })).toBeInTheDocument()
+    expect(screen.getByRole("list", { name: "Recent files" })).toBeInTheDocument()
   })
 })

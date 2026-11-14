@@ -1,4 +1,5 @@
 import { takePatch, Workbook } from "@cells/core"
+import { openXlsx } from "@cells/io"
 import type { FromWorker, ToWorker } from "./protocol"
 
 /**
@@ -8,8 +9,18 @@ import type { FromWorker, ToWorker } from "./protocol"
 export function createEngine(send: (message: FromWorker) => void) {
   let wb: Workbook | null = null
   let seq = 0
-  return (message: ToWorker) => {
+  // Opening a file is asynchronous; messages that arrive meanwhile wait their turn.
+  let queue: Promise<void> = settled
+  const handle = async (message: ToWorker) => {
     switch (message.type) {
+      case "open":
+        try {
+          wb = (await openXlsx(message.bytes, message.name)).workbook
+        } catch {
+          wb = new Workbook()
+        }
+        wb.calc.changeLog = new Set()
+        break
       case "init":
         wb = new Workbook(message.sheets)
         wb.calc.changeLog = new Set()
@@ -27,4 +38,18 @@ export function createEngine(send: (message: FromWorker) => void) {
     }
     if (wb) send({ type: "patch", seq: ++seq, patch: takePatch(wb) })
   }
+  return (message: ToWorker) => {
+    // Without a pending open, answer at once (tests rely on the in-process engine answering synchronously).
+    if (message.type !== "open" && queue === settled) {
+      void handle(message)
+      return
+    }
+    const next = queue.then(() => handle(message))
+    queue = next
+    void next.then(() => {
+      if (queue === next) queue = settled
+    })
+  }
 }
+
+const settled: Promise<void> = Promise.resolve()

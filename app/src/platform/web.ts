@@ -1,4 +1,5 @@
 import type { ClipboardContent, Platform } from "@cells/platform"
+import { webFiles } from "./web-files"
 
 function detectOs(): Platform["os"] {
   if (typeof navigator === "undefined") return "web"
@@ -46,5 +47,15 @@ export const webPlatform: Platform = {
     onMaximizedChange() {
       return () => {}
     },
+    onCloseRequested(allow) {
+      const listener = (event: BeforeUnloadEvent) => {
+        // The browser's own "Leave site?" prompt; only a synchronous answer counts here.
+        const answer = allow()
+        if (answer === false) event.preventDefault()
+      }
+      window.addEventListener("beforeunload", listener)
+      return () => window.removeEventListener("beforeunload", listener)
+    },
   },
+  files: webFiles(),
 }

@@ -1,5 +1,7 @@
 import {
   hashPassword,
+  hasPassword,
+  passwordMatches,
   nextSheetName,
   sheetNameProblem,
   snapshotSheet,
@@ -199,14 +201,14 @@ export class SheetCommands {
 
   /** Whether Unprotect Sheet needs to ask for a password. */
   needsPassword(index = this.c.sheetIndex): boolean {
-    return Boolean(this.c.wb.sheets[index]?.protection?.password)
+    return hasPassword(this.c.wb.sheets[index]?.protection)
   }
 
   /** Unprotect Sheet: false (and Excel's message) when the password is wrong. */
   unprotect(password = ""): boolean {
     const sheet = this.c.sheet
     if (!sheet.protection) return true
-    if (sheet.protection.password && hashPassword(password) !== sheet.protection.password) {
+    if (!passwordMatches(sheet.protection, password)) {
       this.c.shell.alert(SHEET_MESSAGES.wrongPassword)
       return false
     }
@@ -221,7 +223,7 @@ export class SheetCommands {
   }
 
   workbookNeedsPassword(): boolean {
-    return Boolean(this.c.wb.structure.protection?.password)
+    return hasPassword(this.c.wb.structure.protection)
   }
 
   protectWorkbook(password: string) {
@@ -237,7 +239,7 @@ export class SheetCommands {
   unprotectWorkbook(password = ""): boolean {
     const p = this.c.wb.structure.protection
     if (!p) return true
-    if (p.password && hashPassword(password) !== p.password) {
+    if (!passwordMatches(p, password)) {
       this.c.shell.alert(SHEET_MESSAGES.wrongPassword)
       return false
     }

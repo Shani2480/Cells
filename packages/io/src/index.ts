@@ -1,0 +1,6 @@
+export { openXlsx, XlsxError, type OpenOptions, type XlsxRead, type XlsxSource, type SheetSource } from "./xlsx/read"
+export { saveXlsx, type SaveOptions } from "./xlsx/write"
+export { DEFAULT_VIEW, type SheetView } from "./xlsx/sheet-read"
+export { formulaFromFile, formulaToFile } from "./xlsx/formula"
+export { colWidthToPx, pxToColWidth, pointsToPx, pxToPoints } from "./xlsx/units"
+export { OpcError, EXCEL_PACKAGE_EXTENSIONS, allowsMacros } from "./opc"

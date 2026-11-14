@@ -2,14 +2,23 @@ import type { Range } from "./address"
 import type { Op } from "./ops"
 import type { Sheet } from "./sheet"
 import type { StyleTable } from "./styles"
+import { sha512 } from "./sha512"
 
 /**
  * Protect Sheet: what users may still do on a protected sheet (Excel's "Allow all users of this worksheet to:"
  * list), and the password's hash. Excel's defaults allow only selecting cells.
  */
+/**
+ * A password stored the way Excel 365 does: a salted hash repeated `spinCount` times (SHA-512 by default), all
+ * base64. Kept as read so a saved file still asks for the same password.
+ */
+export type PasswordHash = { algorithm: string; hash: string; salt: string; spinCount: number }
+
 export type SheetProtection = {
   /** Excel's legacy 16-bit hash (hex) of the password, as .xlsx stores it; absent without a password. */
   password?: string
+  /** The modern hash, when the file had one instead of `password`. */
+  hash?: PasswordHash
   selectLocked: boolean
   selectUnlocked: boolean
   formatCells: boolean
@@ -31,6 +40,7 @@ export type SheetProtection = {
 export type WorkbookProtection = {
   /** Excel's legacy hash of the password; absent without one. */
   password?: string
+  hash?: PasswordHash
 }
 
 /** The sheet operations workbook protection refuses. */
@@ -45,7 +55,7 @@ export function structureBlocks(op: Op): boolean {
   return op.kind === "sheetProps" && op.hidden !== undefined
 }
 
-export type ProtectionPermission = Exclude<keyof SheetProtection, "password">
+export type ProtectionPermission = Exclude<keyof SheetProtection, "password" | "hash">
 
 export const DEFAULT_PROTECTION: SheetProtection = {
   selectLocked: true,
@@ -75,6 +85,64 @@ export function hashPassword(password: string): string {
   hash ^= password.length
   hash ^= 0xce4b
   return hash.toString(16).toUpperCase()
+}
+
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+function fromBase64(text: string): Uint8Array {
+  const clean = text.replace(/[^A-Za-z0-9+/]/g, "")
+  const out = new Uint8Array(Math.floor((clean.length * 3) / 4))
+  let bits = 0
+  let acc = 0
+  let o = 0
+  for (const ch of clean) {
+    acc = (acc << 6) | B64.indexOf(ch)
+    bits += 6
+    if (bits >= 8) {
+      bits -= 8
+      out[o++] = (acc >> bits) & 0xff
+    }
+  }
+  return out.subarray(0, o)
+}
+
+/**
+ * Excel 365's password hash (ECMA-376 Agile): H0 = SHA-512(salt + password as UTF-16LE), then `spinCount` times
+ * H = SHA-512(H + iteration as 32-bit little-endian).
+ */
+export function modernHashMatches(hash: PasswordHash, password: string): boolean {
+  if (hash.algorithm.replace(/-/g, "").toUpperCase() !== "SHA512") return false
+  const salt = fromBase64(hash.salt)
+  const input = new Uint8Array(salt.length + password.length * 2)
+  input.set(salt)
+  for (let i = 0; i < password.length; i++) {
+    const c = password.charCodeAt(i)
+    input[salt.length + i * 2] = c & 0xff
+    input[salt.length + i * 2 + 1] = c >> 8
+  }
+  let h = sha512(input)
+  const next = new Uint8Array(68)
+  for (let i = 0; i < hash.spinCount; i++) {
+    next.set(h)
+    next[64] = i & 0xff
+    next[65] = (i >>> 8) & 0xff
+    next[66] = (i >>> 16) & 0xff
+    next[67] = (i >>> 24) & 0xff
+    h = sha512(next)
+  }
+  const want = fromBase64(hash.hash)
+  return want.length === h.length && want.every((b, i) => b === h[i])
+}
+
+/** Whether a protection (sheet or workbook) has a password at all. */
+export const hasPassword = (p: { password?: string; hash?: PasswordHash } | null | undefined) =>
+  Boolean(p?.password || p?.hash)
+
+/** Whether `password` unlocks the protection: the legacy hash, or the modern one from files Excel 365 saved. */
+export function passwordMatches(p: { password?: string; hash?: PasswordHash }, password: string): boolean {
+  if (p.hash) return modernHashMatches(p.hash, password)
+  if (p.password) return hashPassword(password) === p.password.toUpperCase()
+  return true
 }
 
 /** The message Excel shows when an edit hits a locked cell on a protected sheet. */

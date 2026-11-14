@@ -7,6 +7,7 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
 const allowed = {
   core: [],
   platform: ["@cells/core"],
+  io: ["@cells/core", "@zip.js/zip.js", "saxes"],
 }
 const importRe = /(?:import|export)\s[^"']*?from\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g
 const problems = []

@@ -15,3 +15,7 @@ tmp/
 # Kept on this computer only: the Excel reference tooling (talks to a local VM) and reference screenshots.
 /tools/
 /screenshots/
+
+# .NET build output (tests/xlsx-validate)
+tests/xlsx-validate/bin/
+tests/xlsx-validate/obj/
