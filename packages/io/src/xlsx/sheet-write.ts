@@ -17,6 +17,7 @@ import { autoFilterXml } from "./autofilter"
 import { argb } from "./colors"
 import { NS_MAIN, NS_R } from "./constants"
 import { assemble, attrText, type Kept } from "./dom"
+import { printElementsXml, withFitToPage } from "./page-setup"
 import { formulaToFile } from "./formula"
 import { PROTECTION_FLAGS, type SheetView } from "./sheet-read"
 import type { SheetSource } from "./read"
@@ -204,6 +205,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     dataValidations: validationsXml(sheet.validations, rangeRef),
     drawing: ctx.drawing ? `<drawing r:id="${ctx.drawing}"/>` : "",
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
+    ...printElementsXml(sheet.pageSetup, ctx.source?.pageExtras),
     tableParts: ctx.tableParts?.length
       ? `<tableParts count="${ctx.tableParts.length}">${ctx.tableParts.map((id) => `<tablePart r:id="${id}"/>`).join("")}</tableParts>`
       : "",
@@ -213,13 +215,11 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
   const tab = sheet.tabColor ? `<tabColor rgb="${argb(sheet.tabColor)}"/>` : ""
   if (sheetPr) sheetPr.xml = withTabColor(sheetPr.xml, tab)
   else if (tab) kept.unshift({ local: "sheetPr", xml: `<sheetPr>${tab}</sheetPr>` })
-  if (!ctx.source) {
-    kept.push({ local: "sheetFormatPr", xml: `<sheetFormatPr defaultRowHeight="15"/>` })
-    kept.push({
-      local: "pageMargins",
-      xml: `<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>`,
-    })
-  }
+  // Fit to pages is turned on in sheetPr.
+  const fitted = withFitToPage(sheetPr?.xml ?? null, sheet.pageSetup.fitTo !== null)
+  if (sheetPr && fitted) sheetPr.xml = fitted
+  else if (fitted) kept.unshift({ local: "sheetPr", xml: fitted })
+  if (!ctx.source) kept.push({ local: "sheetFormatPr", xml: `<sheetFormatPr defaultRowHeight="15"/>` })
   const validationExt = validationExtXml(sheet.validations, rangeRef)
   if (validationExt) {
     const extLst = kept.find((k) => k.local === "extLst")

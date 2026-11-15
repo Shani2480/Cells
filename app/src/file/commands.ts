@@ -219,6 +219,37 @@ export class FileCommands {
     }
   }
 
+  /**
+   * File › Export › Create PDF (and Save As PDF): the PDF `make` produces, saved where the person picks. The workbook
+   * stays the file it was.
+   */
+  async exportPdf(make: (progress: (done: number) => void) => Promise<Uint8Array>): Promise<boolean> {
+    if (this.busy) return false
+    const name = this.doc.fileName.replace(/\.[^.]+$/, "") + ".pdf"
+    let ref: FileRef | null
+    try {
+      ref = await this.files.pickSave(name, [{ name: "PDF", extensions: ["pdf"] }])
+    } catch (error) {
+      this.ui.problem(new FileProblem("write", name, error instanceof Error ? error.message : String(error)))
+      return false
+    }
+    if (!ref) return false
+    this.busy = true
+    const label = `Publishing ${ref.name}`
+    this.ui.progress({ label, done: 0 })
+    try {
+      const bytes = await make((done) => this.ui.progress({ label, done }))
+      await this.files.write(ref, bytes)
+      return true
+    } catch (error) {
+      this.ui.problem(new FileProblem("write", ref.name, error instanceof Error ? error.message : String(error)))
+      return false
+    } finally {
+      this.busy = false
+      this.ui.progress(null)
+    }
+  }
+
   /** File › Close: the window then shows a new blank workbook. */
   async close(): Promise<boolean> {
     if (!(await this.confirmClose())) return false

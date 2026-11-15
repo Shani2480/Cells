@@ -43,6 +43,31 @@
 - [ ] First-run setup screen (theme, your name for notes and comments, AI opt-in once there is AI). Your rules ask
       for it in every app, but it isn't in PLAN.md yet. Proposed for Phase 5 with Settings.
 
+## Phase 4 — data tools (in progress, version 0.4.0 not shipped yet)
+
+- [x] xlsx open and save (unknown parts kept), big files with progress, CSV/TXT import and export, File views,
+      recent files, AutoRecover
+- [x] Sort and Filter (AutoFilter, custom sort, filter by colour)
+- [x] Find and Replace, Go To Special, Remove Duplicates, Text to Columns
+- [x] Data Validation
+- [x] Tables (Format as Table) with structured references
+- [x] Flash Fill
+- [x] Charts (Insert galleries, Chart Design tab, Select Data, xlsx read and write)
+- [x] Printing and PDF: page setup on every sheet (saved in xlsx and read back by Excel), the Page Layout tab's Page
+      Setup / Scale to Fit / Sheet Options, the Page Setup dialog (four tabs, custom header and footer), print area
+      and titles, page breaks (dashed on the sheet), File › Print with a preview, File › Export to PDF.
+- [ ] Wrap-up docs for Phase 4 (changes.md, verify-list, What's new for 0.4.0)
+
+## Later (from Phase 4)
+
+- Page Layout view and Page Break Preview (dragging page breaks).
+- PDF pages are pictures of the pages, so their text can't be selected or searched.
+- Even-page and first-page headers from Excel files are kept but can't be edited.
+- Black and white printing is saved but not applied to the drawing.
+- Charts: Format tab, Insert Chart dialog, Move Chart, chart sheets.
+- Flash Fill's live suggestion while typing.
+- Sparklines and `.ods` (both marked optional in PLAN.md).
+
 ## Later (from Phase 3)
 
 - Notes and comments don't move with Insert/Delete Cells (shift) or a cut and paste. They do move with whole rows

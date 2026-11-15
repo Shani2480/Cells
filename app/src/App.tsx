@@ -1,3 +1,4 @@
+import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
 import { parseCell, rangeName, type Range } from "@cells/core"
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
@@ -97,6 +98,7 @@ type DialogState =
   | { kind: "dataValidation"; init: ValidationDialogInit }
   | { kind: "createTable"; init: CreateTableInit }
   | { kind: "selectData" }
+  | { kind: "pageSetup"; tab: PageSetupTab }
   | { kind: "resizeTable"; range: Range }
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
@@ -535,6 +537,7 @@ function WorkbookWindow({
     else if (kind === "cf" && isQuickKind(arg)) setDialog({ kind: "cfQuick", quick: arg })
     else if (kind === "cfNew") setDialog({ kind: "cfNew", start: arg ?? "contains" })
     else if (kind === "cfManage") setDialog({ kind: "cfManage" })
+    else if (kind === "pageSetup") setDialog({ kind: "pageSetup", tab: (arg as PageSetupTab) ?? "page" })
     else if (
       kind === "protectSheet" ||
       kind === "unprotectSheet" ||
@@ -556,12 +559,23 @@ function WorkbookWindow({
     files,
   }
 
-  // Ctrl+F1 shows or hides the ribbon's commands, from anywhere.
+  // Ctrl+F1 shows or hides the ribbon's commands, from anywhere; Ctrl+P and Ctrl+F2 open File › Print.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "F1" && (event.ctrlKey || event.metaKey)) {
+      const primary = event.ctrlKey || event.metaKey
+      if (event.key === "F1" && primary) {
         event.preventDefault()
         ribbonHandle.current?.toggleCollapsed()
+      } else if (
+        primary &&
+        !event.altKey &&
+        !event.shiftKey &&
+        (event.key.toLowerCase() === "p" || event.key === "F2") &&
+        !document.querySelector('[aria-modal="true"]')
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+        setBackstage("print")
       }
     }
     window.addEventListener("keydown", onKey)
@@ -750,6 +764,9 @@ function WorkbookWindow({
           />
         ) : null}
         {dialog?.kind === "selectData" ? <SelectDataDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "pageSetup" ? (
+          <PageSetupDialog controller={controller} tab={dialog.tab} fileName={doc.fileName} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "createTable" ? (
           <CreateTableDialog controller={controller} init={dialog.init} onClose={closeDialog} />
         ) : null}
@@ -815,6 +832,8 @@ function WorkbookWindow({
           <Backstage
             page={backstage}
             files={files}
+            controller={controller}
+            onPageSetup={(tab) => setDialog({ kind: "pageSetup", tab })}
             recent={recentFiles}
             file={{
               title: doc.title,

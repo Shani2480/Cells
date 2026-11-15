@@ -17,6 +17,7 @@ import {
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from "./dom"
 import { readDrawing, REL_DRAWING, type DrawingSource } from "./drawing"
+import { readPrintArea, readPrintTitles, type PageSetupExtras } from "./page-setup"
 import { formulaFromFile } from "./formula"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
@@ -38,6 +39,8 @@ export type SheetSource = {
   tables: { id: number; partName: string }[]
   /** The sheet's drawing: its charts' parts and the anchors Cells keeps as they came. */
   drawing?: DrawingSource
+  /** Print settings Cells doesn't model, written back as read. */
+  pageExtras?: PageSetupExtras
 }
 
 export type XlsxSource = {
@@ -287,6 +290,7 @@ export async function openXlsx(
       ),
       tables,
       drawing,
+      pageExtras: read.pageExtras,
     })
     views.push(read.view)
     before += sizes[i]
@@ -315,6 +319,23 @@ export async function openXlsx(
     const hidden = at(n, "hidden") === "1" || at(n, "hidden") === "true"
     // The filter's hidden name is written anew from each sheet's AutoFilter.
     if (name === "_xlnm._FilterDatabase") continue
+    // The print area and titles belong to the sheet's page setup (written anew from it).
+    const sheetOf = at(n, "localSheetId") !== undefined ? wb.sheets[Number(at(n, "localSheetId"))] : undefined
+    if (sheetOf && name === "_xlnm.Print_Area") {
+      const area = readPrintArea(n.text)
+      if (area) {
+        sheetOf.pageSetup.printArea = area
+        continue
+      }
+    }
+    if (sheetOf && name === "_xlnm.Print_Titles") {
+      const titles = readPrintTitles(n.text)
+      if (titles) {
+        sheetOf.pageSetup.titleRows = titles.rows
+        sheetOf.pageSetup.titleCols = titles.cols
+        continue
+      }
+    }
     if (at(n, "localSheetId") !== undefined || hidden || name.startsWith("_xlnm.") || name.startsWith("_xl")) {
       const local = at(n, "localSheetId")
       keptNames.push({ xml: raw(wbDoc, n), sheet: local !== undefined ? (wb.sheets[Number(local)] ?? null) : null })

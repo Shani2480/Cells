@@ -4,13 +4,16 @@ import { CURRENT_VERSION, RELEASE_NOTES } from "@/about/release-notes"
 import type { FileCommands } from "@/file/commands"
 import { folderOf, type RecentFile } from "@/file/recent"
 import { cn } from "@/lib/cn"
+import type { SheetController } from "@/sheet/controller"
+import type { PageSetupTab } from "./PageSetupDialog"
+import { ExportPage, PrintPage } from "./PrintPage"
 
 /**
  * File (the backstage view), as Excel's: a pane of pages on the left in the theme colour, the page on the right.
  * Opens opaque at once with only its pane sliding in, and closes at once (a fading full-window view ghosts in a
- * desktop webview). Save and Close act at once, as in Excel; Print, Share, Export and Options come later.
+ * desktop webview). Save and Close act at once, as in Excel; Share and Options come later.
  */
-export type BackstagePage = "home" | "new" | "open" | "info" | "saveAs" | "account" | "about"
+export type BackstagePage = "home" | "new" | "open" | "info" | "saveAs" | "print" | "export" | "account" | "about"
 
 type NavItem = { id: string; label: string; page?: BackstagePage; action?: "save" | "close"; gapBefore?: boolean }
 
@@ -21,9 +24,9 @@ const PAGES: NavItem[] = [
   { id: "info", label: "Info", page: "info", gapBefore: true },
   { id: "save", label: "Save", action: "save" },
   { id: "saveAs", label: "Save As", page: "saveAs" },
-  { id: "print", label: "Print" },
+  { id: "print", label: "Print", page: "print" },
   { id: "share", label: "Share" },
-  { id: "export", label: "Export" },
+  { id: "export", label: "Export", page: "export" },
   { id: "close", label: "Close", action: "close" },
   { id: "account", label: "Account", page: "account", gapBefore: true },
   { id: "options", label: "Options" },
@@ -44,12 +47,18 @@ export function Backstage({
   files,
   file,
   recent = [],
+  controller,
+  onPageSetup,
 }: {
   page?: string
   onClose: () => void
   files?: FileCommands | null
   file?: BackstageFile
   recent?: RecentFile[]
+  /** The workbook shown (Print and Export draw its pages). */
+  controller?: SheetController
+  /** Print's Page Setup link: the dialog opens over the sheet. */
+  onPageSetup?: (tab: PageSetupTab) => void
 }) {
   const start = initial === "about" ? "account" : (initial ?? "home")
   const [page, setPage] = useState<string>(files || start === "account" ? start : "account")
@@ -119,6 +128,20 @@ export function Backstage({
         {files && page === "open" ? <OpenPage recent={recent} files={files} run={run} /> : null}
         {files && page === "saveAs" ? <SaveAsPage file={file} run={run} files={files} /> : null}
         {page === "info" && file ? <InfoPage file={file} /> : null}
+        {page === "print" && controller && file ? (
+          <PrintPage
+            controller={controller}
+            file={file}
+            onPageSetup={(tab) => {
+              onClose()
+              onPageSetup?.(tab)
+            }}
+            onDone={onClose}
+          />
+        ) : null}
+        {page === "export" && controller && file && files ? (
+          <ExportPage controller={controller} file={file} files={files} run={run} />
+        ) : null}
       </main>
     </div>
   )

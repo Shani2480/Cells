@@ -1,3 +1,4 @@
+import { pageLayoutCommands } from "./page-layout-commands"
 import { Calculator, CircleHelp, Eye, Scan, Snowflake, Sparkles, Table2, ZoomIn } from "lucide-react"
 import labels from "./excel-labels.json"
 import { conditionalCommands } from "./cf-commands"
@@ -295,6 +296,7 @@ export function buildRegistry(): CommandRegistry {
     ...qatCommands(),
     ...tableCommands(),
     ...chartCommands(),
+    ...pageLayoutCommands(),
     ...otherCommands(),
   )
   for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN]) {

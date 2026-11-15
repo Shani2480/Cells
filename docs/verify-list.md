@@ -88,6 +88,17 @@ Phase 3, added at the end:
       came; how Excel draws a Cells chart (colours, fonts) next to Cells' picture is unchecked. Not built yet: the Format
       tab, the Insert Chart dialog (All Charts, the "More … Charts" rows), Move Chart, chart sheets, and charts the chart
       package can't read (kept in the file, not shown).
+- [ ] Printing: the Page Layout tab's Margins and Size menus, the Page Setup dialog's four tabs and the Custom Header
+      dialog, and File › Print's settings were built from memory of Excel 365 (no reference screenshots). The Header
+      and Footer preset lists are from memory. Print settings Cells writes were read back by Excel (orientation, paper,
+      scale, fit-to, margins, centring, gridlines, headings, black and white, page order, first page number, print area,
+      titles, header, footer, breaks) and pass the Open XML SDK; Excel's page counts match on the fixture. Excel prints
+      columns slightly narrower than the screen's widths, so its fit-to scale can differ (49% in Excel, 53% in Cells, on
+      the fixture's Fit sheet). Excel's own PDF of the fixture came out on Letter (the VM's printer), so page placement
+      against Excel on A4 is unchecked. PDF pages are pictures (no selectable text). Not built: Page Layout view, Page
+      Break Preview, even/first-page headers (kept in the file), header pictures and fonts, Black and white in the
+      drawing, print quality and comments/errors as printed options. The printer and copies are chosen in the system's
+      print dialog.
 
 ## On a device
 

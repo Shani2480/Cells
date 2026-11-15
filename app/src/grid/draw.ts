@@ -2,7 +2,7 @@ import { columnName, isWholeColumns, isWholeRows, rangeIntersection, type Range 
 import type { SheetController } from "@/sheet/controller"
 import type { Measure } from "./cell-look"
 import { drawCells } from "./draw-cells"
-import { fillHandleRect, rangeRect, selectionGrippers, type GridLayout } from "./layout"
+import { colX, fillHandleRect, rangeRect, rowY, selectionGrippers, type GridLayout } from "./layout"
 import { GRIPPER_RADIUS } from "./touch"
 import { CELL_FONT, type GridTheme } from "./theme"
 
@@ -65,6 +65,7 @@ export function drawGrid(options: DrawOptions) {
   // Each part of the cell area (frozen rows and columns, the scrolling part) draws in its own rectangle.
   for (const pane of layout.panes) {
     drawCells({ ...options, layout: pane })
+    drawPageBreaks({ ...options, layout: pane })
     drawMarks({ ...options, layout: pane })
     p.font = CELL_FONT
     drawSelection({ ...options, layout: pane })
@@ -96,6 +97,39 @@ export function drawGrid(options: DrawOptions) {
   p.moveTo(layout.rowHeaderWidth - 0.5, 0)
   p.lineTo(layout.rowHeaderWidth - 0.5, layout.height)
   p.stroke()
+}
+
+/** Page breaks as Excel shows them in Normal view once the sheet has been paged: dashed lines between pages. */
+function drawPageBreaks({ painter: p, layout, controller, theme }: DrawOptions) {
+  if (!controller.print.showBreaks || !layout.rows.length || !layout.cols.length) return
+  const { rows, cols } = controller.print.breaks()
+  if (!rows.length && !cols.length) return
+  const sheet = controller.sheet
+  const { clip } = layout
+  const first = (lines: { index: number }[]) => lines[0].index
+  const last = (lines: { index: number }[]) => lines[lines.length - 1].index
+  p.save()
+  p.beginPath()
+  p.rect(clip.x0, clip.y0, clip.x1 - clip.x0, clip.y1 - clip.y0)
+  p.clip()
+  p.strokeStyle = theme.pageBreak
+  p.lineWidth = 1
+  p.setLineDash([3, 2])
+  p.beginPath()
+  for (const r of rows) {
+    if (r <= first(layout.rows) || r > last(layout.rows) + 1) continue
+    const y = Math.round(rowY(sheet, layout, r)) - 0.5
+    p.moveTo(clip.x0, y)
+    p.lineTo(clip.x1, y)
+  }
+  for (const c of cols) {
+    if (c <= first(layout.cols) || c > last(layout.cols) + 1) continue
+    const x = Math.round(colX(sheet, layout, c)) - 0.5
+    p.moveTo(x, clip.y0)
+    p.lineTo(x, clip.y1)
+  }
+  p.stroke()
+  p.restore()
 }
 
 /**

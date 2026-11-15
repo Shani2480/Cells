@@ -25,6 +25,7 @@ import { escapeXml } from "../xml"
 import { readAutoFilter } from "./autofilter"
 import { scanXml } from "./scan"
 import { at, kid, kids, parseFragment, raw, type Kept, type XDoc, type XNode } from "./dom"
+import { emptyExtras, finishPageSetup, readPrintElement, readsFitToPage, type PageSetupExtras } from "./page-setup"
 import { formulaFromFile } from "./formula"
 import type { StylesIn } from "./styles"
 import { readValidationExt, readValidations } from "./validation"
@@ -82,6 +83,8 @@ export type SheetRead = {
   /** Row and column attributes Cells doesn't model (outline levels, collapsed, dyDescent), as read, by index. */
   rowExtras: Map<number, string>
   colExtras: Map<number, string>
+  /** Print settings Cells doesn't model (printer settings, even and first-page headers), as read. */
+  pageExtras: PageSetupExtras
 }
 
 /** Row and column attributes Cells writes itself; the others are kept. */
@@ -101,6 +104,12 @@ const OWN = new Set([
   "dataValidations",
   "drawing",
   "legacyDrawing",
+  "printOptions",
+  "pageMargins",
+  "pageSetup",
+  "headerFooter",
+  "rowBreaks",
+  "colBreaks",
   "tableParts",
 ])
 
@@ -144,6 +153,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let view: SheetView = { ...DEFAULT_VIEW }
   let legacyDrawing: string | null = null
   let drawing: string | null = null
+  const pageExtras = emptyExtras()
+  let fitToPage = false
+  let sawPageSetup = false
   let dynamic = false
   const conditional: XDoc[] = []
   const keptConditional: string[] = []
@@ -340,6 +352,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         const color = kid(parseFragment(source, rootTag).root, "tabColor")
         const rgb = color && ctx.styles ? at(color, "rgb") : undefined
         if (rgb) sheet.tabColor = "#" + rgb.slice(-6).toUpperCase()
+        fitToPage = readsFitToPage(parseFragment(source, rootTag).root)
       }
       if (local === "extLst") {
         const ext = readValidationExt(dropConditionalExt(source), rootTag)
@@ -373,6 +386,15 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         break
       case "dataValidations":
         sheet.validations.unshift(...readValidations(parseFragment(source, rootTag).root))
+        break
+      case "printOptions":
+      case "pageMargins":
+      case "pageSetup":
+      case "headerFooter":
+      case "rowBreaks":
+      case "colBreaks":
+        if (local === "pageSetup") sawPageSetup = true
+        readPrintElement(local, parseFragment(source, rootTag).root, sheet.pageSetup, pageExtras)
         break
       case "drawing":
         drawing =
@@ -442,7 +464,8 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   // Excel groups the elements by range; ids follow priority, the order Cells keeps them in.
   sheet.conditional = rules.sort((a, b) => a.priority - b.priority).map((r, i) => ({ ...r.entry, id: i + 1 }))
 
-  return { view, rootTag, kept, legacyDrawing, drawing, dynamic, keptConditional, rowExtras, colExtras }
+  finishPageSetup(sheet.pageSetup, fitToPage, sawPageSetup)
+  return { view, rootTag, kept, legacyDrawing, drawing, pageExtras, dynamic, keptConditional, rowExtras, colExtras }
 }
 
 /** Text that the entry parser would turn into something else ("123", "=1", "TRUE") keeps an apostrophe. */

@@ -20,6 +20,8 @@ export type GridTheme = {
   spillBorder: string
   /** Where frozen rows and columns end. */
   freezeLine: string
+  /** Page breaks once the sheet has been paged (dashed). */
+  pageBreak: string
   /** The corner marks of a note (red) and a comment (purple). */
   noteMark: string
   commentMark: string
@@ -46,6 +48,7 @@ const TOKENS: Record<Exclude<keyof GridTheme, "refColors">, string> = {
   cornerTriangle: "--grid-corner-triangle",
   spillBorder: "--grid-spill-border",
   freezeLine: "--grid-freeze-line",
+  pageBreak: "--grid-page-break",
   noteMark: "--grid-note-mark",
   commentMark: "--grid-comment-mark",
 }
@@ -70,6 +73,7 @@ export const LIGHT_THEME: GridTheme = {
   cornerTriangle: "#b8b8b8",
   spillBorder: "#4a7bd0",
   freezeLine: "#9e9e9e",
+  pageBreak: "#6e6e6e",
   noteMark: "#e00000",
   commentMark: "#8a3fd1",
   refColors: ["#2e6fd6", "#d13438", "#8a3ffc", "#0f8a3e", "#b83aa8", "#037f87", "#c25200", "#85593a"],

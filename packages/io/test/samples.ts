@@ -299,6 +299,40 @@ export function charts(): Workbook {
   return done(wb)
 }
 
+/** Every print setting Cells writes: two sheets, a print area with titles, breaks, fit-to, headers and footers. */
+export function printing(): Workbook {
+  const wb = new Workbook(["Report", "Wide"])
+  const [report, wide] = wb.sheets
+  for (let row = 0; row < 80; row++)
+    for (let col = 0; col < 6; col++)
+      report.cells.set(row, col, { value: row === 0 ? `Head ${col + 1}` : row * 10 + col })
+  for (let col = 0; col < 40; col++) wide.cells.set(0, col, { value: col })
+  Object.assign(report.pageSetup, {
+    orientation: "landscape",
+    paperSize: 9,
+    scale: 85,
+    margins: { left: 0.5, right: 0.5, top: 1, bottom: 0.9, header: 0.4, footer: 0.35 },
+    centerHorizontally: true,
+    gridlines: true,
+    headings: true,
+    firstPageNumber: 3,
+    header: { left: "", center: "&A", right: "" },
+    footer: { left: "&D", center: "", right: "Page &P of &N" },
+    printArea: [{ r0: 0, c0: 0, r1: 59, c1: 5 }],
+    titleRows: [0, 0],
+    titleCols: [0, 0],
+    rowBreaks: [30],
+  })
+  Object.assign(wide.pageSetup, {
+    paperSize: 1,
+    fitTo: { width: 1, height: 0 },
+    order: "overThenDown",
+    colBreaks: [10],
+    blackAndWhite: true,
+  })
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
   budget,
   formats,
@@ -308,6 +342,7 @@ export const samples: Record<string, () => Workbook> = {
   validation,
   tables,
   charts,
+  printing,
   big,
   empty,
 }

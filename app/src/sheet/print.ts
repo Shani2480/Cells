@@ -1,0 +1,202 @@
+import {
+  copyPageSetup,
+  defaultPaperSize,
+  isWholeColumns,
+  isWholeRows,
+  MARGIN_PRESETS,
+  pageBreaks,
+  paginate,
+  type PageMargins,
+  type PageSetup,
+  type Pagination,
+  type PaginateOptions,
+  type Range,
+  type Sheet,
+} from "@cells/core"
+import type { SheetController } from "./controller"
+
+/** The paper a sheet with no paper size of its own prints on, from the system's region. */
+export function localPaper(): number {
+  const locale = typeof navigator !== "undefined" ? navigator.language : "en-US"
+  return defaultPaperSize(locale)
+}
+
+/** Which margin preset a sheet's margins are ("custom" when none). */
+export function marginPreset(m: PageMargins): keyof typeof MARGIN_PRESETS | "custom" {
+  for (const [name, preset] of Object.entries(MARGIN_PRESETS))
+    if ((Object.keys(preset) as (keyof PageMargins)[]).every((k) => Math.abs(preset[k] - m[k]) < 1e-6))
+      return name as keyof typeof MARGIN_PRESETS
+  return "custom"
+}
+
+/**
+ * Printing: the Page Layout tab's Page Setup, Scale to Fit and Sheet Options, the Page Setup dialog, print area and
+ * titles, page breaks, and the pages File › Print shows and prints.
+ */
+export class PrintCommands {
+  private shown = false
+
+  /** Excel shows the page breaks as dashed lines on the sheet once it has been paged (preview, Page Setup). */
+  get showBreaks(): boolean {
+    return this.shown
+  }
+
+  set showBreaks(on: boolean) {
+    if (on === this.shown) return
+    this.shown = on
+    this.c.changed()
+  }
+
+  constructor(private readonly c: SheetController) {}
+
+  /** The paper a sheet prints on when it names none. */
+  defaultPaper = localPaper()
+
+  setup(sheet: Sheet = this.c.sheet): PageSetup {
+    return sheet.pageSetup
+  }
+
+  /** One change to a sheet's page setup, as one undo step (Excel's label: "Page Setup"). */
+  change(fn: (setup: PageSetup) => void, label = "Page Setup", sheetIndex = this.c.sheetIndex) {
+    if (this.c.edit) this.c.commitEdit()
+    const sheet = this.c.wb.sheets[sheetIndex]
+    if (!sheet) return
+    const next = copyPageSetup(sheet.pageSetup)
+    fn(next)
+    if (JSON.stringify(next) === JSON.stringify(sheet.pageSetup)) return
+    const sel = this.c.selection
+    this.c.transact([{ kind: "pageSetup", sheet: sheetIndex, setup: next }], { label, before: sel, after: sel })
+    this.showBreaks = true
+  }
+
+  private cached: { sheet: Sheet; version: number; pagination: Pagination } | null = null
+
+  /** Where the active sheet's pages break (the dashed lines on the sheet): first rows and columns of pages. */
+  breaks(): { rows: number[]; cols: number[] } {
+    const sheet = this.c.sheet
+    const version = this.c.wb.version
+    if (this.cached?.sheet !== sheet || this.cached.version !== version)
+      this.cached = { sheet, version, pagination: this.pages(sheet) }
+    return pageBreaks(this.cached.pagination)
+  }
+
+  /** The pages a sheet prints (File › Print, the dashed page breaks). */
+  pages(sheet: Sheet = this.c.sheet, options: PaginateOptions = {}): Pagination {
+    const setup = sheet.pageSetup
+    // Printed headings: the row numbers' column fits the last row number printed (pt).
+    const used = setup.printArea?.at(-1)?.r1 ?? sheet.cells.usedBounds()?.r1 ?? 0
+    const headings = { width: Math.max(20, String(used + 1).length * 6 + 9), height: 15 }
+    return paginate(sheet, setup, { defaultPaper: this.defaultPaper, headings, ...options })
+  }
+
+  // ── Page Layout › Page Setup ──
+
+  setMargins(margins: PageMargins) {
+    this.change((s) => (s.margins = { ...margins }))
+  }
+
+  setOrientation(orientation: PageSetup["orientation"]) {
+    this.change((s) => (s.orientation = orientation))
+  }
+
+  setPaper(paperSize: number) {
+    this.change((s) => (s.paperSize = paperSize))
+  }
+
+  /** The selection becomes the print area (Excel: Set Print Area). */
+  setPrintArea() {
+    const ranges = this.c.selection.ranges.map((r) => ({ ...r }))
+    this.change((s) => (s.printArea = ranges), "Set Print Area")
+  }
+
+  /** Add to Print Area: shown once there is a print area and the selection isn't inside it. */
+  canAddToPrintArea(): boolean {
+    const area = this.c.sheet.pageSetup.printArea
+    if (!area) return false
+    return this.c.selection.ranges.some((r) => !area.some((a) => inside(r, a)))
+  }
+
+  addToPrintArea() {
+    const area = this.c.sheet.pageSetup.printArea
+    if (!area) return this.setPrintArea()
+    const extra = this.c.selection.ranges.filter((r) => !area.some((a) => inside(r, a))).map((r) => ({ ...r }))
+    this.change((s) => (s.printArea = [...area, ...extra]), "Add to Print Area")
+  }
+
+  clearPrintArea() {
+    this.change((s) => (s.printArea = null), "Clear Print Area")
+  }
+
+  /**
+   * Breaks › Insert Page Break: above and left of the active cell (only one of them in the first row or column, or
+   * when whole rows or columns are selected).
+   */
+  insertBreak() {
+    const sel = this.c.selection
+    const range = sel.ranges[0]
+    const { row, col } = sel.active
+    const rowBreak = !isWholeColumns(range) && row > 0
+    const colBreak = !isWholeRows(range) && col > 0
+    if (!rowBreak && !colBreak) return
+    this.change((s) => {
+      if (rowBreak && !s.rowBreaks.includes(row)) s.rowBreaks = [...s.rowBreaks, row].sort((a, b) => a - b)
+      if (colBreak && !s.colBreaks.includes(col)) s.colBreaks = [...s.colBreaks, col].sort((a, b) => a - b)
+    }, "Insert Page Break")
+  }
+
+  /** Whether Remove Page Break has a break to remove at the active cell. */
+  hasBreakAtCell(): boolean {
+    const { row, col } = this.c.selection.active
+    const s = this.c.sheet.pageSetup
+    return s.rowBreaks.includes(row) || s.colBreaks.includes(col)
+  }
+
+  removeBreak() {
+    const { row, col } = this.c.selection.active
+    this.change((s) => {
+      s.rowBreaks = s.rowBreaks.filter((r) => r !== row)
+      s.colBreaks = s.colBreaks.filter((c) => c !== col)
+    }, "Remove Page Break")
+  }
+
+  resetBreaks() {
+    this.change((s) => {
+      s.rowBreaks = []
+      s.colBreaks = []
+    }, "Reset All Page Breaks")
+  }
+
+  // ── Scale to Fit ──
+
+  /** Width or Height: 0 is Automatic; any number fits the sheet to that many pages. */
+  setFit(axis: "width" | "height", pages: number) {
+    this.change((s) => {
+      const fit = s.fitTo ?? { width: 0, height: 0 }
+      const next = { ...fit, [axis]: pages }
+      s.fitTo = next.width || next.height ? next : null
+    })
+  }
+
+  /** Scale: only while Width and Height are Automatic (Excel greys it out otherwise). */
+  setScale(percent: number) {
+    const p = Math.round(percent)
+    if (!Number.isFinite(p) || p < 10 || p > 400) return false
+    this.change((s) => {
+      s.scale = p
+      s.fitTo = null
+    })
+    return true
+  }
+
+  // ── Sheet Options ──
+
+  toggleGridlines() {
+    this.change((s) => (s.gridlines = !s.gridlines))
+  }
+
+  toggleHeadings() {
+    this.change((s) => (s.headings = !s.headings))
+  }
+}
+
+const inside = (r: Range, a: Range) => r.r0 >= a.r0 && r.r1 <= a.r1 && r.c0 >= a.c0 && r.c1 <= a.c1

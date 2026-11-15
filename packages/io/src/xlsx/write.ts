@@ -41,6 +41,7 @@ import {
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
 import { writeDrawing } from "./drawing"
+import { printNamesXml } from "./page-setup"
 import { formulaToFile } from "./formula"
 import type { XlsxSource } from "./read"
 import { DEFAULT_VIEW, type SheetView } from "./sheet-read"
@@ -415,6 +416,8 @@ function definedNamesXml(wb: Workbook, source: XlsxSource | null): string {
       `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">${escapeXmlText(ref)}</definedName>`,
     )
   })
+  // Each sheet's print area and titles.
+  wb.sheets.forEach((sheet, index) => items.push(...printNamesXml(sheet.name, index, sheet.pageSetup)))
   for (const k of source?.keptNames ?? []) {
     if (!k.sheet) {
       items.push(k.xml)

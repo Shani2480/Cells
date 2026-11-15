@@ -1,4 +1,5 @@
 import type { Range } from "./address"
+import { copyPageSetup, type PageSetup } from "./page-setup"
 import type { AnnotationWrite } from "./annotations"
 import { copyEntries, type CFEntry } from "./conditional"
 import { copyValidations, type ValidationEntry } from "./validation"
@@ -30,6 +31,7 @@ export type SheetSnapshot = {
   validations?: ValidationEntry[]
   tables?: Table[]
   charts?: SheetChart[]
+  pageSetup?: PageSetup
   annotations?: AnnotationWrite[]
   protection?: SheetProtection | null
   autoFilter?: AutoFilter | null
@@ -58,6 +60,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     validations: copyValidations(sheet.validations),
     tables: copyTables(sheet.tables),
     charts: copyCharts(sheet.charts),
+    pageSetup: copyPageSetup(sheet.pageSetup),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     protection: sheet.protection ? { ...sheet.protection } : null,
     autoFilter: copyAutoFilter(sheet.autoFilter),
@@ -84,6 +87,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.validations = copyValidations(s.validations ?? [])
   sheet.tables = copyTables(s.tables ?? [])
   sheet.charts = copyCharts(s.charts ?? [])
+  if (s.pageSetup) sheet.pageSetup = copyPageSetup(s.pageSetup)
   for (const a of s.annotations ?? []) sheet.annotations.set(a.row, a.col, a.value)
   sheet.protection = s.protection ? { ...s.protection } : null
   sheet.autoFilter = copyAutoFilter(s.autoFilter ?? null)

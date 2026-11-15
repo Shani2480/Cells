@@ -1,4 +1,5 @@
 import { ChartCommands } from "./charts"
+import { PrintCommands } from "./print"
 import { TableCommands, type CreateTableInit } from "./tables"
 import { DEFAULT_VIEW as DEFAULT_FILE_VIEW, type SheetView as FileSheetView } from "@cells/io"
 import {
@@ -262,6 +263,8 @@ export class SheetController {
   readonly tables: TableCommands = new TableCommands(this)
   /** Charts: inserting, selecting, moving and the Chart Design tab. */
   readonly charts: ChartCommands = new ChartCommands(this)
+  /** Printing: Page Layout, Page Setup, print area, page breaks and the pages File › Print shows. */
+  readonly print: PrintCommands = new PrintCommands(this)
   /** Find, Replace and Go To Special. */
   readonly find: FindCommands = new FindCommands(this)
   /** Defined names (Name Box, Define Name, Go To). */
