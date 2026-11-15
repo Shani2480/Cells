@@ -13,6 +13,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "File › Options: your user name and initials, the Office Theme (your system's setting, White or Black), and on the Advanced page your region, short date and separators. Run setup again is there too.",
       "Dates and numbers follow your region: in a day-first region 31/1/2026 is a date, with a decimal comma 1,5 is a number, and cells show dates, decimals and thousands your way. Formulas keep Excel's English form, so files mean the same in Excel anywhere.",
       "Only one Cells runs at a time. A cells:// link (Inkspire's coming \"Edit in Cells\" uses one) or a workbook opened from your file manager opens in the Cells that's already running and comes to the front. A link can point at a range, and Cells selects it.",
+      "Copy keeps the formatting: a range pastes into Inkspire, Word or mail as a formatted table (fonts, colours, fills, borders, widths and merged cells), and remembers where it came from so Inkspire can link to it.",
+      "Charts can be copied (Ctrl+C, or cut with Ctrl+X). In Inkspire the chart pastes as a chart you can still edit; other apps get a picture. Pasting it back into Cells makes a second chart of the same data.",
       "These settings are kept in a file Cells shares with Inkspire, so they're set once for both. Cells picks up a change the next time you switch to it. Inkspire starts using the file with its next update.",
     ],
   },

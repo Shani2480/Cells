@@ -20,7 +20,6 @@ import {
   decodeTSV,
   editReferences,
   editTextFor,
-  encodeHTML,
   encodeTSV,
   expandToColumns,
   expandToRows,
@@ -74,7 +73,10 @@ import {
   type Selection,
   type Sheet,
   Workbook,
+  quoteSheet,
+  rangeHtml,
 } from "@cells/core"
+import { openLink } from "@/links/link"
 import { FormatCommands, NUMBER_FORMATS } from "./format"
 import { AnnotationCommands } from "./annotations"
 import { DataCommands, type FilterDialogRequest } from "./data"
@@ -151,6 +153,8 @@ export type InsertDeleteRequest = { kind: "insert" | "delete" }
 
 /** Things the controller asks the shell to do (dialogs and the like). */
 export type ShellRequests = {
+  /** The shown workbook's full path (for copies that say where they came from); null before it is saved. */
+  documentPath?(): string | null
   goTo(): void
   insertDelete(request: InsertDeleteRequest): void
   /** Ask before going on (Excel's OK/Cancel warnings); `ok` runs on OK. */
@@ -1141,6 +1145,7 @@ export class SheetController {
 
   /** Copy/Cut: what goes on the system clipboard, and the marching ants. Multiple ranges cannot be copied. */
   copy(cut: boolean): { text: string; html: string } | null {
+    if (this.charts.selected !== null) return this.charts.copy(cut)
     if (this.selection.ranges.length !== 1) return null
     const range = clampToUsed(this.sheet, this.selection.ranges[0])
     const block = readBlock(this.sheet, range)
@@ -1153,7 +1158,10 @@ export class SheetController {
     const text = encodeTSV(rows)
     this.clip = { range, cut, text, block, sheet: this.sheet }
     this.changed()
-    return { text, html: encodeHTML(rows) }
+    const file = this.shell.documentPath?.() ?? null
+    const link = file ? openLink(file, `${quoteSheet(this.sheet.name)}!${rangeName(range)}`) : null
+    const source = { file, sheet: this.sheet.name, range, link }
+    return { text, html: rangeHtml(this.sheet, this.wb.styles, range, rows, source) }
   }
 
   clearClip() {
@@ -1168,6 +1176,7 @@ export class SheetController {
    * clipboard's text parsed as typed input. A cut moves its cells and ends the marching ants.
    */
   paste(text: string | null, html?: string | null): boolean {
+    if (this.charts.paste(html)) return true
     if (this.selection.ranges.length !== 1) return false
     const target = this.selection.ranges[0]
     const own = this.clip && text !== null && normalizeNewlines(text) === normalizeNewlines(this.clip.text)

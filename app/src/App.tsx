@@ -375,6 +375,7 @@ function WorkbookWindow({
 
   useEffect(() => {
     controller.shell = {
+      documentPath: () => files.doc.ref?.path ?? null,
       goTo: () => setDialog({ kind: "goto" }),
       insertDelete: ({ kind }) => setDialog({ kind }),
       confirm: (message, ok) => setDialog({ kind: "confirm", message, ok }),

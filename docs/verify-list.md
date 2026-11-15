@@ -119,6 +119,9 @@ Phase 3, added at the end:
       (Excel uses the system's list and decimal separators).
 - [ ] AutoFilter criteria read from an Excel file are parsed with the person's region (Excel stores them in en-US);
       a filter on "1.5" from a file is a date in a German setting.
+- [ ] Pasting a copied range and chart into Inkspire, Word and LibreOffice (only the HTML was checked, in tests):
+      the table's widths, borders and fills; the chart as an editable Inkspire chart and as a picture elsewhere.
+      Conditional formats and table styles aren't in the copied HTML yet.
 - [ ] The first-run setup and File › Options next to Excel's (the setup has no Excel counterpart; Options was built
       from memory of Excel 365's General and Advanced pages, with only the settings Cells has).
 

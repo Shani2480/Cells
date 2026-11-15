@@ -12,8 +12,11 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
 - [ ] I3. **URL scheme + single instance.** Register `inkspire://open?file=…` with the Tauri `deep-link` and
       `single-instance` plugins, so Cells can open a document in the running Inkspire. Cells' side and the link
       format are in `docs/app-links.md`; "Edit in Cells" opens `cells://open?file=…&range=…`.
-- [ ] I4. **Paste from Cells.** Handle the Inkspire range clipboard type (full styles, chart spec, source workbook and
-      range); fall back to the HTML/TSV that Cells also puts on the clipboard.
+- [ ] I4. **Paste from Cells.** What Cells copies is in `docs/inkspire-clipboard.md`. A range already pastes as a
+      formatted table and a chart as an editable Inkspire chart (Cells writes Inkspire's own figure markup), so nothing
+      is needed for a static paste. To do: keep `data-cells` (file, sheet, range, link) for Paste Special › Paste Link
+      (I5) and an "Edit in Cells" action; keep `data-cells-chart` on a pasted chart for "Edit Data in Cells" (I7).
+      Check that a pasted table keeps the column widths and borders.
 - [ ] I5. **Linked tables.** `LINK Excel.Sheet.12 "file.xlsx" "Sheet1!R1C1:R10C4" \a \f 4 \h` fields: refresh on open,
       "Update Link" on demand, live refresh when Cells announces a change; saved so Word can update the link too.
 - [ ] I6. **Linked charts.** Chart parts with `c:externalData` pointing to an external workbook, read and written.

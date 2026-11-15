@@ -17,12 +17,14 @@ import {
 import {
   defaultChartSpec,
   normalizeChartSpec,
+  renderChart,
   variantOf,
   withSheetData,
   withVariant,
   type ChartSpec,
 } from "@cells/chart"
 import type { SheetController } from "./controller"
+import { chartHtml, copiedChartInfo, svgPicture, type CopiedChartInfo } from "./chart-clipboard"
 
 /** Excel's size for a new chart: 5 by 3 inches (480 by 288 pixels at 100%). */
 export const CHART_WIDTH = 480
@@ -56,6 +58,13 @@ export function anchorOf(sheet: Sheet, box: ChartBox): ChartAnchor {
 export class ChartCommands {
   /** The selected chart's id (Excel selects a chart instead of cells; the Chart Design tab shows). */
   selected: number | null = null
+  /** The chart last copied, kept whole (its ranges too) for a paste back into Cells. */
+  private clip: { token: string; chart: SheetChart } | null = null
+  /**
+   * A PNG of a chart, when the view has one ready (it draws one as a chart is selected; the copy event can't wait
+   * for a picture to be drawn). Null: the copy carries an SVG picture instead.
+   */
+  picture: ((chart: SheetChart, spec: ChartSpec, size: { w: number; h: number }) => string | null) | null = null
 
   constructor(private readonly c: SheetController) {}
 
@@ -131,6 +140,56 @@ export class ChartCommands {
     this.select(chart.id)
     this.c.shell.showTab?.("TabChartDesign")
     return chart
+  }
+
+  // ── Clipboard ──
+
+  /**
+   * Copy (or Cut) of the selected chart: Inkspire's chart markup with a picture inside, and the title as text. Cut
+   * removes the chart, as in Excel.
+   */
+  copy(cut: boolean): { text: string; html: string } | null {
+    const chart = this.active()
+    if (!chart) return null
+    const spec = this.liveSpec(chart)
+    const box = chartBox(this.c.sheet, chart.anchor)
+    const size = { w: box.w, h: box.h }
+    const picture = this.picture?.(chart, spec, size) ?? svgPicture(renderChart(spec, size.w, size.h), size)
+    const info: CopiedChartInfo = {
+      app: "cells",
+      version: 1,
+      token: `${Date.now().toString(36)}-${chart.id}`,
+      file: this.c.shell.documentPath?.() ?? null,
+      sheet: this.c.sheet.name,
+      name: chart.name,
+      range: this.dataRange(chart),
+    }
+    this.clip = { token: info.token, chart: copyChart(chart) }
+    const html = chartHtml(spec, variantOf(spec), size, picture, info)
+    if (cut) this.delete()
+    return { text: spec.title?.show && spec.title.text ? spec.title.text : chart.name, html }
+  }
+
+  /**
+   * Paste of a chart Cells copied: a copy with its own ranges at the active cell (a new name and id), selected.
+   * False when the clipboard holds no chart of ours.
+   */
+  paste(html: string | null | undefined): boolean {
+    const info = html ? copiedChartInfo(html) : null
+    if (!info || !this.clip || info.token !== this.clip.token) return false
+    const sheet = this.c.sheet
+    const source = this.clip.chart
+    const box = chartBox(sheet, source.anchor)
+    const at = this.c.selection.active
+    const chart: SheetChart = {
+      ...copyChart(source),
+      id: nextChartId(this.c.wb.sheets),
+      name: nextChartName(sheet),
+      anchor: anchorOf(sheet, { x: sheet.cols.offset(at.col), y: sheet.rows.offset(at.row), w: box.w, h: box.h }),
+    }
+    if (!this.commit([...sheet.charts, chart], "Paste")) return false
+    this.select(chart.id)
+    return true
   }
 
   // ── Selected chart ──

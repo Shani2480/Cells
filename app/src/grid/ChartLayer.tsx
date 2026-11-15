@@ -1,6 +1,7 @@
 import { renderChart } from "@cells/chart"
 import type { SheetChart } from "@cells/core"
-import { memo, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { pngKey, preparePng, readyPng } from "./chart-png"
 import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
 import { colX, rowY, type GridLayout } from "./layout"
@@ -96,6 +97,18 @@ export function ChartLayer({
     }
     return out
   }, [sheet, version, controller])
+
+  // The selected chart's PNG, ready for Copy (which can't wait for one to be drawn).
+  const selectedId = controller.charts.selected
+  const selectedPicture = selectedId === null ? null : pictures.get(selectedId)
+  useEffect(() => {
+    controller.charts.picture = (chart, _spec, size) => {
+      const svg = chart.id === selectedId && selectedPicture ? selectedPicture.svg : null
+      return svg ? readyPng(chart.id, pngKey(svg, size.w, size.h)) : null
+    }
+    if (selectedId !== null && selectedPicture)
+      void preparePng(selectedId, selectedPicture.svg, selectedPicture.box.w, selectedPicture.box.h)
+  }, [controller, selectedId, selectedPicture])
 
   if (!sheet.charts.length) return null
   const left = layout.rowHeaderWidth
