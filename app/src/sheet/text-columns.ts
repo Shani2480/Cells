@@ -3,6 +3,7 @@ import {
   contentForInput,
   currentRegion,
   editTextFor,
+  regional,
   type CellAddress,
   type CellWrite,
   type Op,
@@ -97,7 +98,7 @@ export function textToColumnsOps(
       else if (outFormats[j] === "general") {
         data = contentForInput(styles, current, field.trim())
         if (field.trim() === "") data = undefined
-      } else data = cellFor(styles, field, outFormats[j], o, textStyle, dateStyle)
+      } else data = cellFor(styles, field, outFormats[j], o, textStyle, dateStyle, regional())
       if (data && data.style === undefined) delete data.style
       cells.push({ row, col, data })
     }

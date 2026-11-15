@@ -1,5 +1,10 @@
 import { isError, type CellError } from "../../values"
-import { formatWithCode } from "../../numfmt"
+import { formatWithCode as formatShown } from "../../numfmt"
+import { EN_US, withRegional } from "../../regional"
+
+/** TEXT, FIXED and DOLLAR format as en-US Excel does, whatever the person's region: formulas mean the same anywhere. */
+const formatWithCode = (value: number | string | boolean, code: string) =>
+  withRegional(EN_US, () => formatShown(value, code))
 import { NA, numberToText, textToNumber, toBool, toNumber, toText, VALUE } from "../coerce"
 import { toMatrix } from "../evaluate"
 import { isMatrix, isRef, matrix, type Scalar, type Value } from "../types"

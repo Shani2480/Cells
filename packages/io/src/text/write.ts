@@ -1,4 +1,13 @@
-import { formatMark, formatValue, formatWithCode, hasFormatMarks, type CellValue, type Workbook } from "@cells/core"
+import {
+  EN_US,
+  formatMark,
+  formatValue,
+  formatWithCode,
+  hasFormatMarks,
+  withRegional,
+  type CellValue,
+  type Workbook,
+} from "@cells/core"
 import { encodeText, fits1252, type TextEncoding } from "./encoding"
 import { joinDelimited } from "./split"
 
@@ -40,8 +49,15 @@ export function saveText(wb: Workbook, sheetIndex: number, o: TextSave): Uint8Ar
   return encodeText(body, o.encoding, o.bom)
 }
 
-/** The text a cell shows, as the grid draws it (General as in a default-width column). */
+/**
+ * The text a cell shows, as the grid draws it (General as in a default-width column), with en-US separators and date
+ * order: a CSV Cells writes reads the same on every machine. (Excel writes the system's; see verify-list.)
+ */
 function shownText(value: CellValue, code: string | undefined): string {
+  return withRegional(EN_US, () => shownTextUs(value, code))
+}
+
+function shownTextUs(value: CellValue, code: string | undefined): string {
   const formatted = code && code !== "General"
   if (typeof value === "string") return formatted && code.includes("@") ? formatWithCode(value, code).text : value
   if (typeof value === "number" && formatted) return formatWithCode(value, code).text

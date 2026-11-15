@@ -1,5 +1,5 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
-import { parseCell, rangeName, type Range } from "@cells/core"
+import { parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
 import { GridView, type GridContextMenu } from "@/grid/GridView"
@@ -123,6 +123,20 @@ function useColorScheme() {
     query.addEventListener("change", apply)
     return () => query.removeEventListener("change", apply)
   }, [theme])
+}
+
+/**
+ * Dates and numbers in the person's region (File › Options › Advanced): what typed text means and how cells show.
+ * The sheet redraws when it changes.
+ */
+function useRegionalFormats(controller: SheetController) {
+  const dateFormat = useSettings((s) => s.dateFormat)
+  const decimalSeparator = useSettings((s) => s.decimalSeparator)
+  const groupSeparator = useSettings((s) => s.groupSeparator)
+  useEffect(() => {
+    setRegional(regionalFrom({ dateFormat, decimalSeparator, groupSeparator }))
+    controller.changed()
+  }, [controller, dateFormat, decimalSeparator, groupSeparator])
 }
 
 /** Loads the settings shared with Inkspire, and again whenever the window comes back to the front. */
@@ -334,6 +348,7 @@ function WorkbookWindow({
   useSyncExternalStore(controller.subscribe, controller.getVersion)
   useColorScheme()
   useSharedSettings(platform.settings)
+  useRegionalFormats(controller)
 
   useEffect(() => {
     if (!platform.window.controllable) document.documentElement.classList.add("is-browser")

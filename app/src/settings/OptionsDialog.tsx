@@ -84,6 +84,10 @@ export function OptionsDialog({ onClose, onRunSetup }: { onClose: () => void; on
               <p className="options-intro">Advanced options for working with Cells.</p>
               <h3 className="options-heading">Region, dates and numbers</h3>
               <RegionalFields value={draft} onChange={change} />
+              <p className="dialog-note">
+                Dates and numbers you type are read this way, and cells show them so. Formulas keep Excel's English form
+                (1.5, commas between arguments), and saved files and CSV files open the same in Excel anywhere.
+              </p>
               {problem ? (
                 <p className="dialog-note is-error" role="alert">
                   {problem}

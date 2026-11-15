@@ -14,6 +14,7 @@ import {
   removeDuplicatesOps,
   selectRange,
   SortError,
+  regional,
   sortOps,
   type Range,
   type SortOptions,
@@ -197,7 +198,15 @@ export class DataCommands {
   // ── Text to Columns ──
 
   /** The wizard's last choices, which it opens with next time (Excel keeps them for the session). */
-  textColumns: TextImport = TEXT_COLUMNS_DEFAULT
+  /** The wizard's last choices this session (Excel keeps them); null: the defaults, with the region's separators. */
+  private lastTextColumns: TextImport | null = null
+  get textColumns(): TextImport {
+    const r = regional()
+    return this.lastTextColumns ?? { ...TEXT_COLUMNS_DEFAULT, decimal: r.decimal, thousands: r.group || " " }
+  }
+  set textColumns(choices: TextImport) {
+    this.lastTextColumns = choices
+  }
 
   /** Data › Text to Columns: one column of cells (the active cell's column of its region), then the wizard. */
   openTextToColumns() {

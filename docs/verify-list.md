@@ -109,6 +109,19 @@ Phase 3, added at the end:
       drawing, print quality and comments/errors as printed options. The printer and copies are chosen in the system's
       print dialog.
 
+## Against Excel (Phase 5)
+
+- [ ] Regional formats against Excel on Windows with a German and a British region: typed entries (1,5 / 1.234 /
+      1.5 / 31.1.2026 / 15/1), number formats, General, the short date (format 14) and the formula bar. Built from
+      Excel's documented behaviour, not run in a localized Excel. Known differences: Cells keeps formulas in en-US form
+      (Excel uses `;` and `,` in a decimal-comma region), TEXT/VALUE/FIXED/DOLLAR work as in en-US Excel, month names are
+      English only, the formula bar shows times with AM/PM, and CSV files are read and written with en-US separators
+      (Excel uses the system's list and decimal separators).
+- [ ] AutoFilter criteria read from an Excel file are parsed with the person's region (Excel stores them in en-US);
+      a filter on "1.5" from a file is a date in a German setting.
+- [ ] The first-run setup and File › Options next to Excel's (the setup has no Excel counterpart; Options was built
+      from memory of Excel 365's General and Advanced pages, with only the settings Cells has).
+
 ## On a device
 
 - [ ] Scrolling frame times in the Tauri window with GPU compositing (the 16 ms p95 budget; only measured on

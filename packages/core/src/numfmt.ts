@@ -1,4 +1,5 @@
 import { serialToDate, serialWeekday } from "./formula/dates"
+import { regional } from "./regional"
 import { roundDecimal } from "./rounding"
 
 /**
@@ -214,13 +215,25 @@ function isDateSection(s: Section) {
   return s.tokens.some((t) => t.t === "date")
 }
 
+/**
+ * Excel's built-in short date (format 14, stored as "m/d/yyyy") and short date with time (22) show in the person's
+ * short date, as Excel shows them in the system's. Every other code is shown as written.
+ */
+function localCode(code: string): string {
+  const shortDate = regional().shortDate
+  if (shortDate === "m/d/yyyy") return code
+  if (code === "m/d/yyyy") return shortDate
+  if (code === "m/d/yyyy h:mm") return `${shortDate} h:mm`
+  return code
+}
+
 /** Formats a number or text with a format code. */
 export function formatWithCode(
   value: number | string | boolean,
   code: string,
   options: { cell?: boolean } = {},
 ): FormatResult {
-  const sections = parse(code, options.cell)
+  const sections = parse(localCode(code), options.cell)
   if (typeof value === "boolean") return { text: value ? "TRUE" : "FALSE" }
   if (typeof value === "string") {
     const textSection =
@@ -236,7 +249,10 @@ export function formatWithCode(
   if (section.tokens.length === 0) return { text: "", color: section.color }
   if (section.tokens.some((t) => t.t === "text") && !section.tokens.some((t) => t.t === "digit")) {
     // @ with a number: the number as General text ("@" alone shows 1234.5678 as it is).
-    const n = String(Number(roundDecimal(v, 15 - Math.max(1, Math.floor(Math.log10(Math.abs(v) || 1)) + 1))))
+    const n = String(Number(roundDecimal(v, 15 - Math.max(1, Math.floor(Math.log10(Math.abs(v) || 1)) + 1)))).replace(
+      ".",
+      regional().decimal,
+    )
     return {
       text: section.tokens.map((t) => (t.t === "text" ? n : t.t === "lit" ? t.s : "")).join(""),
       color: section.color,
@@ -320,7 +336,7 @@ function formatNumberTokens(value: number, tokens: Tok[]): string {
 
   const intText = fillInteger(intPart, intTokens, grouping)
   const fracText = fillFraction(fracPart, fracTokens)
-  return (showMinus ? "-" : "") + intText + (pointIndex >= 0 ? "." + fracText : "")
+  return (showMinus ? "-" : "") + intText + (pointIndex >= 0 ? regional().decimal + fracText : "")
 }
 
 function lastIndex<T>(arr: T[], f: (x: T) => boolean) {
@@ -377,7 +393,8 @@ function fillInteger(digits: string, tokens: Tok[], grouping: boolean): string {
 
 /** Inserts thousands separators into the digit run of the integer text. */
 function groupDigits(text: string): string {
-  return text.replace(/\d+/, (run) => run.replace(/\B(?=(\d{3})+(?!\d))/g, ","))
+  const group = regional().group
+  return text.replace(/\d+/, (run) => run.replace(/\B(?=(\d{3})+(?!\d))/g, group))
 }
 
 function fillFraction(digits: string, tokens: Tok[]): string {
@@ -427,7 +444,8 @@ function formatScientific(v: number, tokens: Tok[], expIndex: number): string {
   const i = abs === 0 && step > 1 ? "0".repeat(intPlaceholders) : whole
   const intTokens = point >= 0 ? mantissaTokens.slice(0, point) : mantissaTokens
   const mantText =
-    fillInteger(i, intTokens, false) + (point >= 0 ? "." + fillFraction(f, mantissaTokens.slice(point + 1)) : "")
+    fillInteger(i, intTokens, false) +
+    (point >= 0 ? regional().decimal + fillFraction(f, mantissaTokens.slice(point + 1)) : "")
   const expDigits = expTokens.filter((t) => t.t === "digit").length || 1
   const expSign = exp < 0 ? "-" : (tokens[expIndex] as { sign: string }).sign === "+" ? "+" : ""
   return (negative ? "-" : "") + mantText + "E" + expSign + String(Math.abs(exp)).padStart(expDigits, "0")
@@ -555,7 +573,8 @@ function formatDate(serial: number, tokens: Tok[]): string {
       if (t.t === "digit") out.push(t.c === "0" ? "0" : "")
       else if (t.t === "point") out.push(".")
       else if (t.t === "comma") out.push(",")
-      else if (t.t === "slash") out.push("/")
+      // "/" in a date is the date separator of the person's region, as in Excel.
+      else if (t.t === "slash") out.push(regional().dateSeparator)
       continue
     }
     const c = t.code
@@ -572,7 +591,7 @@ function formatDate(serial: number, tokens: Tok[]): string {
       continue
     }
     if (c.startsWith(".")) {
-      out.push("." + String(fracUnits).padStart(fracDigits, "0"))
+      out.push(regional().decimal + String(fracUnits).padStart(fracDigits, "0"))
       continue
     }
     if (c === "AM/PM") {
@@ -633,10 +652,11 @@ function generalText(n: number): string {
   const abs = Math.abs(n)
   if (abs >= 1e11 || abs < 1e-9) {
     const [m, e] = n.toExponential(5).split("e")
-    return `${m.replace(/\.?0+$/, "")}E${Number(e) < 0 ? "-" : "+"}${String(Math.abs(Number(e))).padStart(2, "0")}`
+    const mantissa = m.replace(/\.?0+$/, "").replace(".", regional().decimal)
+    return `${mantissa}E${Number(e) < 0 ? "-" : "+"}${String(Math.abs(Number(e))).padStart(2, "0")}`
   }
   const digits = Math.max(0, 10 - Math.max(1, Math.floor(Math.log10(abs)) + 1))
-  return String(Number(n.toFixed(Math.min(digits, 20))))
+  return String(Number(n.toFixed(Math.min(digits, 20)))).replace(".", regional().decimal)
 }
 
 /** True when a format code shows dates or times (used to pick the default format of formula results). */

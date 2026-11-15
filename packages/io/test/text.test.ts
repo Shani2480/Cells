@@ -2,7 +2,7 @@
 // and saving byte for byte as Excel's Save As writes (the excel-* fixtures, saved by Excel from the same cells).
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { errorValue, Workbook, type CellData } from "@cells/core"
+import { EN_US, errorValue, regionalFrom, setRegional, Workbook, type CellData } from "@cells/core"
 import {
   dateIn,
   decodeText,
@@ -247,5 +247,20 @@ describe("saving as Excel does", () => {
     const csv = 'name,amount,when\r\nRent,1200.5,3/14/2026\r\n"Food, drink",310,\r\n'
     const { workbook } = await openText(new TextEncoder().encode(csv), "budget.csv")
     expect(new TextDecoder().decode(saveText(workbook, 0, { delimiter: ",", encoding: "utf-8", bom: false }))).toBe(csv)
+  })
+
+  it("opens and saves the same with a German regional setting (CSV stays en-US)", async () => {
+    setRegional(regionalFrom({ dateFormat: "dd.MM.yyyy", decimalSeparator: ",", groupSeparator: "." }))
+    try {
+      const csv = 'name,amount,when\r\nRent,1200.5,3/14/2026\r\n"Food, drink",310,\r\n'
+      const { workbook } = await openText(new TextEncoder().encode(csv), "budget.csv")
+      expect(workbook.sheets[0].cells.value(1, 1)).toBe(1200.5)
+      expect(workbook.sheets[0].cells.value(1, 2)).toBe(46095)
+      expect(new TextDecoder().decode(saveText(workbook, 0, { delimiter: ",", encoding: "utf-8", bom: false }))).toBe(
+        csv,
+      )
+    } finally {
+      setRegional(EN_US)
+    }
   })
 })

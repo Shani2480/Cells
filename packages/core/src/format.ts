@@ -1,4 +1,5 @@
 import { formatWithCode, isDateFormat } from "./numfmt"
+import { localizeNumber, regional } from "./regional"
 import { editText, isError, numberToEditText, type CellValue } from "./values"
 
 /**
@@ -52,7 +53,7 @@ export function formatGeneral(value: number, maxChars = 11): string | null {
     }
     // Rounding can carry into a new digit ("9.99999999999" → "10.0000000"), which still fits after trimming.
     if (text.length <= room && Number(text) !== 0) {
-      return (negative ? "-" : "") + text
+      return (negative ? "-" : "") + text.replace(".", regional().decimal)
     }
   }
   // Scientific: mantissa digits to fit, "1.23457E+11".
@@ -62,7 +63,7 @@ export function formatGeneral(value: number, maxChars = 11): string | null {
     const power = Number(exp)
     const text = `${trimmed}E${power < 0 ? "-" : "+"}${String(Math.abs(power)).padStart(2, "0")}`
     if (text.length <= room) {
-      return (negative ? "-" : "") + text
+      return (negative ? "-" : "") + text.replace(".", regional().decimal)
     }
   }
   return null
@@ -84,7 +85,7 @@ function formatSimple(value: number, code: string): string {
     useGrouping: grouped,
   })
   const negative = scaled < 0 && Number(text.replace(/,/g, "")) !== 0
-  return `${negative ? "-" : ""}${text}${percent ? "%" : ""}`
+  return `${negative ? "-" : ""}${localizeNumber(text)}${percent ? "%" : ""}`
 }
 
 export type HorizontalAlign = "left" | "center" | "right"
@@ -121,10 +122,14 @@ export function editTextFor(value: CellValue | undefined, numberFormat?: string)
       const whole = Math.abs(value - Math.round(value)) < 1 / 86400 / 2
       const date = !hasTime || value >= 1
       const time = hasTime || !whole
+      // The short date in the person's order (format 14 shows so).
       const code = [date ? "m/d/yyyy" : "", time ? "h:mm:ss AM/PM" : ""].filter(Boolean).join(" ")
-      return formatWithCode(value, code).text
+      return formatWithCode(value, code === "m/d/yyyy h:mm:ss AM/PM" ? `${regional().shortDate} h:mm:ss AM/PM` : code)
+        .text
     }
-    if (plain.includes("%")) return numberToEditText(Number((value * 100).toPrecision(15))) + "%"
+    if (plain.includes("%"))
+      return numberToEditText(Number((value * 100).toPrecision(15))).replace(".", regional().decimal) + "%"
   }
+  if (typeof value === "number") return numberToEditText(value).replace(".", regional().decimal)
   return editText(value)
 }

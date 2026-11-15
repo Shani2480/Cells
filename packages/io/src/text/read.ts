@@ -1,11 +1,14 @@
 import {
   contentForInput,
+  EN_US,
   MAX_COLS,
   MAX_ROWS,
   parseDateTime,
   validDateSerial,
+  withRegional,
   Workbook,
   type CellData,
+  type Regional,
   type StyleTable,
 } from "@cells/core"
 import type { OpenOptions } from "../xlsx/read"
@@ -168,6 +171,11 @@ export function cellFor(
   o: Pick<TextImport, "decimal" | "thousands">,
   textStyle: number,
   dateStyle: (code: string) => number,
+  /**
+   * How General fields read dates: en-US for files (so a CSV opens the same everywhere, and the same in the worker),
+   * the person's region for Text to Columns, which splits what the formula bar shows.
+   */
+  region: Regional = EN_US,
 ): CellData | undefined {
   if (field === "") return undefined
   if (format === "text") return { value: field, style: textStyle }
@@ -180,7 +188,9 @@ export function cellFor(
   // Excel opens "@SUM(A1)" from a text file as a formula.
   if (/^@[A-Za-z_][\w.]*\(/.test(text)) text = "=" + text.slice(1)
   if (o.decimal !== "." || o.thousands !== ",") text = withUsSeparators(text, o.decimal, o.thousands)
-  return contentForInput(styles, undefined, text)
+  // The separators are en-US now; the date order and separator stay the region's.
+  const reading: Regional = { ...region, decimal: ".", group: "," }
+  return withRegional(reading, () => contentForInput(styles, undefined, text))
 }
 
 /** "1.234,5" with decimal "," and thousands "." as "1,234.5", so General reads it; other text is left alone. */

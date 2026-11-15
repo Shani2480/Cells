@@ -11,6 +11,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     notes: [
       "A short setup the first time Cells opens: your name (notes and comments are signed with it), how you write dates and numbers, and light or dark. It starts from what your system says, or from what you already set in Inkspire, and Skip keeps those.",
       "File › Options: your user name and initials, the Office Theme (your system's setting, White or Black), and on the Advanced page your region, short date and separators. Run setup again is there too.",
+      "Dates and numbers follow your region: in a day-first region 31/1/2026 is a date, with a decimal comma 1,5 is a number, and cells show dates, decimals and thousands your way. Formulas keep Excel's English form, so files mean the same in Excel anywhere.",
       "These settings are kept in a file Cells shares with Inkspire, so they're set once for both. Cells picks up a change the next time you switch to it. Inkspire starts using the file with its next update.",
     ],
   },

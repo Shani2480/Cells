@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import { EN_US, regionalFrom, setRegional } from "@cells/core"
 import { SheetController } from "./controller"
 import { TEXT_COLUMNS_DEFAULT } from "./text-columns"
 
@@ -114,5 +115,20 @@ describe("Text to Columns (as Excel does it)", () => {
     c.goTo({ r0: 0, c0: 0, r1: 0, c1: 0 })
     c.data.openTextToColumns()
     expect(c.shell.textToColumns).toHaveBeenCalledWith({ r0: 0, c0: 0, r1: 0, c1: 0 }, ["a,b"])
+  })
+})
+
+describe("Text to Columns in a German regional setting", () => {
+  it("reads the fields with the region's separators and date order", () => {
+    setRegional(regionalFrom({ dateFormat: "dd.MM.yyyy", decimalSeparator: ",", groupSeparator: "." }))
+    try {
+      const c = withColumn(["1,5;31.01.2026;1.234"])
+      const o = c.data.textColumns
+      expect(o).toMatchObject({ decimal: ",", thousands: "." })
+      c.data.textToColumns({ r0: 0, c0: 0, r1: 0, c1: 0 }, { ...o, delimiters: [";"] }, { row: 0, col: 0 })
+      expect([0, 1, 2].map((col) => c.sheet.cells.value(0, col))).toEqual([1.5, 46053, 1234])
+    } finally {
+      setRegional(EN_US)
+    }
   })
 })

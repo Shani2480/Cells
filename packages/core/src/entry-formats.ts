@@ -1,8 +1,12 @@
 /**
  * What Excel (en-US) makes of typed dates, times, currency, fractions and scientific numbers: the value and the
  * number format it sets on entry. The rules and every example in the tests were read from Excel 16 by typing the same
- * text into a cell (Range.Formula, which parses as typing does).
+ * text into a cell (Range.Formula, which parses as typing does). Another regional setting changes the order of day
+ * and month, the date separator and the number separators, as a Windows region does for Excel; month names stay
+ * English.
  */
+
+import { EN_US, usSeparators, type Regional } from "./regional"
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 const FULL_MONTHS = [
@@ -50,26 +54,36 @@ function fullYear(text: string): number {
   return n < 30 ? 2000 + n : 1900 + n
 }
 
+/** The separators a typed date may use: / and -, and the region's own (a dot in German, for one). */
+function separatorClass(r: Regional): string {
+  const own = r.dateSeparator
+  return own === "/" || own === "-" ? "[-/]" : `[-/${own.replace(/[\]\\^-]/g, "\\$&")}]`
+}
+
 /** The date part: its serial and format, or null when the text is not a date Excel recognises. */
-function parseDate(text: string, thisYear: number): Entry | null {
+function parseDate(text: string, thisYear: number, r: Regional): Entry | null {
   const t = text.trim()
+  const sep = separatorClass(r)
   let m: RegExpExecArray | null
-  // 2026-01-15, 2026/5/15
-  if ((m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(t))) {
+  // 2026-01-15, 2026/5/15 (year first, in every region)
+  if ((m = new RegExp(`^(\\d{4})${sep}(\\d{1,2})${sep}(\\d{1,2})$`).exec(t))) {
     const v = validDateSerial(Number(m[1]), Number(m[2]), Number(m[3]))
     return v === null ? null : { value: v, numberFormat: "m/d/yyyy" }
   }
-  // 1/15/2026, 1/15/26, 1/2/3 (and with dashes)
-  if ((m = /^(\d{1,2})([-/])(\d{1,2})\2(\d{1,4})$/.exec(t))) {
-    const v = validDateSerial(fullYear(m[4]), Number(m[1]), Number(m[3]))
+  // 1/15/2026, 1/15/26, 1/2/3 (and with dashes), in the region's order: 15/1/2026 in en-GB, 15.1.2026 in de-DE
+  if ((m = new RegExp(`^(\\d{1,4})(${sep})(\\d{1,2})\\2(\\d{1,4})$`).exec(t))) {
+    const [a, b, c] = [m[1], m[3], m[4]]
+    if (r.dateOrder !== "ymd" && a.length > 2) return null
+    const [y, mo, d] = r.dateOrder === "dmy" ? [c, b, a] : r.dateOrder === "ymd" ? [a, b, c] : [c, a, b]
+    const v = validDateSerial(fullYear(y), Number(mo), Number(d))
     return v === null ? null : { value: v, numberFormat: "m/d/yyyy" }
   }
-  // 1/15 (this year), 5/2026 (month and year)
-  if ((m = /^(\d{1,2})\/(\d{1,4})$/.exec(t))) {
+  // 1/15 (this year), 5/2026 (month and year); 15/1 in a day-first region
+  if ((m = new RegExp(`^(\\d{1,2})${sep.replace("-", "")}(\\d{1,4})$`).exec(t))) {
     const a = Number(m[1])
     const b = Number(m[2])
     if (m[2].length <= 2 && b <= 31) {
-      const v = validDateSerial(thisYear, a, b)
+      const v = r.dateOrder === "dmy" ? validDateSerial(thisYear, b, a) : validDateSerial(thisYear, a, b)
       if (v !== null) return { value: v, numberFormat: "d-mmm" }
     }
     if (m[2].length === 4 || b > 31) {
@@ -138,7 +152,7 @@ function parseTime(text: string): Entry | null {
 }
 
 /** Dates, times and both together. `thisYear` fills in dates typed without a year. */
-export function parseDateTime(text: string, thisYear = new Date().getFullYear()): Entry | null {
+export function parseDateTime(text: string, thisYear = new Date().getFullYear(), r: Regional = EN_US): Entry | null {
   const t = text.trim()
   if (!/\d/.test(t)) return null
   const time = parseTime(t)
@@ -146,17 +160,19 @@ export function parseDateTime(text: string, thisYear = new Date().getFullYear())
   // A date followed by a time: "1/15/2026 13:45", "1/15/2026 1:45 PM".
   const split = /^(.*\S)\s+(\d{1,2}:\d{1,2}(?::\d{1,2}(?:\.\d+)?)?(?:\s*(?:am|pm|a|p))?)$/i.exec(t)
   if (split) {
-    const date = parseDate(split[1], thisYear)
+    const date = parseDate(split[1], thisYear, r)
     const clock = parseTime(split[2])
     if (date && clock) return { value: date.value + clock.value, numberFormat: "m/d/yyyy h:mm" }
     return null
   }
-  return parseDate(t, thisYear)
+  return parseDate(t, thisYear, r)
 }
 
 /** "$1,000", "-$5", "$-5", "($5)", "$ 5": the amount and Excel's currency format (two decimals when typed). */
-export function parseCurrency(text: string): Entry | null {
-  const m = /^(\()?\s*(-)?\s*\$\s*(-)?\s*(\d{1,3}(?:,\d{3})+|\d+)(\.\d*)?\s*(\))?$/.exec(text.trim())
+export function parseCurrency(text: string, r: Regional = EN_US): Entry | null {
+  const us = usSeparators(text.trim(), r)
+  if (us === null) return null
+  const m = /^(\()?\s*(-)?\s*\$\s*(-)?\s*(\d{1,3}(?:,\d{3})+|\d+)(\.\d*)?\s*(\))?$/.exec(us)
   if (!m) return null
   const open = !!m[1]
   const close = !!m[6]

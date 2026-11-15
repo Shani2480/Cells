@@ -1,4 +1,5 @@
 import { parseCurrency, parseDateTime, parseFraction } from "./entry-formats"
+import { regional, usSeparators, type Regional } from "./regional"
 
 /** Excel's error values. */
 export const ERROR_CODES = [
@@ -51,8 +52,11 @@ const NUMBER_RE = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/
 // Thousands separators as Excel (en-US) accepts them: groups of exactly three digits after the first.
 const GROUPED_RE = /^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d*)?$/
 
-/** Parses typed text the way Excel does on entry (en-US), with the number format Excel sets for dates, times, currency… */
-export function parseInput(text: string): ParsedInput | null {
+/**
+ * Parses typed text the way Excel does on entry, with the number format Excel sets for dates, times, currency…
+ * Numbers and dates are read in the person's regional setting (`r`); Excel's en-US rules when that is en-US.
+ */
+export function parseInput(text: string, r: Regional = regional()): ParsedInput | null {
   if (text === "") {
     return null
   }
@@ -72,18 +76,18 @@ export function parseInput(text: string): ParsedInput | null {
   if (error) {
     return { value: error }
   }
-  const number = parseNumberText(trimmed)
+  const number = parseNumberText(trimmed, r)
   if (number) {
     return number
   }
   // "(5)" is minus five.
   const bracketed = /^\((.+)\)$/.exec(trimmed)
   if (bracketed) {
-    const inner = parseNumberText(bracketed[1].trim())
+    const inner = parseNumberText(bracketed[1].trim(), r)
     if (inner && typeof inner.value === "number" && inner.value >= 0 && !bracketed[1].includes("%"))
       return { ...inner, value: -inner.value }
   }
-  const entry = parseCurrency(trimmed) ?? parseFraction(trimmed) ?? parseDateTime(trimmed)
+  const entry = parseCurrency(trimmed, r) ?? parseFraction(trimmed) ?? parseDateTime(trimmed, undefined, r)
   if (entry) return { value: entry.value, numberFormat: entry.numberFormat }
   return { value: text }
 }
@@ -92,8 +96,9 @@ export function parseInput(text: string): ParsedInput | null {
  * Numbers never keep their typed text: Excel's formula bar shows "1000" for "1,000" and "10%" for "10%" from the
  * value and the number format set on entry.
  */
-function parseNumberText(text: string): ParsedInput | null {
-  let body = text
+function parseNumberText(text: string, r: Regional): ParsedInput | null {
+  let body = usSeparators(text, r)
+  if (body === null || /[$()]/.test(body)) return null
   let percent = false
   if (body.endsWith("%")) {
     percent = true
