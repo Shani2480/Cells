@@ -4,8 +4,10 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
 (see PLAN.md, Phase 5). Tick an item (`[x]`, date) when it lands in Inkspire.
 
 - [ ] I1. **Shared settings file.** Move user name, regional formats and theme out of webview `localStorage`
-      (`aiword.user-settings`) into a shared file in a common config folder (`$XDG_CONFIG_HOME/inkspire/` and the
-      macOS/Windows/Android equivalents) that both apps read and write; migrate the existing value on first start.
+      (`aiword.user-settings`, `aiword-color-mode`) into the shared file described in `docs/shared-settings.md`
+      (Cells reads and writes it since 0.5.0). On first start, copy the existing values in where the file has none;
+      keep the first-run setup's "done" under `apps.inkspire.setupDone`. Only write the values that changed, and
+      read the file again on window focus.
 - [ ] I2. **Shared recent-files list** (optional): both apps' File views can show each other's recent files.
 - [ ] I3. **URL scheme + single instance.** Register `inkspire://open?file=…` with the Tauri `deep-link` and
       `single-instance` plugins, so Cells can open a document in the running Inkspire.

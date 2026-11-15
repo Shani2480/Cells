@@ -58,6 +58,21 @@
       and titles, page breaks (dashed on the sheet), File › Print with a preview, File › Export to PDF.
 - [x] Wrap-up docs (changes.md, verify-list, What's new for 0.4.0)
 
+## Phase 5 — Inkspire integration (in progress, version 0.5.0 not shipped yet)
+
+Decided 2026-11-15: Cells gets AI features using Inkspire's providers and keys; regional formats are applied in
+Cells (typing and showing dates and numbers); each app keeps its own recent-files list.
+
+- [x] Shared settings file (`docs/shared-settings.md`), File › Options (General, Advanced), first-run setup, notes
+      and comments signed with the user name, Office Theme
+- [ ] Regional formats applied: entry parsing and General display of numbers and dates
+- [ ] `cells://` links and a single instance (open a file at a range, from Inkspire)
+- [ ] Copy a range or chart for Inkspire (HTML + TSV, and a full-fidelity Inkspire payload)
+- [ ] Linked ranges: Cells tells Inkspire when a linked range changes; "Edit Data" opens a chart's workbook in Cells
+- [ ] AI: formula from a description, explain a formula, suggest a chart or summary (Inkspire's providers and keys;
+      opt-in in the setup and Options)
+- [ ] Shared code packages for Inkspire to adopt (OPC/zip, chart, formula engine)
+
 ## Later (from Phase 4)
 
 - Page Layout view and Page Break Preview (dragging page breaks).

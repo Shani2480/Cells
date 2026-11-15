@@ -20,6 +20,12 @@ const platform: Platform = {
     onCloseRequested: () => () => {},
   },
   files: new MemoryFiles(),
+  settings: {
+    read: async () => JSON.stringify({ version: 1, apps: { cells: { setupDone: true } } }),
+    write: async () => {},
+    location: async () => "",
+    systemFacts: async () => ({}),
+  },
 }
 
 function renderApp() {

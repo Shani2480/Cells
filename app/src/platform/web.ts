@@ -1,4 +1,4 @@
-import type { ClipboardContent, Platform } from "@cells/platform"
+import type { ClipboardContent, Platform, SettingsPort } from "@cells/platform"
 import { webFiles } from "./web-files"
 
 function detectOs(): Platform["os"] {
@@ -58,4 +58,33 @@ export const webPlatform: Platform = {
     },
   },
   files: webFiles(),
+  settings: webSettings(),
+}
+
+const SHARED_KEY = "inkspire.shared-settings"
+
+/** The browser build has no file both apps can see: the shared settings live in this origin's storage. */
+export function webSettings(): SettingsPort {
+  return {
+    async read() {
+      try {
+        return localStorage.getItem(SHARED_KEY)
+      } catch {
+        return null
+      }
+    },
+    async write(text) {
+      try {
+        localStorage.setItem(SHARED_KEY, text)
+      } catch {
+        // Without storage the settings last as long as the page.
+      }
+    },
+    async location() {
+      return ""
+    },
+    async systemFacts() {
+      return { intlLocale: typeof navigator === "undefined" ? undefined : navigator.language }
+    },
+  }
 }

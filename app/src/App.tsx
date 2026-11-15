@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
 import { GridView, type GridContextMenu } from "@/grid/GridView"
 import { usePlatform } from "@/platform/context"
+import type { SettingsPort } from "@cells/platform"
+import { loadSettings, useSettings } from "@/settings/settings"
+import { OptionsDialog } from "@/settings/OptionsDialog"
+import { FirstRunSetup } from "@/settings/FirstRunSetup"
 import { SheetController } from "@/sheet/controller"
 import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
@@ -104,18 +108,31 @@ type DialogState =
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
+  | { kind: "options" }
   | { kind: "cfNew"; start: string }
   | null
 
-/** Follows the system's light/dark setting (a manual choice comes with File > Options in Phase 3). */
-function useSystemColorScheme() {
+/** Light or dark as File › Options › Office Theme says: the system's setting, or always one of them. */
+function useColorScheme() {
+  const theme = useSettings((s) => s.theme)
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: dark)")
-    const apply = () => document.documentElement.classList.toggle("dark", query.matches)
+    const apply = () =>
+      document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && query.matches))
     apply()
     query.addEventListener("change", apply)
     return () => query.removeEventListener("change", apply)
-  }, [])
+  }, [theme])
+}
+
+/** Loads the settings shared with Inkspire, and again whenever the window comes back to the front. */
+function useSharedSettings(port: SettingsPort) {
+  useEffect(() => {
+    void loadSettings(port)
+    const again = () => void loadSettings(port)
+    window.addEventListener("focus", again)
+    return () => window.removeEventListener("focus", again)
+  }, [port])
 }
 
 /**
@@ -288,6 +305,9 @@ function WorkbookWindow({
   const controller = doc.controller
   const platform = usePlatform()
   const [dialog, setDialog] = useState<DialogState>(null)
+  const settingsLoaded = useSettings((s) => s.loaded)
+  const setupDone = useSettings((s) => s.setupDone)
+  const [setupAgain, setSetupAgain] = useState(false)
   const [badEntry, setBadEntry] = useState<{ alert: ValidationAlert; answer: (a: AlertAnswer) => void } | null>(null)
   const [menu, setMenu] = useState<GridContextMenu | null>(null)
   // Excel's message boxes sit over whatever is open (a dialog stays open under them).
@@ -312,7 +332,8 @@ function WorkbookWindow({
   }
   const ribbonHandle = useRef<RibbonHandle | null>(null)
   useSyncExternalStore(controller.subscribe, controller.getVersion)
-  useSystemColorScheme()
+  useColorScheme()
+  useSharedSettings(platform.settings)
 
   useEffect(() => {
     if (!platform.window.controllable) document.documentElement.classList.add("is-browser")
@@ -808,6 +829,23 @@ function WorkbookWindow({
           <UnprotectSheetDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "cfManage" ? <ManageRulesDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "options" ? (
+          <OptionsDialog
+            onClose={closeDialog}
+            onRunSetup={() => {
+              closeDialog()
+              setSetupAgain(true)
+            }}
+          />
+        ) : null}
+        {settingsLoaded && (!setupDone || setupAgain) && !backstage ? (
+          <FirstRunSetup
+            onDone={() => {
+              setSetupAgain(false)
+              focusGrid()
+            }}
+          />
+        ) : null}
         {dialog?.kind === "zoom" ? (
           <ZoomDialog
             zoom={controller.zoom}
@@ -834,6 +872,10 @@ function WorkbookWindow({
             files={files}
             controller={controller}
             onPageSetup={(tab) => setDialog({ kind: "pageSetup", tab })}
+            onOptions={() => {
+              setBackstage(null)
+              setDialog({ kind: "options" })
+            }}
             recent={recentFiles}
             file={{
               title: doc.title,

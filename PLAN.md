@@ -321,6 +321,10 @@ local-first model; there is nothing to log in to (confirmed 2026-11-14). Buildin
    formula engine into shared packages; Inkspire's 4×4 Spreadsheet block and arithmetic formula fields then use the
    real engine.
 
+**Decisions (2026-11-15):** Cells gets AI features in this phase, using Inkspire's AI providers and the same keyring
+entries (opt-in). The regional formats are applied in Cells, not only stored. Each app keeps its own recent-files list
+(item 1's "if wanted" is no). The shared file's format is in `docs/shared-settings.md`.
+
 **Required changes in Inkspire** are deferred and tracked in `docs/inkspire-todo.md`; they are done later, in
 the Inkspire project, not from this repo. Cells' side of each item is built so it works on its own until Inkspire
 catches up.

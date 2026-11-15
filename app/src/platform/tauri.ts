@@ -1,4 +1,5 @@
-import type { Platform } from "@cells/platform"
+import type { Platform, SystemFacts } from "@cells/platform"
+import { invoke } from "@tauri-apps/api/core"
 import { readText, writeHtml, writeText } from "@tauri-apps/plugin-clipboard-manager"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { tauriFiles } from "./tauri-files"
@@ -14,6 +15,19 @@ export function tauriPlatform(): Platform {
   return {
     os: webPlatform.os === "web" ? "linux" : webPlatform.os,
     files: tauriFiles(),
+    settings: {
+      read: () => invoke<string | null>("read_shared_settings"),
+      write: (text) => invoke<void>("write_shared_settings", { text }),
+      location: () => invoke<string>("shared_settings_location").catch(() => ""),
+      async systemFacts() {
+        const intlLocale = typeof navigator === "undefined" ? undefined : navigator.language
+        try {
+          return { ...(await invoke<SystemFacts>("system_defaults")), intlLocale }
+        } catch {
+          return { intlLocale }
+        }
+      },
+    },
     clipboard: {
       async write(content) {
         if (content.html) await writeHtml(content.html, content.text)

@@ -8,6 +8,7 @@ import {
   type Op,
 } from "@cells/core"
 import type { SheetController } from "./controller"
+import { authorName } from "@/settings/settings"
 
 export type CellAt = { row: number; col: number }
 
@@ -26,8 +27,15 @@ export class AnnotationCommands {
   open: (CellAt & { draft: boolean }) | null = null
   /** Show All Notes: every note's box stays on screen (Excel's toggle, per workbook view). */
   showAll = false
+  /** A name set for this workbook view only (tests); otherwise File › Options › User name. */
+  private authorOverride: string | null = null
   /** The name notes and comments are signed with (File › Options › User name in Excel). */
-  author = "User"
+  get author(): string {
+    return this.authorOverride ?? authorName()
+  }
+  set author(name: string) {
+    this.authorOverride = name
+  }
 
   constructor(private readonly c: SheetController) {}
 

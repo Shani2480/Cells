@@ -11,11 +11,17 @@ import { ExportPage, PrintPage } from "./PrintPage"
 /**
  * File (the backstage view), as Excel's: a pane of pages on the left in the theme colour, the page on the right.
  * Opens opaque at once with only its pane sliding in, and closes at once (a fading full-window view ghosts in a
- * desktop webview). Save and Close act at once, as in Excel; Share and Options come later.
+ * desktop webview). Save and Close act at once, as in Excel; Options opens Excel Options over the sheet; Share comes later.
  */
 export type BackstagePage = "home" | "new" | "open" | "info" | "saveAs" | "print" | "export" | "account" | "about"
 
-type NavItem = { id: string; label: string; page?: BackstagePage; action?: "save" | "close"; gapBefore?: boolean }
+type NavItem = {
+  id: string
+  label: string
+  page?: BackstagePage
+  action?: "save" | "close" | "options"
+  gapBefore?: boolean
+}
 
 const PAGES: NavItem[] = [
   { id: "home", label: "Home", page: "home" },
@@ -29,7 +35,7 @@ const PAGES: NavItem[] = [
   { id: "export", label: "Export", page: "export" },
   { id: "close", label: "Close", action: "close" },
   { id: "account", label: "Account", page: "account", gapBefore: true },
-  { id: "options", label: "Options" },
+  { id: "options", label: "Options", action: "options" },
 ]
 
 export type BackstageFile = {
@@ -49,6 +55,7 @@ export function Backstage({
   recent = [],
   controller,
   onPageSetup,
+  onOptions,
 }: {
   page?: string
   onClose: () => void
@@ -59,6 +66,8 @@ export function Backstage({
   controller?: SheetController
   /** Print's Page Setup link: the dialog opens over the sheet. */
   onPageSetup?: (tab: PageSetupTab) => void
+  /** Options: the File view closes and Excel Options opens over the sheet. */
+  onOptions?: () => void
 }) {
   const start = initial === "about" ? "account" : (initial ?? "home")
   const [page, setPage] = useState<string>(files || start === "account" ? start : "account")
@@ -83,6 +92,10 @@ export function Backstage({
   }
 
   const select = (item: NavItem) => {
+    if (item.action === "options") {
+      onOptions?.()
+      return
+    }
     if (!files) return
     if (item.action === "save") {
       // A workbook never saved goes to Save As, as Excel does.
@@ -92,7 +105,12 @@ export function Backstage({
     else if (item.page) setPage(item.page)
   }
 
-  const enabled = (item: NavItem) => (item.page === "account" ? true : Boolean(files && (item.page || item.action)))
+  const enabled = (item: NavItem) =>
+    item.page === "account"
+      ? true
+      : item.action === "options"
+        ? Boolean(onOptions)
+        : Boolean(files && (item.page || item.action))
 
   return (
     <div className="backstage" role="dialog" aria-label="File">

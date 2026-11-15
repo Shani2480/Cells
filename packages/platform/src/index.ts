@@ -40,6 +40,36 @@ export type Platform = {
   readonly clipboard: ClipboardPort
   readonly window: WindowPort
   readonly files: FilePort
+  readonly settings: SettingsPort
+}
+
+/**
+ * What the desktop session says about the person and their region, for the first-run setup. Every field is blank
+ * when the system doesn't give it. The same shape as Inkspire's `system_defaults`.
+ */
+export type SystemFacts = {
+  user?: string
+  full_name?: string
+  lang?: string
+  lc_all?: string
+  lc_time?: string
+  lc_numeric?: string
+  /** `navigator.language`, used only when the environment says nothing. */
+  intlLocale?: string
+}
+
+/**
+ * The settings file Cells shares with Inkspire (`docs/shared-settings.md`): on the desktop
+ * `<config dir>/inkspire/settings.json`, in a browser a localStorage entry. Read and written as JSON text; the app
+ * merges its own keys into what is there, so the other app's keys survive.
+ */
+export interface SettingsPort {
+  /** The file's text; null when there is none yet (or it can't be read). */
+  read(): Promise<string | null>
+  write(text: string): Promise<void>
+  /** Where the file is, for File › Options ("Shared with Inkspire: ~/.config/inkspire/settings.json"); "" if none. */
+  location(): Promise<string>
+  systemFacts(): Promise<SystemFacts>
 }
 
 /** A file the person picked: enough to read or write it again (a path on the desktop, a handle in a browser). */
