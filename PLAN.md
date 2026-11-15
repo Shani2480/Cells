@@ -274,7 +274,8 @@ Phase 1.
 
 **Status (2026-11-15):** items 1–7 are built and committed. Left out for later: Page Layout view and Page Break
 Preview, sparklines, the chart Format tab and `.ods`. PDF pages are images for now. What's left to check
-by hand is in `docs/verify-list.md`, and the remaining steps are in `docs/next-todo.md`. Next: the Phase 4 wrap-up docs.
+by hand is in `docs/verify-list.md`, and the remaining steps are in `docs/next-todo.md`. Phase 4 is done; the summary
+is in `docs/changes.md`.
 
 **Tests:** an `.xlsx` corpus (made-up data only) with round-trip tests: open → save → re-open must equal, and the
 saved file must open in Excel without a repair prompt; unknown-part preservation tests; a schema validator pass on

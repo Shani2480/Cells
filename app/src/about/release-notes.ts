@@ -7,7 +7,7 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: "0.4.0",
-    date: "2026-11-14",
+    date: "2026-11-15",
     notes: [
       "Open and save Excel workbooks (.xlsx, .xlsm and templates). Files made in Excel come back out with their charts, pictures, macros and other parts Cells doesn't show yet kept as they were.",
       "File › Home, New, Open, Save As and Info, with a Recent list you can pin files to. Ctrl+N, Ctrl+O, Ctrl+S, F12 and Ctrl+W work as in Excel.",

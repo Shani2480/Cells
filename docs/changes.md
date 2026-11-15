@@ -2,6 +2,60 @@
 
 Newest first. Each entry: what changed, how it was checked, what is still open.
 
+## 2026-11-15 — Phase 4: files and data tools (0.4.0)
+
+**Built**
+
+- Excel files: `.xlsx`, `.xlsm` and templates read and written in `packages/io` (values, shared strings, formulas of
+  every kind, styles, sizes, merges, panes, names, conditional formatting, validation, notes and comments, tables,
+  filters, print settings, charts). Parts Cells doesn't model (pictures, macros, pivot caches, outline) are written
+  back as they came. SHA-512 sheet and workbook passwords from Excel files work.
+- File views: Home, New, Open, Save As, Info, Recent with pinning, Export to PDF; Ctrl+N/O/S/W and F12, the save
+  prompt before closing or replacing, the workbook's name in the title bar, AutoRecover every two minutes and
+  Document Recovery after a crash, progress while opening, plain-word errors and a list of what was left out.
+- CSV and text: `.csv` opens at once (UTF-8 detection, semicolon CSVs) and saves back in its own delimiter and
+  encoding; `.txt` through the Text Import Wizard; Data › From Text/CSV; Save As CSV UTF-8 and Text, byte for byte as
+  Excel 365 writes them. Drag and drop to open.
+- Sort (A to Z, Z to A, the Sort dialog with levels, colours, custom lists, case, left to right) and AutoFilter
+  (value list with search and date tree, Text/Number/Date Filters, Top 10, dynamic and colour filters, record count).
+- Find and Replace, Go To Special, Remove Duplicates, Text to Columns.
+- Data Validation with the dialog, alerts, input messages, in-cell lists and Circle Invalid Data.
+- Tables: Format as Table with Excel's 60 styles, the Table Design tab, total row, structured references in the
+  engine, growing tables and calculated columns.
+- Flash Fill (Ctrl+E).
+- Charts in `packages/chart` (shared with Inkspire): Insert galleries and Recommended Charts, moving and sizing, the
+  Chart Design tab, Select Data, live data, and DrawingML chart parts read and written.
+- Printing: page setup on every sheet, the Page Layout tab, the Page Setup dialog with custom headers and footers,
+  print area and titles, page breaks shown on the sheet, File › Print with a preview, and PDF export.
+
+**Checked against Excel** (16.0, US locale)
+
+- Every file Cells writes passes the Open XML SDK validator (3.5.1) and opens in Excel with no repair prompt, with
+  the same values and formulas. The Excel-made fixtures in `packages/io/test/fixtures/excel` (budget, formats,
+  conditional, layout, protected, passwords, filters, validation, features, print) open, save and reopen with the same content, and their theme and document
+  properties come back byte for byte.
+- CSV and text output byte for byte against Excel's own Save As.
+- Sort order, filter results, Find (62 cases) and Replace (7), Remove Duplicates' matching, Text to Columns'
+  splitting and which entries each validation rule accepts, against Excel's results.
+- Tables (styles, structured references, a filtered column), charts (=SERIES formulas, an untouched Excel chart
+  written back as it came) and every print setting, read back by Excel after Cells saved them; page counts match
+  Excel's on the printing fixture.
+
+**Deviations from PLAN.md**
+
+- Not built in this phase: Page Layout view and Page Break Preview, sparklines, `.ods`, the chart Format tab, the
+  Insert Chart dialog, Move Chart and chart sheets, Flash Fill's live suggestion while typing.
+- PDF pages are pictures of the pages, so their text can't be selected.
+- The Android system picker is left for Phase 6; the browser build uses the File System Access API.
+
+**Measured**
+
+- 100,000 rows × 10 columns (1M cells of numbers, text, formulas and logicals; 6.4 MB): save 2.0 s, open 2.2 s in
+  Node (`packages/io/test/xlsx.bench.ts`, budget 15 s each). In the app the reading runs in the worker with progress.
+- Sheet passwords with Excel's 100,000 SHA-512 spins check in under 1.5 s.
+
+**Open**: see `docs/verify-list.md`.
+
 ## 2026-11-14 — Phase 3: desktop and tablet UI, formatting (0.3.0)
 
 **Built**

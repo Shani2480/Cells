@@ -57,6 +57,15 @@ Phase 3, added at the end:
       pressed while protected.
 - [ ] Comment card layout and the note box size (144 × 79 px) against Excel's.
 
+## Against Excel (Phase 4, files)
+
+- [ ] The File views (Home, New, Open, Save As, Info, Recent, Export) next to Excel's backstage, and the wording of
+      the save prompt, Document Recovery and the open errors.
+- [ ] A 50 MB workbook opened in the Tauri window: the UI stays responsive and the progress shows. Only measured in
+      Node so far (1M cells, 6.4 MB: open 2.2 s, save 2.0 s).
+- [ ] Open and Save in the browser build without the File System Access API (Firefox, Safari): Open uses a file
+      input and every save downloads a copy.
+
 ## Against Excel (Phase 4, data tools)
 
 - [ ] The filter dropdown's look next to Excel's (built from memory of Excel 365, no reference screenshot): widths,

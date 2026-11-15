@@ -43,7 +43,7 @@
 - [ ] First-run setup screen (theme, your name for notes and comments, AI opt-in once there is AI). Your rules ask
       for it in every app, but it isn't in PLAN.md yet. Proposed for Phase 5 with Settings.
 
-## Phase 4 — data tools (in progress, version 0.4.0 not shipped yet)
+## Phase 4 — done (0.4.0)
 
 - [x] xlsx open and save (unknown parts kept), big files with progress, CSV/TXT import and export, File views,
       recent files, AutoRecover
@@ -56,7 +56,7 @@
 - [x] Printing and PDF: page setup on every sheet (saved in xlsx and read back by Excel), the Page Layout tab's Page
       Setup / Scale to Fit / Sheet Options, the Page Setup dialog (four tabs, custom header and footer), print area
       and titles, page breaks (dashed on the sheet), File › Print with a preview, File › Export to PDF.
-- [ ] Wrap-up docs for Phase 4 (changes.md, verify-list, What's new for 0.4.0)
+- [x] Wrap-up docs (changes.md, verify-list, What's new for 0.4.0)
 
 ## Later (from Phase 4)
 
