@@ -17,7 +17,11 @@ export class MemoryFiles implements FilePort {
     return { ref: this.ref(path), bytes: await this.read(this.ref(path)) }
   }
 
+  /** How many files were read (to check nothing was opened again). */
+  reads = 0
+
   async read(ref: FileRef) {
+    this.reads++
     const bytes = ref.path ? this.disk.get(ref.path) : undefined
     if (!bytes) throw new Error(`ENOENT: ${ref.path}`)
     return bytes

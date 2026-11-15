@@ -1,5 +1,6 @@
 import type { Platform, SystemFacts } from "@cells/platform"
 import { invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
 import { readText, writeHtml, writeText } from "@tauri-apps/plugin-clipboard-manager"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { tauriFiles } from "./tauri-files"
@@ -15,6 +16,26 @@ export function tauriPlatform(): Platform {
   return {
     os: webPlatform.os === "web" ? "linux" : webPlatform.os,
     files: tauriFiles(),
+    opens: {
+      onRequest(handler) {
+        let disposed = false
+        let unlisten: (() => void) | undefined
+        const take = () =>
+          void invoke<string[]>("take_pending_opens").then((items) => {
+            if (!disposed && items.length) handler(items)
+          })
+        void listen("cells-open", take).then((fn) => {
+          unlisten = fn
+          if (disposed) fn()
+        })
+        // What came with the launch, before the window listened.
+        take()
+        return () => {
+          disposed = true
+          unlisten?.()
+        }
+      },
+    },
     settings: {
       read: () => invoke<string | null>("read_shared_settings"),
       write: (text) => invoke<void>("write_shared_settings", { text }),

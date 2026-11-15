@@ -66,7 +66,7 @@ Cells (typing and showing dates and numbers); each app keeps its own recent-file
 - [x] Shared settings file (`docs/shared-settings.md`), File › Options (General, Advanced), first-run setup, notes
       and comments signed with the user name, Office Theme
 - [x] Regional formats applied: typed numbers and dates, number formats, General, the short date and the formula bar
-- [ ] `cells://` links and a single instance (open a file at a range, from Inkspire)
+- [x] `cells://` links and a single instance (open a file at a range, from Inkspire; files from the command line)
 - [ ] Copy a range or chart for Inkspire (HTML + TSV, and a full-fidelity Inkspire payload)
 - [ ] Linked ranges: Cells tells Inkspire when a linked range changes; "Edit Data" opens a chart's workbook in Cells
 - [ ] AI: formula from a description, explain a formula, suggest a chart or summary (Inkspire's providers and keys;

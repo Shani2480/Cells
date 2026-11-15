@@ -2,8 +2,9 @@
 //! workbook engine lives in TypeScript (packages/core and packages/io).
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// The window title for a workbook, as Excel shows it ("Book1 - Cells").
 pub fn window_title(workbook: &str) -> String {
@@ -284,9 +285,99 @@ fn system_defaults() -> SystemDefaults {
     }
 }
 
+/// `cells://` links and workbook files the app was started or called with, until the window takes them (it may not be
+/// listening yet when the app starts).
+#[derive(Default)]
+struct PendingOpens(Mutex<Vec<String>>);
+
+/// What in a launch's arguments the window should open: `cells://` links, and workbook files (relative paths are
+/// taken from the folder the launch came from). The first argument is the program itself.
+fn openable_arguments(args: &[String], cwd: &Path) -> Vec<String> {
+    args.iter()
+        .skip(1)
+        .filter_map(|arg| {
+            if arg.starts_with("cells://") {
+                return Some(arg.clone());
+            }
+            if arg.starts_with('-') {
+                return None;
+            }
+            let path = PathBuf::from(arg);
+            let full = if path.is_absolute() {
+                path
+            } else {
+                cwd.join(path)
+            };
+            let text = full.to_string_lossy().into_owned();
+            assert_workbook_path(&text).ok().map(|_| text)
+        })
+        .collect()
+}
+
+/// Hands links and files to the window: queued for `take_pending_opens`, announced with `cells-open`, and the
+/// window brought to the front (a second launch lands here instead of opening a second Cells).
+fn deliver(app: &tauri::AppHandle, items: Vec<String>) {
+    if items.is_empty() {
+        return;
+    }
+    if let Some(pending) = app.try_state::<PendingOpens>() {
+        if let Ok(mut list) = pending.0.lock() {
+            list.extend(items);
+        }
+    }
+    let _ = app.emit_to("main", "cells-open", ());
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// The links and files waiting to be opened, oldest first; the list is empty afterwards.
+#[tauri::command]
+fn take_pending_opens(pending: tauri::State<'_, PendingOpens>) -> Vec<String> {
+    pending
+        .0
+        .lock()
+        .map(|mut list| std::mem::take(&mut *list))
+        .unwrap_or_default()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // One Cells at a time: a second launch (a cells:// link, a file opened from the file manager) hands its
+    // arguments to the running one. This plugin has to come first.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        deliver(app, openable_arguments(&argv, Path::new(&cwd)));
+    }));
+    builder
+        .plugin(tauri_plugin_deep_link::init())
+        .manage(PendingOpens::default())
+        .setup(|app| {
+            let args: Vec<String> = std::env::args().collect();
+            let cwd = std::env::current_dir().unwrap_or_default();
+            if let Ok(mut list) = app.state::<PendingOpens>().0.lock() {
+                list.extend(openable_arguments(&args, &cwd));
+            }
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                // Linux and Windows learn the scheme when the app runs (an AppImage or a dev build is never
+                // installed); macOS reads it from the bundle.
+                #[cfg(any(target_os = "linux", windows))]
+                let _ = app.deep_link().register_all();
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    deliver(
+                        &handle,
+                        event.urls().iter().map(|url| url.to_string()).collect(),
+                    );
+                });
+            }
+            Ok(())
+        })
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -297,7 +388,8 @@ pub fn run() {
             read_shared_settings,
             write_shared_settings,
             shared_settings_location,
-            system_defaults
+            system_defaults,
+            take_pending_opens
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cells");
@@ -340,6 +432,29 @@ mod tests {
             Some(r#"{"version":1}"#)
         );
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn launch_arguments() {
+        let args: Vec<String> = [
+            "cells",
+            "--flag",
+            "cells://open?file=%2Fhome%2Falex%2FBudget.xlsx",
+            "Notes.txt",
+            "x.sh",
+            "/srv/a.xlsx",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        assert_eq!(
+            openable_arguments(&args, Path::new("/home/alex")),
+            vec![
+                "cells://open?file=%2Fhome%2Falex%2FBudget.xlsx",
+                "/home/alex/Notes.txt",
+                "/srv/a.xlsx"
+            ]
+        );
     }
 
     #[test]

@@ -33,6 +33,7 @@ function renderWith(initial: string | null) {
     },
     files: new MemoryFiles(),
     settings,
+    opens: { onRequest: () => () => {} },
   }
   const controller = new SheetController()
   render(

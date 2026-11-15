@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { Platform } from "@cells/platform"
 import { App } from "./App"
@@ -26,7 +26,18 @@ const platform: Platform = {
     location: async () => "",
     systemFacts: async () => ({}),
   },
+  opens: {
+    onRequest(handler) {
+      requests.handler = handler
+      return () => {
+        requests.handler = null
+      }
+    },
+  },
 }
+
+/** What the system would hand the window (cells:// links, files). */
+const requests: { handler: ((items: string[]) => void) | null } = { handler: null }
 
 function renderApp() {
   const controller = new SheetController()
@@ -193,6 +204,24 @@ describe("File commands in the window", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/^Good (morning|afternoon|evening)$/)
     expect(screen.getByRole("button", { name: "Blank workbook" })).toBeInTheDocument()
     expect(screen.getByRole("list", { name: "Recent files" })).toBeInTheDocument()
+  })
+
+  it("a cells:// link opens the workbook at its range, and again only moves there", async () => {
+    renderApp()
+    const { Workbook } = await import("@cells/core")
+    const { saveXlsx } = await import("@cells/io")
+    const wb = new Workbook(["Sales", "Costs"])
+    wb.sheets[1].cells.set(4, 2, { value: 7 })
+    files.disk.set("/home/alex/Q1 Budget.xlsx", await saveXlsx(wb, { fileName: "Q1 Budget.xlsx" }))
+    const link = "cells://open?file=%2Fhome%2Falex%2FQ1%20Budget.xlsx&range=Costs!R5C3:R6C4"
+    await act(async () => requests.handler?.([link]))
+    expect((await screen.findAllByText("Q1 Budget - Cells", {}, { timeout: 5000 })).length).toBeGreaterThan(0)
+    await waitFor(() => expect(screen.getByDisplayValue("C5")).toBeInTheDocument())
+    expect(screen.getByRole("tab", { name: "Costs", selected: true })).toBeInTheDocument()
+    const reads = files.reads
+    await act(async () => requests.handler?.(["cells://open?file=%2Fhome%2Falex%2FQ1%20Budget.xlsx&range=Sales!B2"]))
+    await waitFor(() => expect(screen.getByDisplayValue("B2")).toBeInTheDocument())
+    expect(files.reads).toBe(reads)
   })
 
   it("a CSV dropped on the window opens", async () => {

@@ -132,7 +132,7 @@ export class FileCommands {
   }
 
   /** A file from the Recent list. */
-  async openRecent(entry: RecentFile): Promise<boolean> {
+  async openRecent(entry: Pick<RecentFile, "name" | "path" | "handle">): Promise<boolean> {
     const ref: FileRef = { name: entry.name, path: entry.path, handle: entry.handle }
     let bytes: Uint8Array
     try {
@@ -142,6 +142,16 @@ export class FileCommands {
       return false
     }
     return this.openBytes(bytes, ref)
+  }
+
+  /**
+   * A file by its full path (a cells:// link, a file opened from the file manager). The workbook already shown is
+   * not opened again.
+   */
+  async openPath(path: string): Promise<boolean> {
+    if (this.doc.ref?.path === path) return true
+    const name = path.split(/[\\/]/).pop() || path
+    return this.openRecent({ name, path })
   }
 
   /** A file dropped on the window or passed by the system. A .txt or .tsv goes through the Text Import Wizard. */

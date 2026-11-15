@@ -8,6 +8,7 @@ import type { SettingsPort } from "@cells/platform"
 import { loadSettings, useSettings } from "@/settings/settings"
 import { OptionsDialog } from "@/settings/OptionsDialog"
 import { FirstRunSetup } from "@/settings/FirstRunSetup"
+import { parseOpenRequest } from "@/links/link"
 import { SheetController } from "@/sheet/controller"
 import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
@@ -186,6 +187,24 @@ export function App({ controller: given }: { controller?: SheetController } = {}
         },
         first,
       ),
+  )
+
+  // cells:// links and files passed by the system: open the file, then go to the range.
+  useEffect(
+    () =>
+      platform.opens.onRequest((items) => {
+        void (async () => {
+          for (const item of items) {
+            const request = parseOpenRequest(item)
+            if (!request || !(await files.openPath(request.path)) || !request.range) continue
+            const c = files.doc.controller
+            const target = c.names.resolve(request.range)
+            if (target) c.names.goTo(target)
+            else c.shell.alert(`The link points to ${request.range}, which isn't in ${files.doc.fileName}.`)
+          }
+        })()
+      }),
+    [platform, files],
   )
 
   useEffect(() => {

@@ -59,6 +59,8 @@ export const webPlatform: Platform = {
   },
   files: webFiles(),
   settings: webSettings(),
+  // A browser tab is never handed links or files by the system.
+  opens: { onRequest: () => () => {} },
 }
 
 const SHARED_KEY = "inkspire.shared-settings"

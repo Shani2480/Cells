@@ -41,6 +41,16 @@ export type Platform = {
   readonly window: WindowPort
   readonly files: FilePort
   readonly settings: SettingsPort
+  readonly opens: OpenPort
+}
+
+/**
+ * Links and files the system hands to Cells: `cells://` links (from Inkspire, a browser) and workbooks opened from
+ * the file manager, at start or while Cells runs (one Cells at a time; a second launch passes its request on).
+ */
+export interface OpenPort {
+  /** Calls back with each batch of requests (links, or full paths), the ones from start first. Returns unsubscribe. */
+  onRequest(handler: (items: string[]) => void): () => void
 }
 
 /**

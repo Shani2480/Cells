@@ -10,7 +10,8 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       read the file again on window focus.
 - [ ] I2. **Shared recent-files list** (optional): both apps' File views can show each other's recent files.
 - [ ] I3. **URL scheme + single instance.** Register `inkspire://open?file=…` with the Tauri `deep-link` and
-      `single-instance` plugins, so Cells can open a document in the running Inkspire.
+      `single-instance` plugins, so Cells can open a document in the running Inkspire. Cells' side and the link
+      format are in `docs/app-links.md`; "Edit in Cells" opens `cells://open?file=…&range=…`.
 - [ ] I4. **Paste from Cells.** Handle the Inkspire range clipboard type (full styles, chart spec, source workbook and
       range); fall back to the HTML/TSV that Cells also puts on the clipboard.
 - [ ] I5. **Linked tables.** `LINK Excel.Sheet.12 "file.xlsx" "Sheet1!R1C1:R10C4" \a \f 4 \h` fields: refresh on open,
