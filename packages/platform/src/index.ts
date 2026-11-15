@@ -42,6 +42,21 @@ export type Platform = {
   readonly files: FilePort
   readonly settings: SettingsPort
   readonly opens: OpenPort
+  readonly links: LinkPort
+}
+
+/**
+ * Inkspire's linked tables and charts (`docs/linked-ranges.md`), through files in the folder the apps share, so
+ * neither app has to start the other: Inkspire lists the ranges its open documents link to, Cells writes what
+ * those ranges hold whenever they change.
+ */
+export interface LinkPort {
+  /** The text of `links/wanted.json`; null when there is none. */
+  wanted(): Promise<string | null>
+  /** Writes `links/<name>.json` (a workbook's linked ranges now); `name` is 16 hex digits. */
+  publish(name: string, text: string): Promise<void>
+  /** Whether a path is a chart's workbook Inkspire copied out for Edit Data (in its edit folder). */
+  isEditCopy(path: string): Promise<boolean>
 }
 
 /**

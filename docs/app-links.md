@@ -19,7 +19,14 @@ Cells opens the file (asking to save the workbook it replaces, as File › Open 
 the workbook already shown only selects the range. A workbook path on the command line (`cells Budget.xlsx`, a file
 opened from the file manager) opens the same way.
 
-A link can only open and show a file: it never saves, changes or runs anything.
+A link can only open and show a file: it never saves, changes or runs anything. The one exception is Edit Data:
+
+```
+cells://edit?file=<full path>&for=<document name>
+```
+
+opens the workbook of a chart in an Inkspire document and saves each change back to it, but only for a file inside
+Inkspire's edit folder (`<cache dir>/inkspire/edit/`); any other file just opens. See `docs/linked-ranges.md`.
 
 Code: `app/src/links/link.ts` (reading and writing links), `src-tauri/src/lib.rs` (`deliver`, `take_pending_opens`).
 

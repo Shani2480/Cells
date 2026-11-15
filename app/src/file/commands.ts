@@ -38,6 +38,9 @@ export interface FileUi {
 }
 
 /** Excel's message when a workbook of several sheets is saved as CSV or text. */
+/** How long after a change a chart's workbook (Edit Data) is saved back for Inkspire. */
+export const EMBEDDED_SAVE_MS = 800
+
 export const ONE_SHEET_MESSAGE =
   "The selected file type does not support workbooks that contain multiple sheets. To save only the active sheet, click OK. To save all sheets, save them one at a time under different file names, or choose a file type that supports multiple sheets."
 
@@ -51,6 +54,7 @@ export class FileCommands {
   /** New workbooks are numbered per window, as Excel's Book1, Book2… */
   private books = 1
   private recoverTimer: ReturnType<typeof setInterval> | null = null
+  private embedded: { stop: () => void } | null = null
 
   constructor(
     private readonly files: FilePort,
@@ -72,6 +76,8 @@ export class FileCommands {
   stop() {
     if (this.recoverTimer) clearInterval(this.recoverTimer)
     this.recoverTimer = null
+    this.embedded?.stop()
+    this.embedded = null
   }
 
   /** Keeps a copy of the workbook if it changed since the last copy. */
@@ -97,6 +103,8 @@ export class FileCommands {
   async confirmClose(): Promise<boolean> {
     const doc = this.doc
     if (!doc.dirty) return true
+    // A chart's workbook goes back to Inkspire: saved, never asked about.
+    if (doc.embeddedFor && doc.ref) return this.write(doc.ref, true)
     const choice = await this.ui.askSave(doc.title)
     if (choice === "cancel") return false
     if (choice === "save") return this.save()
@@ -105,6 +113,8 @@ export class FileCommands {
 
   private replace(next: WorkbookDocument) {
     const old = this.doc
+    this.embedded?.stop()
+    this.embedded = null
     this.doc = next
     old.close()
     void dropRecovery(old.id)
@@ -132,7 +142,7 @@ export class FileCommands {
   }
 
   /** A file from the Recent list. */
-  async openRecent(entry: Pick<RecentFile, "name" | "path" | "handle">): Promise<boolean> {
+  async openRecent(entry: Pick<RecentFile, "name" | "path" | "handle">, remember = true): Promise<boolean> {
     const ref: FileRef = { name: entry.name, path: entry.path, handle: entry.handle }
     let bytes: Uint8Array
     try {
@@ -141,7 +151,7 @@ export class FileCommands {
       this.ui.problem(classifyOpenError(error, null, entry.name))
       return false
     }
-    return this.openBytes(bytes, ref)
+    return this.openBytes(bytes, ref, remember)
   }
 
   /**
@@ -152,6 +162,44 @@ export class FileCommands {
     if (this.doc.ref?.path === path) return true
     const name = path.split(/[\\/]/).pop() || path
     return this.openRecent({ name, path })
+  }
+
+  /**
+   * Inkspire's Edit Data: the workbook of a chart in `documentName`, which Inkspire copied out to `path` and reads
+   * back. It isn't added to Recent; every change is saved to it a moment later, and closing doesn't ask.
+   */
+  async openEmbedded(path: string, documentName: string): Promise<boolean> {
+    if (this.doc.ref?.path !== path) {
+      const name = path.split(/[\\/]/).pop() || path
+      if (!(await this.openRecent({ name, path }, false))) return false
+    }
+    const doc = this.doc
+    doc.embeddedFor = documentName
+    this.embedded?.stop()
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const later = () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        if (doc !== this.doc || !doc.embeddedFor || !doc.ref || !doc.dirty) return
+        // Not while a cell is being typed in (saving would enter it) or another save runs.
+        if (doc.controller.edit || this.busy) return later()
+        void this.write(doc.ref, true)
+      }, EMBEDDED_SAVE_MS)
+    }
+    const unsubscribe = doc.controller.wb.subscribe((_changes, ops) => {
+      if (ops.length) later()
+    })
+    // Edits made before (the workbook was already open here) go back too.
+    if (doc.dirty) later()
+    this.embedded = {
+      stop: () => {
+        unsubscribe()
+        if (timer) clearTimeout(timer)
+      },
+    }
+    doc.controller.changed()
+    return true
   }
 
   /** A file dropped on the window or passed by the system. A .txt or .tsv goes through the Text Import Wizard. */
@@ -203,21 +251,23 @@ export class FileCommands {
     return this.write(ref)
   }
 
-  private async write(ref: FileRef): Promise<boolean> {
+  /** `quiet`: no progress shown (a chart's workbook saved back as it changes). */
+  private async write(ref: FileRef, quiet = false): Promise<boolean> {
     if (this.busy) return false
     const doc = this.doc
     // CSV and text hold one sheet: Excel saves the active one after asking.
     if (isTextFile(ref.name) && doc.controller.wb.sheets.length > 1 && !(await this.ui.confirm(ONE_SHEET_MESSAGE)))
       return false
     this.busy = true
-    this.ui.progress({ label: `Saving ${ref.name}`, done: null })
+    if (!quiet) this.ui.progress({ label: `Saving ${ref.name}`, done: null })
     try {
       const edits = doc.edits
       const bytes = await doc.bytes(ref.name)
       await this.files.write(ref, bytes)
       doc.saved(ref, edits)
       void dropRecovery(doc.id)
-      if (ref.path || ref.handle) this.ui.recentChanged(touchRecent(ref, this.files.remembersFiles))
+      if ((ref.path || ref.handle) && !doc.embeddedFor)
+        this.ui.recentChanged(touchRecent(ref, this.files.remembersFiles))
       doc.controller.changed()
       return true
     } catch (error) {

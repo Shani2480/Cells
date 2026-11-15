@@ -5,6 +5,7 @@ import { App } from "@/App"
 import { PlatformContext } from "@/platform/context"
 import { SheetController } from "@/sheet/controller"
 import { MemoryFiles } from "@/test/memory-files"
+import { MemoryLinks } from "@/test/memory-links"
 import { useSettings } from "./settings"
 import { DEFAULT_SETTINGS } from "./shared"
 
@@ -34,6 +35,7 @@ function renderWith(initial: string | null) {
     files: new MemoryFiles(),
     settings,
     opens: { onRequest: () => () => {} },
+    links: new MemoryLinks(),
   }
   const controller = new SheetController()
   render(

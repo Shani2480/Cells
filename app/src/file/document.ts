@@ -68,6 +68,12 @@ export class WorkbookDocument {
   savedEdits = 0
   /** Edits counted at the last AutoRecover copy. */
   recoveredEdits = 0
+  /**
+   * Inkspire's Edit Data: the name of the document whose chart this workbook holds ("Report.docx"). Such a workbook
+   * is a copy Inkspire made and reads back, so each change is saved to it without asking, as Excel does with a chart's
+   * workbook from Word.
+   */
+  embeddedFor: string | null = null
   readonly warnings: string[]
   private readonly unsubscribe: () => void
 
@@ -96,7 +102,7 @@ export class WorkbookDocument {
   }
 
   get title() {
-    return titleOf(this.fileName)
+    return this.embeddedFor ? `Chart in ${this.embeddedFor}` : titleOf(this.fileName)
   }
 
   /** Changed since it was opened or last saved (a new, untouched workbook isn't). */
@@ -124,6 +130,8 @@ export class WorkbookDocument {
 
   /** After a successful save to `ref`. */
   saved(ref: FileRef, edits: number) {
+    // Saved somewhere else (Save As): an ordinary workbook from now on.
+    if (this.embeddedFor && ref.path !== this.ref?.path) this.embeddedFor = null
     this.text = isTextFile(ref.name) ? this.textSave(ref.name) : null
     this.ref = ref
     this.fileName = ref.name

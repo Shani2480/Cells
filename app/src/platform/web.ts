@@ -1,4 +1,4 @@
-import type { ClipboardContent, Platform, SettingsPort } from "@cells/platform"
+import type { ClipboardContent, LinkPort, Platform, SettingsPort } from "@cells/platform"
 import { webFiles } from "./web-files"
 
 function detectOs(): Platform["os"] {
@@ -61,6 +61,29 @@ export const webPlatform: Platform = {
   settings: webSettings(),
   // A browser tab is never handed links or files by the system.
   opens: { onRequest: () => () => {} },
+  links: webLinks(),
+}
+
+/** The browser build: the same files as storage entries (nothing outside the tab reads them). */
+export function webLinks(): LinkPort {
+  const storage = () => {
+    try {
+      return window.localStorage
+    } catch {
+      return null
+    }
+  }
+  return {
+    wanted: async () => storage()?.getItem("inkspire.links.wanted") ?? null,
+    async publish(name, text) {
+      try {
+        storage()?.setItem(`inkspire.links.${name}`, text)
+      } catch {
+        // Full or blocked storage: nothing to tell.
+      }
+    },
+    isEditCopy: async () => false,
+  }
 }
 
 const SHARED_KEY = "inkspire.shared-settings"

@@ -122,6 +122,8 @@ Phase 3, added at the end:
 - [ ] Pasting a copied range and chart into Inkspire, Word and LibreOffice (only the HTML was checked, in tests):
       the table's widths, borders and fills; the chart as an editable Inkspire chart and as a picture elsewhere.
       Conditional formats and table styles aren't in the copied HTML yet.
+- [ ] Linked tables and Edit Data with Inkspire, once it has its side (I5, I7): a linked table follows edits in Cells,
+      and a chart's data edited in Cells comes back into the document. Only Cells' files were checked so far.
 - [ ] The first-run setup and File › Options next to Excel's (the setup has no Excel counterpart; Options was built
       from memory of Excel 365's General and Advanced pages, with only the settings Cells has).
 

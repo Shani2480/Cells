@@ -1148,20 +1148,36 @@ export class SheetController {
     if (this.charts.selected !== null) return this.charts.copy(cut)
     if (this.selection.ranges.length !== 1) return null
     const range = clampToUsed(this.sheet, this.selection.ranges[0])
-    const block = readBlock(this.sheet, range)
+    const content = this.rangeContent(this.sheetIndex, range)
+    this.clip = { range, cut, text: content.text, block: content.block, sheet: this.sheet }
+    this.changed()
+    return { text: content.text, html: content.html }
+  }
+
+  /**
+   * A range as the clipboard carries it (and as Inkspire's linked tables show it): TSV of what each cell shows,
+   * formatted HTML that says where it came from, and the values.
+   */
+  rangeContent(sheetIndex: number, range: Range) {
+    const sheet = this.wb.sheets[sheetIndex]
+    const block = readBlock(sheet, range)
     const rows = block.cells.map((row) =>
       Array.from({ length: block.cols }, (_, c) => {
         const cell = row[c]
         return formatValue(cell?.value, this.wb.styles.get(cell?.style ?? 0).numberFormat) ?? ""
       }),
     )
+    const values = block.cells.map((row) =>
+      Array.from({ length: block.cols }, (_, c) => {
+        const v = row[c]?.value
+        return v === undefined ? null : typeof v === "object" ? v.error : v
+      }),
+    )
     const text = encodeTSV(rows)
-    this.clip = { range, cut, text, block, sheet: this.sheet }
-    this.changed()
     const file = this.shell.documentPath?.() ?? null
-    const link = file ? openLink(file, `${quoteSheet(this.sheet.name)}!${rangeName(range)}`) : null
-    const source = { file, sheet: this.sheet.name, range, link }
-    return { text, html: rangeHtml(this.sheet, this.wb.styles, range, rows, source) }
+    const link = file ? openLink(file, `${quoteSheet(sheet.name)}!${rangeName(range)}`) : null
+    const source = { file, sheet: sheet.name, range, link }
+    return { text, html: rangeHtml(sheet, this.wb.styles, range, rows, source), values, block }
   }
 
   clearClip() {

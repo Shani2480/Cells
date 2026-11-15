@@ -69,7 +69,8 @@ Cells (typing and showing dates and numbers); each app keeps its own recent-file
 - [x] `cells://` links and a single instance (open a file at a range, from Inkspire; files from the command line)
 - [x] Copy a range (formatted HTML with its source) or a chart (Inkspire's chart markup and a picture) for Inkspire;
       a chart pastes back into Cells as a copy
-- [ ] Linked ranges: Cells tells Inkspire when a linked range changes; "Edit Data" opens a chart's workbook in Cells
+- [x] Linked ranges: Cells writes what Inkspire's linked ranges hold as they change; "Edit Data" opens a chart's
+      workbook in Cells and saves it back (`docs/linked-ranges.md`)
 - [ ] AI: formula from a description, explain a formula, suggest a chart or summary (Inkspire's providers and keys;
       opt-in in the setup and Options)
 - [ ] Shared code packages for Inkspire to adopt (OPC/zip, chart, formula engine)

@@ -5,6 +5,7 @@ import { App } from "./App"
 import { PlatformContext } from "./platform/context"
 import { SheetController } from "./sheet/controller"
 import { MemoryFiles } from "./test/memory-files"
+import { MemoryLinks } from "./test/memory-links"
 
 const platform: Platform = {
   os: "linux",
@@ -26,6 +27,7 @@ const platform: Platform = {
     location: async () => "",
     systemFacts: async () => ({}),
   },
+  links: new MemoryLinks(),
   opens: {
     onRequest(handler) {
       requests.handler = handler
@@ -222,6 +224,30 @@ describe("File commands in the window", () => {
     await act(async () => requests.handler?.(["cells://open?file=%2Fhome%2Falex%2FQ1%20Budget.xlsx&range=Sales!B2"]))
     await waitFor(() => expect(screen.getByDisplayValue("B2")).toBeInTheDocument())
     expect(files.reads).toBe(reads)
+  })
+
+  it("Edit Data opens a chart's workbook from Inkspire, named after the document", async () => {
+    renderApp()
+    const { Workbook } = await import("@cells/core")
+    const { saveXlsx } = await import("@cells/io")
+    const wb = new Workbook()
+    wb.sheets[0].cells.set(0, 1, { value: 10 })
+    const path = "/home/alex/.cache/inkspire/edit/Report-Chart 1.xlsx"
+    files.disk.set(path, await saveXlsx(wb, { fileName: "Report-Chart 1.xlsx" }))
+    const link = `cells://edit?file=${encodeURIComponent(path)}&for=Report.docx`
+    await act(async () => requests.handler?.([link]))
+    expect((await screen.findAllByText("Chart in Report.docx - Cells", {}, { timeout: 5000 })).length).toBeGreaterThan(
+      0,
+    )
+  })
+
+  it("Edit Data for a file outside Inkspire's edit folder only opens it", async () => {
+    renderApp()
+    const { Workbook } = await import("@cells/core")
+    const { saveXlsx } = await import("@cells/io")
+    files.disk.set("/home/alex/Sales.xlsx", await saveXlsx(new Workbook(), { fileName: "Sales.xlsx" }))
+    await act(async () => requests.handler?.(["cells://edit?file=%2Fhome%2Falex%2FSales.xlsx&for=Report.docx"]))
+    expect((await screen.findAllByText("Sales - Cells", {}, { timeout: 5000 })).length).toBeGreaterThan(0)
   })
 
   it("a CSV dropped on the window opens", async () => {

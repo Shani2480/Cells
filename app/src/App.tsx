@@ -9,6 +9,7 @@ import { loadSettings, useSettings } from "@/settings/settings"
 import { OptionsDialog } from "@/settings/OptionsDialog"
 import { FirstRunSetup } from "@/settings/FirstRunSetup"
 import { parseOpenRequest } from "@/links/link"
+import { LiveLinks } from "@/links/live"
 import { SheetController } from "@/sheet/controller"
 import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
@@ -196,7 +197,14 @@ export function App({ controller: given }: { controller?: SheetController } = {}
         void (async () => {
           for (const item of items) {
             const request = parseOpenRequest(item)
-            if (!request || !(await files.openPath(request.path)) || !request.range) continue
+            if (!request) continue
+            if (request.editFor) {
+              // Saving back as it changes is only for the copies Inkspire makes; any other file opens as usual.
+              if (await platform.links.isEditCopy(request.path)) await files.openEmbedded(request.path, request.editFor)
+              else await files.openPath(request.path)
+              continue
+            }
+            if (!(await files.openPath(request.path)) || !request.range) continue
             const c = files.doc.controller
             const target = c.names.resolve(request.range)
             if (target) c.names.goTo(target)
@@ -206,6 +214,29 @@ export function App({ controller: given }: { controller?: SheetController } = {}
       }),
     [platform, files],
   )
+
+  // Inkspire's linked tables: what their ranges hold, written a moment after they change (docs/linked-ranges.md).
+  const [live] = useState(
+    () =>
+      new LiveLinks(platform.links, () => ({
+        path: files.doc.ref?.path ?? null,
+        dirty: files.doc.dirty,
+        controller: files.doc.controller,
+      })),
+  )
+  useEffect(() => {
+    live.schedule()
+    // Edits, recalculation and saves (a first save gives the workbook its path) all come through here.
+    const stopChanges = doc.controller.subscribe(() => live.schedule())
+    // Inkspire may have linked something new while it had the focus.
+    const onFocus = () => live.schedule()
+    window.addEventListener("focus", onFocus)
+    return () => {
+      stopChanges()
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [live, doc])
+  useEffect(() => () => live.stop(), [live])
 
   useEffect(() => {
     setRecent(files.recent)

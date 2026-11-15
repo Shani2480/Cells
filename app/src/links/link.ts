@@ -2,11 +2,13 @@
  * What another app (Inkspire) or the system asks Cells to open: a `cells://` link or a workbook's path.
  *
  *   cells://open?file=<path>&range=<range>
+ *   cells://edit?file=<path>&for=<document name>
  *
  * `file` is a full path, percent-encoded; `range` is optional, as the Name Box takes it ("Sheet1!A1:D10", a name)
- * or in the R1C1 form Word's LINK fields use ("Sheet1!R1C1:R10C4"). See docs/app-links.md.
+ * or in the R1C1 form Word's LINK fields use ("Sheet1!R1C1:R10C4"). `edit` is Inkspire's Edit Data: the workbook of a
+ * chart in the document `for` names, which Cells saves back as it changes. See docs/app-links.md.
  */
-export type OpenRequest = { path: string; range?: string }
+export type OpenRequest = { path: string; range?: string; editFor?: string }
 
 /** A request from one launch argument or link; null for anything Cells doesn't open. */
 export function parseOpenRequest(item: string): OpenRequest | null {
@@ -21,9 +23,14 @@ export function parseOpenRequest(item: string): OpenRequest | null {
   }
   // "cells://open?…": the action is the host; "cells:open?…" (no slashes) too.
   const action = (url.host || url.pathname.replace(/^\/+/, "")).toLowerCase()
-  if (action !== "open") return null
+  if (action !== "open" && action !== "edit") return null
   const path = url.searchParams.get("file")?.trim()
   if (!path || !isFullPath(path)) return null
+  if (action === "edit") {
+    // Only a workbook: a chart's data is never a CSV.
+    if (!/\.xlsx$/i.test(path)) return null
+    return { path, editFor: url.searchParams.get("for")?.trim() || "Inkspire" }
+  }
   const range = url.searchParams.get("range")?.trim()
   return range ? { path, range: a1Range(range) } : { path }
 }

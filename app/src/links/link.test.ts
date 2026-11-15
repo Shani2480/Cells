@@ -33,3 +33,17 @@ describe("cells:// links", () => {
     expect(parseOpenRequest(link)).toEqual({ path: "/home/alex/Q1 Budget.xlsx", range: "'Sales 2026'!B2:C9" })
   })
 })
+
+describe("cells://edit (Inkspire's Edit Data)", () => {
+  it("reads the workbook and the document it belongs to", () => {
+    expect(
+      parseOpenRequest("cells://edit?file=%2Fhome%2Falex%2F.cache%2Finkspire%2Fedit%2FChart%201.xlsx&for=Report.docx"),
+    ).toEqual({ path: "/home/alex/.cache/inkspire/edit/Chart 1.xlsx", editFor: "Report.docx" })
+    expect(parseOpenRequest("cells://edit?file=%2Fa%2Fb.xlsx")).toEqual({ path: "/a/b.xlsx", editFor: "Inkspire" })
+  })
+
+  it("takes only a workbook", () => {
+    expect(parseOpenRequest("cells://edit?file=%2Fa%2Fb.csv&for=R.docx")).toBeNull()
+    expect(parseOpenRequest("cells://edit?file=b.xlsx")).toBeNull()
+  })
+})

@@ -6,6 +6,20 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { tauriFiles } from "./tauri-files"
 import { webPlatform } from "./web"
 
+/**
+ * The window's listener for links and files. Requests are taken from the shell once; one that comes back after its
+ * listener went away goes to the listener there is then (React's StrictMode starts effects twice in a dev build, so
+ * the first listener takes the launch link and is gone before the answer comes), or waits for the next one.
+ */
+let listener: ((items: string[]) => void) | null = null
+const unclaimed: string[] = []
+
+function hand(items: string[]) {
+  if (!items.length) return
+  if (listener) listener(items)
+  else unclaimed.push(...items)
+}
+
 export function isTauri() {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 }
@@ -20,10 +34,12 @@ export function tauriPlatform(): Platform {
       onRequest(handler) {
         let disposed = false
         let unlisten: (() => void) | undefined
-        const take = () =>
-          void invoke<string[]>("take_pending_opens").then((items) => {
-            if (!disposed && items.length) handler(items)
-          })
+        listener = handler
+        const take = () => void invoke<string[]>("take_pending_opens").then(hand)
+        if (unclaimed.length) {
+          const items = unclaimed.splice(0)
+          queueMicrotask(() => hand(items))
+        }
         void listen("cells-open", take).then((fn) => {
           unlisten = fn
           if (disposed) fn()
@@ -32,9 +48,15 @@ export function tauriPlatform(): Platform {
         take()
         return () => {
           disposed = true
+          if (listener === handler) listener = null
           unlisten?.()
         }
       },
+    },
+    links: {
+      wanted: () => invoke<string | null>("read_link_wants"),
+      publish: (name, text) => invoke<void>("write_link_snapshot", { name, text }),
+      isEditCopy: (path) => invoke<boolean>("is_edit_copy", { path }).catch(() => false),
     },
     settings: {
       read: () => invoke<string | null>("read_shared_settings"),

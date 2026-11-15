@@ -146,33 +146,100 @@ fn shared_settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 /// The most the settings file may hold; anything bigger isn't a settings file.
 const SETTINGS_LIMIT: u64 = 1024 * 1024;
 
-fn read_settings_file(path: &Path) -> Option<String> {
+/// The most a linked-ranges snapshot may hold (20,000 cells of formatted HTML fit well within it).
+const SNAPSHOT_LIMIT: u64 = 16 * 1024 * 1024;
+
+fn read_json_file(path: &Path, limit: u64) -> Option<String> {
     let meta = std::fs::metadata(path).ok()?;
-    if !meta.is_file() || meta.len() > SETTINGS_LIMIT {
+    if !meta.is_file() || meta.len() > limit {
         return None;
     }
     std::fs::read_to_string(path).ok()
 }
 
-/// Writes the settings beside the file first and renames it over, so the other app never reads half a file.
-fn write_settings_file(path: &Path, text: &str) -> Result<(), String> {
-    if text.len() as u64 > SETTINGS_LIMIT {
-        return Err("The settings are too big to save.".into());
+fn read_settings_file(path: &Path) -> Option<String> {
+    read_json_file(path, SETTINGS_LIMIT)
+}
+
+/// Writes JSON beside the file first and renames it over, so the other app never reads half a file.
+fn write_json_file(path: &Path, text: &str, limit: u64) -> Result<(), String> {
+    if text.len() as u64 > limit {
+        return Err("The file would be too big to save.".into());
     }
     serde_json::from_str::<serde_json::Value>(text)
-        .map_err(|_| "The settings are not valid JSON.".to_string())?;
+        .map_err(|_| "The text is not valid JSON.".to_string())?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
-            .map_err(|err| format!("Could not save the settings: {err}"))?;
+            .map_err(|err| format!("Could not save {}: {err}", path.display()))?;
     }
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let mut temporary = path.to_path_buf();
-    temporary.set_file_name(format!("settings.json.{}.tmp", std::process::id()));
-    std::fs::write(&temporary, text)
-        .map_err(|err| format!("Could not save the settings: {err}"))?;
+    temporary.set_file_name(format!("{name}.{}.tmp", std::process::id()));
+    std::fs::write(&temporary, text).map_err(|err| format!("Could not save {name}: {err}"))?;
     std::fs::rename(&temporary, path).map_err(|err| {
         let _ = std::fs::remove_file(&temporary);
-        format!("Could not save the settings: {err}")
+        format!("Could not save {name}: {err}")
     })
+}
+
+fn write_settings_file(path: &Path, text: &str) -> Result<(), String> {
+    write_json_file(path, text, SETTINGS_LIMIT)
+}
+
+/// The folder of Inkspire's linked ranges (docs/linked-ranges.md), beside the shared settings.
+fn links_folder(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(shared_settings_path(app)?.with_file_name("links"))
+}
+
+/// A snapshot's name: 16 lowercase hex digits, so it can't point outside the folder.
+fn is_snapshot_name(name: &str) -> bool {
+    name.len() == 16
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+#[tauri::command]
+fn read_link_wants(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    Ok(read_json_file(
+        &links_folder(&app)?.join("wanted.json"),
+        SETTINGS_LIMIT,
+    ))
+}
+
+#[tauri::command]
+fn write_link_snapshot(app: tauri::AppHandle, name: String, text: String) -> Result<(), String> {
+    if !is_snapshot_name(&name) {
+        return Err("Not a snapshot name.".into());
+    }
+    write_json_file(
+        &links_folder(&app)?.join(format!("{name}.json")),
+        &text,
+        SNAPSHOT_LIMIT,
+    )
+}
+
+/// Whether `path` is a chart's workbook Inkspire copied out for Edit Data: an .xlsx inside `edit_folder` (after
+/// following links and `..`), which Cells may then save back without asking.
+fn inside_edit_folder(path: &Path, edit_folder: &Path) -> bool {
+    let (Ok(file), Ok(folder)) = (path.canonicalize(), edit_folder.canonicalize()) else {
+        return false;
+    };
+    file.is_file()
+        && file.starts_with(&folder)
+        && file_extension(&file.to_string_lossy()).as_deref() == Some("xlsx")
+}
+
+/// Inkspire's edit folder: `<cache dir>/inkspire/edit` (`~/.cache/inkspire/edit` on Linux).
+#[tauri::command]
+fn is_edit_copy(app: tauri::AppHandle, path: String) -> bool {
+    match app.path().cache_dir() {
+        Ok(cache) => inside_edit_folder(Path::new(&path), &cache.join("inkspire").join("edit")),
+        Err(_) => false,
+    }
 }
 
 #[tauri::command]
@@ -389,7 +456,10 @@ pub fn run() {
             write_shared_settings,
             shared_settings_location,
             system_defaults,
-            take_pending_opens
+            take_pending_opens,
+            read_link_wants,
+            write_link_snapshot,
+            is_edit_copy
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cells");
@@ -430,6 +500,34 @@ mod tests {
         assert_eq!(
             read_settings_file(&path).as_deref(),
             Some(r#"{"version":1}"#)
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn snapshots_and_edit_copies() {
+        assert!(is_snapshot_name("0123456789abcdef"));
+        assert!(!is_snapshot_name("../settings.json"));
+        assert!(!is_snapshot_name("0123456789ABCDEF"));
+        let dir = std::env::temp_dir().join(format!("cells-edit-{}", std::process::id()));
+        let edit = dir.join("inkspire").join("edit");
+        std::fs::create_dir_all(&edit).unwrap();
+        let copy = edit.join("Chart 1.xlsx");
+        std::fs::write(&copy, b"x").unwrap();
+        let other = dir.join("Budget.xlsx");
+        std::fs::write(&other, b"x").unwrap();
+        assert!(inside_edit_folder(&copy, &edit));
+        assert!(!inside_edit_folder(&other, &edit));
+        assert!(!inside_edit_folder(
+            &edit.join("..").join("..").join("Budget.xlsx"),
+            &edit
+        ));
+        assert!(!inside_edit_folder(&edit.join("missing.xlsx"), &edit));
+        let snapshot = dir.join("links").join("0123456789abcdef.json");
+        write_json_file(&snapshot, r#"{"app":"cells"}"#, SNAPSHOT_LIMIT).unwrap();
+        assert_eq!(
+            read_json_file(&snapshot, SNAPSHOT_LIMIT).as_deref(),
+            Some(r#"{"app":"cells"}"#)
         );
         let _ = std::fs::remove_dir_all(&dir);
     }

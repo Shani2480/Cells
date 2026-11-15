@@ -18,10 +18,14 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       (I5) and an "Edit in Cells" action; keep `data-cells-chart` on a pasted chart for "Edit Data in Cells" (I7).
       Check that a pasted table keeps the column widths and borders.
 - [ ] I5. **Linked tables.** `LINK Excel.Sheet.12 "file.xlsx" "Sheet1!R1C1:R10C4" \a \f 4 \h` fields: refresh on open,
-      "Update Link" on demand, live refresh when Cells announces a change; saved so Word can update the link too.
+      "Update Link" on demand, live refresh from Cells; saved so Word can update the link too. Cells' side is done
+      (`docs/linked-ranges.md`): write the open documents' links to `links/wanted.json`, watch the folder, and take a
+      snapshot when it is newer than the workbook file (otherwise read the file).
 - [ ] I6. **Linked charts.** Chart parts with `c:externalData` pointing to an external workbook, read and written.
 - [ ] I7. **"Edit Data in Cells".** For an embedded chart, open its embedded `.xlsx` in Cells instead of
-      the docked data-sheet dialog, and write the result back into the document.
+      the docked data-sheet dialog, and write the result back into the document. Cells' side is done
+      (`docs/linked-ranges.md`): write the workbook to `<cache dir>/inkspire/edit/`, open
+      `cells://edit?file=…&for=<document name>`, watch the file and re-read the chart's data when it changes.
 - [ ] I8. **Shared code** (after Cells Phase 4): adopt the shared OPC/zip, chart spec/XML, ribbon and token packages,
       and replace the 4×4 Spreadsheet block (`editor/sheet-block.ts`) and arithmetic formula fields
       (`editor/formula.ts`) with the Cells formula engine.

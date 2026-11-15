@@ -2,7 +2,7 @@ import { decodeText, defaultImport, saveXlsx, type TextImport } from "@cells/io"
 import { Workbook } from "@cells/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MemoryFiles } from "@/test/memory-files"
-import { FileCommands, type FileUi, type SaveChoice } from "./commands"
+import { EMBEDDED_SAVE_MS, FileCommands, type FileUi, type SaveChoice } from "./commands"
 import { newDocument, type WorkbookDocument } from "./document"
 
 function setup(answer: SaveChoice = "cancel", wizard: Partial<TextImport> | null = {}, ok = true) {
@@ -255,5 +255,64 @@ describe("FileCommands", () => {
     c.undo()
     c.undo()
     expect(c.wb.sheets.map((s) => s.name)).toEqual(["Sheet1"])
+  })
+})
+
+describe("Edit Data (a chart's workbook from Inkspire)", () => {
+  const path = "/home/alex/.cache/inkspire/edit/Report-Chart 1.xlsx"
+
+  it("saves each change back a moment later, without asking or adding it to Recent", async () => {
+    const { files, ui, commands } = setup()
+    files.disk.set(path, await budget("Report-Chart 1.xlsx"))
+    const recent = vi.fn()
+    ui.recentChanged = recent
+    expect(await commands.openEmbedded(path, "Report.docx")).toBe(true)
+    expect(commands.doc.title).toBe("Chart in Report.docx")
+    vi.useFakeTimers()
+    try {
+      enter(commands.doc, "Water")
+      expect(files.writes).toEqual([])
+      await vi.advanceTimersByTimeAsync(EMBEDDED_SAVE_MS + 50)
+      expect(files.writes).toEqual([path])
+      expect(commands.doc.dirty).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(recent).not.toHaveBeenCalled()
+    // Closing saves what's left, never asks.
+    enter(commands.doc, "Gas")
+    expect(await commands.close()).toBe(true)
+    expect(ui.asked).toEqual([])
+    expect(files.writes).toEqual([path, path])
+  })
+
+  it("waits while a cell is being typed in", async () => {
+    const { files, commands } = setup()
+    files.disk.set(path, await budget("Report-Chart 1.xlsx"))
+    await commands.openEmbedded(path, "Report.docx")
+    vi.useFakeTimers()
+    try {
+      enter(commands.doc, "Water")
+      commands.doc.controller.beginEdit("enter", "Ga")
+      await vi.advanceTimersByTimeAsync(EMBEDDED_SAVE_MS * 3)
+      expect(files.writes).toEqual([])
+      commands.doc.controller.commitEdit()
+      await vi.advanceTimersByTimeAsync(EMBEDDED_SAVE_MS + 50)
+      expect(files.writes).toEqual([path])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("Save As makes it an ordinary workbook again", async () => {
+    const { files, ui, commands } = setup("discard")
+    files.disk.set(path, await budget("Report-Chart 1.xlsx"))
+    await commands.openEmbedded(path, "Report.docx")
+    files.nextSave = "/home/alex/Chart data.xlsx"
+    expect(await commands.saveAs()).toBe(true)
+    expect(commands.doc.title).toBe("Chart data")
+    enter(commands.doc, "Water")
+    await commands.close()
+    expect(ui.asked).toEqual(["Chart data"])
   })
 })
