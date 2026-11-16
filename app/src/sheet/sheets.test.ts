@@ -180,3 +180,18 @@ describe("sheet tabs", () => {
     expect(s.isWorkbookProtected()).toBe(true)
   })
 })
+
+describe("scrolling", () => {
+  it("tells only the grid, so the ribbon and panes don't re-render on every wheel step", () => {
+    const c = new SheetController()
+    let general = 0
+    let scrolls = 0
+    c.subscribe(() => general++)
+    c.subscribeScroll(() => scrolls++)
+    c.scrollTo(0, 400)
+    c.scrollTo(200, 400)
+    c.scrollTo(200, 400)
+    expect([general, scrolls, c.getScrollVersion()]).toEqual([0, 2, 2])
+    expect([c.scrollX, c.scrollY]).toEqual([200, 400])
+  })
+})

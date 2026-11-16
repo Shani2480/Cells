@@ -16,6 +16,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Show Comments (Review tab): every comment on the sheet in a pane beside it, in reading order. Pick one to go to its cell and reply; New starts one on the selected cell.",
       "Pick From Drop-down List (in the cell menu, or Alt+Down on a cell): choose from the words already typed in the column above and below.",
       "Sort A to Z and Z to A work again on the Data tab and in Home's Sort & Filter menu.",
+      "Scrolling and panning are much smoother in the desktop app on Linux (and on phones and tablets): scrolling no longer redraws the ribbon and the panes with every step.",
       "Formula auditing (Formulas tab): Trace Precedents and Trace Dependents draw arrows on the sheet to the cells a formula uses or the formulas that use a cell, one level more with each click, red where an error travels and from a sheet icon for other sheets; Remove Arrows clears them. Trace Error follows an error back to where it starts.",
       "Name Manager (Ctrl+F3) lists every name with its value and what it refers to, to add, edit or delete names. Create from Selection (Ctrl+Shift+F3) names rows and columns from their labels.",
       "Evaluate Formula works a formula out one step at a time, underlining the part it works out next. Error Checking goes through the sheet's errors and numbers stored as text, explains each, and can convert, ignore or show the steps. The Watch Window keeps chosen cells' values in view while you work elsewhere.",

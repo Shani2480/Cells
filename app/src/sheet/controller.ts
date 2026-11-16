@@ -527,6 +527,22 @@ export class SheetController {
 
   getVersion = () => this.version
 
+  private scrollListeners = new Set<() => void>()
+  private scrollVersion = 0
+
+  /**
+   * Scrolling alone: the grid listens here as well as to `subscribe`. Kept apart so a wheel or a scrollbar drag
+   * doesn't re-render the ribbon, formula bar, tabs and panes on every step (slow in WebKitGTK and on phones).
+   */
+  subscribeScroll = (listener: () => void) => {
+    this.scrollListeners.add(listener)
+    return () => {
+      this.scrollListeners.delete(listener)
+    }
+  }
+
+  getScrollVersion = () => this.scrollVersion
+
   changed() {
     if (this.validation?.circles) this.validation.refreshCircles()
     this.version++
@@ -1440,7 +1456,8 @@ export class SheetController {
     if (nx !== this.scrollX || ny !== this.scrollY) {
       this.scrollX = nx
       this.scrollY = ny
-      this.changed()
+      this.scrollVersion++
+      for (const listener of this.scrollListeners) listener()
     }
   }
 

@@ -69,6 +69,8 @@ export function GridView({
   onContextMenu: (menu: GridContextMenu) => void
 }) {
   const version = useSyncExternalStore(controller.subscribe, controller.getVersion)
+  // Scrolling has its own notice: only the grid and its layers move, the rest of the window doesn't re-render.
+  const scrollVersion = useSyncExternalStore(controller.subscribeScroll, controller.getScrollVersion)
   const platform = usePlatform()
   const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -210,8 +212,8 @@ export function GridView({
   const zoomNow = controller.zoom
   const layoutNow = useMemo(
     () => (size.width === 0 ? null : computeLayout(controller, size.width / zoomNow, size.height / zoomNow, measure)),
-    // version: the controller's state changed.
-    [controller, version, size, measure, zoomNow],
+    // version: the controller's state changed; scrollVersion: the sheet scrolled.
+    [controller, version, scrollVersion, size, measure, zoomNow],
   )
   layoutRef.current = layoutNow ?? layoutRef.current
 
