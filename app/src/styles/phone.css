@@ -245,6 +245,10 @@
   transform: none;
 }
 
+.phone-sheet:focus {
+  outline: none;
+}
+
 /* Following the finger: no easing behind it. */
 .phone-sheet[data-dragging] {
   transition: none;
@@ -445,6 +449,41 @@
   width: 14px;
   height: 14px;
   border-radius: 3px;
+}
+
+/* The long-press sheet's quick row: Cut, Copy, Paste as big buttons. */
+.phone-quick-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px 12px;
+}
+
+.phone-quick {
+  display: flex;
+  min-height: 64px;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--app-ribbon-border);
+  border-radius: 12px;
+  background: var(--app-ribbon-card);
+  color: var(--app-ribbon-text);
+  font: 13px var(--font-ui);
+}
+
+.phone-quick:active {
+  background: var(--app-pressed);
+}
+
+.phone-quick-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.phone-quick-row + .phone-group {
+  border-top: 1px solid var(--app-divider);
 }
 
 /* The palette's menus in place: the ribbon's rows, finger-sized. */

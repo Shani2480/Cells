@@ -142,8 +142,12 @@ const OVER_THE_SHEET = ".phone-sheet-layer, .dialog-backdrop, [role='menu'], .po
  */
 export function installBackHandler(editing: () => boolean): () => void {
   const back = () => {
-    if (!editing() && !document.querySelector(OVER_THE_SHEET)) return false
-    const target = document.activeElement instanceof HTMLElement ? document.activeElement : document.body
+    const open = [...document.querySelectorAll<HTMLElement>(OVER_THE_SHEET)].at(-1)
+    if (!editing() && !open) return false
+    // To the topmost thing open (the last in the page), not the focus: the grid can hold the focus under a sheet,
+    // and it keeps Esc for itself.
+    const focused = document.activeElement instanceof HTMLElement ? document.activeElement : document.body
+    const target = open ?? focused
     target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }))
     return true
   }

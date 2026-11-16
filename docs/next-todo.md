@@ -104,7 +104,9 @@ Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed 
 - [x] Emulator smoke test (`scripts/android-smoke.sh`): open, edit, save and read back, frame times, Back; phone and
       tablet screenshots in `docs/images`. It found two bugs, both fixed: the keyboard turned a landscape tablet into
       the phone layout mid-typing, and Back ended Cells (with unsaved work) instead of closing what was open
-- [ ] The smoke test in CI (an Android emulator job), if wanted
+- [x] The smoke test in CI (`.github/workflows/android-smoke.yml`: phone and tablet emulators, on pushes to main
+      that touch the app); not run yet, as the account's Actions are blocked by billing
+- [x] Long press on a phone: an action sheet with the context menu's items (`app/src/phone/ActionSheet.tsx`)
 - [x] Wrap-up docs (changes.md, verify-list, What's new for 0.6.0)
 
 ## Later (from Phase 4)

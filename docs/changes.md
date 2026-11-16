@@ -45,11 +45,13 @@ macOS, ⌃H, ⌃G and ⌃` for Replace, Go To and Show Formulas.
 
 - The palette's tabs are Excel for phones' and the ribbon's (Home, Insert, Page Layout, Formulas, Data, Review, View),
   not the plan's "Format, Insert, Data, Formulas, View"; the bottom bar's five tools open it on those.
-- The emulator smoke test runs here, not in CI yet.
+- The emulator smoke test has a CI workflow (`android-smoke.yml`) that hasn't run yet: the account's Actions are
+  blocked by billing.
 - The real phone measured is a high-end one rather than mid-range: 120 fps scrolling and typing,
   open, edit, Ctrl+S and read back, formula keys over its keyboard, Back. It found the palette's header ignoring a
   drag that began on the tab picker, fixed and rechecked there.
-- Simplified phone forms of mouse-only features aren't built; long press opens the desktop's context menu.
+- A long press on a phone opens an action sheet with the context menu's items (Cut, Copy, Paste as big buttons);
+  other mouse-first features have no phone form of their own.
 
 **Open**: see `docs/verify-list.md`.
 

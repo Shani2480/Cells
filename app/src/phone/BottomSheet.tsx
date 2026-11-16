@@ -45,6 +45,12 @@ export function BottomSheet({
   } | null>(null)
   const dragged = useRef(false)
 
+  // Focus moves into the sheet, so Back's Esc (android-files.ts) reaches it rather than the grid, which takes Esc for
+  // itself, and the on-screen keyboard goes down.
+  useEffect(() => {
+    panelRef.current?.focus({ preventScroll: true })
+  }, [])
+
   // Slide in on the frame after the first, so the start position is drawn first.
   useEffect(() => {
     const frame = requestAnimationFrame(() => setShown(true))
@@ -117,6 +123,7 @@ export function BottomSheet({
       <div className="phone-sheet-backdrop" onPointerDown={(event) => (event.preventDefault(), close())} />
       <div
         ref={panelRef}
+        tabIndex={-1}
         className="phone-sheet"
         role="dialog"
         aria-label={label}

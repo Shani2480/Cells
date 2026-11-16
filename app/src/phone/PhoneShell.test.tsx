@@ -4,6 +4,7 @@ import { buildRegistry } from "@/ribbon/commands"
 import type { RibbonEnv } from "@/ribbon/registry"
 import { DATA, HOME, TABS, type Tab } from "@/ribbon/tabs"
 import { SheetController } from "@/sheet/controller"
+import { actionSheetItems } from "./ActionSheet"
 import { dismisses } from "./BottomSheet"
 import { paletteGroups } from "./CommandSheet"
 import { FORMULA_KEYS, PhoneShell, typeAtCaret } from "./PhoneShell"
@@ -176,5 +177,27 @@ describe("bottom sheets", () => {
     fireEvent.click(screen.getByRole("button", { name: "Home" }))
     fireEvent.keyDown(window, { key: "Escape" })
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Commands" })).toBeNull())
+  })
+})
+
+describe("the long-press sheet", () => {
+  const item = (label: string, extra: object = {}) => ({ kind: "item" as const, label, onSelect: () => {}, ...extra })
+  it("puts Cut, Copy and Paste in the quick row and drops unbuilt items and empty groups", () => {
+    const sep = { kind: "separator" as const }
+    const { quick, groups } = actionSheetItems([
+      item("Cut", { icon: "✂" }),
+      item("Copy", { icon: "⧉" }),
+      item("Paste", { icon: "📋" }),
+      item("Paste Special...", { disabled: true }),
+      sep,
+      item("Insert..."),
+      sep,
+      item("Quick Analysis", { disabled: true }),
+      sep,
+      sep,
+      item("Format Cells..."),
+    ])
+    expect(quick.map((i) => i.label)).toEqual(["Cut", "Copy", "Paste"])
+    expect(groups.map((g) => g.map((i) => i.label))).toEqual([["Insert..."], ["Format Cells..."]])
   })
 })

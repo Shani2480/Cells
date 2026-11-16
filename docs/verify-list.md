@@ -145,7 +145,9 @@ Phase 3, added at the end:
 - [x] The phone layout on a real phone (2026-11-16): 120 fps scrolling and typing, open, edit and
       save, the formula keys over its keyboard, Back.
 - [x] On the real phone: the palette closes on a swipe from anywhere on its header, the tab picker too (after the fix).
-- [ ] On the real phone: fling feel and the File view's row of sections; a mid-range phone if one turns up.
+- [x] On the real phone: a 60 ms flick glides on for about 1.5 s; the File view's sections fit as a row that scrolls
+      sideways (Save As partly off the edge). The long-press action sheet, and Back closing it.
+- [ ] A mid-range phone, if one turns up.
 - [ ] The first signed Android release: Inkspire's two secrets copied into this repository, the `.apk` installs over
       an earlier one, and the `.aab` is accepted by Play Console if it is ever used. Only debug builds were made.
 - [ ] The macOS menu bar on a Mac (only built, on Linux, to check its shortcuts parse): each item runs; ⌘S runs
@@ -166,8 +168,9 @@ Phase 3, added at the end:
 - [ ] The .deb and AppImage on a second distribution.
 - [x] Touch: pan and the larger hit targets under `pointer: coarse` (a real tablet, 2026-11-16: taps, swipes at
       60 fps, the picker's rows).
-- [ ] Touch gestures on a real tablet: grippers, long press (500 ms) and pinch. Double tap to edit and the editor
-      staying above the keyboard were checked on the real tablet.
+- [x] Touch gestures on the real tablet: dragging a gripper stretches the selection, long press opens the menu and
+      Back closes it, double tap edits and the editor stays above the keyboard.
+- [ ] Pinch zoom on a real tablet (adb can't make two fingers; only synthetic events in tests so far).
 
 ## Not built in Phase 1 (noted for later phases)
 

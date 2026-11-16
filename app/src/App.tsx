@@ -16,6 +16,7 @@ import { SheetController } from "@/sheet/controller"
 import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
 import type { RibbonEnv } from "@/ribbon/registry"
+import { ActionSheet } from "@/phone/ActionSheet"
 import { PhoneShell } from "@/phone/PhoneShell"
 import { installBackHandler, syncSystemBars } from "@/platform/android-files"
 import { useShellKind } from "@/phone/shell-choice"
@@ -809,7 +810,13 @@ function WorkbookWindow({
             <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
           </>
         )}
-        {menu ? (
+        {menu && shell === "phone" ? (
+          <ActionSheet
+            label={{ cells: "Cells", rows: "Rows", cols: "Columns" }[menu.target]}
+            items={menuItems(menu.target)}
+            onClose={() => (setMenu(null), focusGrid())}
+          />
+        ) : menu ? (
           <ContextMenu
             x={menu.x}
             y={menu.y}

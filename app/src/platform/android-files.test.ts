@@ -78,7 +78,16 @@ describe("Android documents", () => {
       const sheet = document.createElement("div")
       sheet.className = "phone-sheet-layer"
       document.body.append(sheet)
+      // Sent to the sheet even while the grid's editor holds the focus and keeps Esc.
+      const editor = document.createElement("textarea")
+      editor.addEventListener("keydown", (event) => event.preventDefault())
+      document.body.append(editor)
+      editor.focus()
+      let atSheet = false
+      sheet.addEventListener("keydown", () => (atSheet = true))
       expect(back()).toBe(true)
+      expect(atSheet).toBe(true)
+      editor.remove()
       sheet.remove()
       editing = true
       expect(back()).toBe(true)

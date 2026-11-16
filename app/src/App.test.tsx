@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { Platform } from "@cells/platform"
 import { App } from "./App"
@@ -288,6 +288,57 @@ describe("the shell by screen", () => {
       expect(screen.queryByRole("tablist", { name: "Ribbon tabs" })).toBeNull()
       expect(document.documentElement).toHaveClass("is-phone")
     } finally {
+      restore()
+    }
+  })
+
+  it("a long press (or right-click) on a phone opens the action sheet, not the desktop menu", async () => {
+    touch()
+    size(390, 844)
+    // Give the grid a size, so it lays out and a right-click hits a cell.
+    const saved = { observer: globalThis.ResizeObserver, rect: Element.prototype.getBoundingClientRect }
+    globalThis.ResizeObserver = class {
+      constructor(private readonly callback: () => void) {}
+      observe() {
+        this.callback()
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+    Element.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 390, 600)
+    try {
+      const c = renderApp()
+      act(() => {
+        c.wb.transact([{ kind: "setCells", sheet: 0, cells: [{ row: 0, col: 0, data: { value: "x" } }] }], {
+          label: "Set",
+        })
+        c.goTo({ r0: 0, c0: 0, r1: 0, c1: 0 })
+      })
+      const canvas = document.querySelector(".grid-canvas") as HTMLCanvasElement
+      fireEvent.contextMenu(canvas, { clientX: 120, clientY: 60 })
+      expect(screen.queryByRole("menu")).toBeNull()
+      const sheet = screen.getByRole("dialog", { name: "Cells" })
+      const quick = within(sheet).getByRole("group", { name: "Clipboard" })
+      expect(
+        within(quick)
+          .getAllByRole("button")
+          .map((b) => b.textContent),
+      ).toEqual(["Cut", "Copy", "Paste"])
+      // Built items only, without shortcuts.
+      expect(within(sheet).queryByRole("button", { name: /Quick Analysis/ })).toBeNull()
+      expect(within(sheet).getByRole("button", { name: "Format Cells…" })).toBeInTheDocument()
+      // Back (Esc to what has focus) closes it: the sheet took focus from the grid, which keeps Esc for itself.
+      expect(sheet.contains(document.activeElement)).toBe(true)
+      fireEvent.keyDown(document.activeElement!, { key: "Escape" })
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Cells" })).toBeNull())
+      fireEvent.contextMenu(canvas, { clientX: 120, clientY: 60 })
+      const again = screen.getByRole("dialog", { name: "Cells" })
+      fireEvent.click(within(again).getByRole("button", { name: "Clear Contents" }))
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Cells" })).toBeNull())
+      expect(c.sheet.cells.input(0, 0)).toBeUndefined()
+    } finally {
+      globalThis.ResizeObserver = saved.observer
+      Element.prototype.getBoundingClientRect = saved.rect
       restore()
     }
   })

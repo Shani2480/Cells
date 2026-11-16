@@ -1,0 +1,89 @@
+name: Android smoke test
+
+# scripts/android-smoke.sh on an Android 15 emulator, phone and tablet (docs/release.md): install a debug build,
+# open a demo workbook as "Open with" does, type into a cell, save with Ctrl+S and read the file back, swipe, and
+# check Back. Its frame times are only a rough guide here: the runner's emulator draws without a GPU.
+# Separate from CI because it takes a while (an Android build and two emulator boots); it runs when the app changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "packages/**"
+      - "src-tauri/**"
+      - "scripts/android-*"
+      - ".github/workflows/android-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Debug build (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: npm ci
+      - run: NDK_HOME="$ANDROID_NDK_LATEST_HOME" npm run tauri android build -- --debug --target x86_64 --apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cells-debug-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+          retention-days: 3
+
+  smoke:
+    name: Smoke test (${{ matrix.kind }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: phone
+            profile: pixel_7
+          - kind: tablet
+            profile: pixel_tablet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: cells-debug-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/universal/debug
+      # The emulator needs KVM, which the runner has but doesn't open to its user.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: bash scripts/android-smoke.sh emulator-5554 ${{ matrix.kind }} shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-${{ matrix.kind }}-screenshots
+          path: shots
+          if-no-files-found: ignore
+          retention-days: 7
