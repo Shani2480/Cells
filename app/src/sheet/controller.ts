@@ -242,8 +242,12 @@ export class SheetController {
   formulaBarLines = 3
   /** Preview of a fill-handle drag (the area it will fill). */
   fillPreview: Range | null = null
-  /** The last pointer was a finger: the selection shows round grippers instead of the fill handle. */
-  touchHandles = false
+  /**
+   * The last pointer was a finger: the selection shows round grippers instead of the fill handle, and the on-screen
+   * keyboard waits for editing to start. Before any pointer, a touch screen's (a tablet's) is assumed, so opening a
+   * workbook there doesn't bring the keyboard up.
+   */
+  touchHandles = primaryPointerIsTouch()
   /** Scroll position in sheet pixels at 100% (top-left of the cell area). */
   scrollX = 0
   scrollY = 0
@@ -1808,4 +1812,8 @@ export function htmlTableRows(html: string): string[][] {
   return rows.map((row) =>
     [...row.querySelectorAll("td, th")].map((cell) => (cell as HTMLElement).innerText ?? cell.textContent ?? ""),
   )
+}
+
+function primaryPointerIsTouch(): boolean {
+  return typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches
 }

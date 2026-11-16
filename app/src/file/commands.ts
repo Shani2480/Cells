@@ -15,6 +15,7 @@ import {
   titleOf,
   type WorkbookDocument,
 } from "./document"
+import { fileNameOf } from "@/platform/android-files"
 import { pinRecent, recentFiles, removeRecent, touchRecent, type RecentFile } from "./recent"
 import { AUTORECOVER_MS, dropRecovery, keepRecovery, recoveredFiles, type RecoveredFile } from "./recovery"
 
@@ -160,7 +161,7 @@ export class FileCommands {
    */
   async openPath(path: string): Promise<boolean> {
     if (this.doc.ref?.path === path) return true
-    const name = path.split(/[\\/]/).pop() || path
+    const name = fileNameOf(path)
     return this.openRecent({ name, path })
   }
 
@@ -170,7 +171,7 @@ export class FileCommands {
    */
   async openEmbedded(path: string, documentName: string): Promise<boolean> {
     if (this.doc.ref?.path !== path) {
-      const name = path.split(/[\\/]/).pop() || path
+      const name = fileNameOf(path)
       if (!(await this.openRecent({ name, path }, false))) return false
     }
     const doc = this.doc

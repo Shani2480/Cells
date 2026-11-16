@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { readText, writeHtml, writeText } from "@tauri-apps/plugin-clipboard-manager"
 import { getCurrentWindow } from "@tauri-apps/api/window"
+import { onOpenedDocuments } from "./android-files"
 import { tauriFiles } from "./tauri-files"
 import { webPlatform } from "./web"
 
@@ -46,8 +47,11 @@ export function tauriPlatform(): Platform {
         })
         // What came with the launch, before the window listened.
         take()
+        // Android: files from other apps ("Open with", Share) come through MainActivity.
+        const stopAndroid = onOpenedDocuments(hand)
         return () => {
           disposed = true
+          stopAndroid()
           if (listener === handler) listener = null
           unlisten?.()
         }

@@ -42,8 +42,11 @@ export function openLink(path: string, range?: string): string {
   return `cells://open?${params.toString().replace(/\+/g, "%20")}`
 }
 
+/** A full path, or an Android document link (a file from "Open with"). */
 function isFullPath(path: string): boolean {
-  return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("\\\\")
+  return (
+    path.startsWith("content://") || path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("\\\\")
+  )
 }
 
 const columnName = (n: number) => {

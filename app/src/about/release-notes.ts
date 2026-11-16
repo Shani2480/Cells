@@ -12,6 +12,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Installers for Linux (.deb, AppImage and Flatpak), Windows and macOS, all made from one release.",
       "Cells registers itself for workbooks (.xlsx, .xlsm and templates), and offers itself for .csv and .tsv files: double-click a workbook in your file manager and it opens in Cells, in the Cells that's already running if there is one.",
       "On a Mac, Cells has its own menu bar (Cells, File, Edit, View, Format, Window, Help) with the usual ⌘ shortcuts. macOS keeps ⌘H, ⌘M and ⌘Q, so Replace is ⌃H and Go To is ⌃G, as in Excel for Mac. Quit asks about unsaved changes first.",
+      "Cells on Android tablets, with the full ribbon. Open and Save As use Android's own file picker, so workbooks in Downloads, Drive or OneDrive open and save back where they are, and Recent opens them again later. A workbook you open with Cells from a file manager, mail or Drive opens in Cells. With a keyboard attached, the usual Ctrl shortcuts work, and the on-screen keyboard only comes up once you start typing in a cell.",
     ],
   },
   {
