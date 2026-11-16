@@ -3,18 +3,25 @@
 # Cells
 
 A local-only spreadsheet with Excel's interface, keyboard and formula behaviour. It never talks to a cloud service.
-Desktop first (Linux, then macOS and Windows), with Android tablets and phones on the same engine later.
+It runs on Linux, Windows and macOS, and on Android tablets (with the full ribbon) and phones (with a layout of their
+own), all on the same engine.
 
 | Light                                               | Dark                                              |
 | --------------------------------------------------- | ------------------------------------------------- |
 | ![Cells in light mode](docs/images/cells-light.png) | ![Cells in dark mode](docs/images/cells-dark.png) |
 
-_Screenshots show made-up demo data._
+| Android phone                                                     | Commands on a phone                                                      | Phone, dark                                                          |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| ![Cells on an Android phone](docs/images/android-phone-light.png) | ![The command palette on a phone](docs/images/android-phone-palette.png) | ![Cells on a phone in dark mode](docs/images/android-phone-dark.png) |
+
+![Cells on an Android tablet](docs/images/android-tablet-light.png)
+
+_Screenshots show made-up demo data. The Android ones come from emulators._
 
 ## Status
 
-Phase 1 of 6 (see [PLAN.md](PLAN.md)): the grid, editing, Excel's keyboard navigation, the clipboard, rows and
-columns, and a minimal shell. Formulas arrive in Phase 2, the ribbon and formatting in Phase 3, files in Phase 4.
+Version 0.6.0, Phase 6 of 6 (see [PLAN.md](PLAN.md) and [docs/changes.md](docs/changes.md)): installers for every
+platform from one release tag ([docs/release.md](docs/release.md)), the macOS menu bar, Android tablets and phones.
 
 ## Development
 
@@ -27,6 +34,8 @@ npm run bench          # core benchmarks on a 100,000 × 20 sheet
 npm run lint           # ESLint, Prettier and the package-boundary check
 npm run typecheck
 npm run tauri build    # .deb and AppImage
+npm run tauri android build -- --debug --target x86_64 --apk   # an Android build for the emulator
+scripts/android-smoke.sh emulator-5554 phone                    # open, edit, save, scroll and Back on an emulator
 ```
 
 Linux needs WebKitGTK 4.1 and GTK 3 development packages for the desktop build.

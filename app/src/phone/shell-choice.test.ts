@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { shellFor } from "./shell-choice"
+import { heightWithoutKeyboard, shellFor } from "./shell-choice"
 
 describe("choosing the shell", () => {
   it.each([
@@ -15,5 +15,16 @@ describe("choosing the shell", () => {
     [500, 800, true, "phone"], // a narrower split
   ] as const)("%i × %i, finger %s → %s", (width, height, coarse, shell) => {
     expect(shellFor({ width, height, coarse })).toBe(shell)
+  })
+})
+
+describe("the on-screen keyboard", () => {
+  it("doesn't count: a tablet in landscape keeps the ribbon while typing", () => {
+    // 1280 × 800 with a 455 px keyboard leaves the page 345 px tall.
+    const height = heightWithoutKeyboard(345, 455)
+    expect(height).toBe(800)
+    expect(shellFor({ width: 1280, height, coarse: true })).toBe("full")
+    expect(heightWithoutKeyboard(700, undefined)).toBe(700)
+    expect(heightWithoutKeyboard(700, -3)).toBe(700)
   })
 })

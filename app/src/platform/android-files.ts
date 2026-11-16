@@ -14,7 +14,12 @@ type Bridge = {
   setBarColor?(color: string): void
 }
 
-type Host = { CellsFiles?: Bridge; __cellsPicked?: (uri: string | null) => void; __cellsOpened?: () => void }
+type Host = {
+  CellsFiles?: Bridge
+  __cellsPicked?: (uri: string | null) => void
+  __cellsOpened?: () => void
+  __cellsBack?: () => boolean
+}
 
 const host = () => globalThis as Host
 
@@ -125,4 +130,25 @@ export function syncSystemBars() {
   if (!bridge?.setBarColor || typeof getComputedStyle !== "function") return
   const color = getComputedStyle(document.documentElement).getPropertyValue("--app-title-fill").trim()
   if (/^#[0-9a-f]{6}$/i.test(color)) bridge.setBarColor(color)
+}
+
+/** What Back closes, topmost first: bottom sheets, dialogs, menus and popups, the File view. */
+const OVER_THE_SHEET = ".phone-sheet-layer, .dialog-backdrop, [role='menu'], .popover-positioner, .backstage"
+
+/**
+ * Android's Back (MainActivity): closes what is open over the sheet, or ends the cell being edited, by sending Esc,
+ * which each of them already handles. Returns false when nothing was open, and Android then puts Cells in the
+ * background. `editing` says whether a cell is being edited. Returns an uninstall function.
+ */
+export function installBackHandler(editing: () => boolean): () => void {
+  const back = () => {
+    if (!editing() && !document.querySelector(OVER_THE_SHEET)) return false
+    const target = document.activeElement instanceof HTMLElement ? document.activeElement : document.body
+    target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }))
+    return true
+  }
+  host().__cellsBack = back
+  return () => {
+    if (host().__cellsBack === back) delete host().__cellsBack
+  }
 }

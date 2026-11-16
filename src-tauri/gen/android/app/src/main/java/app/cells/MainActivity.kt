@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContract
@@ -74,6 +75,15 @@ class MainActivity : TauriActivity() {
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
       val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime())
       view.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, keyboard.bottom))
+      // The page's height shrinks by the keyboard; it adds it back when choosing the phone or tablet layout
+      // (app/src/phone/shell-choice.ts), so opening the keyboard never switches layouts.
+      val covered = maxOf(0, keyboard.bottom - bars.bottom) / resources.displayMetrics.density
+      webView?.post {
+        webView?.evaluateJavascript(
+          "window.__cellsKeyboardHeight = $covered; window.dispatchEvent(new Event('resize'))",
+          null,
+        )
+      }
       WindowInsetsCompat.CONSUMED
     }
     if (savedInstanceState == null) receive(intent)
@@ -112,6 +122,19 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     this.webView = webView
     webView.addJavascriptInterface(AndroidFiles(this), "CellsFiles")
+    // Back closes what is open over the sheet (a panel, dialog, menu, the File view or the cell being edited), as Esc
+    // does; with nothing open, Cells goes to the background instead of ending with unsaved work. Added after Wry's
+    // own handler (web history), so it comes first.
+    onBackPressedDispatcher.addCallback(
+      this,
+      object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+          webView.evaluateJavascript("window.__cellsBack ? window.__cellsBack() : false") { handled ->
+            if (handled != "true") moveTaskToBack(true)
+          }
+        }
+      },
+    )
     // Pinching zooms the sheet (the grid handles two fingers), never the whole interface.
     webView.settings.setSupportZoom(false)
     webView.settings.builtInZoomControls = false

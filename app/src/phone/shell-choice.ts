@@ -15,10 +15,19 @@ export function shellFor(view: { width: number; height: number; coarse: boolean 
   return view.coarse && Math.min(view.width, view.height) < PHONE_MAX_SIDE ? "phone" : "full"
 }
 
+/**
+ * The window's height without the on-screen keyboard: on Android the page shrinks while the keyboard is up, and
+ * MainActivity says by how much. Typing on a tablet in landscape must not turn it into a phone.
+ */
+export function heightWithoutKeyboard(innerHeight: number, keyboardHeight: unknown): number {
+  return innerHeight + (typeof keyboardHeight === "number" && keyboardHeight > 0 ? keyboardHeight : 0)
+}
+
 function current(): ShellKind {
   if (typeof window === "undefined") return "full"
   const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches
-  return shellFor({ width: window.innerWidth, height: window.innerHeight, coarse })
+  const keyboard = (window as { __cellsKeyboardHeight?: unknown }).__cellsKeyboardHeight
+  return shellFor({ width: window.innerWidth, height: heightWithoutKeyboard(window.innerHeight, keyboard), coarse })
 }
 
 /** The shell for the window now, following resizes, rotation and a mouse being plugged in. */

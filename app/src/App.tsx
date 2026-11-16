@@ -17,7 +17,7 @@ import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
 import type { RibbonEnv } from "@/ribbon/registry"
 import { PhoneShell } from "@/phone/PhoneShell"
-import { syncSystemBars } from "@/platform/android-files"
+import { installBackHandler, syncSystemBars } from "@/platform/android-files"
 import { useShellKind } from "@/phone/shell-choice"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
 import { CHART_DESIGN, HELP, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
@@ -414,6 +414,9 @@ function WorkbookWindow({
   useEffect(() => {
     if (!platform.window.controllable) document.documentElement.classList.add("is-browser")
   }, [platform])
+
+  // Android's Back closes what is open, else sends Cells to the background (android-files.ts).
+  useEffect(() => installBackHandler(() => Boolean(controller.edit)), [controller])
 
   // Dialogs, menus and the File view take the whole screen on a phone (phone.css).
   useEffect(() => {

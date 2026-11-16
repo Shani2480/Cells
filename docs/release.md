@@ -53,3 +53,27 @@ macOS (`RunEvent::Opened` in `src-tauri/src/lib.rs`).
   `appstreamcli validate`. The release build on Xvfb opened files handed to it by a second launch (a path and a
   `file://` URL) and a `cells://` link with a range. The Windows and macOS builds run only in the workflow, which
   hasn't run yet (`verify-list.md`).
+
+## Android smoke test
+
+`scripts/android-smoke.sh <emulator serial> <phone|tablet> [screenshot folder]` runs on an emulator only (it clears
+Cells' data and puts the status bar in demo mode): it installs the debug build, skips the setup, opens
+`packages/io/test/fixtures/excel/budget.xlsx` as "Open with" does, types into D1 with hardware keys, saves with
+Ctrl+S and pulls the file back to check the entry is in it. It then swipes the sheet while
+`scripts/android-frames.mjs` records frame times inside the web view (through its DevTools, which debug builds
+allow), checks that Back closes the File view and then puts Cells in the background still running, and takes light
+and dark screenshots (`docs/images/android-*.png` come from it).
+
+The emulators used: `cells_phone` (Pixel 7, 1080 × 2400) and a Pixel Tablet (2560 × 1600), both Android 15 (API 35).
+
+Measured on 2026-11-16, five quick swipes, frame times inside the web view:
+
+| Where                                  | Median  | 99th percentile | Dropped (over 25 ms) |
+| -------------------------------------- | ------- | --------------- | -------------------- |
+| Phone emulator, host GPU (`-gpu host`) | 16.7 ms | 16.8 ms         | 0%                   |
+| Phone emulator, software GPU           | 16.7 ms | 67 ms           | 21%                  |
+| Tablet emulator, host GPU              | 16.7 ms | 67 ms           | 26%                  |
+| Real tablet (more pixels than the emulator) | 16.7 ms | 16.8 ms         | 0.7%                 |
+
+The emulators' drops come from the emulator: the real tablet, with more pixels, keeps 60 frames a second. A real
+phone hasn't been measured yet (verify-list).

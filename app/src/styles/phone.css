@@ -540,3 +540,27 @@ html.is-phone .backstage-page {
     transition: none;
   }
 }
+
+/* First-run setup on a phone: the steps as a row of numbers above the page, which gets the full width. */
+html.is-phone .setup {
+  height: auto;
+  flex-direction: column;
+  gap: 12px;
+}
+
+html.is-phone .setup-steps {
+  flex: none;
+  flex-direction: row;
+  gap: 12px;
+  padding: 0;
+}
+
+html.is-phone .setup-steps li:not(.is-current) > span:not(.setup-step-number) {
+  display: none;
+}
+
+html.is-phone .setup-step-number {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}

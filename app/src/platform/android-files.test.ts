@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { parseOpenRequest } from "@/links/link"
-import { fileNameOf, mimeTypeOf, onOpenedDocuments, pickerTypes, pickSaveDocument } from "./android-files"
+import {
+  fileNameOf,
+  installBackHandler,
+  mimeTypeOf,
+  onOpenedDocuments,
+  pickerTypes,
+  pickSaveDocument,
+} from "./android-files"
 
 const host = globalThis as Record<string, unknown>
 
@@ -8,6 +15,7 @@ afterEach(() => {
   delete host.CellsFiles
   delete host.__cellsPicked
   delete host.__cellsOpened
+  delete host.__cellsBack
 })
 
 describe("Android documents", () => {
@@ -56,5 +64,29 @@ describe("Android documents", () => {
     stop()
     expect(host.__cellsOpened).toBeUndefined()
     expect(parseOpenRequest("content://mail/attachment/3")).toEqual({ path: "content://mail/attachment/3" })
+  })
+
+  it("Back closes what is open with Esc, and says when nothing was", () => {
+    let editing = false
+    const stop = installBackHandler(() => editing)
+    const back = host.__cellsBack as () => boolean
+    const keys: string[] = []
+    const listen = (event: KeyboardEvent) => keys.push(event.key)
+    window.addEventListener("keydown", listen)
+    try {
+      expect(back()).toBe(false)
+      const sheet = document.createElement("div")
+      sheet.className = "phone-sheet-layer"
+      document.body.append(sheet)
+      expect(back()).toBe(true)
+      sheet.remove()
+      editing = true
+      expect(back()).toBe(true)
+      expect(keys).toEqual(["Escape", "Escape"])
+    } finally {
+      window.removeEventListener("keydown", listen)
+      stop()
+    }
+    expect(host.__cellsBack).toBeUndefined()
   })
 })

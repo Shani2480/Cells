@@ -15,6 +15,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Cells on Android tablets, with the full ribbon. Open and Save As use Android's own file picker, so workbooks in Downloads, Drive or OneDrive open and save back where they are, and Recent opens them again later. A workbook you open with Cells from a file manager, mail or Drive opens in Cells. With a keyboard attached, the usual Ctrl shortcuts work, and the on-screen keyboard only comes up once you start typing in a cell.",
       "Cells on Android phones, with a layout of its own: a compact top bar (File, Undo, Redo, Find), bigger column and row headings, and a bottom bar with your sheets and the Home, Insert, Formulas, Data and View tools. Each tool opens the ribbon's commands in a panel from the bottom, which you can switch to any tab and swipe down to close. While you type in a cell, a row of formula keys (= ( ) , : $ + - * / & \" and fx) sits above the keyboard. Dialogs and the File view take the whole screen. A tablet keeps the full ribbon, and a split screen switches between the two as it's resized, without losing anything.",
       "On a touch screen the sheet glides on after a quick swipe, and stops when you touch it.",
+      "On Android, Back closes what's open (a panel, a dialog, a menu, the File view or the cell you're typing in), and with nothing open it puts Cells in the background with your workbook as it was.",
     ],
   },
   {
