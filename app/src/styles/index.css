@@ -2583,3 +2583,19 @@ html.is-phone .clipboard-item-delete {
   border: 1px solid var(--app-field-border);
   background: var(--app-field-bg);
 }
+
+/* ── Data › What-If Analysis › Goal Seek (shell/WhatIfDialogs.tsx) ──────────────────────────────────────────── */
+.goal-seek-fields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.goal-seek-status {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin-top: 8px;
+  font-size: 13px;
+}

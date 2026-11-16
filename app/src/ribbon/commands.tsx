@@ -5,6 +5,7 @@ import { conditionalCommands } from "./cf-commands"
 import { homeCommands } from "./home-commands"
 import { auditCommands } from "./audit-commands"
 import { outlineCommands } from "./outline-commands"
+import { whatIfCommands } from "./whatif-commands"
 import { formulaCommands, nameCommand } from "./formula-commands"
 import { pictureFor } from "./pictures"
 import { qatCommands } from "./qat-commands"
@@ -298,6 +299,7 @@ export function allCommands(): Command[] {
     ...formulaCommands(),
     ...auditCommands(),
     ...outlineCommands(),
+    ...whatIfCommands(),
     ...qatCommands(),
     ...tableCommands(),
     ...chartCommands(),
