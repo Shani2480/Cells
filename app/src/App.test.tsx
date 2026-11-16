@@ -260,3 +260,59 @@ describe("File commands in the window", () => {
     expect(screen.getByRole("tab", { name: "Dropped" })).toBeInTheDocument()
   })
 })
+
+describe("the shell by screen", () => {
+  const realMatch = window.matchMedia
+  const size = (width: number, height: number) => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: width })
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: height })
+  }
+  const touch = () => {
+    window.matchMedia = ((query: string) => ({
+      ...realMatch(query),
+      matches: query === "(pointer: coarse)",
+    })) as typeof window.matchMedia
+  }
+  const restore = () => {
+    window.matchMedia = realMatch
+    size(1024, 768)
+    document.documentElement.classList.remove("is-phone")
+  }
+
+  it("a phone gets the phone shell: no ribbon, dialogs full screen", () => {
+    touch()
+    size(390, 844)
+    try {
+      renderApp()
+      expect(screen.getByRole("navigation", { name: "Sheets and tools" })).toBeInTheDocument()
+      expect(screen.queryByRole("tablist", { name: "Ribbon tabs" })).toBeNull()
+      expect(document.documentElement).toHaveClass("is-phone")
+    } finally {
+      restore()
+    }
+  })
+
+  it("a tablet keeps the ribbon, and a split screen switches live without losing the workbook", () => {
+    touch()
+    size(1280, 800)
+    try {
+      const c = renderApp()
+      expect(screen.getByRole("tablist", { name: "Ribbon tabs" })).toBeInTheDocument()
+      act(() => c.sheets.insert(1))
+      act(() => {
+        size(500, 800)
+        window.dispatchEvent(new Event("resize"))
+      })
+      expect(screen.queryByRole("tablist", { name: "Ribbon tabs" })).toBeNull()
+      expect(screen.getByRole("button", { name: "Sheet: Sheet2" })).toBeInTheDocument()
+      act(() => {
+        size(1280, 800)
+        window.dispatchEvent(new Event("resize"))
+      })
+      expect(screen.getByRole("tab", { name: "Sheet2" })).toBeInTheDocument()
+      expect(document.documentElement).not.toHaveClass("is-phone")
+    } finally {
+      restore()
+    }
+  })
+})

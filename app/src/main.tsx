@@ -5,6 +5,7 @@ import { PlatformContext } from "./platform/context"
 import { isTauri, tauriPlatform } from "./platform/tauri"
 import { webPlatform } from "./platform/web"
 import "./styles/index.css"
+import "./styles/phone.css"
 
 // The browser's own context menu never shows over the app (ours does).
 window.addEventListener("contextmenu", (event) => {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { keyboardOverlap, pinch, TapTracker } from "./touch"
+import {
+  FLING_TIME_CONSTANT,
+  FlingTracker,
+  flingStep,
+  keyboardOverlap,
+  pinch,
+  TapTracker,
+  type Velocity,
+} from "./touch"
 
 describe("touch gestures", () => {
   const clamp = (z: number) => Math.min(4, Math.max(0.1, z))
@@ -38,5 +46,49 @@ describe("touch gestures", () => {
     // The keyboard leaves 400 px of a 700 px window: an editor ending at 450 must move up 62 px (12 px margin).
     expect(keyboardOverlap(450, 0, 400)).toBe(62)
     expect(keyboardOverlap(300, 0, 400)).toBe(0)
+  })
+})
+
+describe("fling", () => {
+  it("measures the pan's speed over its last moments", () => {
+    const f = new FlingTracker()
+    f.add(0, 0, 0)
+    f.add(0, 50, 200) // slow at first
+    f.add(0, 100, 250)
+    f.add(0, 200, 300) // then fast: 2 px/ms over the last 100 ms
+    const v = f.release(310)!
+    expect(v.x).toBe(0)
+    expect(v.y).toBeCloseTo(150 / 100)
+  })
+
+  it("doesn't glide after a pause, a slow pan or a single sample", () => {
+    const paused = new FlingTracker()
+    paused.add(0, 0, 0)
+    paused.add(0, 100, 50)
+    expect(paused.release(200)).toBeNull()
+    const slow = new FlingTracker()
+    slow.add(0, 0, 0)
+    slow.add(0, 2, 100)
+    expect(slow.release(100)).toBeNull()
+    const one = new FlingTracker()
+    one.add(0, 0, 0)
+    expect(one.release(0)).toBeNull()
+  })
+
+  it("slows down and stops, covering a bounded distance", () => {
+    let v: Velocity | null = { x: 0, y: 2 }
+    let y = 0
+    let frames = 0
+    while (v && frames < 1000) {
+      const step = flingStep(v, 16)
+      y += step.dy
+      v = step.next
+      frames++
+    }
+    expect(v).toBeNull()
+    // The whole glide is at most speed × time constant.
+    expect(y).toBeGreaterThan(500)
+    expect(y).toBeLessThanOrEqual(2 * FLING_TIME_CONSTANT)
+    expect(frames).toBeLessThan(200)
   })
 })

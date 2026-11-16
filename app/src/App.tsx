@@ -16,8 +16,11 @@ import { SheetController } from "@/sheet/controller"
 import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
 import type { RibbonEnv } from "@/ribbon/registry"
+import { PhoneShell } from "@/phone/PhoneShell"
+import { syncSystemBars } from "@/platform/android-files"
+import { useShellKind } from "@/phone/shell-choice"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
-import { CHART_DESIGN, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
+import { CHART_DESIGN, HELP, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
 import { whatsNewOnStart } from "@/about/release-notes"
@@ -123,8 +126,11 @@ function useColorScheme() {
   const theme = useSettings((s) => s.theme)
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: dark)")
-    const apply = () =>
+    const apply = () => {
       document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && query.matches))
+      // Android draws the status and navigation bars over a strip in the title bar's colour.
+      syncSystemBars()
+    }
     apply()
     query.addEventListener("change", apply)
     return () => query.removeEventListener("change", apply)
@@ -399,6 +405,7 @@ function WorkbookWindow({
     setRibbonMenuAt({ x: event.clientX, y: event.clientY, id: control?.dataset.command ?? null })
   }
   const ribbonHandle = useRef<RibbonHandle | null>(null)
+  const shell = useShellKind()
   useSyncExternalStore(controller.subscribe, controller.getVersion)
   useColorScheme()
   useSharedSettings(platform.settings)
@@ -407,6 +414,11 @@ function WorkbookWindow({
   useEffect(() => {
     if (!platform.window.controllable) document.documentElement.classList.add("is-browser")
   }, [platform])
+
+  // Dialogs, menus and the File view take the whole screen on a phone (phone.css).
+  useEffect(() => {
+    document.documentElement.classList.toggle("is-phone", shell === "phone")
+  }, [shell])
 
   useEffect(() => {
     controller.shell = {
@@ -701,74 +713,99 @@ function WorkbookWindow({
     closeDialog()
   }
 
+  const formulaBar = controller.showFormulaBar ? (
+    <FormulaBar
+      controller={controller}
+      dragging={false}
+      onFocusGrid={focusGrid}
+      onInsertFunction={() => openDialog("insertFunction")}
+    />
+  ) : null
+  const grid = <GridView controller={controller} onContextMenu={setMenu} />
+  const ribbonTabs = controller.charts.active() ? TABS_IN_CHART : controller.tables.active() ? TABS_IN_TABLE : TABS
+  // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
+  const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
+
   return (
     <TooltipProvider>
-      <div className="app-window-frame">
-        <TitleBar
-          controller={controller}
-          title={`${doc.title} - Cells`}
-          qat={<QuickAccess registry={registry} env={env} ids={qat} onChange={setQat} onDone={focusGrid} />}
-          search={
-            <TellMe
-              registry={registry}
-              env={env}
-              onShow={(id) => ribbonHandle.current?.show(id) ?? false}
-              onDone={focusGrid}
-            />
-          }
-        />
-        <div className="ribbon-host" onContextMenu={ribbonMenu}>
-          <Ribbon
+      <div className={shell === "phone" ? "app-window-frame is-phone" : "app-window-frame"}>
+        {shell === "phone" ? (
+          <PhoneShell
+            controller={controller}
             env={env}
             registry={registry}
-            tabs={controller.charts.active() ? TABS_IN_CHART : controller.tables.active() ? TABS_IN_TABLE : TABS}
+            tabs={paletteTabs}
+            title={doc.title}
+            formulaBar={formulaBar}
             onFile={() => setBackstage("home")}
-            qatKeytips={qat.slice(0, 9).map((id, i) => ({
-              key: String(i + 1),
-              run: () => {
-                if (registry.isEnabled(id, env)) registry.get(id)?.run?.(env)
-              },
-            }))}
-            handle={(h) => (ribbonHandle.current = h)}
-          />
-        </div>
-        {ribbonMenuAt ? (
-          <ContextMenu
-            x={ribbonMenuAt.x}
-            y={ribbonMenuAt.y}
-            onClose={() => setRibbonMenuAt(null)}
-            items={[
-              {
-                kind: "item",
-                label: "Add to Quick Access Toolbar",
-                disabled: !ribbonMenuAt.id || qat.includes(ribbonMenuAt.id),
-                onSelect: () => ribbonMenuAt.id && setQat([...qat, ribbonMenuAt.id]),
-              },
-              { kind: "separator" },
-              {
-                kind: "item",
-                label: "Customize the Ribbon...",
-                disabled: true,
-                title: NOT_BUILT,
-                onSelect: () => undefined,
-              },
-              { kind: "item", label: "Collapse the Ribbon", onSelect: () => ribbonHandle.current?.toggleCollapsed() },
-            ]}
-          />
-        ) : null}
-        {controller.showFormulaBar ? (
-          <FormulaBar
-            controller={controller}
-            dragging={false}
             onFocusGrid={focusGrid}
-            onInsertFunction={() => openDialog("insertFunction")}
-          />
-        ) : null}
-        <main className="sheet-area">
-          <GridView controller={controller} onContextMenu={setMenu} />
-        </main>
-        <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
-        <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
+          >
+            {grid}
+          </PhoneShell>
+        ) : (
+          <>
+            <TitleBar
+              controller={controller}
+              title={`${doc.title} - Cells`}
+              qat={<QuickAccess registry={registry} env={env} ids={qat} onChange={setQat} onDone={focusGrid} />}
+              search={
+                <TellMe
+                  registry={registry}
+                  env={env}
+                  onShow={(id) => ribbonHandle.current?.show(id) ?? false}
+                  onDone={focusGrid}
+                />
+              }
+            />
+            <div className="ribbon-host" onContextMenu={ribbonMenu}>
+              <Ribbon
+                env={env}
+                registry={registry}
+                tabs={ribbonTabs}
+                onFile={() => setBackstage("home")}
+                qatKeytips={qat.slice(0, 9).map((id, i) => ({
+                  key: String(i + 1),
+                  run: () => {
+                    if (registry.isEnabled(id, env)) registry.get(id)?.run?.(env)
+                  },
+                }))}
+                handle={(h) => (ribbonHandle.current = h)}
+              />
+            </div>
+            {ribbonMenuAt ? (
+              <ContextMenu
+                x={ribbonMenuAt.x}
+                y={ribbonMenuAt.y}
+                onClose={() => setRibbonMenuAt(null)}
+                items={[
+                  {
+                    kind: "item",
+                    label: "Add to Quick Access Toolbar",
+                    disabled: !ribbonMenuAt.id || qat.includes(ribbonMenuAt.id),
+                    onSelect: () => ribbonMenuAt.id && setQat([...qat, ribbonMenuAt.id]),
+                  },
+                  { kind: "separator" },
+                  {
+                    kind: "item",
+                    label: "Customize the Ribbon...",
+                    disabled: true,
+                    title: NOT_BUILT,
+                    onSelect: () => undefined,
+                  },
+                  {
+                    kind: "item",
+                    label: "Collapse the Ribbon",
+                    onSelect: () => ribbonHandle.current?.toggleCollapsed(),
+                  },
+                ]}
+              />
+            ) : null}
+            {formulaBar}
+            <main className="sheet-area">{grid}</main>
+            <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
+            <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
+          </>
+        )}
         {menu ? (
           <ContextMenu
             x={menu.x}

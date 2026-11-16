@@ -15,7 +15,19 @@ import { FormulaAssist, FormulaHighlight } from "./FormulaAssist"
 import { cellAt, colX, computeLayout, hitTest, rangeRect, rowY, type GridLayout, type Hit } from "./layout"
 import { CELL_FONT, LIGHT_THEME, readGridTheme, type GridTheme } from "./theme"
 import { Scrollbar } from "./Scrollbar"
-import { distance, keyboardOverlap, LONG_PRESS_MS, midpoint, pinch, TAP_SLOP, TapTracker, type Point } from "./touch"
+import {
+  distance,
+  FlingTracker,
+  flingStep,
+  keyboardOverlap,
+  LONG_PRESS_MS,
+  midpoint,
+  pinch,
+  TAP_SLOP,
+  TapTracker,
+  type Point,
+  type Velocity,
+} from "./touch"
 
 const SCROLLBAR = 14
 
@@ -68,6 +80,31 @@ export function GridView({
   const pressTimer = useRef<number | undefined>(undefined)
   const tapsRef = useRef(new TapTracker())
   const lastTouchRef = useRef(0)
+  // A pan's speed, and the glide after a quick one (stopped by the next touch).
+  const flingRef = useRef(new FlingTracker())
+  const glideRef = useRef<number | undefined>(undefined)
+  const stopGlide = () => {
+    if (glideRef.current !== undefined) cancelAnimationFrame(glideRef.current)
+    glideRef.current = undefined
+  }
+  const glide = (start: Velocity) => {
+    stopGlide()
+    let v: Velocity | null = start
+    let last = performance.now()
+    const frame = (now: number) => {
+      if (!v) return
+      const step = flingStep(v, Math.min(now - last, 50))
+      last = now
+      const before = { x: controller.scrollX, y: controller.scrollY }
+      controller.scrollTo(before.x + step.dx, before.y + step.dy)
+      // At an edge the glide ends there.
+      const stuck = controller.scrollX === before.x && controller.scrollY === before.y
+      v = stuck ? null : step.next
+      glideRef.current = v ? requestAnimationFrame(frame) : undefined
+    }
+    glideRef.current = requestAnimationFrame(frame)
+  }
+  useEffect(() => stopGlide, [])
   const themeRef = useRef<GridTheme>(LIGHT_THEME)
   const measureCache = useRef(new Map<string, number>())
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -316,6 +353,7 @@ export function GridView({
           window.clearTimeout(pressTimer.current)
         }
         controller.scrollTo(drag.scrollX + dx, drag.scrollY + dy)
+        flingRef.current.add(controller.scrollX, controller.scrollY, performance.now())
         break
       }
     }
@@ -359,6 +397,7 @@ export function GridView({
     const layout = layoutRef.current
     if (!layout) return
     const touch = event.pointerType === "touch"
+    stopGlide()
     if (controller.touchHandles !== touch) {
       controller.touchHandles = touch
       controller.changed()
@@ -432,6 +471,7 @@ export function GridView({
         pressed: false,
       }
       dragRef.current = pan
+      flingRef.current = new FlingTracker()
       // Long press: the context menu, for what is under the finger (as a right-click).
       window.clearTimeout(pressTimer.current)
       pressTimer.current = window.setTimeout(() => {
@@ -578,6 +618,10 @@ export function GridView({
     } else if (drag.kind === "resize-row") {
       const rows = resizeTargets(controller, "rows", drag.row)
       controller.setLineSize("rows", rows, drag.size)
+    } else if (drag.kind === "pan" && drag.moved) {
+      const v =
+        event.type === "pointerup" && !touchesRef.current.size ? flingRef.current.release(performance.now()) : null
+      if (v) glide(v)
     } else if (drag.kind === "pan" && !drag.moved && !drag.pressed && event.type === "pointerup") {
       controller.pointerCell({ row: drag.row, col: drag.col }, { shift: false, ctrl: false })
       // A second tap on the same cell edits it, with the on-screen keyboard.

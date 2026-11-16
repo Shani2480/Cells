@@ -22,6 +22,7 @@ import org.json.JSONObject
 // After Inkspire's (src-tauri/gen/android/.../MainActivity.kt on its android branch).
 class MainActivity : TauriActivity() {
   private var webView: WebView? = null
+  private var barStrip: View? = null
 
   /** Files handed to Cells by other apps ("Open with", Share), until the page takes them. */
   internal val opened = mutableListOf<String>()
@@ -68,6 +69,7 @@ class MainActivity : TauriActivity() {
     // green (--app-title-fill).
     val content = findViewById<View>(android.R.id.content)
     content.setBackgroundColor(Color.parseColor("#217346"))
+    barStrip = content
     ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
       val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime())
@@ -114,6 +116,12 @@ class MainActivity : TauriActivity() {
     webView.settings.setSupportZoom(false)
     webView.settings.builtInZoomControls = false
     webView.settings.displayZoomControls = false
+  }
+
+  /** The strip behind the system bars follows the title bar (dark mode has a darker green). */
+  fun setBarColor(color: String) {
+    val parsed = try { Color.parseColor(color) } catch (error: IllegalArgumentException) { return }
+    runOnUiThread { barStrip?.setBackgroundColor(parsed) }
   }
 
   fun pickOpen(mimeTypes: Array<String>) {
@@ -174,6 +182,12 @@ class AndroidFiles(private val activity: MainActivity) {
   @JavascriptInterface
   fun createDocument(name: String, mimeType: String) {
     activity.pickSave(name, mimeType.ifEmpty { "application/octet-stream" })
+  }
+
+  /** The colour behind the status and navigation bars, as `#rrggbb` (the title bar's). */
+  @JavascriptInterface
+  fun setBarColor(color: String) {
+    activity.setBarColor(color)
   }
 
   /** The files other apps handed over since the last call, as a JSON array. */

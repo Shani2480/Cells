@@ -11,6 +11,7 @@ type Bridge = {
   openDocument(mimeTypesJson: string): void
   createDocument(name: string, mimeType: string): void
   takeOpened(): string
+  setBarColor?(color: string): void
 }
 
 type Host = { CellsFiles?: Bridge; __cellsPicked?: (uri: string | null) => void; __cellsOpened?: () => void }
@@ -116,4 +117,12 @@ export function onOpenedDocuments(handler: (uris: string[]) => void): () => void
   return () => {
     if (host().__cellsOpened === take) delete host().__cellsOpened
   }
+}
+
+/** Gives Android's status and navigation bars the title bar's colour (it changes with the theme). */
+export function syncSystemBars() {
+  const bridge = androidFiles()
+  if (!bridge?.setBarColor || typeof getComputedStyle !== "function") return
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--app-title-fill").trim()
+  if (/^#[0-9a-f]{6}$/i.test(color)) bridge.setBarColor(color)
 }

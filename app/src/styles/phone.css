@@ -1,0 +1,542 @@
+/* ── Phone shell (app/src/phone): top bar, formula keys, bottom bar, bottom sheets ─────────────────────────── */
+/* Shown when the window's smaller side is under 600 px and the pointer is a finger (shell-choice.ts). The tokens
+   are the window's own, so light and dark follow. Touch targets are at least 44 px. */
+
+.app-window-frame.is-phone {
+  border: none;
+  border-radius: 0;
+}
+
+.phone-window {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--app-workspace);
+  font-family: var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.phone-window button {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.phone-topbar {
+  display: flex;
+  height: 48px;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  background: var(--app-title-fill);
+  color: #ffffff;
+}
+
+.phone-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 6px;
+  font-size: 16px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-icon-button {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: inherit;
+}
+
+.phone-icon-button:active:not(:disabled) {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.phone-icon-button:disabled {
+  opacity: 0.45;
+}
+
+/* The formula bar, made for a finger: a narrow Name Box and a taller input. */
+.is-phone .formula-bar {
+  min-height: 44px;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--app-ribbon-card);
+}
+
+.is-phone .name-box {
+  width: 64px;
+  height: 34px;
+  font-size: 14px;
+}
+
+.is-phone .name-box-arrow,
+.is-phone .formula-bar-expand {
+  display: none;
+}
+
+.is-phone .formula-bar-button {
+  width: 36px;
+  height: 34px;
+}
+
+.is-phone .formula-input {
+  font-size: 15px;
+}
+
+.phone-sheet-area {
+  min-height: 0;
+  flex: 1;
+}
+
+/* The row of formula keys over the keyboard while editing. */
+.phone-keys {
+  display: flex;
+  height: 48px;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-top: 1px solid var(--app-ribbon-border);
+  background: var(--app-statusbar-bg);
+}
+
+.phone-keys-scroll {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.phone-key {
+  display: inline-flex;
+  min-width: 40px;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--app-ribbon-border);
+  border-radius: 8px;
+  background: var(--app-ribbon-card);
+  color: var(--app-ribbon-text);
+  font: 500 17px var(--font-ui);
+}
+
+.phone-key:active {
+  background: var(--app-pressed);
+}
+
+.phone-key.is-fx {
+  color: var(--app-theme-primary);
+}
+
+.phone-key.is-enter {
+  border-color: var(--app-theme-primary);
+  background: var(--app-theme-primary);
+  color: #ffffff;
+}
+
+/* The bottom bar: the sheet switcher, then the tools that open the palette on a tab. */
+.phone-bottombar {
+  display: flex;
+  height: 56px;
+  flex: none;
+  align-items: stretch;
+  border-top: 1px solid var(--app-ribbon-border);
+  background: var(--app-statusbar-bg);
+}
+
+.phone-sheet-button {
+  display: flex;
+  min-width: 64px;
+  max-width: 34%;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 0 12px;
+  border: 0;
+  border-right: 1px solid var(--app-divider);
+  background: transparent;
+  color: var(--app-theme-primary);
+  font: 600 14px var(--font-ui);
+}
+
+.phone-sheet-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-tools {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+}
+
+.phone-tool {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  font: 11px var(--font-ui);
+}
+
+.phone-tool:active,
+.phone-sheet-button:active {
+  background: var(--app-pressed);
+}
+
+/* Bottom sheets: the palette and the sheet list. */
+.phone-sheet-layer {
+  position: fixed;
+  z-index: 55;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.phone-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.32);
+  opacity: 0;
+  transition: opacity 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.phone-sheet-layer[data-open] .phone-sheet-backdrop {
+  opacity: 1;
+}
+
+.phone-sheet {
+  position: relative;
+  display: flex;
+  max-height: 72%;
+  flex-direction: column;
+  border-radius: 16px 16px 0 0;
+  background: var(--app-popover-bg);
+  box-shadow: 0 -6px 24px rgb(0 0 0 / 0.18);
+  color: var(--app-ribbon-text);
+  font-family: var(--font-ui);
+  transform: translateY(100%);
+  transition:
+    transform 220ms cubic-bezier(0.2, 0, 0, 1),
+    translate 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.phone-sheet-layer[data-open] .phone-sheet {
+  transform: none;
+}
+
+/* Following the finger: no easing behind it. */
+.phone-sheet[data-dragging] {
+  transition: none;
+}
+
+.phone-sheet-grip {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px 4px;
+  border-bottom: 1px solid var(--app-ribbon-border);
+  touch-action: none;
+}
+
+.phone-sheet-handle {
+  width: 36px;
+  height: 4px;
+  margin-bottom: 6px;
+  border-radius: 2px;
+  background: var(--app-ribbon-disabled);
+}
+
+.phone-sheet-title {
+  align-self: flex-start;
+  padding: 8px 4px 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.phone-tab-picker {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-theme-primary);
+  font: 600 16px var(--font-ui);
+}
+
+.phone-sheet-body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 0 12px;
+}
+
+.phone-group + .phone-group {
+  border-top: 1px solid var(--app-divider);
+}
+
+.phone-group-title {
+  margin: 0;
+  padding: 10px 16px 2px;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.phone-row {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  font: 15px var(--font-ui);
+  text-align: left;
+}
+
+.phone-row:active:not(:disabled) {
+  background: var(--app-pressed);
+}
+
+.phone-row:disabled {
+  color: var(--app-ribbon-disabled);
+}
+
+.phone-row[aria-pressed="true"] {
+  background: var(--app-theme-light);
+}
+
+.phone-row.is-back {
+  color: var(--app-theme-primary);
+  font-weight: 600;
+}
+
+.phone-row.is-action {
+  color: var(--app-theme-primary);
+}
+
+.phone-row-icon {
+  display: inline-flex;
+  width: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-row-icon svg {
+  max-width: 20px;
+  max-height: 20px;
+}
+
+.phone-row-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-row-value {
+  max-width: 45%;
+  overflow: hidden;
+  color: var(--app-ribbon-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-row-check {
+  color: var(--app-theme-primary);
+}
+
+.phone-row-split {
+  display: flex;
+}
+
+.phone-row-split .phone-row {
+  min-width: 0;
+  flex: 1;
+}
+
+.phone-row-more {
+  display: inline-flex;
+  width: 52px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid var(--app-divider);
+  background: transparent;
+  color: var(--app-ribbon-muted);
+}
+
+.phone-row.is-field input {
+  width: 45%;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 6px;
+  background: var(--app-field-bg);
+  color: var(--app-ribbon-text);
+  font: 15px var(--font-ui);
+}
+
+.phone-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--app-ribbon-disabled);
+  transition: background 160ms;
+}
+
+.phone-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #ffffff;
+  content: "";
+  transition: translate 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+[aria-checked="true"] > .phone-switch {
+  background: var(--app-theme-primary);
+}
+
+[aria-checked="true"] > .phone-switch::after {
+  translate: 16px 0;
+}
+
+.phone-sheet-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+/* The palette's menus in place: the ribbon's rows, finger-sized. */
+.phone-sheet-body .ribbon-menu {
+  min-width: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.phone-sheet-body .menu-row {
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 15px;
+}
+
+/* Dialogs, the File view and the context menu on a phone: the whole screen, as phone apps' sheets. */
+html.is-phone .dialog-backdrop:not(.is-modeless) {
+  align-items: stretch;
+}
+
+html.is-phone .dialog {
+  display: flex;
+  width: 100% !important;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+}
+
+html.is-phone .dialog-title {
+  height: 48px;
+  font-size: 16px;
+}
+
+html.is-phone .dialog-title-close {
+  width: 44px;
+  height: 44px;
+}
+
+html.is-phone .dialog-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+html.is-phone .dialog-actions {
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--app-ribbon-border);
+}
+
+html.is-phone .dialog-btn {
+  min-height: 44px;
+  flex: 1;
+}
+
+html.is-phone .backstage {
+  inset: 0;
+  flex-direction: column;
+}
+
+html.is-phone .backstage-nav {
+  width: auto;
+  flex-direction: row;
+  overflow-x: auto;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+html.is-phone .backstage-back,
+html.is-phone .backstage-item {
+  min-height: 48px;
+  flex: none;
+  white-space: nowrap;
+}
+
+html.is-phone .backstage-item.has-gap {
+  margin-top: 0;
+}
+
+html.is-phone .backstage-page {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-sheet,
+  .phone-sheet-backdrop,
+  .phone-switch,
+  .phone-switch::after {
+    transition: none;
+  }
+}

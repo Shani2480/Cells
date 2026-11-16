@@ -1,5 +1,5 @@
 import type { Axis, Range, Sheet } from "@cells/core"
-import { HEADER_HEIGHT, type SheetController } from "@/sheet/controller"
+import { HEADER_HEIGHT, LARGE_HEADER_HEIGHT, type SheetController } from "@/sheet/controller"
 import { GRIPPER_HIT, GRIPPER_RADIUS } from "./touch"
 
 /** One drawn row or column: its index and its span in canvas pixels. */
@@ -61,7 +61,7 @@ export function computeLayout(
   const sheet = controller.sheet
   const f = controller.freeze
   // View › Headings off: no header row or column (the cells start at the edge).
-  const headerHeight = controller.showHeadings ? HEADER_HEIGHT : 0
+  const headerHeight = controller.showHeadings ? (controller.largeHeaders ? LARGE_HEADER_HEIGHT : HEADER_HEIGHT) : 0
   const frozenH = controller.frozenHeight
   const frozenW = controller.frozenWidth
   const originY = headerHeight + frozenH
@@ -71,7 +71,9 @@ export function computeLayout(
   const scrollRows = visibleLines(sheet.rows, controller.scrollY, originY, height - originY)
   // The row header's width depends on the last visible row number, which depends on the header height only.
   const lastRow = scrollRows.at(-1)?.index ?? frozenRows.at(-1)?.index ?? 0
-  const rowHeaderWidth = controller.showHeadings ? rowHeaderWidthFor(lastRow, measure) : 0
+  const rowHeaderWidth = controller.showHeadings
+    ? Math.max(controller.largeHeaders ? 36 : 0, rowHeaderWidthFor(lastRow, measure))
+    : 0
   const originX = rowHeaderWidth + frozenW
   const frozenCols = f && frozenW > 0 ? visibleLines(sheet.cols, fScrollX, rowHeaderWidth, frozenW, f.col) : []
   const scrollCols = visibleLines(sheet.cols, controller.scrollX, originX, width - originX)

@@ -92,10 +92,15 @@ Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed 
       (`MainActivity.kt`, `app/src/platform/android-files.ts`), real file names, Recent after a restart, "Open with"
       and Share from other apps (at launch and while running), hardware-keyboard shortcuts, no on-screen keyboard
       until editing on a touch screen. Checked on a real Android tablet. Stylus not tested yet.
-- [ ] Shell choice by screen size and pointer (`PhoneShell` / desktop and tablet shell)
-- [ ] PhoneShell: top bar, finger-sized grid and handles, formula bar with the formula keyboard row, sheet switcher,
-      tool drawers, long press, pinch, double tap
-- [ ] Phone dialogs as full-screen sheets; simplified forms of mouse-only features
+- [x] Shell choice by screen size and pointer (`app/src/phone/shell-choice.ts`): phone shell under 600 px on the
+      smaller side with a finger, else the full window; switches live on resize, rotation and split screen
+- [x] PhoneShell (`app/src/phone/`): top bar (File, name, Undo, Redo, Find), 30 px headings, the formula bar with a
+      formula key row over the keyboard (`= ( ) , : $ + - * / & "`, fx, Enter), sheet switcher with New Sheet, the
+      ribbon's tabs as a command palette in a bottom sheet (tab picker, menus and fields in place, swipe to close),
+      fling scrolling; long press, pinch and double tap from the tablet work. Status bar follows the theme.
+- [x] Phone dialogs, the File view and setup full screen (`app/src/styles/phone.css`)
+- [ ] Simplified phone forms of mouse-only features (chart elements, drag-to-resize panes); the context menu is still
+      the desktop's, at the finger
 - [ ] Emulator smoke test (open, edit, save) and phone/tablet screenshots
 - [ ] Wrap-up docs (changes.md, verify-list, What's new for 0.6.0)
 

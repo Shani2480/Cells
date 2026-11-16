@@ -196,6 +196,8 @@ export type ShellRequests = {
 }
 
 export const HEADER_HEIGHT = 20
+/** The headings on a phone (the phone shell), big enough to tap a column or row. */
+export const LARGE_HEADER_HEIGHT = 30
 
 /** Format changes that can change a row's fitted height. */
 const FIT_KEYS = new Set(["fontSize", "fontName", "wrap", "rotation", "indent", "numberFormat"])
@@ -248,6 +250,8 @@ export class SheetController {
    * workbook there doesn't bring the keyboard up.
    */
   touchHandles = primaryPointerIsTouch()
+  /** Finger-sized column and row headings (the phone shell sets it while shown). */
+  largeHeaders = false
   /** Scroll position in sheet pixels at 100% (top-left of the cell area). */
   scrollX = 0
   scrollY = 0

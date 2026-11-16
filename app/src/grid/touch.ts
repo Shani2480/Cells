@@ -70,3 +70,51 @@ export class TapTracker {
 export function keyboardOverlap(editorBottom: number, viewportTop: number, viewportHeight: number, margin = 12) {
   return Math.max(0, editorBottom + margin - (viewportTop + viewportHeight))
 }
+
+/** Fling: the sheet glides on after a quick pan, slowing as a phone's lists do (iOS and Android decay alike). */
+export const FLING_TIME_CONSTANT = 325
+/** Below this speed (sheet px per ms) the glide stops; a slow lift doesn't glide at all. */
+export const FLING_MIN_SPEED = 0.05
+export const FLING_MAX_SPEED = 8
+/** Only the pan's last moments count toward its speed: a pause before lifting stops the glide. */
+const FLING_WINDOW_MS = 100
+
+export type Velocity = { x: number; y: number }
+
+/** The scroll positions of a pan over time, giving its speed when the finger lifts. */
+export class FlingTracker {
+  private samples: { x: number; y: number; t: number }[] = []
+
+  add(x: number, y: number, t: number) {
+    this.samples.push({ x, y, t })
+    while (this.samples.length > 2 && t - this.samples[0].t > FLING_WINDOW_MS) this.samples.shift()
+  }
+
+  /** The speed at the lift (scroll px per ms), or null for a pan too slow, too short or paused before lifting. */
+  release(t: number): Velocity | null {
+    const samples = this.samples
+    this.samples = []
+    if (samples.length < 2) return null
+    const last = samples[samples.length - 1]
+    if (t - last.t > FLING_WINDOW_MS / 2) return null
+    const first = samples[0]
+    const dt = last.t - first.t
+    if (dt <= 0) return null
+    const clamp = (v: number) => Math.max(-FLING_MAX_SPEED, Math.min(FLING_MAX_SPEED, v))
+    const v = { x: clamp((last.x - first.x) / dt), y: clamp((last.y - first.y) / dt) }
+    return Math.hypot(v.x, v.y) < FLING_MIN_SPEED ? null : v
+  }
+}
+
+/** One frame of a glide: how far to scroll and the speed after it (null when it has stopped). */
+export function flingStep(v: Velocity, dt: number): { dx: number; dy: number; next: Velocity | null } {
+  const decay = Math.exp(-dt / FLING_TIME_CONSTANT)
+  // The distance covered while slowing from v to v·decay over dt.
+  const travel = FLING_TIME_CONSTANT * (1 - decay)
+  const next = { x: v.x * decay, y: v.y * decay }
+  return {
+    dx: v.x * travel,
+    dy: v.y * travel,
+    next: Math.hypot(next.x, next.y) < FLING_MIN_SPEED ? null : next,
+  }
+}
