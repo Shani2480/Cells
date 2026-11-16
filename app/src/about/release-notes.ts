@@ -11,6 +11,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     notes: [
       "The cell menu's Filter and Sort work: filter by the cell's value, colour or font colour, clear one column's filter, reapply, Sort A to Z or Z to A, put the cell's colour on top, and Custom Sort. On a phone they open in the long-press panel.",
       "Paste Special is in the cell menu.",
+      "The Office Clipboard (the small arrow by Home › Clipboard): the last 24 things you copied in Cells, to paste any of them again, or all at once.",
       "Show Comments (Review tab): every comment on the sheet in a pane beside it, in reading order. Pick one to go to its cell and reply; New starts one on the selected cell.",
       "Pick From Drop-down List (in the cell menu, or Alt+Down on a cell): choose from the words already typed in the column above and below.",
       "Sort A to Z and Z to A work again on the Data tab and in Home's Sort & Filter menu.",

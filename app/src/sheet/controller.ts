@@ -1153,7 +1153,35 @@ export class SheetController {
   // ── Clipboard ──────────────────────────────────────────────────────────────────────────────────────────────
 
   /** Copy/Cut: what goes on the system clipboard, and the marching ants. Multiple ranges cannot be copied. */
+  /** The Office Clipboard (Home › Clipboard): what was copied here, newest first, up to 24 items. */
+  clipboardHistory: { text: string; html: string; chart: boolean }[] = []
+  /** Home › Clipboard: the Office Clipboard pane beside the sheet. */
+  clipboardPaneOpen = false
+
+  toggleClipboardPane(open = !this.clipboardPaneOpen) {
+    this.clipboardPaneOpen = open
+    this.changed()
+  }
+
+  /** Clear All, or one item, from the Office Clipboard. */
+  forgetCopied(index?: number) {
+    if (index === undefined) this.clipboardHistory = []
+    else this.clipboardHistory = this.clipboardHistory.filter((_, i) => i !== index)
+    this.changed()
+  }
+
   copy(cut: boolean): { text: string; html: string } | null {
+    const chart = this.charts.selected !== null
+    const content = this.copyNow(cut)
+    if (content) {
+      const same = this.clipboardHistory[0]
+      if (!same || same.text !== content.text || same.html !== content.html)
+        this.clipboardHistory = [{ ...content, chart }, ...this.clipboardHistory].slice(0, 24)
+    }
+    return content
+  }
+
+  private copyNow(cut: boolean): { text: string; html: string } | null {
     if (this.charts.selected !== null) return this.charts.copy(cut)
     if (this.selection.ranges.length !== 1) return null
     const range = clampToUsed(this.sheet, this.selection.ranges[0])

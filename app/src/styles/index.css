@@ -2066,6 +2066,7 @@ html.is-browser .app-window-frame {
 
 .comments-pane {
   display: flex;
+  order: 1;
   width: 300px;
   flex: none;
   flex-direction: column;
@@ -2234,4 +2235,47 @@ html.is-phone .comments-pane-close {
 
 html.is-phone .comments-pane-close {
   width: 44px;
+}
+
+/* ── Home › Clipboard: the Office Clipboard pane (shell/ClipboardPane.tsx), in the Comments pane's frame ──── */
+.sheet-row > .clipboard-pane {
+  order: -1;
+  border-right: 1px solid var(--app-ribbon-border);
+  border-left: 0;
+}
+
+.clipboard-pane-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px 0;
+}
+
+.clipboard-pane-actions button:disabled {
+  opacity: 0.5;
+}
+
+.clipboard-item {
+  position: relative;
+}
+
+.clipboard-item-paste {
+  padding-right: 32px;
+  font-family: var(--font-ui);
+}
+
+.clipboard-item-chart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clipboard-item-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+html.is-phone .clipboard-item-delete {
+  width: 36px;
+  height: 36px;
 }

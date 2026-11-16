@@ -36,6 +36,7 @@ import type { FilterDialogRequest } from "@/sheet/data"
 import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
 import { FormatCellsDialog, type FormatTab } from "@/shell/format-cells/FormatCellsDialog"
 import { TooltipProvider } from "@/ui/tooltip"
+import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
 import { FormulaBar } from "@/shell/FormulaBar"
@@ -777,6 +778,9 @@ function WorkbookWindow({
       onInsertFunction={() => openDialog("insertFunction")}
     />
   ) : null
+  const clipboardPane = (
+    <ClipboardPane controller={controller} onPaste={(text, html) => controller.paste(text, html)} onDone={focusGrid} />
+  )
   const grid = <GridView controller={controller} onContextMenu={setMenu} />
   const ribbonTabs = controller.charts.active() ? TABS_IN_CHART : controller.tables.active() ? TABS_IN_TABLE : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
@@ -858,6 +862,7 @@ function WorkbookWindow({
             ) : null}
             {formulaBar}
             <div className="sheet-row">
+              {controller.clipboardPaneOpen ? clipboardPane : null}
               <main className="sheet-area">{grid}</main>
               {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
             </div>
@@ -865,6 +870,7 @@ function WorkbookWindow({
             <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
           </>
         )}
+        {shell === "phone" && controller.clipboardPaneOpen ? clipboardPane : null}
         {shell === "phone" && controller.annotations.paneOpen ? (
           <CommentsPane controller={controller} onDone={focusGrid} />
         ) : null}

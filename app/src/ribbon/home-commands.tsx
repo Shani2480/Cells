@@ -219,7 +219,12 @@ export function homeCommands(): Command[] {
       run: (env) => f(env).armPainter(),
       pressed: (env) => !!f(env).painter,
     },
-    { id: "ShowClipboard", label: "Clipboard", description: "Show the Office Clipboard." },
+    {
+      id: "ShowClipboard",
+      label: "Clipboard",
+      description: "Show the Office Clipboard: what you copied in Cells, to paste again.",
+      run: (env) => env.c.toggleClipboardPane(),
+    },
 
     // ── Font ──
     {
