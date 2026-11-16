@@ -36,6 +36,7 @@ import type { FilterDialogRequest } from "@/sheet/data"
 import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
 import { FormatCellsDialog, type FormatTab } from "@/shell/format-cells/FormatCellsDialog"
 import { TooltipProvider } from "@/ui/tooltip"
+import { CommentsPane } from "@/shell/CommentsPane"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
 import { FormulaBar } from "@/shell/FormulaBar"
 import { DefineNameDialog } from "@/shell/DefineNameDialog"
@@ -576,7 +577,11 @@ function WorkbookWindow({
     const filterItems = (): MenuItem[] => {
       const header = data.filteredHeader()
       return [
-        act(`Clear Filter From "${header ?? ""}"`, () => void data.clearColumnFilter(), header === null),
+        act(
+          header === null ? "Clear Filter" : `Clear Filter From "${header}"`,
+          () => void data.clearColumnFilter(),
+          header === null,
+        ),
         act("Reapply", () => void data.reapply(), data.autoFilter === null),
         { kind: "separator" },
         act("Filter by Selected Cell's Value", () => void data.filterBySelected("value")),
@@ -852,11 +857,17 @@ function WorkbookWindow({
               />
             ) : null}
             {formulaBar}
-            <main className="sheet-area">{grid}</main>
+            <div className="sheet-row">
+              <main className="sheet-area">{grid}</main>
+              {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
+            </div>
             <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
             <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
           </>
         )}
+        {shell === "phone" && controller.annotations.paneOpen ? (
+          <CommentsPane controller={controller} onDone={focusGrid} />
+        ) : null}
         {menu && shell === "phone" ? (
           <ActionSheet
             label={{ cells: "Cells", rows: "Rows", cols: "Columns" }[menu.target]}

@@ -2051,3 +2051,187 @@ html.is-browser .app-window-frame {
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+/* ── Review › Show Comments: the Comments pane beside the sheet (shell/CommentsPane.tsx) ─────────────────── */
+.sheet-row {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+
+.sheet-row > .sheet-area {
+  min-width: 0;
+  flex: 1;
+}
+
+.comments-pane {
+  display: flex;
+  width: 300px;
+  flex: none;
+  flex-direction: column;
+  border-left: 1px solid var(--app-ribbon-border);
+  background: var(--app-popover-bg);
+  color: var(--app-ribbon-text);
+  font: 13px var(--font-ui);
+}
+
+.comments-pane-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 10px 14px;
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.comments-pane-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.comments-pane-new,
+.comments-pane-close {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.comments-pane-new {
+  border-color: var(--app-ribbon-border);
+}
+
+.comments-pane-close {
+  width: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
+.comments-pane-new:hover,
+.comments-pane-close:hover {
+  background: var(--app-hover);
+}
+
+.comments-pane-list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.comments-pane-empty {
+  margin: 12px 6px;
+  color: var(--app-ribbon-muted);
+  line-height: 1.4;
+}
+
+.comments-pane-thread {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid var(--app-ribbon-border);
+  border-radius: 6px;
+  background: var(--app-ribbon-card);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.comments-pane-thread:hover {
+  border-color: var(--app-ribbon-muted);
+}
+
+.comments-pane-thread.is-open {
+  border-color: var(--app-theme-primary);
+  box-shadow: 0 0 0 1px var(--app-theme-primary);
+}
+
+.comments-pane-thread.is-resolved {
+  opacity: 0.7;
+}
+
+.comments-pane-cell {
+  display: flex;
+  justify-content: space-between;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.comments-pane-resolved {
+  font-weight: 400;
+}
+
+.comments-pane-post {
+  display: flex;
+  gap: 8px;
+}
+
+.comments-pane-avatar {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--app-theme-primary);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.comments-pane-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comments-pane-meta {
+  color: var(--app-ribbon-muted);
+  font-size: 11px;
+}
+
+.comments-pane-meta strong {
+  color: var(--app-ribbon-text);
+  font-weight: 600;
+}
+
+.comments-pane-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* A phone: the whole screen, as its other panels. */
+html.is-phone .comments-pane {
+  position: fixed;
+  z-index: 56;
+  inset: 0;
+  width: auto;
+  border: 0;
+}
+
+html.is-phone .comments-pane-head {
+  min-height: 48px;
+}
+
+html.is-phone .comments-pane-new,
+html.is-phone .comments-pane-close {
+  height: 44px;
+}
+
+html.is-phone .comments-pane-close {
+  width: 44px;
+}

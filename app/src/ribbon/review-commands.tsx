@@ -23,6 +23,13 @@ export function reviewCommands(): Command[] {
       enabled: (env) => env.c.annotations.selectionHas("comment"),
     },
     {
+      id: "ReviewShowAllComments",
+      label: "Show Comments",
+      description: "Show all the comments on this sheet in a pane beside it.",
+      run: (env) => env.c.annotations.togglePane(),
+      pressed: (env) => env.c.annotations.paneOpen,
+    },
+    {
       id: "ReviewPreviousComment",
       label: "Previous",
       description: "Go to the previous comment in the sheet.",

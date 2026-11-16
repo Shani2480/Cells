@@ -27,6 +27,8 @@ export class AnnotationCommands {
   open: (CellAt & { draft: boolean }) | null = null
   /** Show All Notes: every note's box stays on screen (Excel's toggle, per workbook view). */
   showAll = false
+  /** Review › Show Comments: the Comments pane beside the sheet (per workbook view). */
+  paneOpen = false
   /** A name set for this workbook view only (tests); otherwise File › Options › User name. */
   private authorOverride: string | null = null
   /** The name notes and comments are signed with (File › Options › User name in Excel). */
@@ -64,6 +66,21 @@ export class AnnotationCommands {
     const sel = this.c.selection
     const ops: Op[] = [{ kind: "annotations", sheet, writes }]
     return this.c.transact(ops, { label, before: sel, after: sel }) !== null
+  }
+
+  /** Review › Show Comments: opens or closes the Comments pane. */
+  togglePane(open = !this.paneOpen) {
+    this.paneOpen = open
+    this.c.changed()
+  }
+
+  /** The sheet's comment threads in reading order (by row, then column), for the Comments pane. */
+  threads(): { row: number; col: number; thread: CellComment }[] {
+    return this.c.sheet.annotations
+      .all()
+      .filter((a): a is { row: number; col: number; value: CellComment } => a.value.kind === "comment")
+      .map((a) => ({ row: a.row, col: a.col, thread: a.value }))
+      .sort((a, b) => a.row - b.row || a.col - b.col)
   }
 
   // ── Notes ──────────────────────────────────────────────────────────────────────────────────────────────────

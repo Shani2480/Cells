@@ -133,7 +133,8 @@ export function syncSystemBars() {
 }
 
 /** What Back closes, topmost first: bottom sheets, dialogs, menus and popups, the File view. */
-const OVER_THE_SHEET = ".phone-sheet-layer, .dialog-backdrop, [role='menu'], .popover-positioner, .backstage"
+const OVER_THE_SHEET =
+  ".phone-sheet-layer, .dialog-backdrop, [role='menu'], .popover-positioner, .backstage, html.is-phone .comments-pane"
 
 /**
  * Android's Back (MainActivity): closes what is open over the sheet, or ends the cell being edited, by sending Esc,
