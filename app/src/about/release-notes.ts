@@ -17,6 +17,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Charts can be copied (Ctrl+C, or cut with Ctrl+X). In Inkspire the chart pastes as a chart you can still edit; other apps get a picture. Pasting it back into Cells makes a second chart of the same data.",
       "Ready for Inkspire's next update: tables it links from a workbook follow your changes in Cells as you make them.",
       "Also for Inkspire's next update: Edit Data on an Inkspire chart opens the chart's numbers in Cells (\"Chart in Report.docx\"); every change goes back into the document by itself.",
+      "AI tools, if you want them (off until you turn them on in the setup or File › Options › AI): Home › AI Tools writes a formula from your words, explains a formula, suggests a chart or summarizes your data. Use an AI on your own computer (Ollama, LM Studio) or a service you have a key for; Cells shares the choice and the keys with Inkspire, and always says where your cells are sent.",
       "These settings are kept in a file Cells shares with Inkspire, so they're set once for both. Cells picks up a change the next time you switch to it. Inkspire starts using the file with its next update.",
     ],
   },

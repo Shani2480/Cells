@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { usePlatform } from "@/platform/context"
 import { Dialog } from "@/shell/Dialog"
 import { updateSettings, useSettings } from "./settings"
+import { AiFields } from "./AiFields"
 import { PersonalFields, RegionalFields, ThemeField, separatorProblem } from "./SettingsFields"
 import { detectSettings, initialsOf, type SharedSettings } from "./shared"
 
@@ -23,10 +24,15 @@ const STEPS: Step[] = [
     title: "Theme",
     text: "Light, dark, or the same as your system.",
   },
+  {
+    id: "ai",
+    title: "AI (optional)",
+    text: "AI can write a formula from your words, explain one, or suggest a chart. It stays off unless you turn it on, and you choose which AI it uses.",
+  },
 ]
 
 /**
- * The first-run setup: three short steps (name, region, theme), each starting from what Inkspire already saved in
+ * The first-run setup: four short steps (name, region, theme, the AI opt-in), each starting from what Inkspire already saved in
  * the shared settings or, failing that, from what the system says. Skip keeps those guesses. It shows once; File ›
  * Options › Run setup again brings it back.
  */
@@ -138,6 +144,7 @@ export function FirstRunSetup({ onDone }: { onDone?: () => void }) {
               }}
             />
           ) : null}
+          {current.id === "ai" ? <AiFields value={draft} onChange={change} compact /> : null}
           {problem ? (
             <p className="dialog-note is-error" role="alert">
               {problem}

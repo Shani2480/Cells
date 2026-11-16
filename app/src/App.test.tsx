@@ -6,6 +6,7 @@ import { PlatformContext } from "./platform/context"
 import { SheetController } from "./sheet/controller"
 import { MemoryFiles } from "./test/memory-files"
 import { MemoryLinks } from "./test/memory-links"
+import { MemoryAi } from "./test/memory-ai"
 
 const platform: Platform = {
   os: "linux",
@@ -28,6 +29,7 @@ const platform: Platform = {
     systemFacts: async () => ({}),
   },
   links: new MemoryLinks(),
+  ai: new MemoryAi(),
   opens: {
     onRequest(handler) {
       requests.handler = handler

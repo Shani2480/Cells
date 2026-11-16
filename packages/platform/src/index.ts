@@ -43,6 +43,42 @@ export type Platform = {
   readonly settings: SettingsPort
   readonly opens: OpenPort
   readonly links: LinkPort
+  readonly ai: AiPort
+}
+
+/** Where an AI request goes: the providers Inkspire uses (LM Studio is an OpenAI-compatible endpoint). */
+export type AiTarget = {
+  provider: "openai" | "anthropic" | "ollama" | "compatible"
+  /** Blank: the provider's default. */
+  model?: string
+  baseUrl?: string
+}
+
+/** An AbortSignal, as far as the AI port uses it (this package has no DOM types). */
+export type StopSignal = {
+  readonly aborted: boolean
+  addEventListener(type: "abort", listener: () => void): void
+  removeEventListener(type: "abort", listener: () => void): void
+}
+
+export type AiRequest = { system: string; prompt: string; context: string; target: AiTarget }
+
+/** Per provider that takes a key: "saved", "environment" or "missing"; `storage` is "keyring" or "file". */
+export type AiKeyStatus = { openai: string; anthropic: string; compatible: string; storage: string }
+
+/**
+ * The AI tools' requests (`docs/ai.md`). Keys never reach the webview: the desktop shell keeps them in the system
+ * keyring Inkspire uses, and sends the requests itself. A browser has no shell, so there `available` is false.
+ */
+export interface AiPort {
+  readonly available: boolean
+  /** Sends a request; `onText` gets the reply as it streams in. Resolves with the whole reply. */
+  generate(request: AiRequest, onText: (text: string) => void, signal?: StopSignal): Promise<string>
+  /** Checks that the provider answers; resolves with a message to show, rejects with the problem. */
+  test(target: AiTarget): Promise<string>
+  keyStatus(): Promise<AiKeyStatus | null>
+  /** Saves a key (empty removes it); resolves with where it went: "keyring", "file" or "none". */
+  saveKey(provider: "openai" | "anthropic" | "compatible", key: string): Promise<string>
 }
 
 /**

@@ -124,6 +124,9 @@ Phase 3, added at the end:
       Conditional formats and table styles aren't in the copied HTML yet.
 - [ ] Linked tables and Edit Data with Inkspire, once it has its side (I5, I7): a linked table follows edits in Cells,
       and a chart's data edited in Cells comes back into the document. Only Cells' files were checked so far.
+- [ ] The AI tools with a real model (only a fake local endpoint and canned replies were used): Ollama and LM Studio
+      on this computer, and one cloud provider with a key entered in Inkspire; a formula, an explanation, a chart and a
+      summary each make sense, and Stop works mid-reply.
 - [ ] The first-run setup and File › Options next to Excel's (the setup has no Excel counterpart; Options was built
       from memory of Excel 365's General and Advanced pages, with only the settings Cells has).
 

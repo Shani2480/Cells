@@ -2,7 +2,7 @@
  * The ribbon's tabs as data: groups of controls referring to command ids (see registry.ts). Names, grouping and order
  * follow Excel's ribbon (docs/reference/excel-ribbon.json); button sizes follow Excel at a wide window. Cloud-only
  * groups (Sensitivity, Add-ins store, Copilot, Analyze Data, Data Types, Smart Lookup, Translate) are left out: Cells
- * works offline.
+ * works offline. In Copilot's place on Home, the AI group holds Cells' opt-in AI tools.
  */
 
 /** A control: `large` is a 32 px button with its label under it; `small` sits in a stack, label beside it. */
@@ -118,6 +118,8 @@ export const HOME: Tab = {
       keytip: "ZE",
       columns: [smalls(S("AutoSumMenu"), S("FillMenu"), S("ClearMenu")), L("SortFilterMenu"), L("SelectMenuExcel")],
     },
+    // In Copilot's place: the AI the person chose, which may run on this computer.
+    { id: "GroupAI", label: "AI", keytip: "ZI", columns: [L("AIToolsMenu")] },
   ],
 }
 

@@ -21,6 +21,10 @@ describe("the settings file shared with Inkspire", () => {
       groupSeparator: ",",
       theme: "dark",
       setupDone: false,
+      aiEnabled: false,
+      aiProvider: "builtin",
+      aiModels: {},
+      aiAddresses: {},
     })
     expect(hasSharedValues(inkspire)).toBe(true)
   })
@@ -70,5 +74,31 @@ describe("guessing from the system (as Inkspire does)", () => {
     expect(detectSettings({ lang: "C", intlLocale: "nl-NL" })).toMatchObject({ locale: "nl-NL", name: "" })
     expect(nameFromAccount("jane_doe")).toBe("Jane Doe")
     expect(nameFromAccount("alex99")).toBe("")
+  })
+
+  it("keeps the AI choice with Inkspire's, and models of other providers", () => {
+    const source = JSON.stringify({
+      ai: {
+        provider: "ollama",
+        models: { ollama: "llama3.2", openai: "gpt-5" },
+        addresses: { lmstudio: "http://127.0.0.1:1234/v1" },
+      },
+      apps: { inkspire: { setupDone: true } },
+    })
+    const read = parseShared(source)
+    expect(read).toMatchObject({
+      aiEnabled: false,
+      aiProvider: "ollama",
+      aiModels: { ollama: "llama3.2", openai: "gpt-5" },
+    })
+    const merged = JSON.parse(
+      mergeShared(source, { aiEnabled: true, aiProvider: "lmstudio", aiModels: { lmstudio: "qwen3-8b" } }),
+    )
+    expect(merged.ai).toEqual({
+      provider: "lmstudio",
+      models: { ollama: "llama3.2", openai: "gpt-5", lmstudio: "qwen3-8b" },
+      addresses: { lmstudio: "http://127.0.0.1:1234/v1" },
+    })
+    expect(merged.apps).toEqual({ inkspire: { setupDone: true }, cells: { ai: true } })
   })
 })

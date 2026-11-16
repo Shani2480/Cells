@@ -25,6 +25,7 @@ import {
   AlignVerticalJustifyStart,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
+  Sparkles,
 } from "lucide-react"
 import { DEFAULT_FONT, NUMBER_FORMATS } from "@/sheet/format"
 import { CELL_STYLES, CELL_STYLE_SECTIONS, cellStylePatch } from "./cell-styles"
@@ -1105,6 +1106,40 @@ export function homeCommands(): Command[] {
         "SelectionPane",
       ],
     },
+    // Where Excel has Copilot: Cells' AI tools, opt-in, with the AI the person chose (docs/ai.md).
+    {
+      id: "AIToolsMenu",
+      label: "AI Tools",
+      description: "Write a formula from words, explain a formula, or let AI suggest a chart or summarize your data.",
+      keytip: "AI",
+      largeIcon: <Sparkles {...large} />,
+      menu: ["AIFormulaFromWords", "AIExplainFormula", "-", "AISuggestChart", "AISummarizeData", "-", "AIOptions"],
+    },
+    {
+      id: "AIFormulaFromWords",
+      label: "Formula from Words...",
+      description: "Describe what a cell should work out; AI writes the formula for you to check and insert.",
+      run: (env) => env.dialog("ai:formula"),
+    },
+    {
+      id: "AIExplainFormula",
+      label: "Explain Formula",
+      description: "What the selected cell's formula does, in plain words.",
+      run: (env) => env.dialog("ai:explain"),
+    },
+    {
+      id: "AISuggestChart",
+      label: "Suggest a Chart",
+      description: "AI picks a chart that suits the selected data.",
+      run: (env) => env.dialog("ai:chart"),
+    },
+    {
+      id: "AISummarizeData",
+      label: "Summarize Data",
+      description: "A few lines on what the selected data shows.",
+      run: (env) => env.dialog("ai:summary"),
+    },
+    { id: "AIOptions", label: "AI Options...", run: (env) => env.dialog("options:ai") },
     {
       id: "FindDialogExcel",
       label: "Find...",

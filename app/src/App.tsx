@@ -6,7 +6,9 @@ import { GridView, type GridContextMenu } from "@/grid/GridView"
 import { usePlatform } from "@/platform/context"
 import type { SettingsPort } from "@cells/platform"
 import { loadSettings, useSettings } from "@/settings/settings"
-import { OptionsDialog } from "@/settings/OptionsDialog"
+import { AiDialog } from "@/ai/AiDialog"
+import type { AiTool } from "@/ai/prompts"
+import { OptionsDialog, type OptionsPage } from "@/settings/OptionsDialog"
 import { FirstRunSetup } from "@/settings/FirstRunSetup"
 import { parseOpenRequest } from "@/links/link"
 import { LiveLinks } from "@/links/live"
@@ -110,7 +112,8 @@ type DialogState =
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
-  | { kind: "options" }
+  | { kind: "options"; page?: OptionsPage }
+  | { kind: "ai"; tool: AiTool }
   | { kind: "cfNew"; start: string }
   | null
 
@@ -624,6 +627,9 @@ function WorkbookWindow({
     else if (kind === "cf" && isQuickKind(arg)) setDialog({ kind: "cfQuick", quick: arg })
     else if (kind === "cfNew") setDialog({ kind: "cfNew", start: arg ?? "contains" })
     else if (kind === "cfManage") setDialog({ kind: "cfManage" })
+    else if (kind === "ai" && (arg === "formula" || arg === "explain" || arg === "chart" || arg === "summary"))
+      setDialog({ kind: "ai", tool: arg })
+    else if (kind === "options") setDialog({ kind: "options", page: arg === "ai" ? "ai" : undefined })
     else if (kind === "pageSetup") setDialog({ kind: "pageSetup", tab: (arg as PageSetupTab) ?? "page" })
     else if (
       kind === "protectSheet" ||
@@ -895,8 +901,17 @@ function WorkbookWindow({
           <UnprotectSheetDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "cfManage" ? <ManageRulesDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "ai" ? (
+          <AiDialog
+            tool={dialog.tool}
+            controller={controller}
+            onClose={closeDialog}
+            onOptions={() => setDialog({ kind: "options", page: "ai" })}
+          />
+        ) : null}
         {dialog?.kind === "options" ? (
           <OptionsDialog
+            page={dialog.page}
             onClose={closeDialog}
             onRunSetup={() => {
               closeDialog()

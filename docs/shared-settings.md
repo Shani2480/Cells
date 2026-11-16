@@ -24,8 +24,13 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
   "user": { "name": "Alex Demo", "initials": "AD" },
   "regional": { "locale": "en-GB", "dateFormat": "dd/MM/yyyy", "decimalSeparator": ".", "groupSeparator": "," },
   "appearance": { "theme": "system" },
+  "ai": {
+    "provider": "ollama",
+    "models": { "ollama": "llama3.2", "anthropic": "" },
+    "addresses": { "lmstudio": "http://127.0.0.1:1234/v1" }
+  },
   "apps": {
-    "cells": { "setupDone": true },
+    "cells": { "setupDone": true, "ai": true },
     "inkspire": { "setupDone": true }
   }
 }
@@ -36,7 +41,11 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
   for each separator. A blank value means "the locale's own" (and a blank locale means the system's).
 - `appearance.theme`: `system`, `light` or `dark`. Inkspire, which has no "system" choice, reads `system` as the
   system's current setting.
-- `apps.<app>`: what only one app uses (its own first-run setup). An app never changes another app's entry.
+- `ai`: which AI both apps use, as Inkspire names providers, with a model and an address per provider (blank: the
+  default). A map is merged key by key, so one app's change to one provider keeps the others. Keys are never here
+  (`docs/ai.md`).
+- `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on). An app never
+  changes another app's entry.
 
 ## Rules for writing it
 

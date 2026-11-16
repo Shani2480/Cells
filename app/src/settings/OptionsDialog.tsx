@@ -3,22 +3,32 @@ import { usePlatform } from "@/platform/context"
 import { cn } from "@/lib/cn"
 import { Dialog } from "@/shell/Dialog"
 import { updateSettings, useSettings } from "./settings"
+import { AiFields } from "./AiFields"
 import { PersonalFields, RegionalFields, ThemeField, separatorProblem } from "./SettingsFields"
 import type { SharedSettings } from "./shared"
 
-type Page = "general" | "advanced"
+export type OptionsPage = "general" | "advanced" | "ai"
 
 /**
  * Excel Options (File › Options), with the pages Cells has settings for: General (user name, initials, Office
  * Theme) and Advanced (the date format and separators; Excel takes the date format from the system's region, Cells
- * keeps its own so it can share it with Inkspire). Everything here is shared with Inkspire.
+ * keeps its own so it can share it with Inkspire), and AI (Cells' own page: Excel has no such page, its Copilot is an
+ * account setting). Everything here is shared with Inkspire, except whether the AI tools are on in Cells.
  */
-export function OptionsDialog({ onClose, onRunSetup }: { onClose: () => void; onRunSetup: () => void }) {
+export function OptionsDialog({
+  onClose,
+  onRunSetup,
+  page: first = "general",
+}: {
+  onClose: () => void
+  onRunSetup: () => void
+  page?: OptionsPage
+}) {
   const platform = usePlatform()
   const stored = useSettings()
   const [opened] = useState<SharedSettings>(() => ({ ...stored }))
   const [draft, setDraft] = useState<SharedSettings>(opened)
-  const [page, setPage] = useState<Page>("general")
+  const [page, setPage] = useState<OptionsPage>(first)
   const [problem, setProblem] = useState<string | null>(null)
   const [where, setWhere] = useState("")
   useEffect(() => {
@@ -53,6 +63,7 @@ export function OptionsDialog({ onClose, onRunSetup }: { onClose: () => void; on
             [
               ["general", "General"],
               ["advanced", "Advanced"],
+              ["ai", "AI"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -78,6 +89,14 @@ export function OptionsDialog({ onClose, onRunSetup }: { onClose: () => void; on
               <button type="button" className="dialog-btn options-setup" onClick={onRunSetup}>
                 Run setup again…
               </button>
+            </>
+          ) : page === "ai" ? (
+            <>
+              <p className="options-intro">
+                AI that helps with formulas, charts and summaries. Off until you turn it on.
+              </p>
+              <h3 className="options-heading">AI tools</h3>
+              <AiFields value={draft} onChange={change} />
             </>
           ) : (
             <>

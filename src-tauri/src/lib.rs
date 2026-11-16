@@ -1,6 +1,8 @@
 //! The desktop shell: the window, the clipboard, and reading and writing the workbooks the person picks. The
 //! workbook engine lives in TypeScript (packages/core and packages/io).
 
+mod ai;
+
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -459,7 +461,12 @@ pub fn run() {
             take_pending_opens,
             read_link_wants,
             write_link_snapshot,
-            is_edit_copy
+            is_edit_copy,
+            ai::ai_generate,
+            ai::ai_cancel,
+            ai::ai_test,
+            ai::ai_key_status,
+            ai::ai_save_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cells");

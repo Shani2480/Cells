@@ -26,6 +26,11 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       the docked data-sheet dialog, and write the result back into the document. Cells' side is done
       (`docs/linked-ranges.md`): write the workbook to `<cache dir>/inkspire/edit/`, open
       `cells://edit?file=…&for=<document name>`, watch the file and re-read the chart's data when it changes.
+- [ ] I9. **AI settings in the shared file.** Move `aiword.ai-settings` (provider, models, addresses) from
+      `localStorage` to `ai.provider`, `ai.models` and `ai.addresses` in the shared settings file (`docs/ai.md`), once,
+      keeping what is there; then read and merge them as the other settings. Keys are already shared (same keyring
+      service). Later: let Cells use the built-in engine (share `local_ai`'s engine and model folder, or run one
+      server both apps talk to).
 - [ ] I8. **Shared code** (after Cells Phase 4): adopt the shared OPC/zip, chart spec/XML, ribbon and token packages,
       and replace the 4×4 Spreadsheet block (`editor/sheet-block.ts`) and arithmetic formula fields
       (`editor/formula.ts`) with the Cells formula engine.

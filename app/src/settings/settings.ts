@@ -26,6 +26,10 @@ const pick = (s: SharedSettings): SharedSettings => ({
   groupSeparator: s.groupSeparator,
   theme: s.theme,
   setupDone: s.setupDone,
+  aiEnabled: s.aiEnabled,
+  aiProvider: s.aiProvider,
+  aiModels: s.aiModels,
+  aiAddresses: s.aiAddresses,
 })
 
 /** Reads the shared file (on start, and when the window is focused again). */

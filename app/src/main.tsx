@@ -11,7 +11,11 @@ window.addEventListener("contextmenu", (event) => {
   if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) event.preventDefault()
 })
 
-const platform = isTauri() ? tauriPlatform() : webPlatform
+const web =
+  import.meta.env.DEV && new URLSearchParams(window.location.search).get("ai") === "demo"
+    ? (await import("./platform/demo-ai")).withDemoAi(webPlatform)
+    : webPlatform
+const platform = isTauri() ? tauriPlatform() : web
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

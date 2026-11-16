@@ -9,6 +9,20 @@ import type { SystemFacts } from "@cells/platform"
 
 export type ThemeChoice = "system" | "light" | "dark"
 
+/**
+ * The AI providers, as Inkspire names them. `lmstudio` and `compatible` both talk to an OpenAI-compatible endpoint
+ * (LM Studio just starts from its usual address); `builtin` is the engine Inkspire runs itself, which Cells can't
+ * run yet.
+ */
+export type AiProviderName = "builtin" | "ollama" | "lmstudio" | "compatible" | "openai" | "anthropic"
+export const AI_PROVIDERS: AiProviderName[] = ["builtin", "ollama", "lmstudio", "compatible", "openai", "anthropic"]
+export type AddressedProvider = "ollama" | "lmstudio" | "compatible"
+export const DEFAULT_ADDRESSES: Record<AddressedProvider, string> = {
+  ollama: "http://127.0.0.1:11434",
+  lmstudio: "http://127.0.0.1:1234/v1",
+  compatible: "",
+}
+
 export type SharedSettings = {
   /** The name notes and comments are signed with (File › Options › User name in Excel). */
   name: string
@@ -23,6 +37,14 @@ export type SharedSettings = {
   theme: ThemeChoice
   /** Cells' own first-run setup has been finished or skipped (Inkspire keeps its own under `apps.inkspire`). */
   setupDone: boolean
+  /** Cells' AI tools are turned on (opt-in, per app: `apps.cells.ai`). */
+  aiEnabled: boolean
+  /** The provider both apps use (`ai.provider`); blank until one is chosen. */
+  aiProvider: AiProviderName | ""
+  /** A model per provider (`ai.models`); blank: the provider's default. */
+  aiModels: Partial<Record<AiProviderName, string>>
+  /** Addresses of local and compatible endpoints (`ai.addresses`); blank: the default. */
+  aiAddresses: Partial<Record<AddressedProvider, string>>
 }
 
 export const SETTINGS_VERSION = 1
@@ -36,6 +58,10 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   groupSeparator: "",
   theme: "system",
   setupDone: false,
+  aiEnabled: false,
+  aiProvider: "",
+  aiModels: {},
+  aiAddresses: {},
 }
 
 type Json = Record<string, unknown>
@@ -62,7 +88,12 @@ export function parseShared(source: string | null): SharedSettings {
   const regional = section(root, "regional")
   const appearance = section(root, "appearance")
   const cells = section(section(root, "apps"), "cells")
+  const ai = section(root, "ai")
   const theme = appearance.theme
+  const strings = (value: unknown, keys: readonly string[]) =>
+    Object.fromEntries(
+      keys.filter((k) => isObject(value) && typeof value[k] === "string").map((k) => [k, (value as Json)[k]]),
+    )
   return {
     name: text(user.name),
     initials: text(user.initials),
@@ -72,6 +103,10 @@ export function parseShared(source: string | null): SharedSettings {
     groupSeparator: text(regional.groupSeparator),
     theme: theme === "light" || theme === "dark" ? theme : "system",
     setupDone: cells.setupDone === true,
+    aiEnabled: cells.ai === true,
+    aiProvider: AI_PROVIDERS.includes(ai.provider as AiProviderName) ? (ai.provider as AiProviderName) : "",
+    aiModels: strings(ai.models, AI_PROVIDERS),
+    aiAddresses: strings(ai.addresses, Object.keys(DEFAULT_ADDRESSES)),
   }
 }
 
@@ -91,6 +126,10 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   groupSeparator: ["regional", "groupSeparator"],
   theme: ["appearance", "theme"],
   setupDone: ["apps", "cells", "setupDone"],
+  aiEnabled: ["apps", "cells", "ai"],
+  aiProvider: ["ai", "provider"],
+  aiModels: ["ai", "models"],
+  aiAddresses: ["ai", "addresses"],
 }
 
 /**
@@ -108,7 +147,9 @@ export function mergeShared(source: string | null, changes: Partial<SharedSettin
       at[part] = isObject(at[part]) ? { ...at[part] } : {}
       at = at[part] as Json
     }
-    at[path[path.length - 1]] = value
+    const last = path[path.length - 1]
+    // A map (models, addresses) is merged key by key, so the other app's entries for other providers stay.
+    at[last] = isObject(value) ? { ...(isObject(at[last]) ? at[last] : {}), ...value } : value
   }
   return JSON.stringify(root, null, 2) + "\n"
 }

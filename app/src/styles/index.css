@@ -1976,3 +1976,78 @@ html.is-browser .app-window-frame {
 .dialog-actions .setup-skip {
   margin-right: auto;
 }
+
+/* ── AI tools (Home › AI Tools) ── */
+
+.ai-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ai-dialog .dialog-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.ai-dialog .ai-formula {
+  font-family: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+}
+
+.ai-output {
+  box-sizing: border-box;
+  min-height: 72px;
+  max-height: calc(100vh - 320px);
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  overflow-y: auto;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+  color: var(--app-ribbon-text);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.ai-notice {
+  margin-top: 8px;
+}
+
+.ai-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ai-fields .dialog-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.ai-fields .settings-inline .dialog-field {
+  flex: 1 1 auto;
+}
+
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--app-ribbon-text);
+  font-size: 13px;
+}
+
+.settings-check input {
+  accent-color: var(--app-theme-primary);
+}
+
+.ai-fields .settings-inline .dialog-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}

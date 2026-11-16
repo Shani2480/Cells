@@ -1,4 +1,4 @@
-import type { ClipboardContent, LinkPort, Platform, SettingsPort } from "@cells/platform"
+import type { AiPort, ClipboardContent, LinkPort, Platform, SettingsPort } from "@cells/platform"
 import { webFiles } from "./web-files"
 
 function detectOs(): Platform["os"] {
@@ -12,6 +12,20 @@ function detectOs(): Platform["os"] {
 }
 
 /** The browser build (dev server and tests): the async clipboard where allowed, no window controls. */
+/** A browser can't keep keys safe or reach local models: the AI tools need the desktop app. */
+export const noAi: AiPort = {
+  available: false,
+  generate: async () => {
+    throw new Error("The AI tools need the Cells desktop app.")
+  },
+  test: async () => {
+    throw new Error("The AI tools need the Cells desktop app.")
+  },
+  keyStatus: async () => null,
+  saveKey: async () => {
+    throw new Error("The AI tools need the Cells desktop app.")
+  },
+}
 export const webPlatform: Platform = {
   os: detectOs(),
   clipboard: {
@@ -62,6 +76,7 @@ export const webPlatform: Platform = {
   // A browser tab is never handed links or files by the system.
   opens: { onRequest: () => () => {} },
   links: webLinks(),
+  ai: noAi,
 }
 
 /** The browser build: the same files as storage entries (nothing outside the tab reads them). */

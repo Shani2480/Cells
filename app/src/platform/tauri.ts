@@ -1,4 +1,4 @@
-import type { Platform, SystemFacts } from "@cells/platform"
+import type { AiKeyStatus, AiPort, Platform, SystemFacts } from "@cells/platform"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { readText, writeHtml, writeText } from "@tauri-apps/plugin-clipboard-manager"
@@ -53,6 +53,7 @@ export function tauriPlatform(): Platform {
         }
       },
     },
+    ai: tauriAi(),
     links: {
       wanted: () => invoke<string | null>("read_link_wants"),
       publish: (name, text) => invoke<void>("write_link_snapshot", { name, text }),
@@ -129,5 +130,48 @@ export function tauriPlatform(): Platform {
         }
       },
     },
+  }
+}
+
+let requests = 0
+
+/** AI requests through the shell (src-tauri/src/ai.rs): the reply streams back as `ai-chunk` events. */
+function tauriAi(): AiPort {
+  return {
+    available: true,
+    async generate(request, onText, signal) {
+      const requestId = `cells-ai-${Date.now().toString(36)}-${++requests}`
+      const unlisten = await listen<{ requestId: string; text: string }>("ai-chunk", (event) => {
+        if (event.payload.requestId === requestId) onText(event.payload.text)
+      })
+      const stop = () => void invoke("ai_cancel", { requestId })
+      signal?.addEventListener("abort", stop)
+      try {
+        if (signal?.aborted) throw new Error("Stopped.")
+        return await invoke<string>("ai_generate", {
+          requestId,
+          system: request.system,
+          prompt: request.prompt,
+          context: request.context,
+          providerConfig: request.target,
+        })
+      } catch (error) {
+        throw new Error(typeof error === "string" ? error : error instanceof Error ? error.message : String(error), {
+          cause: error,
+        })
+      } finally {
+        signal?.removeEventListener("abort", stop)
+        unlisten()
+      }
+    },
+    test: (target) =>
+      invoke<string>("ai_test", { providerConfig: target }).catch((error: unknown) => {
+        throw new Error(String(error))
+      }),
+    keyStatus: () => invoke<AiKeyStatus>("ai_key_status").catch(() => null),
+    saveKey: (provider, key) =>
+      invoke<string>("ai_save_key", { provider, key }).catch((error: unknown) => {
+        throw new Error(String(error))
+      }),
   }
 }
