@@ -452,6 +452,9 @@ fn take_pending_opens(pending: tauri::State<'_, PendingOpens>) -> Vec<String> {
         .unwrap_or_default()
 }
 
+#[cfg(target_os = "linux")]
+mod pinch;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -482,6 +485,10 @@ pub fn run() {
             }
             #[cfg(all(desktop, not(target_os = "macos")))]
             let _ = menu::menu_bar::<tauri::Wry>;
+            #[cfg(target_os = "linux")]
+            if let Some(window) = app.get_webview_window("main") {
+                pinch::install(&window);
+            }
             #[cfg(desktop)]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;

@@ -670,6 +670,48 @@ export function GridView({
     }
   }
 
+  // ── Touchpad pinch (Linux) ─────────────────────────────────────────────────────────────────────────────
+  // WebKitGTK would zoom the whole window; the shell catches the pinch (src-tauri/src/pinch.rs) and sends its scale
+  // here, and the sheet zooms about the pointer as a touchscreen pinch does.
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    let pointer: { x: number; y: number } | null = null
+    let start: number | null = null
+    const onMove = (event: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    }
+    const onLeave = () => (pointer = null)
+    canvas.addEventListener("mousemove", onMove)
+    canvas.addEventListener("mouseleave", onLeave)
+    const host = window as Window & { __cellsPinch?: (phase: string, scale: number) => void }
+    host.__cellsPinch = (phase, scale) => {
+      if (phase === "begin") start = controller.zoom
+      if (phase === "end") start = null
+      const layout = layoutRef.current
+      if (phase !== "change" || start === null || !layout || !Number.isFinite(scale)) return
+      const rect = canvas.getBoundingClientRect()
+      const next = pinch({
+        startZoom: start,
+        startDistance: 1,
+        distance: scale,
+        mid: pointer ?? { x: rect.width / 2, y: rect.height / 2 },
+        scroll: { x: controller.scrollX, y: controller.scrollY },
+        origin: { x: layout.originX, y: layout.originY },
+        zoom: controller.zoom,
+        clamp: (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(z * 100) / 100)),
+      })
+      controller.setZoom(next.zoom)
+      controller.scrollTo(next.scroll.x, next.scroll.y)
+    }
+    return () => {
+      canvas.removeEventListener("mousemove", onMove)
+      canvas.removeEventListener("mouseleave", onLeave)
+      delete host.__cellsPinch
+    }
+  }, [controller])
+
   // ── Wheel ──────────────────────────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
