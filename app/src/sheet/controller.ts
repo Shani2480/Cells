@@ -80,6 +80,7 @@ import { openLink } from "@/links/link"
 import { FormatCommands, NUMBER_FORMATS } from "./format"
 import { AnnotationCommands } from "./annotations"
 import { AuditCommands } from "./audit"
+import { OutlineCommands } from "./outline"
 import { DataCommands, type FilterDialogRequest } from "./data"
 import { ValidationCommands, type AlertAnswer, type ValidationAlert, type ValidationDialogInit } from "./validation"
 import { FindCommands } from "./find"
@@ -274,6 +275,7 @@ export class SheetController {
   readonly annotations: AnnotationCommands = new AnnotationCommands(this)
   readonly data: DataCommands = new DataCommands(this)
   readonly audit: AuditCommands = new AuditCommands(this)
+  readonly outline: OutlineCommands = new OutlineCommands(this)
   /** Data › Data Validation. */
   readonly validation: ValidationCommands = new ValidationCommands(this)
   /** Insert › Table, Format as Table and the Table Design tab. */
@@ -1646,6 +1648,18 @@ export class SheetController {
       this.arrow(arrows[key], primary, shift)
       return true
     }
+    // Alt+Shift+Right: Group; Alt+Shift+Left: Ungroup (the Group dialog asks rows or columns when it can't tell).
+    if (alt && shift && !primary && (key === "ArrowRight" || key === "ArrowLeft")) {
+      const group = key === "ArrowRight"
+      const axis = this.outline.axisOfSelection()
+      if (axis) {
+        if (group) this.outline.group(axis)
+        else this.outline.ungroup(axis)
+      } else this.shell.openDialog?.(group ? "outlineGroup" : "outlineUngroup")
+      return true
+    }
+    // Ctrl+8: show or hide the outline symbols.
+    if (primary && !alt && !shift && key === "8") return (this.outline.toggleSymbols(), true)
     switch (key) {
       case "Enter":
         if (alt || primary) return false

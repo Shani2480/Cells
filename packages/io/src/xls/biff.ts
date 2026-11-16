@@ -40,6 +40,7 @@ export const R = {
   ROW: 0x0208,
   ARRAY: 0x0221,
   DEFAULTROWHEIGHT: 0x0225,
+  WSBOOL: 0x0081,
   WINDOW2: 0x023e,
   RK: 0x027e,
   SCL: 0x00a0,

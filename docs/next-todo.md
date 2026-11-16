@@ -121,8 +121,9 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
       Moved on: by icon (needs icon filters, Part 9) and Select All Sheets (needs grouped sheets, Part 6)
 - [x] Part 2 — Formula auditing: Name Manager, Create from Selection, Trace Precedents / Dependents and Remove
       Arrows (drawn on the sheet), Error Checking, Evaluate Formula, Watch Window
-- [ ] Part 3 — Outline: Group / Ungroup rows and columns, the outline bar with its levels, Show / Hide Detail,
-      Subtotals, Settings; read and written in Excel files (today kept but not shown)
+- [x] Part 3 — Outline: Group / Ungroup rows and columns, the outline bar with its levels, Show / Hide Detail,
+      Subtotals, Settings; read and written in Excel files (today kept but not shown). Also Auto Outline and
+      Ctrl+8. Not yet: Settings' Automatic styles / Apply Styles (styling summary rows)
 - [ ] Part 4 — Data tools: Advanced Filter, Consolidate, What-If Analysis (Goal Seek, Scenario Manager, Data
       Table), Forecast Sheet, Refresh All and Queries & Connections for text and CSV imports, Edit Links
 - [ ] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),

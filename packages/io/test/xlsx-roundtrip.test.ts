@@ -73,3 +73,39 @@ describe("after opening", () => {
     expect(wb.sheets[1].cells.value(0, 0)).toBe(2620)
   })
 })
+
+const sheetXml = async (bytes: Uint8Array) =>
+  new TextDecoder().decode((await readZip(bytes)).find((e) => e.name === "xl/worksheets/sheet1.xml")!.data)
+
+describe("outlines in .xlsx", () => {
+  it("keeps row and column groups, collapsed groups, Settings and the outline symbols", async () => {
+    const wb = budget()
+    const s = wb.sheets[0]
+    for (const r of [1, 2, 3]) s.rows.setLevel(r, 1)
+    s.rows.setLevel(2, 2)
+    s.rows.setHidden(2, true)
+    s.rows.setCollapsed(3, true)
+    s.cols.setLevel(1, 1)
+    s.cols.setLevel(2, 1)
+    s.outline = { summaryBelow: false, summaryRight: true, showSymbols: false }
+    const bytes = await saveXlsx(wb, { now: new Date(Date.UTC(2026, 0, 1)) })
+    const xml = await sheetXml(bytes)
+    expect(xml).toMatch(/<sheetPr><tabColor [^>]*\/><outlinePr summaryBelow="0"\/><\/sheetPr>/)
+    expect(xml).toMatch(/<sheetView [^>]*showOutlineSymbols="0"/)
+    expect(xml).toMatch(/<sheetFormatPr[^>]* outlineLevelRow="2" outlineLevelCol="1"/)
+    expect(xml).toMatch(/<row r="3"[^>]* hidden="1"[^>]* outlineLevel="2"/)
+    expect(xml).toMatch(/<col min="2" max="3"[^>]* outlineLevel="1"/)
+    const back = (await openXlsx(bytes, "Book1.xlsx")).workbook.sheets[0]
+    expect([0, 1, 2, 3, 4].map((r) => back.rows.level(r))).toEqual([0, 1, 2, 1, 0])
+    expect([back.rows.isHidden(2), back.rows.isCollapsed(3), back.cols.level(1), back.cols.level(2)]).toEqual([
+      true,
+      true,
+      1,
+      1,
+    ])
+    expect(back.outline).toEqual({ summaryBelow: false, summaryRight: true, showSymbols: false })
+    // Saved again, the levels aren't doubled by kept attributes.
+    const again = await sheetXml(await saveXlsx((await openXlsx(bytes, "Book1.xlsx")).workbook))
+    expect(again.match(/outlineLevel="2"/g)).toHaveLength(1)
+  })
+})

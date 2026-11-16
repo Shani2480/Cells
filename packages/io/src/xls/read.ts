@@ -534,6 +534,9 @@ function readSheet(
         if (flags & 0x40) sheet.rows.setSize(row, px)
         else if (height !== defaultHeight && px !== sheet.rows.size(row)) sheet.rows.setSize(row, px, true)
         if (flags & 0x20) sheet.rows.setHidden(row, true)
+        // Outline level (bits 0–2) and the collapsed mark (bit 4).
+        if (flags & 0x07) sheet.rows.setLevel(row, flags & 0x07)
+        if (flags & 0x10) sheet.rows.setCollapsed(row, true)
         break
       }
       case R.COLINFO: {
@@ -549,6 +552,8 @@ function readSheet(
         for (let col = first; col <= last; col++) {
           if (width !== null && width !== sheet.cols.size(col)) sheet.cols.setSize(col, width)
           if (flags & 0x01) sheet.cols.setHidden(col, true)
+          if ((flags >> 8) & 0x07) sheet.cols.setLevel(col, (flags >> 8) & 0x07)
+          if (flags & 0x1000) sheet.cols.setCollapsed(col, true)
         }
         break
       }
@@ -563,8 +568,16 @@ function readSheet(
         }
         break
       }
+      case R.WSBOOL: {
+        // Where outline summaries sit (Data › Outline › Settings).
+        const flags = c.u16()
+        sheet.outline.summaryBelow = (flags & 0x40) !== 0
+        sheet.outline.summaryRight = (flags & 0x80) !== 0
+        break
+      }
       case R.WINDOW2: {
         const flags = c.u16()
+        if (!(flags & 0x80)) sheet.outline.showSymbols = false
         const top = c.u16()
         const leftCol = c.u16()
         view.showGridlines = (flags & 0x02) !== 0

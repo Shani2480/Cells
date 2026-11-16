@@ -292,3 +292,13 @@ describe("records LibreOffice doesn't write", () => {
     expect(await kind(new Uint8Array(600))).toBe("damaged")
   })
 })
+
+describe("outlines in .xls", () => {
+  it("reads row and column groups, the collapsed mark and where summaries sit", async () => {
+    const s = (await openXls(xls("outline"), "outline.xls")).workbook.sheets[0]
+    expect([0, 1, 2, 3, 4, 5, 6].map((r) => s.rows.level(r))).toEqual([0, 2, 2, 1, 2, 1, 0])
+    expect([s.rows.isHidden(4), s.rows.isCollapsed(5), s.cols.level(1)]).toEqual([true, true, 1])
+    // LibreOffice writes summaries to the right whatever the .xlsx said (WSBOOL 0xC1).
+    expect(s.outline).toEqual({ summaryBelow: true, summaryRight: true, showSymbols: true })
+  })
+})

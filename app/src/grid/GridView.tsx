@@ -6,6 +6,7 @@ import { isSystemShortcut, keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
 import { ChartLayer } from "./ChartLayer"
 import { TraceLayer } from "./TraceLayer"
+import { OutlineBar, outlineBarSize } from "./OutlineBar"
 import { FilterButtons } from "./FilterButtons"
 import { ValidationLayer } from "./ValidationLayer"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
@@ -827,133 +828,148 @@ export function GridView({
     controller.paneHeight / 2 -
     minY
 
+  const outlineW = outlineBarSize(controller, "rows")
+  const outlineH = outlineBarSize(controller, "cols")
+
   return (
-    <div ref={hostRef} className="grid-host" data-testid="grid">
-      <canvas
-        ref={canvasRef}
-        className="grid-canvas"
-        style={{ width: size.width, height: size.height, cursor }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onPointerLeave={() => hoverAt(null)}
-        onDoubleClick={onDoubleClick}
-        onContextMenu={(event) => {
-          event.preventDefault()
-          const layout = layoutRef.current
-          // A touch long press opens the menu itself (iPadOS sends no contextmenu, Android sends one too).
-          if (!layout || Date.now() - lastTouchRef.current < 1500) return
-          const { x, y } = localPoint(event)
-          const hit = hitTest(controller, layout, x, y)
-          handleRightClick(hit)
-          onContextMenu({
-            x: event.clientX,
-            y: event.clientY,
-            target: hit.zone === "rowHeader" ? "rows" : hit.zone === "colHeader" ? "cols" : "cells",
-          })
-        }}
-      />
-      {editing ? (
-        <FormulaHighlight controller={controller} className="cell-editor-highlight" style={editorStyle} />
+    <div
+      className="grid-frame"
+      style={{ gridTemplateColumns: `${outlineW}px minmax(0, 1fr)`, gridTemplateRows: `${outlineH}px minmax(0, 1fr)` }}
+    >
+      {outlineW && outlineH ? <div className="outline-corner" /> : null}
+      {layoutNow && outlineH ? (
+        <OutlineBar controller={controller} layout={layoutNow} zoom={zoom} axis="cols" onDone={focusInput} />
       ) : null}
-      <textarea
-        ref={inputRef}
-        data-grid-input
-        className={
-          (editing && editing.surface === "cell"
-            ? "cell-editor is-editing"
-            : editing
-              ? "cell-editor is-mirror"
-              : "cell-editor") + (editing?.text.startsWith("=") ? " has-highlight" : "")
-        }
-        style={editorStyle}
-        aria-label="Cell editor"
-        // On a touch screen the keyboard shows only while a cell is being edited.
-        inputMode={controller.touchHandles && !editing ? "none" : undefined}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoComplete="off"
-        autoCorrect="off"
-        wrap="off"
-        onKeyDown={onKeyDown}
-        onInput={onInput}
-        onSelect={onSelect}
-        onFocus={() => controller.setEditSurface("cell")}
-        onCompositionStart={onCompositionStart}
-        onCompositionEnd={onCompositionEnd}
-        onCopy={(event) => onCopy(event, false)}
-        onCut={(event) => onCopy(event, true)}
-        onPaste={onPaste}
-        readOnly={editing?.surface === "bar"}
-      />
-      {editing && editing.surface === "cell" && layout ? (
-        <FormulaAssist
-          controller={controller}
-          style={{
-            left: Number(editorStyle.left ?? 0),
-            top: Number(editorStyle.top ?? 0) + Number(editorStyle.height ?? 0) * zoom + 3,
+      {layoutNow && outlineW ? (
+        <OutlineBar controller={controller} layout={layoutNow} zoom={zoom} axis="rows" onDone={focusInput} />
+      ) : null}
+      <div ref={hostRef} className="grid-host" data-testid="grid">
+        <canvas
+          ref={canvasRef}
+          className="grid-canvas"
+          style={{ width: size.width, height: size.height, cursor }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onPointerLeave={() => hoverAt(null)}
+          onDoubleClick={onDoubleClick}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            const layout = layoutRef.current
+            // A touch long press opens the menu itself (iPadOS sends no contextmenu, Android sends one too).
+            if (!layout || Date.now() - lastTouchRef.current < 1500) return
+            const { x, y } = localPoint(event)
+            const hit = hitTest(controller, layout, x, y)
+            handleRightClick(hit)
+            onContextMenu({
+              x: event.clientX,
+              y: event.clientY,
+              target: hit.zone === "rowHeader" ? "rows" : hit.zone === "colHeader" ? "cols" : "cells",
+            })
           }}
-          onPick={focusInput}
         />
-      ) : null}
-      {layout ? <ChartLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
-      {layout ? <TraceLayer controller={controller} layout={layout} zoom={zoom} /> : null}
-      {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
-      {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
-      {layout ? (
-        <AnnotationLayer
-          controller={controller}
-          layout={layout}
-          zoom={zoom}
-          hover={hover}
-          onKeepHover={keepHover}
-          onLeaveHover={() => hoverAt(null)}
+        {editing ? (
+          <FormulaHighlight controller={controller} className="cell-editor-highlight" style={editorStyle} />
+        ) : null}
+        <textarea
+          ref={inputRef}
+          data-grid-input
+          className={
+            (editing && editing.surface === "cell"
+              ? "cell-editor is-editing"
+              : editing
+                ? "cell-editor is-mirror"
+                : "cell-editor") + (editing?.text.startsWith("=") ? " has-highlight" : "")
+          }
+          style={editorStyle}
+          aria-label="Cell editor"
+          // On a touch screen the keyboard shows only while a cell is being edited.
+          inputMode={controller.touchHandles && !editing ? "none" : undefined}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
+          wrap="off"
+          onKeyDown={onKeyDown}
+          onInput={onInput}
+          onSelect={onSelect}
+          onFocus={() => controller.setEditSurface("cell")}
+          onCompositionStart={onCompositionStart}
+          onCompositionEnd={onCompositionEnd}
+          onCopy={(event) => onCopy(event, false)}
+          onCut={(event) => onCopy(event, true)}
+          onPaste={onPaste}
+          readOnly={editing?.surface === "bar"}
+        />
+        {editing && editing.surface === "cell" && layout ? (
+          <FormulaAssist
+            controller={controller}
+            style={{
+              left: Number(editorStyle.left ?? 0),
+              top: Number(editorStyle.top ?? 0) + Number(editorStyle.height ?? 0) * zoom + 3,
+            }}
+            onPick={focusInput}
+          />
+        ) : null}
+        {layout ? <ChartLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+        {layout ? <TraceLayer controller={controller} layout={layout} zoom={zoom} /> : null}
+        {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+        {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+        {layout ? (
+          <AnnotationLayer
+            controller={controller}
+            layout={layout}
+            zoom={zoom}
+            hover={hover}
+            onKeepHover={keepHover}
+            onLeaveHover={() => hoverAt(null)}
+            onDone={focusInput}
+          />
+        ) : null}
+        {resizeTip ? (
+          <div className="resize-tip" style={{ left: resizeTip.x * zoom + 12, top: resizeTip.y * zoom + 4 }}>
+            {resizeTip.text}
+          </div>
+        ) : null}
+        {dragRef.current?.kind === "resize-col" && layout ? (
+          <div
+            className="resize-guide is-vertical"
+            style={{
+              left: (colX(sheet, layout, dragRef.current.col) + dragRef.current.size) * zoom,
+            }}
+          />
+        ) : null}
+        {dragRef.current?.kind === "resize-row" && layout ? (
+          <div
+            className="resize-guide is-horizontal"
+            style={{
+              top: (rowY(sheet, layout, dragRef.current.row) + dragRef.current.size) * zoom,
+            }}
+          />
+        ) : null}
+        <Scrollbar
+          orientation="vertical"
+          length={size.height}
+          offset={(layout?.originY ?? 20) * zoom}
+          position={controller.scrollY - minY}
+          view={controller.paneHeight}
+          content={contentHeight}
+          onScroll={(y) => controller.scrollTo(controller.scrollX, y + minY)}
           onDone={focusInput}
         />
-      ) : null}
-      {resizeTip ? (
-        <div className="resize-tip" style={{ left: resizeTip.x * zoom + 12, top: resizeTip.y * zoom + 4 }}>
-          {resizeTip.text}
-        </div>
-      ) : null}
-      {dragRef.current?.kind === "resize-col" && layout ? (
-        <div
-          className="resize-guide is-vertical"
-          style={{
-            left: (colX(sheet, layout, dragRef.current.col) + dragRef.current.size) * zoom,
-          }}
+        <Scrollbar
+          orientation="horizontal"
+          length={size.width}
+          offset={(layout?.originX ?? 40) * zoom}
+          position={controller.scrollX - minX}
+          view={controller.paneWidth}
+          content={contentWidth}
+          onScroll={(x) => controller.scrollTo(x + minX, controller.scrollY)}
+          onDone={focusInput}
         />
-      ) : null}
-      {dragRef.current?.kind === "resize-row" && layout ? (
-        <div
-          className="resize-guide is-horizontal"
-          style={{
-            top: (rowY(sheet, layout, dragRef.current.row) + dragRef.current.size) * zoom,
-          }}
-        />
-      ) : null}
-      <Scrollbar
-        orientation="vertical"
-        length={size.height}
-        offset={(layout?.originY ?? 20) * zoom}
-        position={controller.scrollY - minY}
-        view={controller.paneHeight}
-        content={contentHeight}
-        onScroll={(y) => controller.scrollTo(controller.scrollX, y + minY)}
-        onDone={focusInput}
-      />
-      <Scrollbar
-        orientation="horizontal"
-        length={size.width}
-        offset={(layout?.originX ?? 40) * zoom}
-        position={controller.scrollX - minX}
-        view={controller.paneWidth}
-        content={contentWidth}
-        onScroll={(x) => controller.scrollTo(x + minX, controller.scrollY)}
-        onDone={focusInput}
-      />
-      <div className="grid-scroll-corner" />
+        <div className="grid-scroll-corner" />
+      </div>
     </div>
   )
 }

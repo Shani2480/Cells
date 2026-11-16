@@ -1,3 +1,5 @@
+import type { AxisEntry } from "./ops"
+
 /**
  * Sizes along one axis (row heights or column widths) in pixels at 100% zoom, with hidden entries. Offsets and
  * "index at pixel" are O(log n) through a Fenwick tree of differences from the default size. Nothing is allocated
@@ -15,6 +17,11 @@ export class Axis {
   private tree: Float64Array | null = null
   private customCount = 0
   private hiddenCount = 0
+  /** Outline levels (0–7, Data › Group) and the collapsed mark on a group's summary line; allocated on first use. */
+  private levels: Uint8Array | null = null
+  private collapsedFlags: Uint8Array | null = null
+  /** How many entries are at each outline level (index 0 unused), for `maxLevel` without a scan. */
+  private levelCounts = new Int32Array(8)
 
   constructor(count: number, defaultSize: number) {
     this.count = count
@@ -70,6 +77,38 @@ export class Axis {
     this.hidden![index] = hidden ? 1 : 0
     this.hiddenCount += hidden ? 1 : -1
     this.bump(index, this.size(index) - before)
+  }
+
+  /** The entry's outline level: 0 outside any group, up to 7 (Excel's limit). */
+  level(index: number): number {
+    return this.levels?.[index] ?? 0
+  }
+
+  setLevel(index: number, level: number) {
+    const next = Math.max(0, Math.min(MAX_OUTLINE, Math.round(level)))
+    const before = this.level(index)
+    if (before === next) return
+    if (!this.levels) this.levels = new Uint8Array(this.count)
+    this.levels[index] = next
+    if (before) this.levelCounts[before]--
+    if (next) this.levelCounts[next]++
+  }
+
+  /** The deepest outline level in use (0: no groups). */
+  get maxLevel(): number {
+    for (let l = MAX_OUTLINE; l > 0; l--) if (this.levelCounts[l] > 0) return l
+    return 0
+  }
+
+  /** Whether the group this entry summarises is collapsed (the + on the outline bar). */
+  isCollapsed(index: number) {
+    return this.collapsedFlags !== null && this.collapsedFlags[index] === 1
+  }
+
+  setCollapsed(index: number, collapsed: boolean) {
+    if (this.isCollapsed(index) === collapsed) return
+    if (!this.collapsedFlags) this.collapsedFlags = new Uint8Array(this.count)
+    this.collapsedFlags[index] = collapsed ? 1 : 0
   }
 
   /** Pixel position of the start of `index` (sum of sizes before it). */
@@ -132,8 +171,12 @@ export class Axis {
     return index
   }
 
-  /** Inserts `n` default-sized, shown entries at `at`; the last `n` entries fall off the end. */
+  /**
+   * Inserts `n` default-sized, shown entries at `at`; the last `n` entries fall off the end. New entries inside a
+   * group join it, as in Excel (the lower of the levels on either side).
+   */
   insert(at: number, n: number) {
+    this.shiftOutline(at, n)
     if (!this.custom) {
       return
     }
@@ -148,6 +191,7 @@ export class Axis {
 
   /** Removes `n` entries at `at`; default entries come in at the end. */
   remove(at: number, n: number) {
+    this.shiftOutline(at, -n)
     if (!this.custom) {
       return
     }
@@ -161,27 +205,51 @@ export class Axis {
   }
 
   /** Entries with a custom size or hidden, in [from, to], for undo records. */
-  overrides(from: number, to: number): { index: number; size: number | null; hidden: boolean; auto?: true }[] {
-    const out: { index: number; size: number | null; hidden: boolean; auto?: true }[] = []
+  overrides(from: number, to: number): AxisEntry[] {
+    const out: AxisEntry[] = []
     const custom = this.custom
     const hiddenFlags = this.hidden
-    if (!custom || !hiddenFlags || this.customCount + this.hiddenCount === 0) {
+    const levels = this.levels
+    const sized = custom && hiddenFlags && this.customCount + this.hiddenCount > 0
+    if (!sized && !(levels && this.maxLevel) && !this.collapsedFlags) {
       return out
     }
     const end = Math.min(to, this.count - 1)
     for (let i = from; i <= end; i++) {
-      const size = custom[i]
-      const hidden = hiddenFlags[i] === 1
-      if (hidden || size === size) {
+      const size = sized ? custom[i] : Number.NaN
+      const hidden = sized ? hiddenFlags[i] === 1 : false
+      const level = levels ? levels[i] : 0
+      const collapsed = this.isCollapsed(i)
+      if (hidden || size === size || level || collapsed) {
         out.push({
           index: i,
           size: size === size ? size : null,
           hidden,
-          ...(this.auto![i] ? { auto: true as const } : {}),
+          ...(sized && this.auto![i] ? { auto: true as const } : {}),
+          ...(level || collapsed ? { level, ...(collapsed ? { collapsed: true as const } : {}) } : {}),
         })
       }
     }
     return out
+  }
+
+  /** Moves outline levels and collapsed marks for an insert (n > 0) or a removal (n < 0) at `at`. */
+  private shiftOutline(at: number, n: number) {
+    for (const flags of [this.levels, this.collapsedFlags]) {
+      if (!flags) continue
+      if (n > 0) {
+        flags.copyWithin(at + n, at, this.count - n)
+        const fill = flags === this.levels ? Math.min(at > 0 ? flags[at - 1] : 0, flags[at + n] ?? 0) : 0
+        flags.fill(fill, at, at + n)
+      } else {
+        flags.copyWithin(at, at - n)
+        flags.fill(0, this.count + n)
+      }
+    }
+    if (this.levels) {
+      this.levelCounts.fill(0)
+      for (let i = 0; i < this.count; i++) if (this.levels[i]) this.levelCounts[this.levels[i]]++
+    }
   }
 
   private ensure() {
@@ -225,6 +293,9 @@ export class Axis {
     }
   }
 }
+
+/** Excel's deepest outline level. */
+export const MAX_OUTLINE = 7
 
 function highestPowerOfTwo(n: number) {
   let p = 1

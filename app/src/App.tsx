@@ -40,6 +40,7 @@ import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
 import { CreateNamesDialog, ErrorCheckingDialog, EvaluateFormulaDialog, NameManagerDialog } from "@/shell/AuditDialogs"
 import { WatchWindow } from "@/shell/WatchWindow"
+import { GroupDialog, OutlineSettingsDialog, SubtotalDialog } from "@/shell/OutlineDialogs"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
 import { FormulaBar } from "@/shell/FormulaBar"
 import { DefineNameDialog } from "@/shell/DefineNameDialog"
@@ -112,6 +113,10 @@ type DialogState =
         | "createNames"
         | "errorChecking"
         | "evaluateFormula"
+        | "outlineGroup"
+        | "outlineUngroup"
+        | "outlineSettings"
+        | "subtotal"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
@@ -719,7 +724,11 @@ function WorkbookWindow({
       kind === "nameManager" ||
       kind === "createNames" ||
       kind === "errorChecking" ||
-      kind === "evaluateFormula"
+      kind === "evaluateFormula" ||
+      kind === "outlineGroup" ||
+      kind === "outlineUngroup" ||
+      kind === "outlineSettings" ||
+      kind === "subtotal"
     )
       setDialog({ kind })
   }
@@ -957,6 +966,13 @@ function WorkbookWindow({
         {dialog?.kind === "defineName" ? <DefineNameDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "nameManager" ? <NameManagerDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "createNames" ? <CreateNamesDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "outlineGroup" || dialog?.kind === "outlineUngroup" ? (
+          <GroupDialog controller={controller} ungroup={dialog.kind === "outlineUngroup"} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "outlineSettings" ? (
+          <OutlineSettingsDialog controller={controller} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "subtotal" ? <SubtotalDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "evaluateFormula" ? (
           <EvaluateFormulaDialog controller={controller} onClose={closeDialog} />
         ) : null}

@@ -145,6 +145,8 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
       ht: custom ? pxToPoints(sheet.rows.storedSize(row)) : undefined,
       hidden: sheet.rows.isHidden(row),
       customHeight: custom && !sheet.rows.isAuto(row) ? true : undefined,
+      outlineLevel: sheet.rows.level(row) || undefined,
+      collapsed: sheet.rows.isCollapsed(row) || undefined,
     })
     const extra = ctx.source?.rowExtras.get(row) ?? ""
     return cells.length ? `<row${attrs}${extra}>${cells.join("")}</row>` : `<row${attrs}${extra}/>`
@@ -193,7 +195,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
 
   const generated: Record<string, string> = {
     dimension: `<dimension ref="${bounds ? rangeRef({ r0: bounds.r0, c0: bounds.c0, r1: bounds.r1, c1: bounds.c1 }) : "A1"}"/>`,
-    sheetViews: viewsXml(ctx.view),
+    sheetViews: viewsXml(ctx.view, sheet.outline.showSymbols),
     cols: colsXml(sheet, xf, ctx.source?.colExtras),
     sheetData: rowParts.length ? `<sheetData>${rowParts.join("")}</sheetData>` : `<sheetData/>`,
     sheetProtection: protectionXml(sheet),
@@ -219,7 +221,15 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
   const fitted = withFitToPage(sheetPr?.xml ?? null, sheet.pageSetup.fitTo !== null)
   if (sheetPr && fitted) sheetPr.xml = fitted
   else if (fitted) kept.unshift({ local: "sheetPr", xml: fitted })
+  // Data › Outline › Settings: where summaries sit.
+  const withOutline = withOutlinePr(kept.find((k) => k.local === "sheetPr")?.xml ?? null, sheet.outline)
+  const pr = kept.find((k) => k.local === "sheetPr")
+  if (pr && withOutline) pr.xml = withOutline
+  else if (withOutline) kept.unshift({ local: "sheetPr", xml: withOutline })
   if (!ctx.source) kept.push({ local: "sheetFormatPr", xml: `<sheetFormatPr defaultRowHeight="15"/>` })
+  // The outline bar's depth, which Excel reads to size it.
+  const format = kept.find((k) => k.local === "sheetFormatPr")
+  if (format) format.xml = withOutlineLevels(format.xml, sheet.rows.maxLevel, sheet.cols.maxLevel)
   const validationExt = validationExtXml(sheet.validations, rangeRef)
   if (validationExt) {
     const extLst = kept.find((k) => k.local === "extLst")
@@ -239,7 +249,7 @@ function specialRows(sheet: Sheet, extras: ReadonlyMap<number, string> | undefin
   for (const [row] of sheet.rowStyles.entries()) out.add(row)
   for (const row of extras?.keys() ?? []) out.add(row)
   const rows = sheet.rows
-  for (let r = 0; r < MAX_ROWS; r++) if (rows.hasCustomSize(r) || rows.isHidden(r)) out.add(r)
+  for (const e of rows.overrides(0, MAX_ROWS - 1)) out.add(e.index)
   return [...out].sort((a, b) => a - b)
 }
 
@@ -253,12 +263,13 @@ function withTabColor(xml: string, tab: string): string {
   return out
 }
 
-function viewsXml(view: SheetView): string {
+function viewsXml(view: SheetView, showSymbols: boolean): string {
   const cell = (p: { row: number; col: number }) => ref(p.row, p.col)
   const attrs = attrText({
     tabSelected: view.selected,
     showGridLines: view.showGridlines ? undefined : "0",
     showRowColHeaders: view.showHeadings ? undefined : "0",
+    showOutlineSymbols: showSymbols ? undefined : "0",
     zoomScale: view.zoom !== 1 ? Math.round(view.zoom * 100) : undefined,
     zoomScaleNormal: view.zoom !== 1 ? Math.round(view.zoom * 100) : undefined,
     topLeftCell: view.freeze
@@ -297,12 +308,20 @@ function colsXml(sheet: Sheet, xf: (id: number) => number, extras: ReadonlyMap<n
   const used = new Set<number>(sheet.colStyles.entries().map(([c]) => c))
   const candidates: number[] = []
   for (let c = 0; c < MAX_COLS; c++)
-    if (cols.hasCustomSize(c) || cols.isHidden(c) || used.has(c) || extras?.has(c)) candidates.push(c)
+    if (
+      cols.hasCustomSize(c) ||
+      cols.isHidden(c) ||
+      used.has(c) ||
+      extras?.has(c) ||
+      cols.level(c) ||
+      cols.isCollapsed(c)
+    )
+      candidates.push(c)
   let i = 0
   while (i < candidates.length) {
     const c = candidates[i]
     const key = (k: number) =>
-      `${cols.hasCustomSize(k) ? cols.storedSize(k) : ""}|${cols.isHidden(k)}|${sheet.colStyles.get(k)}|${extras?.get(k) ?? ""}`
+      `${cols.hasCustomSize(k) ? cols.storedSize(k) : ""}|${cols.isHidden(k)}|${sheet.colStyles.get(k)}|${extras?.get(k) ?? ""}|${cols.level(k)}|${cols.isCollapsed(k)}`
     let j = i
     while (j + 1 < candidates.length && candidates[j + 1] === candidates[j] + 1 && key(candidates[j + 1]) === key(c))
       j++
@@ -316,6 +335,8 @@ function colsXml(sheet: Sheet, xf: (id: number) => number, extras: ReadonlyMap<n
         style: style ? xf(style) : undefined,
         hidden: cols.isHidden(c),
         customWidth: cols.hasCustomSize(c),
+        outlineLevel: cols.level(c) || undefined,
+        collapsed: cols.isCollapsed(c) || undefined,
       })}${extras?.get(c) ?? ""}/>`,
     )
     i = j + 1
@@ -459,5 +480,34 @@ function conditionalXml(entries: readonly CFEntry[], styles: StylesOut, kept: re
   }
   for (const k of kept)
     out += k.replace(/(<(?:\w+:)?cfRule\b[^>]*?\bpriority=")\d+"/g, (_, head: string) => `${head}${priority++}"`)
+  return out
+}
+
+/** sheetPr with Outline Settings' outlinePr (only when a summary isn't in Excel's default place), or null for none. */
+export function withOutlinePr(
+  sheetPr: string | null,
+  o: { summaryBelow: boolean; summaryRight: boolean },
+): string | null {
+  const pr =
+    o.summaryBelow && o.summaryRight
+      ? ""
+      : `<outlinePr${o.summaryBelow ? "" : ' summaryBelow="0"'}${o.summaryRight ? "" : ' summaryRight="0"'}/>`
+  if (sheetPr === null) return pr ? `<sheetPr>${pr}</sheetPr>` : null
+  let out = sheetPr
+    .replace(/<(\w+:)?outlinePr\b[^>]*\/>/, "")
+    .replace(/<(\w+:)?outlinePr\b[^>]*>[\s\S]*?<\/(\w+:)?outlinePr>/, "")
+  if (!pr) return out
+  // An empty <sheetPr/> opens up; otherwise outlinePr goes after tabColor, before pageSetUpPr.
+  if (/^<(\w+:)?sheetPr\b[^>]*\/>$/.test(out)) return out.replace(/\s*\/>$/, `>${pr}</sheetPr>`)
+  if (/<(\w+:)?tabColor\b[^>]*\/>/.test(out)) return out.replace(/(<(?:\w+:)?tabColor\b[^>]*\/>)/, `$1${pr}`)
+  out = out.replace(/^(<(?:\w+:)?sheetPr\b[^>]*>)/, `$1${pr}`)
+  return out
+}
+
+/** sheetFormatPr with outlineLevelRow / outlineLevelCol set to the outline's depth (dropped at 0). */
+function withOutlineLevels(xml: string, rows: number, cols: number): string {
+  let out = xml.replace(/\s+outlineLevel(Row|Col)="[^"]*"/g, "")
+  const add = `${rows ? ` outlineLevelRow="${rows}"` : ""}${cols ? ` outlineLevelCol="${cols}"` : ""}`
+  if (add) out = out.replace(/^(<(?:\w+:)?sheetFormatPr\b[^>]*?)(\s*\/?>)/, `$1${add}$2`)
   return out
 }

@@ -88,8 +88,18 @@ export type SheetRead = {
 }
 
 /** Row and column attributes Cells writes itself; the others are kept. */
-const ROW_OWN = new Set(["r", "spans", "s", "customFormat", "ht", "customHeight", "hidden"])
-const COL_OWN = new Set(["min", "max", "width", "style", "hidden", "customWidth"])
+const ROW_OWN = new Set([
+  "r",
+  "spans",
+  "s",
+  "customFormat",
+  "ht",
+  "customHeight",
+  "hidden",
+  "outlineLevel",
+  "collapsed",
+])
+const COL_OWN = new Set(["min", "max", "width", "style", "hidden", "customWidth", "outlineLevel", "collapsed"])
 
 /** Elements Cells reads and writes itself; every other child of `worksheet` is kept as read. */
 const OWN = new Set([
@@ -285,6 +295,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
           for (const [name, value] of tag.attrs)
             if (!ROW_OWN.has(name) && !name.startsWith("xmlns")) extra += ` ${name}="${escapeXml(value)}"`
         if (extra) rowExtras.set(row, extra)
+        const level = attr("outlineLevel")
+        if (level && level !== "0") sheet.rows.setLevel(row, Number(level))
+        if (truthy(attr("collapsed"))) sheet.rows.setCollapsed(row, true)
         const ht = attr("ht")
         const custom = attr("customHeight")
         if (ht !== undefined) {
@@ -353,6 +366,11 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         const rgb = color && ctx.styles ? at(color, "rgb") : undefined
         if (rgb) sheet.tabColor = "#" + rgb.slice(-6).toUpperCase()
         fitToPage = readsFitToPage(parseFragment(source, rootTag).root)
+        const outlinePr = kid(parseFragment(source, rootTag).root, "outlinePr")
+        if (outlinePr) {
+          sheet.outline.summaryBelow = !falsy(at(outlinePr, "summaryBelow"))
+          sheet.outline.summaryRight = !falsy(at(outlinePr, "summaryRight"))
+        }
       }
       if (local === "extLst") {
         const ext = readValidationExt(dropConditionalExt(source), rootTag)
@@ -365,6 +383,10 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
     switch (local) {
       case "sheetViews":
         view = readView(parseFragment(source, rootTag).root, warnings)
+        {
+          const first = kid(parseFragment(source, rootTag).root, "sheetView")
+          if (first && falsy(at(first, "showOutlineSymbols"))) sheet.outline.showSymbols = false
+        }
         break
       case "cols":
         readCols(parseFragment(source, rootTag).root)
@@ -428,8 +450,12 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
       let extra = ""
       for (const [name, value] of Object.entries(c.attrs))
         if (!COL_OWN.has(name)) extra += ` ${name}="${escapeXml(value)}"`
+      const level = Number(at(c, "outlineLevel") ?? 0)
+      const collapsed = truthy(at(c, "collapsed"))
       for (let i = min; i <= max; i++) {
         if (extra) colExtras.set(i, extra)
+        if (level) sheet.cols.setLevel(i, level)
+        if (collapsed) sheet.cols.setCollapsed(i, true)
         if (px !== null && px !== sheet.cols.size(i)) sheet.cols.setSize(i, px)
         if (hidden) sheet.cols.setHidden(i, true)
         if (style) sheet.colStyles.set(i, style)
@@ -700,3 +726,6 @@ function colorOf(n: XNode | undefined, styles: StylesIn | null): string | null {
   }
   return null
 }
+
+const truthy = (v: string | undefined) => v === "1" || v === "true"
+const falsy = (v: string | undefined) => v === "0" || v === "false"

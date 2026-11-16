@@ -129,6 +129,9 @@ export class Merges {
   }
 }
 
+/** Where each group's summary line sits (below its detail rows, right of its columns), and the bar's visibility. */
+export type OutlineSettings = { summaryBelow: boolean; summaryRight: boolean; showSymbols: boolean }
+
 export class Sheet {
   name: string
   /** The tab's colour (Format › Tab Color), as hex. */
@@ -157,6 +160,8 @@ export class Sheet {
   protection: SheetProtection | null = null
   /** Data › Filter: the AutoFilter range and its column filters; null when the sheet has none. */
   autoFilter: AutoFilter | null = null
+  /** Data › Outline › Settings, and whether the outline bar shows (Ctrl+8). */
+  outline: OutlineSettings = { summaryBelow: true, summaryRight: true, showSymbols: true }
 
   constructor(name: string) {
     this.name = name

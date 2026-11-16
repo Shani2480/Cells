@@ -8,6 +8,7 @@ import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
 import { rewriteNames, type SheetList } from "./names"
 import { copyAutoFilter, type AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
+import type { OutlineSettings } from "./sheet"
 import { renameSheetRefs } from "./formula/adjust"
 import type { Applied, AxisEntry, CellWrite, Op } from "./ops"
 import { Sheet } from "./sheet"
@@ -35,6 +36,7 @@ export type SheetSnapshot = {
   annotations?: AnnotationWrite[]
   protection?: SheetProtection | null
   autoFilter?: AutoFilter | null
+  outline?: OutlineSettings
   tabColor?: string
   hidden: boolean
 }
@@ -64,6 +66,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     protection: sheet.protection ? { ...sheet.protection } : null,
     autoFilter: copyAutoFilter(sheet.autoFilter),
+    outline: { ...sheet.outline },
     tabColor: sheet.tabColor,
     hidden: sheet.hidden,
   }
@@ -72,14 +75,16 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
 function sheetFrom(s: SheetSnapshot): Sheet {
   const sheet = new Sheet(s.name)
   for (const w of s.cells) sheet.cells.set(w.row, w.col, w.data)
-  for (const e of s.rows) {
-    if (e.size !== null) sheet.rows.setSize(e.index, e.size, e.auto)
-    if (e.hidden) sheet.rows.setHidden(e.index, true)
-  }
-  for (const e of s.cols) {
-    if (e.size !== null) sheet.cols.setSize(e.index, e.size, e.auto)
-    if (e.hidden) sheet.cols.setHidden(e.index, true)
-  }
+  for (const [axis, entries] of [
+    [sheet.rows, s.rows],
+    [sheet.cols, s.cols],
+  ] as const)
+    for (const e of entries) {
+      if (e.size !== null) axis.setSize(e.index, e.size, e.auto)
+      if (e.hidden) axis.setHidden(e.index, true)
+      if (e.level) axis.setLevel(e.index, e.level)
+      if (e.collapsed) axis.setCollapsed(e.index, true)
+    }
   for (let i = 0; i < s.rowStyles.length; i += 2) sheet.rowStyles.set(s.rowStyles[i], s.rowStyles[i + 1])
   for (let i = 0; i < s.colStyles.length; i += 2) sheet.colStyles.set(s.colStyles[i], s.colStyles[i + 1])
   sheet.merges.replace(s.merges.map((m) => ({ ...m })))
@@ -91,6 +96,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   for (const a of s.annotations ?? []) sheet.annotations.set(a.row, a.col, a.value)
   sheet.protection = s.protection ? { ...s.protection } : null
   sheet.autoFilter = copyAutoFilter(s.autoFilter ?? null)
+  if (s.outline) sheet.outline = { ...s.outline }
   sheet.tabColor = s.tabColor
   sheet.hidden = s.hidden
   return sheet

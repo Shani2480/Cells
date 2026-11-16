@@ -49,6 +49,8 @@
   --grid-header-bg: #f5f5f5;
   --grid-header-line: #d4d4d4;
   --grid-header-text: #424242;
+  --grid-outline-line: #6b6b6b;
+  --grid-outline-button: #8a8a8a;
   --grid-header-filtered-text: #0b62c4;
   --grid-header-selected-bg: #e1f1e7;
   --grid-header-selected-text: #0e5c2f;
@@ -109,6 +111,8 @@
   --grid-header-bg: #2a2a2a;
   --grid-header-line: #444444;
   --grid-header-text: #c8c8c8;
+  --grid-outline-line: #9a9a9a;
+  --grid-outline-button: #7a7a7a;
   --grid-header-filtered-text: #6cb4ff;
   --grid-header-selected-bg: #24432f;
   --grid-header-selected-text: #a6e3bf;
@@ -2443,4 +2447,139 @@ html.is-phone .clipboard-item-delete {
   color: var(--app-ribbon-muted);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+/* ── Data › Outline: the outline bar beside the headings (grid/OutlineBar.tsx) ─────────────────────────────── */
+.grid-frame {
+  position: relative;
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.grid-frame > .grid-host {
+  grid-area: 2 / 2;
+  min-width: 0;
+  min-height: 0;
+}
+
+.outline-corner {
+  grid-area: 1 / 1;
+  background: var(--grid-header-bg);
+  border-right: 1px solid var(--grid-header-line, var(--app-divider));
+  border-bottom: 1px solid var(--grid-header-line, var(--app-divider));
+}
+
+.outline-bar {
+  position: relative;
+  overflow: hidden;
+  background: var(--grid-header-bg);
+  color: var(--grid-header-text, var(--app-ribbon-text));
+}
+
+.outline-bar.is-rows {
+  grid-area: 2 / 1;
+  border-right: 1px solid var(--grid-header-line, var(--app-divider));
+}
+
+.outline-bar.is-cols {
+  grid-area: 1 / 2;
+  border-bottom: 1px solid var(--grid-header-line, var(--app-divider));
+}
+
+.outline-levels {
+  position: absolute;
+}
+
+.outline-bar.is-rows .outline-levels {
+  left: 0;
+  right: 0;
+}
+
+.outline-bar.is-cols .outline-levels {
+  top: 0;
+  bottom: 0;
+}
+
+.outline-bar.is-rows .outline-level {
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.outline-bar.is-cols .outline-level {
+  left: 50%;
+  translate: -50% 0;
+}
+
+.outline-level,
+.outline-toggle {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--grid-outline-button, #8a8a8a);
+  background: var(--grid-bg);
+  color: inherit;
+  font: 600 10px/1 var(--font-ui, inherit);
+  cursor: pointer;
+}
+
+.outline-level {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+}
+
+.outline-toggle {
+  width: 12px;
+  height: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.outline-level:hover,
+.outline-toggle:hover {
+  border-color: var(--app-theme-primary);
+  color: var(--app-theme-primary);
+}
+
+.outline-line {
+  position: absolute;
+  background: var(--grid-outline-line, #6b6b6b);
+}
+
+.outline-bar.is-rows .outline-line {
+  width: 1px;
+}
+
+.outline-bar.is-cols .outline-line {
+  height: 1px;
+}
+
+.outline-tick {
+  position: absolute;
+  background: var(--grid-outline-line, #6b6b6b);
+}
+
+.outline-bar.is-rows .outline-tick {
+  width: 5px;
+  height: 1px;
+}
+
+.outline-bar.is-cols .outline-tick {
+  width: 1px;
+  height: 5px;
+}
+
+/* ── Data › Subtotal (shell/OutlineDialogs.tsx) ─────────────────────────────────────────────────────────────── */
+.subtotal-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(160px, calc(100vh - 360px));
+  padding: 4px 8px;
+  overflow-y: auto;
+  border: 1px solid var(--app-field-border);
+  background: var(--app-field-bg);
 }

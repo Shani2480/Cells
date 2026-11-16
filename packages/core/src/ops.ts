@@ -12,7 +12,7 @@ import { rewriteNames, type DefinedName, type SheetList } from "./names"
 import type { SheetProtection, WorkbookProtection } from "./protection"
 import { formatRanges, recordBounds, restoreStyles, shiftMerges, type StyleRecord } from "./formatting"
 import { moveMapper, rewriteFormula, shiftMapper, type RefMapper } from "./formula/adjust"
-import type { Sheet } from "./sheet"
+import type { OutlineSettings, Sheet } from "./sheet"
 import { applySheetOp, type SheetOp } from "./sheet-ops"
 import { StyleTable, type StylePatch } from "./styles"
 
@@ -22,7 +22,15 @@ export type CellWrite = { row: number; col: number; data: CellData | undefined }
 export type AxisName = "rows" | "cols"
 
 /** One row's or column's size and visibility; `size: null` means the default size. */
-export type AxisEntry = { index: number; size: number | null; hidden: boolean; auto?: true }
+/** One row's or column's size and visibility; with `level`, its outline level and collapsed mark too. */
+export type AxisEntry = {
+  index: number
+  size: number | null
+  hidden: boolean
+  auto?: true
+  level?: number
+  collapsed?: true
+}
 
 /**
  * Every change to a workbook is one of these: plain, serialisable data. `applyOp` performs one and returns the
@@ -89,6 +97,10 @@ export type Op =
   | { kind: "protect"; sheet: number; protection: SheetProtection | null }
   /** Protect Workbook (Structure) or Unprotect Workbook (null). */
   | { kind: "protectWorkbook"; protection: WorkbookProtection | null }
+  /** Outline levels alone ([index, level] pairs), leaving sizes and visibility: Subtotal's grouping. */
+  | { kind: "outlineLevels"; sheet: number; axis: AxisName; levels: [number, number][] }
+  /** Data › Outline › Settings (and Ctrl+8's outline symbols). */
+  | { kind: "outlineSettings"; sheet: number; settings: OutlineSettings }
   /** Sheets: add, delete, rename, move, tab colour and hiding (see sheet-ops). */
   | SheetOp
 
@@ -240,6 +252,23 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       return {
         inverse: [{ kind: "autoFilter", sheet: op.sheet, filter: before, ...(undoRows ? { rows: undoRows } : {}) }],
         change: rows?.change.structural ? rows.change : { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "outlineLevels": {
+      const axis = axisOf(sheet, op.axis)
+      const before: [number, number][] = op.levels.map(([i]) => [i, axis.level(i)])
+      for (const [i, level] of op.levels) axis.setLevel(i, level)
+      return {
+        inverse: [{ kind: "outlineLevels", sheet: op.sheet, axis: op.axis, levels: before.reverse() }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "outlineSettings": {
+      const before = { ...sheet.outline }
+      sheet.outline = { ...op.settings }
+      return {
+        inverse: [{ kind: "outlineSettings", sheet: op.sheet, settings: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
       }
     }
     case "protect": {
@@ -575,11 +604,19 @@ function setAxis(sheet: Sheet, index: number, name: AxisName, entries: AxisEntry
     size: axis.hasCustomSize(entry.index) ? axis.storedSize(entry.index) : null,
     hidden: axis.isHidden(entry.index),
     ...(axis.isAuto(entry.index) ? { auto: true as const } : {}),
+    ...(entry.level !== undefined
+      ? { level: axis.level(entry.index), ...(axis.isCollapsed(entry.index) ? { collapsed: true as const } : {}) }
+      : {}),
   }))
   for (const entry of entries) {
     if (axis.isHidden(entry.index) !== entry.hidden) visibility = true
     axis.setSize(entry.index, entry.size, entry.auto)
     axis.setHidden(entry.index, entry.hidden)
+    // Entries without a level (sizes, Hide) leave the outline as it is.
+    if (entry.level !== undefined) {
+      axis.setLevel(entry.index, entry.level)
+      axis.setCollapsed(entry.index, Boolean(entry.collapsed))
+    }
   }
   previous.reverse()
   return {
