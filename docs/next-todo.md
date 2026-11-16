@@ -83,7 +83,9 @@ Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed 
 
 - [x] Desktop installers from one tag (`.deb`, AppImage, Flatpak, Windows NSIS, macOS `.dmg`; `docs/release.md`),
       file associations, files opened from the file manager or Finder
-- [ ] macOS menu bar (Cells, File, Edit, View, Window, Help) with Excel for Mac's ⌘ shortcuts
+- [x] macOS menu bar (Cells, File, Edit, View, Format, Window, Help; `src-tauri/src/menu.rs`), Quit that asks to
+      save, macOS's own ⌘H/⌘M/⌘Q/⌘,/⌘` left to it, and ⌃H, ⌃G, ⌃` for Replace, Go To and Show Formulas as in Excel
+      for Mac. Not yet: the rest of Excel for Mac's own keys (built from memory; see verify-list)
 - [ ] Android build from `main` (generated project committed, signed `.apk`/`.aab` in CI, SAF files, Open with,
       hardware keyboard)
 - [ ] Shell choice by screen size and pointer (`PhoneShell` / desktop and tablet shell)

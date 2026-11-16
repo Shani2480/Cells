@@ -129,6 +129,18 @@ export function tauriPlatform(): Platform {
           unlisten?.()
         }
       },
+      onMenuCommand(callback) {
+        let disposed = false
+        let unlisten: (() => void) | undefined
+        void listen<string>("menu-command", (event) => callback(event.payload)).then((fn) => {
+          unlisten = fn
+          if (disposed) fn()
+        })
+        return () => {
+          disposed = true
+          unlisten?.()
+        }
+      },
     },
   }
 }

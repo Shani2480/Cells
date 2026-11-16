@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { FormulaAssist, FormulaHighlight } from "@/grid/FormulaAssist"
 import { usePlatform } from "@/platform/context"
 import type { SheetController } from "@/sheet/controller"
-import { keyInputFrom } from "@/sheet/keys"
+import { isSystemShortcut, keyInputFrom } from "@/sheet/keys"
 
 /**
  * The Name Box (shows the active cell or the selection's name; type a reference or name and Enter to go there, or a
@@ -231,6 +231,7 @@ export function FormulaBar({
             setScrollTop(event.currentTarget.scrollTop)
           }}
           onKeyDown={(event) => {
+            if (isSystemShortcut(event, platform.os)) return
             const input = keyInputFrom(event, platform.os)
             if (controller.edit && controller.keyEditing(input)) {
               event.preventDefault()

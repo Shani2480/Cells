@@ -19,6 +19,7 @@ import type { RibbonEnv } from "@/ribbon/registry"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
 import { CHART_DESIGN, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
+import { isTextField, menuBarAction } from "@/shell/menu-bar"
 import { whatsNewOnStart } from "@/about/release-notes"
 import { Dialog } from "@/shell/Dialog"
 import { RemoveDuplicatesDialog } from "@/shell/RemoveDuplicatesDialog"
@@ -674,6 +675,24 @@ function WorkbookWindow({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [])
+
+  // The macOS menu bar (src-tauri/src/menu.rs): each item runs the command it names, as the ribbon would.
+  const onMenuCommand = useRef<(id: string) => void>(() => {})
+  onMenuCommand.current = (id) => {
+    const action = menuBarAction(id, isTextField(document.activeElement, Boolean(controller.edit)))
+    if (!action) return
+    if (action.kind === "command") {
+      if (registry.isEnabled(action.id, env)) registry.get(action.id)?.run?.(env)
+    } else if (action.kind === "text") document.execCommand(action.command)
+    else if (action.kind === "selectAll") controller.selectAllOrRegion()
+    else if (action.kind === "backstage") setBackstage(action.page)
+    else if (action.kind === "dialog") openDialog(action.name)
+    else if (action.kind === "saveAs") void files.saveAs()
+    else if (action.kind === "close") void files.close()
+    else if (action.kind === "toggleRibbon") ribbonHandle.current?.toggleCollapsed()
+    else void platform.window.close()
+  }
+  useEffect(() => platform.window.onMenuCommand?.((id) => onMenuCommand.current(id)), [platform])
 
   const goTo = (target: Target, text: string) => {
     const current = rangeName(controller.selection.ranges[controller.selection.ranges.length - 1])

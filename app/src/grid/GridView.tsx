@@ -2,7 +2,7 @@ import { MAX_ROWS, rangeOf, type CellAddress, type Range } from "@cells/core"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { usePlatform } from "@/platform/context"
 import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
-import { keyInputFrom } from "@/sheet/keys"
+import { isSystemShortcut, keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
 import { ChartLayer } from "./ChartLayer"
 import { FilterButtons } from "./FilterButtons"
@@ -672,6 +672,7 @@ export function GridView({
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing || composingRef.current) return
+    if (isSystemShortcut(event, platform.os)) return
     const input = keyInputFrom(event, platform.os)
     if (controller.edit) {
       if (controller.keyEditing(input)) event.preventDefault()
@@ -811,6 +812,7 @@ export function GridView({
       ) : null}
       <textarea
         ref={inputRef}
+        data-grid-input
         className={
           (editing && editing.surface === "cell"
             ? "cell-editor is-editing"

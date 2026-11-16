@@ -2,6 +2,7 @@
 //! workbook engine lives in TypeScript (packages/core and packages/io).
 
 mod ai;
+mod menu;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -465,6 +466,18 @@ pub fn run() {
             if let Ok(mut list) = app.state::<PendingOpens>().0.lock() {
                 list.extend(openable_arguments(&args, &cwd));
             }
+            // The menu bar (macOS shows one for every app; elsewhere the window's ribbon is the menu).
+            #[cfg(target_os = "macos")]
+            {
+                app.set_menu(menu::menu_bar(app.handle())?)?;
+                app.on_menu_event(|app, event| {
+                    if let Some(id) = menu::command_of(event.id().as_ref()) {
+                        let _ = app.emit_to("main", "menu-command", id.to_string());
+                    }
+                });
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = menu::menu_bar::<tauri::Wry>;
             #[cfg(desktop)]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;

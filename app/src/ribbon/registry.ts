@@ -100,10 +100,14 @@ export const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(
 /** "Ctrl+B" as the platform shows it. */
 export function shortcutText(shortcut: string | undefined): string | undefined {
   if (!shortcut || !isMac) return shortcut
-  return shortcut
-    .replace(/Ctrl\+/g, "⌘")
-    .replace(/Shift\+/g, "⇧")
-    .replace(/Alt\+/g, "⌥")
+  return (
+    shortcut
+      // Excel for Mac keeps Control for these (⌘H hides the app): Replace ⌃H, Go To ⌃G, Show Formulas ⌃`.
+      .replace(/^Ctrl\+([HhGg`])$/, "⌃$1")
+      .replace(/Ctrl\+/g, "⌘")
+      .replace(/Shift\+/g, "⇧")
+      .replace(/Alt\+/g, "⌥")
+  )
 }
 
 export function iconOf(command: Command | undefined, env: RibbonEnv, large = false): ReactNode {

@@ -11,6 +11,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     notes: [
       "Installers for Linux (.deb, AppImage and Flatpak), Windows and macOS, all made from one release.",
       "Cells registers itself for workbooks (.xlsx, .xlsm and templates), and offers itself for .csv and .tsv files: double-click a workbook in your file manager and it opens in Cells, in the Cells that's already running if there is one.",
+      "On a Mac, Cells has its own menu bar (Cells, File, Edit, View, Format, Window, Help) with the usual ⌘ shortcuts. macOS keeps ⌘H, ⌘M and ⌘Q, so Replace is ⌃H and Go To is ⌃G, as in Excel for Mac. Quit asks about unsaved changes first.",
     ],
   },
   {

@@ -32,6 +32,11 @@ export interface WindowPort {
   onCloseRequested(allow: () => Promise<boolean> | boolean): () => void
   /** Calls back when the window is maximized or restored. Returns an unsubscribe function. */
   onMaximizedChange(callback: (maximized: boolean) => void): () => void
+  /**
+   * Calls back with the id of a menu bar item the person chose (macOS; `app/src/shell/menu-bar.ts`). Absent where
+   * there is no menu bar. Returns an unsubscribe function.
+   */
+  onMenuCommand?(callback: (id: string) => void): () => void
 }
 
 export type Platform = {
