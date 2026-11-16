@@ -347,3 +347,19 @@ describe("typing formulas", () => {
     expect(c.wb.calcStatus.pending).toBe(false)
   })
 })
+
+describe("live zoom (a pinch)", () => {
+  it("tells only the grid while pinching, and everyone otherwise", () => {
+    const c = new SheetController()
+    let all = 0
+    let scroll = 0
+    c.subscribe(() => all++)
+    c.subscribeScroll(() => scroll++)
+    c.setZoom(1.5, true)
+    expect(c.zoom).toBe(1.5)
+    expect([all, scroll]).toEqual([0, 1])
+    c.setZoom(2)
+    expect(c.zoom).toBe(2)
+    expect([all, scroll]).toEqual([1, 1])
+  })
+})

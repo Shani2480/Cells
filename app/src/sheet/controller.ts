@@ -1539,12 +1539,17 @@ export class SheetController {
     this.changed()
   }
 
-  /** View › Zoom (10% to 400%). */
-  setZoom(zoom: number) {
+  /**
+   * View › Zoom (10% to 400%). `live` (each step of a pinch) tells only the grid and the zoom readout, as scrolling
+   * does, so the ribbon and panes don't re-render with every step; the pinch calls `changed()` once it ends.
+   */
+  setZoom(zoom: number, live = false) {
     const z = Math.round(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) * 100) / 100
     if (z === this.zoom) return
     this.zoom = z
-    this.changed()
+    if (!live) return this.changed()
+    this.scrollVersion++
+    for (const listener of this.scrollListeners) listener()
   }
 
   /** Zoom to Selection: the selection fills the window (as far as 10%–400% allows), its top-left cell at the top left. */

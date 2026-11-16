@@ -68,47 +68,56 @@ export function StatusBar({ controller, onZoomDialog }: { controller: SheetContr
           {stats.numericCount > 0 ? <span>Sum: {show(stats.sum)}</span> : null}
         </div>
       ) : null}
-      <div className="status-zoom">
-        <button
-          type="button"
-          className="status-zoom-step"
-          aria-label="Zoom Out"
-          title="Zoom Out"
-          onClick={() => controller.setZoom(stepZoom(controller.zoom, -1))}
-        >
-          <Minus size={13} strokeWidth={1.75} />
-        </button>
-        <input
-          type="range"
-          className="status-zoom-slider"
-          aria-label="Zoom"
-          min={0}
-          max={1000}
-          value={Math.round(sliderOf(controller.zoom))}
-          onChange={(e) => {
-            const v = Number(e.target.value)
-            // The slider snaps to 100% near its middle, as Excel's.
-            controller.setZoom(Math.abs(v - 500) < 12 ? 1 : zoomOfSlider(v))
-          }}
-        />
-        <button
-          type="button"
-          className="status-zoom-step"
-          aria-label="Zoom In"
-          title="Zoom In"
-          onClick={() => controller.setZoom(stepZoom(controller.zoom, 1))}
-        >
-          <Plus size={13} strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          className="status-zoom-value"
-          title="Zoom level. Click to open the Zoom dialog."
-          onClick={onZoomDialog}
-        >
-          {Math.round(controller.zoom * 100)}%
-        </button>
-      </div>
+      <StatusZoom controller={controller} onZoomDialog={onZoomDialog} />
     </footer>
+  )
+}
+
+/** The zoom controls also follow a pinch, which zooms without re-rendering the rest of the window. */
+function StatusZoom({ controller, onZoomDialog }: { controller: SheetController; onZoomDialog: () => void }) {
+  useSyncExternalStore(controller.subscribe, controller.getVersion)
+  useSyncExternalStore(controller.subscribeScroll, controller.getScrollVersion)
+  return (
+    <div className="status-zoom">
+      <button
+        type="button"
+        className="status-zoom-step"
+        aria-label="Zoom Out"
+        title="Zoom Out"
+        onClick={() => controller.setZoom(stepZoom(controller.zoom, -1))}
+      >
+        <Minus size={13} strokeWidth={1.75} />
+      </button>
+      <input
+        type="range"
+        className="status-zoom-slider"
+        aria-label="Zoom"
+        min={0}
+        max={1000}
+        value={Math.round(sliderOf(controller.zoom))}
+        onChange={(e) => {
+          const v = Number(e.target.value)
+          // The slider snaps to 100% near its middle, as Excel's.
+          controller.setZoom(Math.abs(v - 500) < 12 ? 1 : zoomOfSlider(v))
+        }}
+      />
+      <button
+        type="button"
+        className="status-zoom-step"
+        aria-label="Zoom In"
+        title="Zoom In"
+        onClick={() => controller.setZoom(stepZoom(controller.zoom, 1))}
+      >
+        <Plus size={13} strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        className="status-zoom-value"
+        title="Zoom level. Click to open the Zoom dialog."
+        onClick={onZoomDialog}
+      >
+        {Math.round(controller.zoom * 100)}%
+      </button>
+    </div>
   )
 }

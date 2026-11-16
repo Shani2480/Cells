@@ -570,7 +570,7 @@ export function GridView({
           zoom: controller.zoom,
           clamp: (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z)),
         })
-        controller.setZoom(next.zoom)
+        controller.setZoom(next.zoom, true)
         controller.scrollTo(next.scroll.x, next.scroll.y)
         return
       }
@@ -678,6 +678,9 @@ export function GridView({
     if (!canvas) return
     let pointer: { x: number; y: number } | null = null
     let start: number | null = null
+    // The shell sends a step for every touchpad event, often more than once a frame: the latest wins.
+    let scale: number | null = null
+    let frame = 0
     const onMove = (event: MouseEvent) => {
       const rect = canvas.getBoundingClientRect()
       pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top }
@@ -685,12 +688,10 @@ export function GridView({
     const onLeave = () => (pointer = null)
     canvas.addEventListener("mousemove", onMove)
     canvas.addEventListener("mouseleave", onLeave)
-    const host = window as Window & { __cellsPinch?: (phase: string, scale: number) => void }
-    host.__cellsPinch = (phase, scale) => {
-      if (phase === "begin") start = controller.zoom
-      if (phase === "end") start = null
+    const apply = () => {
+      frame = 0
       const layout = layoutRef.current
-      if (phase !== "change" || start === null || !layout || !Number.isFinite(scale)) return
+      if (start === null || scale === null || !layout) return
       const rect = canvas.getBoundingClientRect()
       const next = pinch({
         startZoom: start,
@@ -702,12 +703,28 @@ export function GridView({
         zoom: controller.zoom,
         clamp: (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(z * 100) / 100)),
       })
-      controller.setZoom(next.zoom)
+      controller.setZoom(next.zoom, true)
       controller.scrollTo(next.scroll.x, next.scroll.y)
+    }
+    const host = window as Window & { __cellsPinch?: (phase: string, scale: number) => void }
+    host.__cellsPinch = (phase, value) => {
+      if (phase === "begin") {
+        start = controller.zoom
+        scale = null
+      } else if (phase === "change" && start !== null && Number.isFinite(value)) {
+        scale = value
+        if (!frame) frame = requestAnimationFrame(apply)
+      } else if (phase === "end" && start !== null) {
+        cancelAnimationFrame(frame)
+        apply()
+        start = null
+        controller.changed()
+      }
     }
     return () => {
       canvas.removeEventListener("mousemove", onMove)
       canvas.removeEventListener("mouseleave", onLeave)
+      cancelAnimationFrame(frame)
       delete host.__cellsPinch
     }
   }, [controller])
