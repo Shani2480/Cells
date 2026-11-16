@@ -140,6 +140,8 @@ Phase 3, added at the end:
 - [ ] The release workflow's first run: every job green, the Windows `.exe` and macOS `.dmg` install and start (they
       were never built locally; the macOS code path for files from the Finder, `RunEvent::Opened`, wasn't compiled
       here).
+- [ ] The first signed Android release: Inkspire's two secrets copied into this repository, the `.apk` installs over
+      an earlier one, and the `.aab` is accepted by Play Console if it is ever used. Only debug builds were made.
 - [ ] The macOS menu bar on a Mac (only built, on Linux, to check its shortcuts parse): each item runs; ⌘S runs
       once (the page takes it before the menu); Undo in a dialog's box undoes its text, not the workbook; Quit asks
       to save; ⌘H hides Cells. Excel for Mac's shortcuts were taken from memory: compare with its Help list, especially

@@ -2,7 +2,7 @@ name: Release
 
 # Builds the installers from one tag and attaches them to a GitHub release (docs/release.md):
 # a .deb and an AppImage (built on Ubuntu 22.04 so they run on older distributions too), a Flatpak made from that
-# .deb, a Windows setup .exe (NSIS) and a macOS .dmg (Apple Silicon and Intel in one).
+# .deb, a Windows setup .exe (NSIS), a macOS .dmg (Apple Silicon and Intel in one) and an Android .apk and .aab.
 # The release text is the version's notes from app/src/about/release-notes.ts, as What's New shows them.
 # Push a tag such as v0.6.0, or run it by hand with the tag to publish.
 
@@ -151,9 +151,59 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg --clobber
 
+  android:
+    name: Android (.apk, .aab)
+    needs: draft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: npm ci
+      # The key is Inkspire's, reused (PLAN.md Phase 6): the same secret names and alias. Without the secrets the
+      # build goes on unsigned, and the release gets no Android files.
+      - name: Signing key
+        id: key
+        env:
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEY_BASE64" ]; then
+            echo "::warning::No ANDROID_KEY_BASE64 secret: the Android build is unsigned and not uploaded."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$ANDROID_KEY_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          printf 'password=%s\nkeyAlias=inkspire\nstoreFile=%s\n' "$ANDROID_KEY_PASSWORD" "$RUNNER_TEMP/release.jks" \
+            > src-tauri/gen/android/keystore.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+      - name: Build (arm64 phones and tablets, and x86_64 for emulators and Chromebooks)
+        run: NDK_HOME="$ANDROID_NDK_LATEST_HOME" npm run tauri android build -- --target aarch64 --target x86_64 --apk --aab
+      - name: Upload to the release
+        if: steps.key.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          out=src-tauri/gen/android/app/build/outputs
+          cp $out/apk/universal/release/app-universal-release.apk "Cells_${TAG#v}_android.apk"
+          cp $out/bundle/universalRelease/app-universal-release.aab "Cells_${TAG#v}_android.aab"
+          gh release upload "$TAG" "Cells_${TAG#v}_android.apk" "Cells_${TAG#v}_android.aab" --clobber
+
   publish:
     name: Publish the release
-    needs: [linux, flatpak, windows, macos]
+    needs: [linux, flatpak, windows, macos, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

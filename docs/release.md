@@ -2,15 +2,31 @@
 
 One tag builds every installer (`.github/workflows/release.yml`):
 
-| Platform | File                       | Built on                                            | Notes                                                                                        |
-| -------- | -------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Linux    | `Cells_<v>_amd64.deb`      | Ubuntu 22.04, so it runs on older distributions too | Registers the file types and `cells://`                                                      |
-| Linux    | `Cells_<v>_amd64.AppImage` | Ubuntu 22.04                                        | Registers `cells://` the first time it runs; file types only through the desktop's Open With |
-| Linux    | `Cells_<v>_x86_64.flatpak` | GNOME 50 runtime, from the `.deb`                   | `packaging/flatpak/`; shares `~/.config/inkspire` and `~/.cache/inkspire` with Inkspire      |
-| Windows  | `Cells_<v>_x64-setup.exe`  | NSIS, installs for the current user                 | Registers the file types and `cells://`                                                      |
-| macOS    | `Cells_<v>_universal.dmg`  | Apple Silicon and Intel in one app                  | Signed ad hoc, not notarized: the first open needs right-click › Open                        |
+| Platform | File                            | Built on                                            | Notes                                                                                        |
+| -------- | ------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Linux    | `Cells_<v>_amd64.deb`           | Ubuntu 22.04, so it runs on older distributions too | Registers the file types and `cells://`                                                      |
+| Linux    | `Cells_<v>_amd64.AppImage`      | Ubuntu 22.04                                        | Registers `cells://` the first time it runs; file types only through the desktop's Open With |
+| Linux    | `Cells_<v>_x86_64.flatpak`      | GNOME 50 runtime, from the `.deb`                   | `packaging/flatpak/`; shares `~/.config/inkspire` and `~/.cache/inkspire` with Inkspire      |
+| Windows  | `Cells_<v>_x64-setup.exe`       | NSIS, installs for the current user                 | Registers the file types and `cells://`                                                      |
+| macOS    | `Cells_<v>_universal.dmg`       | Apple Silicon and Intel in one app                  | Signed ad hoc, not notarized: the first open needs right-click › Open                        |
+| Android  | `Cells_<v>_android.apk`, `.aab` | arm64 and x86_64, from `main`                       | Uploaded only when signed (below); id `app.cells`                                            |
 
-Android comes with Phase 6's Android part.
+## Android signing
+
+Every Android update must be signed with the same key as the version already installed. Cells reuses Inkspire's
+key (decided 2026-11-16): the release job reads the secrets `ANDROID_KEY_BASE64` (the `.jks` file, base64) and
+`ANDROID_KEY_PASSWORD`, with the key alias `inkspire`, as Inkspire's workflow does. Copy those two secrets from
+Inkspire's repository settings into this one before the first Android release. Until then the job builds unsigned,
+warns, and uploads nothing. Debug builds (`npm run tauri android build -- --debug`) use the local debug key.
+
+The version code comes from the version (`0.6.0` → 6000), so it rises with every release.
+
+## Building for Android here
+
+`ANDROID_HOME=~/Android/Sdk NDK_HOME=~/Android/Sdk/ndk/<version> npm run tauri android build -- --debug --target
+x86_64 --apk` makes an emulator build; `src-tauri/gen/android` is the generated project, kept in git with Cells'
+changes (`MainActivity.kt`: system bar and keyboard insets, no page zoom; signing in `app/build.gradle.kts`; Cells'
+launcher icons; no Android TV launcher).
 
 ## Steps
 

@@ -345,6 +345,9 @@ resulting `.docx` behaves the same way in Word.
 
 **Decisions (2026-11-16):** the platforms are as below, with no iOS/iPadOS. Speed is measured in the Android
 emulator for now; the real-phone measurement in the acceptance waits until a device is named (`verify-list.md`).
+Android signing: test builds use the debug key; the release job reads Inkspire's secret names and key alias
+(`ANDROID_KEY_BASE64`, `ANDROID_KEY_PASSWORD`, alias `inkspire`), so Inkspire's key can be reused by copying its two
+secrets into this repo later. Until then the release `.apk` is left unsigned.
 
 **Scope**
 

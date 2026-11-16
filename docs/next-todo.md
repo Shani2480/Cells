@@ -86,8 +86,10 @@ Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed 
 - [x] macOS menu bar (Cells, File, Edit, View, Format, Window, Help; `src-tauri/src/menu.rs`), Quit that asks to
       save, macOS's own ⌘H/⌘M/⌘Q/⌘,/⌘` left to it, and ⌃H, ⌃G, ⌃` for Replace, Go To and Show Formulas as in Excel
       for Mac. Not yet: the rest of Excel for Mac's own keys (built from memory; see verify-list)
-- [ ] Android build from `main` (generated project committed, signed `.apk`/`.aab` in CI, SAF files, Open with,
-      hardware keyboard)
+- [x] Android build from `main`: generated project committed (`app.cells`), system bars and keyboard kept clear,
+      Cells' icon, `.apk`/`.aab` in the release workflow signed with Inkspire's key once its secrets are copied in
+- [ ] Android files: open and save through the system's document picker (SAF, as Inkspire), Recent, and "Open with"
+      from other apps (the intent filters exist; opening them doesn't yet); hardware keyboard and stylus
 - [ ] Shell choice by screen size and pointer (`PhoneShell` / desktop and tablet shell)
 - [ ] PhoneShell: top bar, finger-sized grid and handles, formula bar with the formula keyboard row, sheet switcher,
       tool drawers, long press, pinch, double tap

@@ -2,6 +2,7 @@
 //! workbook engine lives in TypeScript (packages/core and packages/io).
 
 mod ai;
+#[cfg(desktop)]
 mod menu;
 
 use std::path::{Path, PathBuf};
@@ -310,6 +311,7 @@ struct SystemDefaults {
 }
 
 /// The display name in a `passwd` entry's GECOS field: its first comma-separated part.
+#[cfg_attr(mobile, allow(dead_code))]
 fn gecos_name(entry: &str) -> String {
     entry
         .split(':')
@@ -421,6 +423,7 @@ fn openable_arguments(args: &[String], cwd: &Path) -> Vec<String> {
 
 /// Hands links and files to the window: queued for `take_pending_opens`, announced with `cells-open`, and the
 /// window brought to the front (a second launch lands here instead of opening a second Cells).
+#[cfg_attr(mobile, allow(dead_code))]
 fn deliver(app: &tauri::AppHandle, items: Vec<String>) {
     if items.is_empty() {
         return;
@@ -432,6 +435,7 @@ fn deliver(app: &tauri::AppHandle, items: Vec<String>) {
     }
     let _ = app.emit_to("main", "cells-open", ());
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(desktop)]
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
@@ -476,7 +480,7 @@ pub fn run() {
                     }
                 });
             }
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(all(desktop, not(target_os = "macos")))]
             let _ = menu::menu_bar::<tauri::Wry>;
             #[cfg(desktop)]
             {
