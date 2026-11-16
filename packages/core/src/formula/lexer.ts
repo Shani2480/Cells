@@ -82,7 +82,7 @@ export function tokenize(source: string, options: LexOptions = {}): Token[] {
       continue
     }
     if (ch === "#") {
-      const prev = tokens.at(-1)
+      const prev = tokens[tokens.length - 1]
       if (prev && (prev.kind === "ref" || prev.kind === "close" || prev.kind === "name")) {
         push("spill", "#")
         continue

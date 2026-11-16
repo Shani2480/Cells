@@ -7,7 +7,7 @@ import {
   type CellNote,
   type Sheet,
 } from "@cells/core"
-import { escapeXml, escapeXmlText } from "../xml"
+import { escapeXml, escapeXmlText } from "@cells/ooxml"
 import { NS_MAIN } from "./constants"
 import { at, kid, kids, parseTree, textOf } from "./dom"
 

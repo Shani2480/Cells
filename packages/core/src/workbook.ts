@@ -226,11 +226,11 @@ export class Workbook<Meta = unknown> {
 
   /** The label of the step Undo would take back. */
   get undoLabel(): string | null {
-    return this.undoStack.at(-1)?.label ?? null
+    return this.undoStack[this.undoStack.length - 1]?.label ?? null
   }
 
   get redoLabel(): string | null {
-    return this.redoStack.at(-1)?.label ?? null
+    return this.redoStack[this.redoStack.length - 1]?.label ?? null
   }
 
   get undoDepth() {

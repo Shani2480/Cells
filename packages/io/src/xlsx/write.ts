@@ -9,7 +9,7 @@ import {
   type OpcRelationship,
   type RelationshipGroup,
 } from "../opc"
-import { escapeXmlText, xmlBytes } from "../xml"
+import { escapeXmlText, xmlBytes } from "@cells/ooxml"
 import { personsXml, writeComments } from "./comments"
 import {
   CT_APP,

@@ -47,7 +47,7 @@ class Parser {
         this.tokens.push(t)
         continue
       }
-      const prev = this.tokens.at(-1)
+      const prev = this.tokens[this.tokens.length - 1]
       const next = all[k + 1]
       if (prev && next && ENDS_OPERAND.has(prev.kind) && STARTS_OPERAND.has(next.kind)) this.tokens.push(t)
     }
@@ -248,7 +248,7 @@ class Parser {
       else if (t.kind === "bool") value = { type: "bool", value: t.text.toUpperCase() === "TRUE" }
       else if (t.kind === "error") value = { type: "error", code: t.text.toUpperCase() as ErrorCode }
       else throw new ParseError("Array constants hold only numbers, text, logicals and errors.", t.start)
-      rows.at(-1)!.push(value)
+      rows[rows.length - 1]!.push(value)
       const sep = this.next()
       if (sep.kind === "comma") continue
       if (sep.kind === "semicolon") {

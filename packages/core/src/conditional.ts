@@ -371,7 +371,12 @@ export class ConditionalEval {
     if (s) return s
     const sorted = numbersIn(this.sheet, e.ranges).sort((a, b) => a - b)
     const sum = sorted.reduce((a, b) => a + b, 0)
-    s = { sorted, min: sorted[0] ?? 0, max: sorted.at(-1) ?? 0, mean: sorted.length ? sum / sorted.length : 0 }
+    s = {
+      sorted,
+      min: sorted[0] ?? 0,
+      max: sorted[sorted.length - 1] ?? 0,
+      mean: sorted.length ? sum / sorted.length : 0,
+    }
     if (e.rule.kind === "duplicate") {
       const counts = new Map<string, number>()
       for (const r of e.ranges)

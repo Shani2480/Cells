@@ -1,6 +1,5 @@
 import { expandSpec } from "./expand"
-import { storedZip } from "./stored-zip"
-import { escapeXml, escapeXmlText } from "./escape"
+import { escapeXml, escapeXmlText, storedZip } from "@cells/ooxml"
 import {
   CHART_STYLES,
   defaultChartSpec,

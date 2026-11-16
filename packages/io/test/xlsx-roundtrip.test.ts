@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { errorValue } from "@cells/core"
 import { openXlsx, saveXlsx } from "../src"
-import { readZip } from "../src/zip"
+import { readZip } from "@cells/ooxml"
 import { budget } from "./samples"
 
 const sample = budget

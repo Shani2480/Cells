@@ -8,7 +8,7 @@ import {
   type TotalsFunction,
   tokenize,
 } from "@cells/core"
-import { escapeXmlText } from "../xml"
+import { escapeXmlText } from "@cells/ooxml"
 import { autoFilterXml, readAutoFilter } from "./autofilter"
 import { NS_MAIN } from "./constants"
 import { at, attrText, kid, kids, parseTree } from "./dom"

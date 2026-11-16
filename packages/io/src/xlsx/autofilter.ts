@@ -7,7 +7,7 @@ import {
   type FilterCondition,
   type FilterOperator,
 } from "@cells/core"
-import { escapeXml } from "../xml"
+import { escapeXml } from "@cells/ooxml"
 import { at, attrText, kid, kids, type XNode } from "./dom"
 import type { StylesIn, StylesOut } from "./styles"
 

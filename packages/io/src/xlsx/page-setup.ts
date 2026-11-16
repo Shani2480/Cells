@@ -9,7 +9,7 @@ import {
   type PageSetup,
   type Range,
 } from "@cells/core"
-import { escapeXml, escapeXmlText } from "../xml"
+import { escapeXml, escapeXmlText } from "@cells/ooxml"
 import { at, kid, kids, type XNode } from "./dom"
 
 /**

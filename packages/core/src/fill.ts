@@ -123,7 +123,7 @@ function sameRun(a: Item, b: Item) {
 function splitRuns(items: Item[]): Run[] {
   const runs: Run[] = []
   items.forEach((item, index) => {
-    const last = runs.at(-1)
+    const last = runs[runs.length - 1]
     if (last && sameRun(last.items[0], item)) {
       last.items.push(item)
     } else {

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { passwordMatches, type CellStyle, type Workbook } from "@cells/core"
 import { openXlsx, saveXlsx } from "../src"
-import { readZip } from "../src/zip"
+import { readZip } from "@cells/ooxml"
 import { samples } from "./samples"
 
 const fixture = (name: string) =>

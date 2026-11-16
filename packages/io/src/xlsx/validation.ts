@@ -7,7 +7,7 @@ import {
   type ValidationOperator,
   type ValidationType,
 } from "@cells/core"
-import { escapeXmlText } from "../xml"
+import { escapeXmlText } from "@cells/ooxml"
 import { at, attrText, kid, kids, parseFragment, type XNode } from "./dom"
 import { formulaFromFile, formulaToFile } from "./formula"
 

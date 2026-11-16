@@ -1,5 +1,5 @@
 import type { Border, BorderStyle, CellStyle, CFStyle, HAlign, Underline, VAlign } from "@cells/core"
-import { escapeXml } from "../xml"
+import { escapeXml } from "@cells/ooxml"
 import { argb, DEFAULT_THEME_COLORS, resolveColor, type ColorAttrs, type ThemeColors } from "./colors"
 import { BUILTIN_CELL_STYLES, BUILTIN_NUMBER_FORMATS, INDEXED_COLORS, NS_MAIN } from "./constants"
 import { at, attrText, kid, kids, parseTree, raw, startTag, type XDoc, type XNode } from "./dom"

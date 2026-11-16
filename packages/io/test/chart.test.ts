@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { openXlsx, saveXlsx } from "../src"
-import { readZip } from "../src/zip"
+import { readZip } from "@cells/ooxml"
 import { samples } from "./samples"
 
 const fixture = () => new Uint8Array(readFileSync(new URL("./fixtures/excel/features.xlsx", import.meta.url)))

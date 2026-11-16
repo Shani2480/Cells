@@ -21,7 +21,7 @@ import {
   type SheetProtection,
   type TimePeriod,
 } from "@cells/core"
-import { escapeXml } from "../xml"
+import { escapeXml } from "@cells/ooxml"
 import { readAutoFilter } from "./autofilter"
 import { scanXml } from "./scan"
 import { at, kid, kids, parseFragment, raw, type Kept, type XDoc, type XNode } from "./dom"

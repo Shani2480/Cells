@@ -31,6 +31,9 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       keeping what is there; then read and merge them as the other settings. Keys are already shared (same keyring
       service). Later: let Cells use the built-in engine (share `local_ai`'s engine and model folder, or run one
       server both apps talk to).
-- [ ] I8. **Shared code** (after Cells Phase 4): adopt the shared OPC/zip, chart spec/XML, ribbon and token packages,
-      and replace the 4×4 Spreadsheet block (`editor/sheet-block.ts`) and arithmetic formula fields
-      (`editor/formula.ts`) with the Cells formula engine.
+- [ ] I8. **Shared code** (`docs/shared-packages.md`): add Cells as a submodule at `vendor/cells` and its
+      `ooxml`, `core` and `chart` packages to the npm workspaces. Then: - replace `document/docx/xml.ts`, `zip.ts` and `opc.ts` with `@cells/ooxml` (`WORD_PACKAGE`, through a small
+      wrapper that keeps `openPackage`/`writePackage`); - replace `editor/chart-spec.ts`, `chart-expand.ts`, `chart-map.ts`, `chart-sheet.ts` and
+      `document/docx/chart-xml.ts`, `chartex-xml.ts` with `@cells/chart`; - calculate the Spreadsheet block (`editor/sheet-block.ts`) with `calculateGrid` and formula fields
+      (`editor/formula.ts`) with `calculateFormula`, showing Word's `!Syntax Error` / `!Zero Divide`.
+      Ribbon components and tokens stay separate (why: `docs/shared-packages.md`).

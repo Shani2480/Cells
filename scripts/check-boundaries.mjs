@@ -7,8 +7,10 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
 const allowed = {
   core: [],
   platform: ["@cells/core"],
-  io: ["@cells/core", "@cells/chart", "@zip.js/zip.js", "saxes"],
+  ooxml: ["@zip.js/zip.js", "saxes"],
+  io: ["@cells/core", "@cells/chart", "@cells/ooxml"],
   chart: [
+    "@cells/ooxml",
     "d3-geo",
     "geojson",
     "saxes",

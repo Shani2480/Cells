@@ -1,5 +1,5 @@
 import { tableAt, Workbook, type DefinedName, type Sheet, type WorkbookProtection } from "@cells/core"
-import { decodeXml, parseXmlEvents } from "../xml"
+import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
 import { themeColorsFrom, DEFAULT_THEME_COLORS, type ThemeColors } from "./colors"
 import { readComments, readPersons } from "./comments"

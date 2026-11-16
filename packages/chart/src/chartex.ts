@@ -1,5 +1,5 @@
 import { child, children, column, find, hex, srgb, tree, type Element } from "./xml"
-import { escapeXml, escapeXmlText } from "./escape"
+import { escapeXml, escapeXmlText } from "@cells/ooxml"
 import {
   boxOptions,
   defaultChartSpec,

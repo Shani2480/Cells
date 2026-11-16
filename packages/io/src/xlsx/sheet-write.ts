@@ -12,7 +12,7 @@ import {
   type Sheet,
   type StyleTable,
 } from "@cells/core"
-import { escapeXml, escapeXmlText } from "../xml"
+import { escapeXml, escapeXmlText } from "@cells/ooxml"
 import { autoFilterXml } from "./autofilter"
 import { argb } from "./colors"
 import { NS_MAIN, NS_R } from "./constants"

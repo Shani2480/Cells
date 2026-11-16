@@ -1,4 +1,4 @@
-import { decodeXml, escapeXml, parseXmlEvents } from "../xml"
+import { decodeXml, escapeXml, parseXmlEvents } from "@cells/ooxml"
 
 /**
  * A light element tree for the small parts (workbook, styles, theme, comments). Each node remembers where it sits

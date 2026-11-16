@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@cells/core": "*",
-    "@zip.js/zip.js": "^2.25.0",
-    "saxes": "^6.0.0"
+    "@cells/ooxml": "*"
   }
 }

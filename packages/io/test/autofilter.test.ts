@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { Workbook } from "@cells/core"
 import { openXlsx, saveXlsx } from "../src"
-import { readZip } from "../src/zip"
+import { readZip } from "@cells/ooxml"
 
 const fixture = () => new Uint8Array(readFileSync(new URL("./fixtures/excel/filters.xlsx", import.meta.url)))
 const range = { r0: 0, c0: 0, r1: 6, c1: 2 }

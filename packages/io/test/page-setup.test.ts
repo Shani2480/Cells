@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 import { MAX_COLS, paginate, Workbook } from "@cells/core"
 import { openXlsx, saveXlsx } from "../src"
 import { parseHeaderFooter } from "../src/xlsx/page-setup"
-import { readZip } from "../src/zip"
+import { readZip } from "@cells/ooxml"
 
 const fixture = () => new Uint8Array(readFileSync(new URL("./fixtures/excel/print.xlsx", import.meta.url)))
 const files = async (bytes: Uint8Array) =>

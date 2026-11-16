@@ -1,4 +1,4 @@
-// Taken from Inkspire (src/document/docx/xml.ts), unchanged apart from this line.
+// Shared by Cells and Inkspire (docs/shared-packages.md); first written for Inkspire (src/document/docx/xml.ts).
 import { SaxesParser } from "saxes"
 
 export class XmlError extends Error {

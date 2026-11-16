@@ -73,7 +73,8 @@ Cells (typing and showing dates and numbers); each app keeps its own recent-file
       workbook in Cells and saves it back (`docs/linked-ranges.md`)
 - [x] AI: formula from a description, explain a formula, suggest a chart or summary (Inkspire's providers and keys;
       opt-in in the setup and Options; `docs/ai.md`). Not yet: Inkspire's built-in engine in Cells
-- [ ] Shared code packages for Inkspire to adopt (OPC/zip, chart, formula engine)
+- [x] Shared code packages for Inkspire to adopt: `@cells/ooxml` (new), `@cells/chart`, and the formula engine's
+      `calculateGrid`/`calculateFormula` in `@cells/core` (`docs/shared-packages.md`)
 
 ## Later (from Phase 4)
 

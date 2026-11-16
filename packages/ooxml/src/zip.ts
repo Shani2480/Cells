@@ -1,4 +1,4 @@
-// Taken from Inkspire (src/document/docx/zip.ts). Excel, like Word, accepts these zips.
+// Shared by Cells and Inkspire (docs/shared-packages.md); first written for Inkspire (src/document/docx/zip.ts).
 import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader, ZipWriter, type Entry, type FileEntry } from "@zip.js/zip.js"
 
 /** DOS date 0x0021, time 0: 1980-01-01 00:00, the timestamp Office writes on every entry. */

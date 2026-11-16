@@ -1,0 +1,14 @@
+{
+  "name": "@cells/ooxml",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Office Open XML packages for Cells and Inkspire: zip, XML reading and writing, and the OPC layer (content types, relationships, part order) for workbooks and Word documents. Pure TypeScript, no DOM.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zip.js/zip.js": "^2.25.0",
+    "saxes": "^6.0.0"
+  }
+}

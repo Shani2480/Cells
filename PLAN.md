@@ -74,6 +74,7 @@ Cells/
       clipboard/   TSV/HTML/internal-JSON encode + decode, paste-special
       data/        sort, filter, find/replace, fill series, conditional-format rules
     io/            pure TS file formats (depends on core only)
+    ooxml/         pure TS zip, XML and OPC for workbooks and Word documents (shared with Inkspire, Phase 5)
       xlsx/  csv/  opc/  chart-xml/
     platform/      interfaces only: FileSystem, Dialogs, Clipboard, Window, Settings, Keyring, AppLink
   app/
@@ -320,6 +321,10 @@ local-first model; there is nothing to log in to (confirmed 2026-11-14). Buildin
 6. Shared code extraction (decided here, not earlier): move OPC/zip, chart spec/XML, ribbon components, tokens and the
    formula engine into shared packages; Inkspire's 4×4 Spreadsheet block and arithmetic formula fields then use the
    real engine.
+   **Decided 2026-11-16** (`docs/shared-packages.md`): `@cells/ooxml` (new: zip, XML, OPC for workbooks and Word
+   documents), `@cells/chart` and `@cells/core` (with `calculateGrid`/`calculateFormula`) are shared from this repo;
+   Inkspire takes them as a submodule and npm workspaces. Ribbon components and tokens are not shared: the two ribbons
+   have no code in common, and only 19 token names match.
 
 **Decisions (2026-11-15):** Cells gets AI features in this phase, using Inkspire's AI providers and the same keyring
 entries (opt-in). The regional formats are applied in Cells, not only stored. Each app keeps its own recent-files list
