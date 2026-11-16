@@ -142,7 +142,32 @@ fn shared_settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .path()
         .config_dir()
         .map_err(|err| format!("The settings folder could not be found: {err}"))?;
-    Ok(base.join("inkspire").join("settings.json"))
+    Ok(outside_flatpak(base, ".config")
+        .join("inkspire")
+        .join("settings.json"))
+}
+
+/// In a Flatpak the config and cache folders point into the app's sandbox (`~/.var/app/<id>/…`), where Inkspire
+/// can't see them. The manifest grants the real `~/.config/inkspire` and `~/.cache/inkspire`, so those are used.
+fn outside_flatpak(folder: PathBuf, home_folder: &str) -> PathBuf {
+    host_folder(
+        std::env::var_os("FLATPAK_ID").is_some(),
+        std::env::var_os("HOME").map(PathBuf::from),
+        folder,
+        home_folder,
+    )
+}
+
+fn host_folder(
+    flatpak: bool,
+    home: Option<PathBuf>,
+    folder: PathBuf,
+    home_folder: &str,
+) -> PathBuf {
+    match home {
+        Some(home) if flatpak && home.is_absolute() => home.join(home_folder),
+        _ => folder,
+    }
 }
 
 /// The most the settings file may hold; anything bigger isn't a settings file.
@@ -239,7 +264,12 @@ fn inside_edit_folder(path: &Path, edit_folder: &Path) -> bool {
 #[tauri::command]
 fn is_edit_copy(app: tauri::AppHandle, path: String) -> bool {
     match app.path().cache_dir() {
-        Ok(cache) => inside_edit_folder(Path::new(&path), &cache.join("inkspire").join("edit")),
+        Ok(cache) => inside_edit_folder(
+            Path::new(&path),
+            &outside_flatpak(cache, ".cache")
+                .join("inkspire")
+                .join("edit"),
+        ),
         Err(_) => false,
     }
 }
@@ -371,6 +401,11 @@ fn openable_arguments(args: &[String], cwd: &Path) -> Vec<String> {
             if arg.starts_with('-') {
                 return None;
             }
+            // The desktop entry's %U: file managers pass local files as file:// URLs.
+            if arg.starts_with("file://") {
+                let url: tauri::Url = arg.parse().ok()?;
+                return opened_files(&[url]).into_iter().next();
+            }
             let path = PathBuf::from(arg);
             let full = if path.is_absolute() {
                 path
@@ -468,8 +503,26 @@ pub fn run() {
             ai::ai_key_status,
             ai::ai_save_key
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Cells");
+        .build(tauri::generate_context!())
+        .expect("error while running Cells")
+        .run(|_app, _event| {
+            // macOS hands files opened from the Finder (or dropped on the Dock icon) to the running app as an event,
+            // not as arguments. cells:// links come through the deep-link plugin instead.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                deliver(_app, opened_files(&urls));
+            }
+        });
+}
+
+/// The workbooks among `file://` URLs: the ones macOS asks the app to open, and %U arguments on Linux.
+fn opened_files(urls: &[tauri::Url]) -> Vec<String> {
+    urls.iter()
+        .filter(|url| url.scheme() == "file")
+        .filter_map(|url| url.to_file_path().ok())
+        .map(|path| path.to_string_lossy().into_owned())
+        .filter(|path| assert_workbook_path(path).is_ok())
+        .collect()
 }
 
 #[cfg(test)]
@@ -548,6 +601,8 @@ mod tests {
             "Notes.txt",
             "x.sh",
             "/srv/a.xlsx",
+            "file:///home/alex/Q1%20Report.xlsx",
+            "file:///home/alex/photo.png",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -557,8 +612,44 @@ mod tests {
             vec![
                 "cells://open?file=%2Fhome%2Falex%2FBudget.xlsx",
                 "/home/alex/Notes.txt",
-                "/srv/a.xlsx"
+                "/srv/a.xlsx",
+                "/home/alex/Q1 Report.xlsx"
             ]
+        );
+    }
+
+    #[test]
+    fn files_opened_from_the_finder() {
+        let urls: Vec<tauri::Url> = [
+            "file:///Users/alex/Budget%202026.xlsx",
+            "file:///Users/alex/notes.pdf",
+            "cells://open?file=%2FUsers%2Falex%2FA.xlsx",
+            "file:///Users/alex/data.csv",
+        ]
+        .iter()
+        .map(|u| u.parse().unwrap())
+        .collect();
+        assert_eq!(
+            opened_files(&urls),
+            vec!["/Users/alex/Budget 2026.xlsx", "/Users/alex/data.csv"]
+        );
+    }
+
+    #[test]
+    fn shared_folders_leave_the_flatpak_sandbox() {
+        let sandboxed = PathBuf::from("/home/alex/.var/app/app.cells.desktop/config");
+        let home = Some(PathBuf::from("/home/alex"));
+        assert_eq!(
+            host_folder(true, home.clone(), sandboxed.clone(), ".config"),
+            PathBuf::from("/home/alex/.config")
+        );
+        assert_eq!(
+            host_folder(false, home, sandboxed.clone(), ".config"),
+            sandboxed
+        );
+        assert_eq!(
+            host_folder(true, None, sandboxed.clone(), ".config"),
+            sandboxed
         );
     }
 

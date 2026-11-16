@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>app.cells.desktop</id>
+  <name>Cells</name>
+  <summary>Local spreadsheet with a familiar ribbon</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.shani2480">
+    <name>The Cells authors</name>
+  </developer>
+  <description>
+    <p>
+      A spreadsheet with an Office-style ribbon, the keyboard and formulas people know, charts, tables, filters and
+      printing. Opens and saves .xlsx and .csv files. Workbooks stay on your computer; AI tools are optional.
+    </p>
+  </description>
+  <launchable type="desktop-id">app.cells.desktop.desktop</launchable>
+  <url type="homepage">https://github.com/Shani2480/Cells</url>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/Shani2480/Cells/main/docs/images/cells-light.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/Shani2480/Cells/main/docs/images/cells-dark.png</image>
+    </screenshot>
+  </screenshots>
+  <provides>
+    <mediatype>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</mediatype>
+    <mediatype>text/csv</mediatype>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.6.0" date="2026-11-16"/>
+    <release version="0.5.0" date="2026-11-16"/>
+    <release version="0.4.0" date="2026-11-15"/>
+    <release version="0.3.0" date="2026-11-14"/>
+    <release version="0.2.0" date="2026-11-14"/>
+    <release version="0.1.0" date="2026-11-14"/>
+  </releases>
+</component>

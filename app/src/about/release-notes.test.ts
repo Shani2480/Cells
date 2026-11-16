@@ -13,6 +13,14 @@ describe("release notes", () => {
     expect(RELEASE_NOTES[0].notes.length).toBeGreaterThan(0)
   })
 
+  it("the Cargo version and the Flatpak's release list follow the notes", () => {
+    const cargo = readFileSync(join(root, "src-tauri/Cargo.toml"), "utf8")
+    expect(/^version = "([^"]+)"/m.exec(cargo)?.[1]).toBe(CURRENT_VERSION)
+    const metainfo = readFileSync(join(root, "packaging/flatpak/app.cells.desktop.metainfo.xml"), "utf8")
+    const listed = [...metainfo.matchAll(/<release version="([^"]+)" date="([^"]+)"/g)].map((m) => `${m[1]} ${m[2]}`)
+    expect(listed).toEqual(RELEASE_NOTES.map((n) => `${n.version} ${n.date}`))
+  })
+
   it("versions are semver and newest first", () => {
     const parts = RELEASE_NOTES.map((n) => n.version.split(".").map(Number))
     for (const p of parts) expect(p.length === 3 && p.every(Number.isInteger)).toBe(true)

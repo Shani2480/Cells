@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
       - run: npm ci
       # Lint includes Prettier and the package-boundary check (packages/core stays free of DOM, Node and Tauri).
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
       # tauri::generate_context! embeds the built frontend, so the dist folder must exist.
       - run: npm ci && npm run build

@@ -6,6 +6,14 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "0.6.0",
+    date: "2026-11-16",
+    notes: [
+      "Installers for Linux (.deb, AppImage and Flatpak), Windows and macOS, all made from one release.",
+      "Cells registers itself for workbooks (.xlsx, .xlsm and templates), and offers itself for .csv and .tsv files: double-click a workbook in your file manager and it opens in Cells, in the Cells that's already running if there is one.",
+    ],
+  },
+  {
     version: "0.5.0",
     date: "2026-11-16",
     notes: [

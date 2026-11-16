@@ -77,6 +77,22 @@ Cells (typing and showing dates and numbers); each app keeps its own recent-file
       `calculateGrid`/`calculateFormula` in `@cells/core` (`docs/shared-packages.md`)
 - [x] Wrap-up docs (changes.md, verify-list, What's new for 0.5.0)
 
+## Phase 6 — Packaging and phone UI (in progress, version 0.6.0 not shipped yet)
+
+Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed measured in the emulator for now.
+
+- [x] Desktop installers from one tag (`.deb`, AppImage, Flatpak, Windows NSIS, macOS `.dmg`; `docs/release.md`),
+      file associations, files opened from the file manager or Finder
+- [ ] macOS menu bar (Cells, File, Edit, View, Window, Help) with Excel for Mac's ⌘ shortcuts
+- [ ] Android build from `main` (generated project committed, signed `.apk`/`.aab` in CI, SAF files, Open with,
+      hardware keyboard)
+- [ ] Shell choice by screen size and pointer (`PhoneShell` / desktop and tablet shell)
+- [ ] PhoneShell: top bar, finger-sized grid and handles, formula bar with the formula keyboard row, sheet switcher,
+      tool drawers, long press, pinch, double tap
+- [ ] Phone dialogs as full-screen sheets; simplified forms of mouse-only features
+- [ ] Emulator smoke test (open, edit, save) and phone/tablet screenshots
+- [ ] Wrap-up docs (changes.md, verify-list, What's new for 0.6.0)
+
 ## Later (from Phase 4)
 
 - Page Layout view and Page Break Preview (dragging page breaks).

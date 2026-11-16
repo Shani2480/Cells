@@ -1,0 +1,41 @@
+# Flatpak of Cells, repackaged from the release .deb (the release workflow puts it beside this file as cells.deb).
+# Local build: copy a .deb here as cells.deb, then
+#   flatpak-builder --user --force-clean --repo=repo build app.cells.desktop.yml
+#   flatpak build-bundle repo Cells.flatpak app.cells.desktop
+id: app.cells.desktop
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+command: cells
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  # The AI tools' providers, when the person turns them on.
+  - --share=network
+  # Workbooks are opened and saved anywhere in the home folder, as in the other builds.
+  - --filesystem=home
+  # Settings, linked ranges and Edit Data copies shared with Inkspire (docs/shared-settings.md, linked-ranges.md).
+  - --filesystem=xdg-config/inkspire:create
+  - --filesystem=xdg-cache/inkspire:create
+  # API keys are kept in the desktop keyring (Secret Service), shared with Inkspire.
+  - --talk-name=org.freedesktop.secrets
+modules:
+  - name: cells
+    buildsystem: simple
+    sources:
+      - type: file
+        path: cells.deb
+      - type: file
+        path: app.cells.desktop.metainfo.xml
+    build-commands:
+      - ar -x cells.deb
+      - tar -xf data.tar.gz
+      - install -Dm755 usr/bin/cells /app/bin/cells
+      - install -Dm644 usr/share/applications/Cells.desktop /app/share/applications/app.cells.desktop.desktop
+      - desktop-file-edit --set-icon=app.cells.desktop --set-key=StartupWMClass --set-value=cells /app/share/applications/app.cells.desktop.desktop
+      - install -Dm644 usr/share/icons/hicolor/32x32/apps/cells.png /app/share/icons/hicolor/32x32/apps/app.cells.desktop.png
+      - install -Dm644 usr/share/icons/hicolor/128x128/apps/cells.png /app/share/icons/hicolor/128x128/apps/app.cells.desktop.png
+      - install -Dm644 "usr/share/icons/hicolor/256x256@2/apps/cells.png" /app/share/icons/hicolor/256x256/apps/app.cells.desktop.png
+      - install -Dm644 app.cells.desktop.metainfo.xml /app/share/metainfo/app.cells.desktop.metainfo.xml

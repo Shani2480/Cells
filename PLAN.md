@@ -343,6 +343,9 @@ resulting `.docx` behaves the same way in Word.
 
 ### Phase 6 — Cross-platform packaging and phone UI
 
+**Decisions (2026-11-16):** the platforms are as below, with no iOS/iPadOS. Speed is measured in the Android
+emulator for now; the real-phone measurement in the acceptance waits until a device is named (`verify-list.md`).
+
 **Scope**
 
 1. Desktop packaging with Inkspire's release workflow: Linux `.deb`, AppImage, Flatpak; Windows NSIS `.exe`; macOS
