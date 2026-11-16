@@ -162,9 +162,10 @@ Phase 3, added at the end:
 - [ ] Scrolling frame times in the Tauri window with GPU compositing (the 16 ms p95 budget; only measured on
       software rendering so far).
 - [ ] The .deb and AppImage on a second distribution.
-- [ ] Touch: pan and the larger hit targets under `pointer: coarse` (Android tablet, Phase 6).
-- [ ] Touch gestures on a real tablet: grippers, long press (500 ms), double tap, pinch, and the editor staying above
-      the keyboard. Only driven with synthetic touch events in WebKitGTK so far.
+- [x] Touch: pan and the larger hit targets under `pointer: coarse` (a real tablet, 2026-11-16: taps, swipes at
+      60 fps, the picker's rows).
+- [ ] Touch gestures on a real tablet: grippers, long press (500 ms) and pinch. Double tap to edit and the editor
+      staying above the keyboard were checked on the real tablet.
 
 ## Not built in Phase 1 (noted for later phases)
 

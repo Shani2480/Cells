@@ -105,7 +105,7 @@ Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed 
       tablet screenshots in `docs/images`. It found two bugs, both fixed: the keyboard turned a landscape tablet into
       the phone layout mid-typing, and Back ended Cells (with unsaved work) instead of closing what was open
 - [ ] The smoke test in CI (an Android emulator job), if wanted
-- [ ] Wrap-up docs (changes.md, verify-list, What's new for 0.6.0)
+- [x] Wrap-up docs (changes.md, verify-list, What's new for 0.6.0)
 
 ## Later (from Phase 4)
 

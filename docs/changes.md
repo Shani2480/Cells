@@ -2,6 +2,55 @@
 
 Newest first. Each entry: what changed, how it was checked, what is still open.
 
+## 2026-11-16 — Phase 6: packaging, Android tablets and phones (0.6.0)
+
+**Built**
+
+- Installers from one tag (`docs/release.md`, `.github/workflows/release.yml`): `.deb` and AppImage (Ubuntu 22.04),
+  a Flatpak made from the `.deb`, a Windows setup `.exe`, a universal macOS `.dmg`, and an Android `.apk` and `.aab`.
+  The release text is the version's notes from What's New; the job checks the tag, version and Flatpak metainfo agree.
+- File associations: workbooks (`.xlsx`, `.xlsm`, templates) and, as an alternative, `.csv` and `.tsv`. Files from the
+  file manager and the Finder open in the running Cells; the Flatpak shares Inkspire's settings folders.
+- The macOS menu bar (`src-tauri/src/menu.rs`) with Excel for Mac's ⌘ shortcuts; ⌘H, ⌘M, ⌘Q, ⌘, and ⌘` left to
+macOS, ⌃H, ⌃G and ⌃` for Replace, Go To and Show Formulas.
+- Android from `main` (`src-tauri/gen/android`, id `app.cells`): system bars and keyboard kept clear and coloured
+  with the theme, Cells' icon, signing with Inkspire's key once its secrets are copied in. Files through Android's
+  document picker with lasting access (Save writes back, Recent reopens), real names, "Open with" and Share, hardware
+  keyboard shortcuts, the on-screen keyboard only once editing starts, and Back that closes what's open or sends
+  Cells to the background.
+- The shell by screen, not OS (`app/src/phone/shell-choice.ts`): under 600 px on the smaller side with a finger, the
+  phone shell; else the full window. It switches live and ignores the on-screen keyboard.
+- The phone shell (`app/src/phone/`): top bar, 30 px headings, the formula bar with a row of formula keys over the
+  keyboard, the sheet switcher, and the ribbon's tabs as a command palette in a bottom sheet (tab picker, menus and
+  fields in place, swipe to close). Dialogs, the File view and setup are full screen. Fling scrolling on touch.
+- `scripts/android-smoke.sh` and `scripts/android-frames.mjs`: open, edit, save and read back, frame times inside the
+  web view, Back, and the screenshots in `docs/images`.
+
+**Checked**
+
+- Linux packages built here: `.deb`, AppImage and Flatpak install and start; desktop-file and AppStream validators
+  pass; on a private Xvfb display a second launch with a path, a `file://` URL and a `cells://` link reach the
+  running Cells.
+- The macOS menu built once on Linux (every accelerator parses, the menus show), then kept to macOS.
+- On a real Android tablet: open from Downloads through the picker, edit and Ctrl+S saved into the same file
+  (read back), Recent after a force-stop, "Open with" at launch and while running, double tap shows the keyboard,
+  Back, the full ribbon, and 60 fps scrolling (0.7% of frames late).
+- In emulators (Android 15, a Pixel 7 phone and a Pixel Tablet): the smoke test passes on both; the phone shell in
+  light and dark, portrait and landscape, the palette, formula keys, sheets, full-screen dialogs and the File view.
+  The phone emulator scrolls at 60 fps with the host GPU; software rendering drops frames (`docs/release.md`).
+- The smoke test found two bugs, fixed before the commit: the keyboard made a landscape tablet switch to the phone
+  layout, and Back ended Cells with unsaved work.
+
+**Deviations from PLAN.md**
+
+- The palette's tabs are Excel for phones' and the ribbon's (Home, Insert, Page Layout, Formulas, Data, Review, View),
+  not the plan's "Format, Insert, Data, Formulas, View"; the bottom bar's five tools open it on those.
+- The emulator smoke test runs here, not in CI yet.
+- No real phone was measured: the acceptance's "mid-range Android phone" waits for one to be named (verify-list).
+- Simplified phone forms of mouse-only features aren't built; long press opens the desktop's context menu.
+
+**Open**: see `docs/verify-list.md`.
+
 ## 2026-11-16 — Phase 5: Inkspire integration (0.5.0)
 
 **Built**
