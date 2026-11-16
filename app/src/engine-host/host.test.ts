@@ -132,3 +132,18 @@ describe("calculation in a worker", () => {
     await vi.waitFor(() => expect(value(opened, "A3")).toBe(3))
   })
 })
+
+describe("the worker opening an .xls", () => {
+  it("calculates it and sends the values, as Excel recalculates an .xls on opening", async () => {
+    const { readFileSync } = await import("node:fs")
+    const { join } = await import("node:path")
+    const bytes = new Uint8Array(readFileSync(join(__dirname, "../../../packages/io/test/fixtures/xls/corpus.xls")))
+    const sent: FromWorker[] = []
+    const engine = createEngine((m) => sent.push(m))
+    engine({ type: "open", bytes, name: "Sales.xls" })
+    await vi.waitFor(() => expect(sent.length).toBeGreaterThan(0))
+    const cells = sent.flatMap((m) => m.patch.cells)
+    // A text result LibreOffice saved as 0.
+    expect(cells.find((c) => c.sheet === 0 && c.row === 5 && c.col === 3)?.value).toBe("big!")
+  })
+})

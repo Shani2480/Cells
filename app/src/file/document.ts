@@ -1,7 +1,9 @@
 import { Workbook, type Selection } from "@cells/core"
 import {
   openText,
+  openXls,
   openXlsx,
+  XlsError,
   saveText,
   saveXlsx,
   textSaveFor,
@@ -15,15 +17,18 @@ import { startCalculation, type WorkerCalculator } from "@/engine-host/host"
 
 export const PACKAGE_EXTENSIONS = ["xlsx", "xlsm", "xltx", "xltm"]
 export const TEXT_EXTENSIONS = ["csv", "txt", "tsv"]
+/** Excel 97-2003 workbooks: Cells opens them as a new .xlsx (it doesn't write .xls), as Excel's Convert does. */
+export const OLD_EXTENSIONS = ["xls"]
 
 /** Text files Cells opens: CSV opens at once; .txt and .tsv go through the Text Import Wizard, as in Excel. */
 export const TEXT_TYPES: FileType[] = [{ name: "Text Files", extensions: TEXT_EXTENSIONS }]
 
 /** The Open dialog's types; the first (everything Cells opens) is the default. */
 export const OPEN_TYPES: FileType[] = [
-  { name: "All Excel Files", extensions: [...PACKAGE_EXTENSIONS, ...TEXT_EXTENSIONS] },
+  { name: "All Excel Files", extensions: [...PACKAGE_EXTENSIONS, ...OLD_EXTENSIONS, ...TEXT_EXTENSIONS] },
   { name: "Excel Workbook", extensions: ["xlsx"] },
   { name: "Excel Macro-Enabled Workbook", extensions: ["xlsm"] },
+  { name: "Excel 97-2003 Workbook", extensions: ["xls"] },
   { name: "Excel Template", extensions: ["xltx", "xltm"] },
   ...TEXT_TYPES,
 ]
@@ -173,7 +178,8 @@ export async function openDocument(
   text?: Partial<TextImport>,
 ): Promise<WorkbookDocument> {
   const ext = extensionOf(ref.name)
-  if (!PACKAGE_EXTENSIONS.includes(ext) && !TEXT_EXTENSIONS.includes(ext)) throw new FileProblem("type", ref.name)
+  if (![...PACKAGE_EXTENSIONS, ...OLD_EXTENSIONS, ...TEXT_EXTENSIONS].includes(ext))
+    throw new FileProblem("type", ref.name)
   let last = 0
   const options = {
     calculate: !worker,
@@ -195,6 +201,19 @@ export async function openDocument(
     const calc = worker ? startCalculation(wb, { bytes, name: ref.name, text: text ?? {} }) : null
     const save: TextSave = { delimiter: read.delimiter, encoding: read.encoding, bom: read.bom }
     return new WorkbookDocument(controller, { ref, fileName: ref.name, text: save, warnings: read.warnings }, calc)
+  }
+  if (OLD_EXTENSIONS.includes(ext)) {
+    const read = await openXls(bytes, ref.name, options)
+    const wb = read.workbook as unknown as Workbook<Selection>
+    const controller = new SheetController(wb)
+    controller.loadViews(read.views, read.activeSheet)
+    const calc = worker ? startCalculation(wb, { bytes, name: ref.name }) : null
+    // A converted copy, not yet saved: Save asks where to keep the .xlsx, and the .xls stays as it was.
+    const warnings = [
+      `${ref.name} is an Excel 97-2003 workbook. Cells opened a copy; saving it makes an .xlsx and leaves the .xls as it was.`,
+      ...read.warnings,
+    ]
+    return new WorkbookDocument(controller, { ref: null, fileName: `${titleOf(ref.name)}.xlsx`, warnings }, calc)
   }
   const read = await openXlsx(bytes, ref.name, options)
   const wb = read.workbook as unknown as Workbook<Selection>
@@ -237,7 +256,7 @@ export function problemMessage(kind: FileProblem["kind"], name: string): string 
     case "encrypted":
       return `'${name}' is protected with a password to open. Cells can't open password-protected files yet.`
     case "old":
-      return `'${name}' is in the Excel 97-2003 format (.xls), which Cells can't open yet. Save it as .xlsx in Excel first.`
+      return `'${name}' is in the Excel 5.0/95 format or older, which Cells can't open. Save it as .xlsx in Excel first.`
     case "read":
       return `Sorry, we couldn't open '${name}'. It may have been moved, renamed or deleted.`
     case "write":
@@ -249,9 +268,10 @@ export function problemMessage(kind: FileProblem["kind"], name: string): string 
 export function classifyOpenError(error: unknown, bytes: Uint8Array | null, name: string): FileProblem {
   if (error instanceof FileProblem) return error
   const detail = error instanceof Error ? error.message : String(error)
-  // A compound (OLE) file: an encrypted .xlsx or an old .xls.
+  if (error instanceof XlsError) return new FileProblem(error.kind, name, detail)
+  // A compound (OLE) file named .xlsx: encrypted (an .xls opens through its own reader).
   if (bytes && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0)
-    return new FileProblem(extensionOf(name) === "xls" ? "old" : "encrypted", name, detail)
+    return new FileProblem(extensionOf(name) === "xls" ? "damaged" : "encrypted", name, detail)
   if (!bytes) return new FileProblem("read", name, detail)
   if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) return new FileProblem("type", name, detail)
   return new FileProblem("damaged", name, detail)

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { OPEN_TYPES } from "@/file/document"
 import { parseOpenRequest } from "@/links/link"
 import {
   fileNameOf,
@@ -40,6 +41,8 @@ describe("Android documents", () => {
     expect(pickerTypes(["xlsx"])).toEqual([mimeTypeOf("xlsx"), "application/octet-stream"])
     expect(pickerTypes(["csv"])).toEqual(["text/csv", "text/comma-separated-values", "text/plain"])
     expect(mimeTypeOf("XLSM")).toBe("application/vnd.ms-excel.sheet.macroEnabled.12")
+    // Excel 97-2003 workbooks are offered too (they were greyed out).
+    expect(pickerTypes(OPEN_TYPES[0].extensions)).toContain("application/vnd.ms-excel")
   })
 
   it("saves through the system picker with the file's type", async () => {

@@ -33,6 +33,7 @@ const MIME: Record<string, string> = {
   xlsm: "application/vnd.ms-excel.sheet.macroEnabled.12",
   xltx: "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
   xltm: "application/vnd.ms-excel.template.macroEnabled.12",
+  xls: "application/vnd.ms-excel",
   csv: "text/csv",
   tsv: "text/tab-separated-values",
   txt: "text/plain",

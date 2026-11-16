@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Reading and writing files: .xlsx (keeping parts we don't understand), .csv. Pure TypeScript, no DOM.",
+  "description": "Reading and writing files: .xlsx (keeping parts we don't understand), .csv; reading .xls. Pure TypeScript, no DOM.",
   "exports": {
     ".": "./src/index.ts"
   },

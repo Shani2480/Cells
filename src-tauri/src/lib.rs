@@ -24,7 +24,7 @@ pub fn window_title(workbook: &str) -> String {
 fn is_workbook_extension(ext: &str) -> bool {
     matches!(
         ext,
-        "xlsx" | "xlsm" | "xltx" | "xltm" | "csv" | "tsv" | "txt"
+        "xlsx" | "xlsm" | "xltx" | "xltm" | "xls" | "csv" | "tsv" | "txt"
     )
 }
 
@@ -55,7 +55,7 @@ fn assert_workbook_path(path: &str) -> Result<PathBuf, String> {
     match file_extension(trimmed).as_deref() {
         Some(ext) if is_workbook_extension(ext) => Ok(checked),
         _ => Err(
-            "Cells can only open and save .xlsx, .xlsm, .xltx, .xltm, .csv, .tsv and .txt files."
+            "Cells can only open and save .xlsx, .xlsm, .xltx, .xltm, .xls, .csv, .tsv and .txt files."
                 .into(),
         ),
     }

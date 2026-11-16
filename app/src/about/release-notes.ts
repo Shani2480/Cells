@@ -9,6 +9,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     version: "0.7.0",
     date: "2026-11-16",
     notes: [
+      "Cells opens Excel 97-2003 workbooks (.xls): values, formulas, formatting, column widths, merged cells, frozen panes, names and notes. It opens a copy, and saving makes an .xlsx; the .xls stays as it was. On Android, Cells now shows up in Open with for .xls files, and the Open picker no longer greys them out.",
       "The cell menu's Filter and Sort work: filter by the cell's value, colour or font colour, clear one column's filter, reapply, Sort A to Z or Z to A, put the cell's colour on top, and Custom Sort. On a phone they open in the long-press panel.",
       "Paste Special is in the cell menu.",
       "The Office Clipboard (the small arrow by Home › Clipboard): the last 24 things you copied in Cells, to paste any of them again, or all at once.",

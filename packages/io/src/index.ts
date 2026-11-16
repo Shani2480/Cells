@@ -1,4 +1,6 @@
 export { openXlsx, XlsxError, type OpenOptions, type XlsxRead, type XlsxSource, type SheetSource } from "./xlsx/read"
+export { openXls, XlsError, type XlsRead } from "./xls/read"
+export { isCompoundFile } from "./xls/cfb"
 export { saveXlsx, type SaveOptions } from "./xlsx/write"
 export { DEFAULT_VIEW, type SheetView } from "./xlsx/sheet-read"
 export { formulaFromFile, formulaToFile } from "./xlsx/formula"

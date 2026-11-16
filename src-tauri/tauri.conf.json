@@ -106,6 +106,14 @@
         "rank": "Default"
       },
       {
+        "ext": ["xls"],
+        "name": "Excel 97-2003 Workbook",
+        "description": "Excel 97-2003 Workbook",
+        "role": "Editor",
+        "mimeType": "application/vnd.ms-excel",
+        "rank": "Alternate"
+      },
+      {
         "ext": ["csv"],
         "name": "CSV File",
         "description": "Comma-separated values",

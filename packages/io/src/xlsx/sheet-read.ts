@@ -469,7 +469,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
 }
 
 /** Text that the entry parser would turn into something else ("123", "=1", "TRUE") keeps an apostrophe. */
-function needsApostrophe(text: string): boolean {
+export function needsApostrophe(text: string): boolean {
   if (/^[=+-]/.test(text)) return true
   if (/^\s*[-+]?[$€£¥]?\s*[\d.,]+%?\s*$/.test(text)) return true
   return /^(true|false)$/i.test(text)

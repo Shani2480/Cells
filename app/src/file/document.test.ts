@@ -1,0 +1,29 @@
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import { describe, expect, it } from "vitest"
+import { classifyOpenError, openDocument } from "./document"
+
+const corpus = () => new Uint8Array(readFileSync(join(__dirname, "../../../packages/io/test/fixtures/xls/corpus.xls")))
+
+describe("an Excel 97-2003 workbook (.xls)", () => {
+  it("opens as an unsaved .xlsx copy, saying so first", async () => {
+    const doc = await openDocument(corpus(), { name: "Sales.xls", path: "/home/alex/Sales.xls" }, undefined, false)
+    expect(doc.ref).toBeNull()
+    expect(doc.fileName).toBe("Sales.xlsx")
+    expect(doc.warnings[0]).toMatch(/Excel 97-2003 workbook.*\.xlsx/)
+    const s = doc.controller.wb.sheets[0]
+    expect(s.cells.input(7, 1)).toBe("=EOMONTH(A8,1)")
+    expect(s.cells.value(5, 3)).toBe("big!")
+    const bytes = await doc.bytes()
+    expect([bytes[0], bytes[1]]).toEqual([0x50, 0x4b])
+    doc.close()
+  })
+
+  it("explains one it can't read", async () => {
+    const broken = corpus().slice(0, 1024)
+    const error = await openDocument(broken, { name: "Old.xls", path: "/home/alex/Old.xls" }, undefined, false).catch(
+      (e: unknown) => e,
+    )
+    expect(classifyOpenError(error, broken, "Old.xls").kind).toBe("damaged")
+  })
+})

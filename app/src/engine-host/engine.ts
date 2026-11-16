@@ -1,5 +1,5 @@
 import { takePatch, Workbook } from "@cells/core"
-import { openText, openXlsx } from "@cells/io"
+import { openText, openXls, openXlsx } from "@cells/io"
 import type { FromWorker, ToWorker } from "./protocol"
 
 /**
@@ -19,7 +19,9 @@ export function createEngine(send: (message: FromWorker) => void) {
           // below, once changes are logged, so the values go back to the UI.
           wb = message.text
             ? (await openText(message.bytes, message.name, { ...message.text, calculate: false })).workbook
-            : (await openXlsx(message.bytes, message.name, { calculate: false })).workbook
+            : /\.xls$/i.test(message.name)
+              ? (await openXls(message.bytes, message.name, { calculate: false })).workbook
+              : (await openXlsx(message.bytes, message.name, { calculate: false })).workbook
         } catch {
           wb = new Workbook()
         }
