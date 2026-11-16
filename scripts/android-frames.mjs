@@ -58,8 +58,11 @@ socket.close()
 const sorted = [...gaps].sort((a, b) => a - b)
 const at = (q) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0
 const over = (ms) => (sorted.length ? (100 * sorted.filter((g) => g > ms).length) / sorted.length : 0)
-// A frame later than one and a half budgets is a dropped one (timer jitter puts many a hair over 16.7 ms).
+// The screen's own frame time is the median (16.7 ms at 60 Hz, 8.3 ms at 120 Hz); a frame later than one and a half of
+// those missed its turn (timer jitter puts many a hair over the budget).
+const budget = at(0.5)
 console.log(
-  `    frames ${sorted.length}, median ${at(0.5).toFixed(1)} ms, 90th ${at(0.9).toFixed(1)} ms, 99th ${at(0.99).toFixed(1)} ms; ` +
-    `dropped (over 25 ms): ${over(25).toFixed(1)}%`,
+  `    frames ${sorted.length} at ${(1000 / budget).toFixed(0)} Hz, median ${budget.toFixed(1)} ms, ` +
+    `90th ${at(0.9).toFixed(1)} ms, 99th ${at(0.99).toFixed(1)} ms; late (over ${(1.5 * budget).toFixed(1)} ms): ` +
+    `${over(1.5 * budget).toFixed(1)}%`,
 )

@@ -142,8 +142,10 @@ Phase 3, added at the end:
       here).
 - [ ] Android: a stylus on the grid (select, drag the grippers, double-tap to edit), and opening and saving a
       workbook in Google Drive and OneDrive through the picker (only Downloads was tried).
-- [ ] The phone layout on a real phone (only the emulator, a Pixel 7 size, was used): the scroll and fling frame rate,
-      the palette's swipe, the formula keys over a real keyboard, and the File view's row of sections.
+- [x] The phone layout on a real phone (2026-11-16): 120 fps scrolling and typing, open, edit and
+      save, the formula keys over its keyboard, Back.
+- [x] On the real phone: the palette closes on a swipe from anywhere on its header, the tab picker too (after the fix).
+- [ ] On the real phone: fling feel and the File view's row of sections; a mid-range phone if one turns up.
 - [ ] The first signed Android release: Inkspire's two secrets copied into this repository, the `.apk` installs over
       an earlier one, and the `.aab` is accepted by Play Console if it is ever used. Only debug builds were made.
 - [ ] The macOS menu bar on a Mac (only built, on Linux, to check its shortcuts parse): each item runs; ⌘S runs

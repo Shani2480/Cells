@@ -4,6 +4,8 @@ import { createPortal } from "react-dom"
 /** Dragged down this far, or flicked down this fast (px per ms), the sheet closes. */
 export const DISMISS_DISTANCE = 96
 export const DISMISS_SPEED = 0.5
+/** A touch on the header that moves this far (CSS px) is a drag, not a tap. */
+export const DRAG_SLOP = 8
 
 /** Whether a drag on the handle, ending this far down at this speed, closes the sheet. */
 export function dismisses(distance: number, speed: number): boolean {
@@ -33,7 +35,15 @@ export function BottomSheet({
   const [shown, setShown] = useState(false)
   const [offset, setOffset] = useState(0)
   const [closing, setClosing] = useState(false)
-  const drag = useRef<{ y: number; t: number; lastY: number; lastT: number; speed: number } | null>(null)
+  const drag = useRef<{
+    y: number
+    t: number
+    lastY: number
+    lastT: number
+    speed: number
+    dragging: boolean
+  } | null>(null)
+  const dragged = useRef(false)
 
   // Slide in on the frame after the first, so the start position is drawn first.
   useEffect(() => {
@@ -62,31 +72,43 @@ export function BottomSheet({
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
+  // A touch anywhere on the header, its buttons too: it becomes a drag once it has moved down a little, and then the
+  // tap that ends it doesn't press the button it started on.
   const onPointerDown = (event: React.PointerEvent) => {
-    // The header's own buttons (the tab picker, Close) stay buttons.
-    if ((event.target as Element).closest("button, input, select")) return
-    event.currentTarget.setPointerCapture?.(event.pointerId)
     const now = performance.now()
-    drag.current = { y: event.clientY, t: now, lastY: event.clientY, lastT: now, speed: 0 }
+    drag.current = { y: event.clientY, t: now, lastY: event.clientY, lastT: now, speed: 0, dragging: false }
   }
   const onPointerMove = (event: React.PointerEvent) => {
     const d = drag.current
     if (!d) return
+    const dy = event.clientY - d.y
+    if (!d.dragging) {
+      if (Math.abs(dy) < DRAG_SLOP) return
+      d.dragging = true
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+    }
     const now = performance.now()
     if (now > d.lastT) d.speed = (event.clientY - d.lastY) / (now - d.lastT)
     d.lastY = event.clientY
     d.lastT = now
     // Up past the open position only stretches a little.
-    const dy = event.clientY - d.y
     setOffset(dy > 0 ? dy : dy / 4)
   }
   const onPointerUp = (event: React.PointerEvent) => {
     const d = drag.current
     drag.current = null
-    if (!d) return
+    if (!d?.dragging) return
+    dragged.current = true
     const dy = event.clientY - d.y
     if (dismisses(dy, d.speed)) close()
     setOffset(0)
+  }
+  // The click that follows a drag.
+  const onClickCapture = (event: React.MouseEvent) => {
+    if (!dragged.current) return
+    dragged.current = false
+    event.preventDefault()
+    event.stopPropagation()
   }
 
   const open = shown && !closing
@@ -98,7 +120,7 @@ export function BottomSheet({
         className="phone-sheet"
         role="dialog"
         aria-label={label}
-        data-dragging={drag.current ? "" : undefined}
+        data-dragging={drag.current?.dragging ? "" : undefined}
         style={offset ? { translate: `0 ${Math.max(offset, -24)}px` } : undefined}
       >
         <div
@@ -107,6 +129,7 @@ export function BottomSheet({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onClickCapture={onClickCapture}
         >
           <span className="phone-sheet-handle" aria-hidden />
           {header}

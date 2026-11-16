@@ -68,12 +68,14 @@ The emulators used: `cells_phone` (Pixel 7, 1080 × 2400) and a Pixel Tablet (25
 
 Measured on 2026-11-16, five quick swipes, frame times inside the web view:
 
-| Where                                  | Median  | 99th percentile | Dropped (over 25 ms) |
-| -------------------------------------- | ------- | --------------- | -------------------- |
-| Phone emulator, host GPU (`-gpu host`) | 16.7 ms | 16.8 ms         | 0%                   |
-| Phone emulator, software GPU           | 16.7 ms | 67 ms           | 21%                  |
-| Tablet emulator, host GPU              | 16.7 ms | 67 ms           | 26%                  |
-| Real tablet (more pixels than the emulator) | 16.7 ms | 16.8 ms         | 0.7%                 |
+| Where                                  | Median  | 99th percentile | Dropped (over 25 ms)    |
+| -------------------------------------- | ------- | --------------- | ----------------------- |
+| Phone emulator, host GPU (`-gpu host`) | 16.7 ms | 16.8 ms         | 0%                      |
+| Phone emulator, software GPU           | 16.7 ms | 67 ms           | 21%                     |
+| Tablet emulator, host GPU              | 16.7 ms | 67 ms           | 26%                     |
+| Real tablet (more pixels than the emulator) | 16.7 ms | 16.8 ms         | 0.7%                    |
+| Real phone (120 Hz screen)   | 8.3 ms  | 8.5 ms          | 0.1–0.2% (over 12.5 ms) |
 
-The emulators' drops come from the emulator: the real tablet, with more pixels, keeps 60 frames a second. A real
-phone hasn't been measured yet (verify-list).
+The emulators' drops come from the emulator: the real tablet, with more pixels, keeps 60 frames a second, and the
+Pixel keeps its screen's 120 a second while scrolling and while typing into a cell (0.7% late). `android-frames.mjs`
+takes the median as the screen's frame time and counts a frame late past one and a half of it.

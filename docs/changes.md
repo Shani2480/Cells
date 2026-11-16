@@ -46,7 +46,9 @@ macOS, ⌃H, ⌃G and ⌃` for Replace, Go To and Show Formulas.
 - The palette's tabs are Excel for phones' and the ribbon's (Home, Insert, Page Layout, Formulas, Data, Review, View),
   not the plan's "Format, Insert, Data, Formulas, View"; the bottom bar's five tools open it on those.
 - The emulator smoke test runs here, not in CI yet.
-- No real phone was measured: the acceptance's "mid-range Android phone" waits for one to be named (verify-list).
+- The real phone measured is a high-end one rather than mid-range: 120 fps scrolling and typing,
+  open, edit, Ctrl+S and read back, formula keys over its keyboard, Back. It found the palette's header ignoring a
+  drag that began on the tab picker, fixed and rechecked there.
 - Simplified phone forms of mouse-only features aren't built; long press opens the desktop's context menu.
 
 **Open**: see `docs/verify-list.md`.

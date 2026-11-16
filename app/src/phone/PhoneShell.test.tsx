@@ -146,6 +146,31 @@ describe("bottom sheets", () => {
     expect(dismisses(-50, 0)).toBe(false)
   })
 
+  it("drag down from the tab picker too, without pressing it", async () => {
+    setup()
+    fireEvent.click(screen.getByRole("button", { name: "Home" }))
+    const picker = within(palette()).getByRole("button", { name: "Home" })
+    fireEvent.pointerDown(picker, { clientY: 100, pointerId: 1 })
+    fireEvent.pointerMove(picker, { clientY: 160, pointerId: 1 })
+    fireEvent.pointerMove(picker, { clientY: 260, pointerId: 1 })
+    fireEvent.pointerUp(picker, { clientY: 260, pointerId: 1 })
+    fireEvent.click(picker)
+    // The tab list didn't open, and the sheet goes.
+    expect(within(palette()).queryByRole("listbox", { name: "Tabs" })).toBeNull()
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Commands" })).toBeNull())
+  })
+
+  it("a tap on the tab picker still opens the tab list", () => {
+    setup()
+    fireEvent.click(screen.getByRole("button", { name: "Home" }))
+    const picker = within(palette()).getByRole("button", { name: "Home" })
+    fireEvent.pointerDown(picker, { clientY: 100, pointerId: 1 })
+    fireEvent.pointerMove(picker, { clientY: 103, pointerId: 1 })
+    fireEvent.pointerUp(picker, { clientY: 103, pointerId: 1 })
+    fireEvent.click(picker)
+    expect(within(palette()).getByRole("listbox", { name: "Tabs" })).toBeInTheDocument()
+  })
+
   it("close on Esc (Android's Back)", async () => {
     setup()
     fireEvent.click(screen.getByRole("button", { name: "Home" }))
