@@ -5,7 +5,7 @@ import type { Node } from "../formula/ast"
 import { CALC, setCurrentYear, SPILL } from "../formula/coerce"
 import type { EvalContext } from "../formula/context"
 import { dateSerial, serialToDate } from "../formula/dates"
-import { evaluateFormula, refArea } from "../formula/evaluate"
+import { evaluate, evaluateFormula, refArea, toMatrix } from "../formula/evaluate"
 import { FUNCTIONS } from "../formula/functions"
 import { allTables, parseStructured, structuredArea, type Table } from "../table/table"
 import { parseFormula } from "../formula/parser"
@@ -788,6 +788,26 @@ export class CalcEngine {
   }
 
   /** @internal */
+  /**
+   * Evaluate Formula: one part of the formula at a cell, worked out as calculating that cell would, with ranges read
+   * as arrays. Nothing is stored. Null when the cell has no formula.
+   */
+  evaluatePart(part: Node, sheet: number, row: number, col: number): Value | null {
+    const f = this.formulaAt(sheet, row, col)
+    if (!f) return null
+    const ctx = this.contextFor(f)
+    this.evalStack.push(f)
+    try {
+      const v = evaluate(part, ctx)
+      return isRef(v) ? toMatrix(v, ctx) : v
+    } catch (error) {
+      if (error instanceof NeedsValue) return errorValue("#CALC!")
+      throw error
+    } finally {
+      this.evalStack.pop()
+    }
+  }
+
   formulaAt(sheet: number, row: number, col: number) {
     return this.formulas.get(keyOf(sheet, row, col))
   }

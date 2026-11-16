@@ -38,6 +38,8 @@ import { FormatCellsDialog, type FormatTab } from "@/shell/format-cells/FormatCe
 import { TooltipProvider } from "@/ui/tooltip"
 import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
+import { CreateNamesDialog, ErrorCheckingDialog, EvaluateFormulaDialog, NameManagerDialog } from "@/shell/AuditDialogs"
+import { WatchWindow } from "@/shell/WatchWindow"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
 import { FormulaBar } from "@/shell/FormulaBar"
 import { DefineNameDialog } from "@/shell/DefineNameDialog"
@@ -106,6 +108,10 @@ type DialogState =
         | "unprotectWorkbook"
         | "defineName"
         | "insertFunction"
+        | "nameManager"
+        | "createNames"
+        | "errorChecking"
+        | "evaluateFormula"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
@@ -383,6 +389,7 @@ function WorkbookWindow({
   const controller = doc.controller
   const platform = usePlatform()
   const [dialog, setDialog] = useState<DialogState>(null)
+  const openDialogRef = useRef<(name: string) => void>(() => undefined)
   const settingsLoaded = useSettings((s) => s.loaded)
   const setupDone = useSettings((s) => s.setupDone)
   const [setupAgain, setSetupAgain] = useState(false)
@@ -441,6 +448,7 @@ function WorkbookWindow({
         }),
       formatCells: (tab) => setDialog({ kind: "formatCells", tab }),
       insertFunction: () => setDialog({ kind: "insertFunction" }),
+      openDialog: (name) => openDialogRef.current(name),
       sortWarning: (then, warning) => setDialog({ kind: "sortWarning", then, warning }),
       removeDuplicates: (range) => setDialog({ kind: "removeDuplicates", range }),
       textToColumns: (range, texts) => setDialog({ kind: "textToColumns", range, texts }),
@@ -681,7 +689,7 @@ function WorkbookWindow({
     else if (!dialog) focusGrid()
   }
 
-  /** The ribbon's commands open the shell's dialogs by name. */
+  /** The ribbon's commands open the shell's dialogs by name (the controller's keys too, through the ref). */
   const openDialog = (name: string) => {
     const [kind, arg] = name.split(":")
     if (kind === "goto") setDialog({ kind: "goto" })
@@ -707,10 +715,16 @@ function WorkbookWindow({
       kind === "protectWorkbook" ||
       kind === "unprotectWorkbook" ||
       kind === "defineName" ||
-      kind === "insertFunction"
+      kind === "insertFunction" ||
+      kind === "nameManager" ||
+      kind === "createNames" ||
+      kind === "errorChecking" ||
+      kind === "evaluateFormula"
     )
       setDialog({ kind })
   }
+
+  openDialogRef.current = openDialog
 
   const env: RibbonEnv = {
     c: controller,
@@ -865,12 +879,16 @@ function WorkbookWindow({
               {controller.clipboardPaneOpen ? clipboardPane : null}
               <main className="sheet-area">{grid}</main>
               {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
+              {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
             </div>
             <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
             <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
           </>
         )}
         {shell === "phone" && controller.clipboardPaneOpen ? clipboardPane : null}
+        {shell === "phone" && controller.audit.watchOpen ? (
+          <WatchWindow controller={controller} onDone={focusGrid} />
+        ) : null}
         {shell === "phone" && controller.annotations.paneOpen ? (
           <CommentsPane controller={controller} onDone={focusGrid} />
         ) : null}
@@ -937,6 +955,18 @@ function WorkbookWindow({
           <NewRuleDialog controller={controller} start={dialog.start} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "defineName" ? <DefineNameDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "nameManager" ? <NameManagerDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "createNames" ? <CreateNamesDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "evaluateFormula" ? (
+          <EvaluateFormulaDialog controller={controller} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "errorChecking" ? (
+          <ErrorCheckingDialog
+            controller={controller}
+            onClose={closeDialog}
+            onEvaluate={() => setDialog({ kind: "evaluateFormula" })}
+          />
+        ) : null}
         {dialog?.kind === "sort" ? (
           <SortDialog controller={controller} range={dialog.range} onClose={closeDialog} />
         ) : null}

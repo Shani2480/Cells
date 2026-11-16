@@ -5,6 +5,7 @@ import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
 import { isSystemShortcut, keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
 import { ChartLayer } from "./ChartLayer"
+import { TraceLayer } from "./TraceLayer"
 import { FilterButtons } from "./FilterButtons"
 import { ValidationLayer } from "./ValidationLayer"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
@@ -895,6 +896,7 @@ export function GridView({
         />
       ) : null}
       {layout ? <ChartLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+      {layout ? <TraceLayer controller={controller} layout={layout} zoom={zoom} /> : null}
       {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
       {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
       {layout ? (

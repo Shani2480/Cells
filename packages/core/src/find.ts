@@ -184,9 +184,18 @@ const typeOf = (data: CellData): keyof ValueKinds =>
 
 /** The references a formula makes to cells of its own sheet. */
 function sameSheetRefs(input: string, sheetName: string): Range[] {
-  const parsed = parseFormula(input.slice(1))
-  if (!parsed.ok) return []
+  return formulaRefs(input, sheetName).local
+}
+
+/**
+ * The references a formula (`=…`) makes: the ranges on its own sheet, and whether it also reaches other sheets or
+ * workbooks (Trace Precedents draws those as one dashed arrow from a sheet icon).
+ */
+export function formulaRefs(input: string, sheetName: string): { local: Range[]; offSheet: boolean } {
+  const parsed = input.startsWith("=") ? parseFormula(input.slice(1)) : null
+  if (!parsed?.ok) return { local: [], offSheet: false }
   const out: Range[] = []
+  let offSheet = false
   const walk = (n: Node) => {
     switch (n.type) {
       case "ref":
@@ -213,8 +222,11 @@ function sameSheetRefs(input: string, sheetName: string): Range[] {
     }
   }
   const add = (n: RefNode) => {
-    if (n.invalid || n.sheetTo) return
-    if (n.sheet !== null && n.sheet.toUpperCase() !== sheetName.toUpperCase()) return
+    if (n.invalid) return
+    if (n.sheetTo || (n.sheet !== null && n.sheet.toUpperCase() !== sheetName.toUpperCase())) {
+      offSheet = true
+      return
+    }
     const to = n.to ?? n.from
     const r0 = Math.min(n.from.row ?? 0, to.row ?? 0)
     const r1 = n.from.row === null ? MAX_ROWS - 1 : Math.max(n.from.row, to.row ?? n.from.row)
@@ -223,7 +235,7 @@ function sameSheetRefs(input: string, sheetName: string): Range[] {
     out.push({ r0, r1, c0, c1 })
   }
   walk(parsed.ast)
-  return out
+  return { local: out, offSheet }
 }
 
 const inRange = (r: Range, row: number, col: number) => row >= r.r0 && row <= r.r1 && col >= r.c0 && col <= r.c1

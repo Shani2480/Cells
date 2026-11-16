@@ -114,10 +114,12 @@ Asked 2026-11-16: build what the ribbon and the right-click menus show as "Not b
 commands, 10 menu items), then Inkspire's side of the link. In parts, each one shippable, most useful first. Each
 follows Excel's names, dialogs and behaviour; what stays out is listed at the end with the reason.
 
-- [ ] Part 1 — Menus wired to what exists: the cell menu's Paste Special, Filter › and Sort › (by the cell's value,
-      colour, font colour, icon; Reapply, Clear), Pick From Drop-down List; Sort A→Z / Z→A on the Data tab; Select
-      All Sheets; Show Comments (the Comments pane); the Office Clipboard pane (Home › Clipboard launcher)
-- [ ] Part 2 — Formula auditing: Name Manager, Create from Selection, Trace Precedents / Dependents and Remove
+- [x] Part 1 — Menus wired to what exists: the cell menu's Paste Special, Filter › (Clear Filter From, Reapply, by
+      the cell's value, colour or font colour) and Sort › (A to Z, Z to A, colour on top, Custom Sort), Pick From
+      Drop-down List (and Alt+Down on a plain cell); Sort A to Z / Z to A on the Data tab (a duplicate command had
+      replaced them); the Comments pane (Show Comments); the Office Clipboard pane (Home › Clipboard launcher).
+      Moved on: by icon (needs icon filters, Part 9) and Select All Sheets (needs grouped sheets, Part 6)
+- [x] Part 2 — Formula auditing: Name Manager, Create from Selection, Trace Precedents / Dependents and Remove
       Arrows (drawn on the sheet), Error Checking, Evaluate Formula, Watch Window
 - [ ] Part 3 — Outline: Group / Ungroup rows and columns, the outline bar with its levels, Show / Hide Detail,
       Subtotals, Settings; read and written in Excel files (today kept but not shown)
@@ -125,13 +127,13 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
       Table), Forecast Sheet, Refresh All and Queries & Connections for text and CSV imports, Edit Links
 - [ ] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
       Symbol, Header & Footer (opens Page Setup's tab until Page Layout view exists)
-- [ ] Part 6 — Views and windows: Page Break Preview, Page Layout view, Custom Views, Ruler, New Window, Arrange
+- [ ] Part 6 — Views and windows: grouped sheets (Select All Sheets, Shift/Ctrl+click tabs), Page Break Preview, Page Layout view, Custom Views, Ruler, New Window, Arrange
       All, Split, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
 - [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
 - [ ] Part 8 — Objects: Text Box, Shapes, Pictures, Icons, WordArt; Bring Forward / Send Backward, Align, Group,
       Rotate, Selection Pane; Sheet Background; Themes, theme colours, fonts and effects
-- [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis
+- [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
       GitHub issue the person reviews), Show Training

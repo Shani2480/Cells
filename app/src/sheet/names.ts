@@ -99,6 +99,74 @@ export class NameCommands {
     return null
   }
 
+  /** Name Manager's Delete. */
+  remove(names: string[]) {
+    const drop = new Set(names.map((n) => n.toUpperCase()))
+    const next = this.all().filter((n) => !drop.has(n.name.toUpperCase()))
+    if (next.length === this.all().length) return
+    const sel = this.c.selection
+    this.c.transact([{ kind: "names", names: next }], { label: "Delete Name", before: sel, after: sel })
+  }
+
+  /**
+   * Create from Selection: which edges of the selection hold labels, as Excel guesses (text in the first row, and in
+   * the first column when its first cell is empty or the row isn't all labels).
+   */
+  guessEdges(): CreateEdges {
+    const r = this.c.selection.ranges[0]
+    const text = (row: number, col: number) => typeof this.c.sheet.cells.value(row, col) === "string"
+    const top =
+      r.r1 > r.r0 &&
+      Array.from({ length: r.c1 - r.c0 + 1 }, (_, i) => r.c0 + i).every(
+        (c) => !this.c.sheet.cells.value(r.r0, c) || text(r.r0, c),
+      )
+    const left =
+      r.c1 > r.c0 &&
+      Array.from({ length: r.r1 - r.r0 + 1 }, (_, i) => r.r0 + i)
+        .slice(top ? 1 : 0)
+        .every((row) => text(row, r.c0))
+    return { top: top && r.c1 - r.c0 >= 0, left, bottom: false, right: false }
+  }
+
+  /** Create from Selection: a name for each row or column of the selection, from the labels on the chosen edges. */
+  createFromSelection(edges: CreateEdges): string | null {
+    const r = this.c.selection.ranges[0]
+    if (!r) return null
+    const inner = {
+      r0: r.r0 + (edges.top ? 1 : 0),
+      r1: r.r1 - (edges.bottom ? 1 : 0),
+      c0: r.c0 + (edges.left ? 1 : 0),
+      c1: r.c1 - (edges.right ? 1 : 0),
+    }
+    if (inner.r0 > inner.r1 || inner.c0 > inner.c1) return "Cells can't create names from this selection."
+    const prefix = quoteSheet(this.c.sheet.name) + "!"
+    const made = new Map<string, string>()
+    const add = (label: unknown, range: Range) => {
+      const name = nameFromLabel(label)
+      if (name) made.set(name.toUpperCase(), `${name}\u0000${prefix}${absoluteRef(range)}`)
+    }
+    if (edges.top)
+      for (let c = inner.c0; c <= inner.c1; c++) add(this.c.sheet.cells.value(r.r0, c), { ...inner, c0: c, c1: c })
+    if (edges.bottom)
+      for (let c = inner.c0; c <= inner.c1; c++) add(this.c.sheet.cells.value(r.r1, c), { ...inner, c0: c, c1: c })
+    if (edges.left)
+      for (let row = inner.r0; row <= inner.r1; row++)
+        add(this.c.sheet.cells.value(row, r.c0), { ...inner, r0: row, r1: row })
+    if (edges.right)
+      for (let row = inner.r0; row <= inner.r1; row++)
+        add(this.c.sheet.cells.value(row, r.c1), { ...inner, r0: row, r1: row })
+    if (!made.size) return "Cells found no labels to make names from."
+    const next: DefinedName[] = this.all().filter((n) => !made.has(n.name.toUpperCase()))
+    for (const entry of made.values()) {
+      const [name, ref] = entry.split("\u0000")
+      next.push({ name, ref })
+    }
+    if (this.c.edit) this.c.commitEdit()
+    const sel = this.c.selection
+    this.c.transact([{ kind: "names", names: next }], { label: "Create Names", before: sel, after: sel })
+    return null
+  }
+
   /** The Name Box's Enter: go to a reference or name, else name the selection, else Excel's message. */
   fromNameBox(text: string) {
     const target = this.resolve(text)
@@ -115,4 +183,17 @@ export class NameCommands {
     }
     this.define(name, this.selectionRef())
   }
+}
+
+export type CreateEdges = { top: boolean; left: boolean; bottom: boolean; right: boolean }
+
+/** A label as a name, as Excel makes one: spaces and other characters become "_", a leading digit gets "_". */
+export function nameFromLabel(label: unknown): string | null {
+  if (label === undefined || label === null || label === "") return null
+  let name = String(label)
+    .trim()
+    .replace(/[^A-Za-z0-9_.\\]/g, "_")
+  if (!name) return null
+  if (!/^[A-Za-z_\\]/.test(name)) name = "_" + name
+  return nameProblem(name) ? "_" + name : name
 }

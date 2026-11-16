@@ -79,6 +79,7 @@ import {
 import { openLink } from "@/links/link"
 import { FormatCommands, NUMBER_FORMATS } from "./format"
 import { AnnotationCommands } from "./annotations"
+import { AuditCommands } from "./audit"
 import { DataCommands, type FilterDialogRequest } from "./data"
 import { ValidationCommands, type AlertAnswer, type ValidationAlert, type ValidationDialogInit } from "./validation"
 import { FindCommands } from "./find"
@@ -163,6 +164,8 @@ export type ShellRequests = {
   alert(message: string, then?: () => void): void
   /** Shift+F3: Insert Function. */
   insertFunction?(): void
+  /** One of the shell's dialogs by name, as the ribbon opens them (Ctrl+F3: "nameManager"). */
+  openDialog?(name: string): void
   /** Excel's Sort Warning: expand the selection to the data beside it, or sort only the selection. */
   sortWarning?(then: (expand: boolean) => void, kind?: "sort" | "duplicates"): void
   /** Data › Sort: the Sort dialog, on a range. */
@@ -270,6 +273,7 @@ export class SheetController {
   /** Notes and comments. */
   readonly annotations: AnnotationCommands = new AnnotationCommands(this)
   readonly data: DataCommands = new DataCommands(this)
+  readonly audit: AuditCommands = new AuditCommands(this)
   /** Data › Data Validation. */
   readonly validation: ValidationCommands = new ValidationCommands(this)
   /** Insert › Table, Format as Table and the Table Design tab. */
@@ -1656,8 +1660,14 @@ export class SheetController {
         else this.beginEdit("edit")
         return true
       case "F3":
-        // Shift+F3: Insert Function (F3 alone, Paste Name, is not built yet).
-        if (!shift || primary || alt) return false
+        // Ctrl+F3: Name Manager; Ctrl+Shift+F3: Create from Selection; Shift+F3: Insert Function (F3 alone, Paste
+        // Name, is not built yet).
+        if (alt) return false
+        if (primary) {
+          this.shell.openDialog?.(shift ? "createNames" : "nameManager")
+          return true
+        }
+        if (!shift) return false
         this.shell.insertFunction?.()
         return true
       case "F11":

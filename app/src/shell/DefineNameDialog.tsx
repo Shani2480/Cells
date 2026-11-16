@@ -1,4 +1,5 @@
 import { useState } from "react"
+import type { DefinedName } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
 import { Dialog } from "./Dialog"
 
@@ -6,12 +7,21 @@ import { Dialog } from "./Dialog"
  * New Name (Formulas › Define Name): the name, its scope, a comment and what it refers to (the selection to start
  * with). Names are workbook-wide for now; sheet scope comes with the Name Manager.
  */
-export function DefineNameDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
-  const [name, setName] = useState(() => suggestName(controller))
-  const [comment, setComment] = useState("")
-  const [refersTo, setRefersTo] = useState(() => "=" + controller.names.selectionRef())
+export function DefineNameDialog({
+  controller,
+  onClose,
+  editing,
+}: {
+  controller: SheetController
+  onClose: () => void
+  /** Name Manager's Edit: the name as it is (the dialog is Edit Name). */
+  editing?: DefinedName
+}) {
+  const [name, setName] = useState(() => editing?.name ?? suggestName(controller))
+  const [comment, setComment] = useState(editing?.comment ?? "")
+  const [refersTo, setRefersTo] = useState(() => "=" + (editing?.ref ?? controller.names.selectionRef()))
   const accept = () => {
-    const problem = controller.names.define(name, refersTo, comment)
+    const problem = controller.names.define(name, refersTo, comment, editing?.name)
     if (problem) {
       controller.shell.alert(problem)
       return
@@ -19,7 +29,7 @@ export function DefineNameDialog({ controller, onClose }: { controller: SheetCon
     onClose()
   }
   return (
-    <Dialog title="New Name" onCancel={onClose} onAccept={accept} width={380}>
+    <Dialog title={editing ? "Edit Name" : "New Name"} onCancel={onClose} onAccept={accept} width={380}>
       <div className="define-name-grid">
         <label className="dialog-label" htmlFor="name-name">
           <u>N</u>ame:

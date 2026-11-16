@@ -2279,3 +2279,168 @@ html.is-phone .clipboard-item-delete {
   width: 36px;
   height: 36px;
 }
+
+/* ── Formulas › Trace Precedents / Dependents: the arrows over the sheet (grid/TraceLayer.tsx) ─────────────── */
+/* Excel's colours on the sheet, which stays white in dark mode. */
+.trace-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.trace line {
+  stroke-width: 1.4;
+}
+
+.trace.is-blue line,
+.trace.is-blue .trace-box {
+  stroke: #0000ff;
+}
+
+.trace.is-red line,
+.trace.is-red .trace-box {
+  stroke: #ff0000;
+}
+
+.trace.is-black line {
+  stroke: #000000;
+}
+
+.trace-box {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.trace.is-blue .trace-dot,
+.trace-head.is-blue {
+  fill: #0000ff;
+}
+
+.trace.is-red .trace-dot,
+.trace-head.is-red {
+  fill: #ff0000;
+}
+
+.trace-head.is-black {
+  fill: #000000;
+}
+
+.trace-sheet {
+  fill: #ffffff;
+  stroke: #000000;
+  stroke-width: 1;
+}
+
+.trace-sheet-lines {
+  stroke: #000000;
+  stroke-width: 0.6;
+  fill: none;
+}
+
+/* ── Name Manager, Evaluate Formula, Error Checking (shell/AuditDialogs.tsx) ──────────────────────────────────── */
+.name-manager-table .cf-manage-head,
+.name-manager-table .cf-manage-row {
+  grid-template-columns: 1.1fr 1.3fr 1.4fr 80px 1fr;
+}
+
+.name-manager-table .cf-manage-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name-manager-empty {
+  padding: 8px;
+}
+
+.evaluate-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+
+.evaluate-ref {
+  align-self: start;
+  padding-top: 4px;
+}
+
+.evaluate-box {
+  min-height: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--app-field-border);
+  background: var(--app-field-bg);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.evaluate-next {
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
+.dialog-hint {
+  margin: 8px 0 0;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+}
+
+.error-check {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.error-check-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.error-check-text p {
+  margin: 0;
+}
+
+.error-check-formula {
+  padding: 4px 6px;
+  border: 1px solid var(--app-field-border);
+  background: var(--app-field-bg);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.error-check-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Watch Window (shell/WatchWindow.tsx) ───────────────────────────────────────────────────────────────────── */
+.watch-row.is-selected {
+  border-color: var(--app-theme-primary);
+}
+
+.watch-name {
+  color: var(--app-ribbon-muted);
+  font-weight: 400;
+}
+
+.watch-value {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.watch-formula {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
