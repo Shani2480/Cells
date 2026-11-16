@@ -127,6 +127,11 @@ Phase 3, added at the end:
 - [ ] The AI tools with a real model (only a fake local endpoint and canned replies were used): Ollama and LM Studio
       on this computer, and one cloud provider with a key entered in Inkspire; a formula, an explanation, a chart and a
       summary each make sense, and Stop works mid-reply.
+- [ ] In the real build: a second launch with a file, and a `cells://` link while Cells runs, go to the running
+      Cells and bring it to the front (Linux, then Windows and macOS in Phase 6).
+- [ ] The shared packages inside Inkspire (I8): its test suite and `.docx` corpus with `@cells/ooxml` and
+      `@cells/chart` in place of its own files, and the Spreadsheet block with `calculateGrid`. So far they were only
+      compiled against Inkspire's `tsconfig.json`.
 - [ ] The first-run setup and File › Options next to Excel's (the setup has no Excel counterpart; Options was built
       from memory of Excel 365's General and Advanced pages, with only the settings Cells has).
 

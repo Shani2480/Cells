@@ -2,6 +2,49 @@
 
 Newest first. Each entry: what changed, how it was checked, what is still open.
 
+## 2026-11-16 — Phase 5: Inkspire integration (0.5.0)
+
+**Built**
+
+- Shared settings: a file both apps read and write (`docs/shared-settings.md`) with the user name and initials, the
+  Office Theme, the region, short date and separators, and the AI choice. File › Options (General, Advanced, AI) and
+  a first-run setup that starts from the system's settings or Inkspire's. Notes and comments are signed with the name.
+- Regional formats applied: typed numbers and dates, number formats, General, the short date (format 14) and the
+  formula bar follow the person's region; formulas and files stay in Excel's en-US form.
+- `cells://open` and `cells://edit` links and a single Cells (`docs/app-links.md`): a second launch, a file from the
+  file manager or a link from Inkspire goes to the running Cells, which can select a range.
+- Copy for Inkspire (`docs/inkspire-clipboard.md`): a range copies as a formatted HTML table carrying its source; a
+  chart copies as Inkspire's chart markup plus a picture, and pastes back into Cells as a copy.
+- Linked ranges and Edit Data (`docs/linked-ranges.md`): Cells writes what the ranges Inkspire links to hold, a moment
+  after they change; Edit Data opens a chart's embedded workbook in Cells ("Chart in Report.docx") and saves every
+  change back.
+- AI tools (`docs/ai.md`), off until turned on: a formula from words, Explain Formula, Suggest a Chart and Summarize
+  Data, with Inkspire's providers (Ollama, LM Studio, OpenAI-compatible, OpenAI, Anthropic) and its keyring entries.
+  Every dialog says what it sends where; nothing goes into the workbook until Insert.
+- Shared packages (`docs/shared-packages.md`): `@cells/ooxml` (new: zip, XML and OPC for workbooks and Word
+  documents), `@cells/chart`, and `calculateGrid`/`calculateFormula` in `@cells/core` for Inkspire's Spreadsheet block
+  and formula fields. They build with ES2020 libraries and compile under Inkspire's `tsconfig.json`.
+
+**Checked**
+
+- The real Tauri build on a private Xvfb display: a `cells://` link at startup opens the workbook at the range, the
+  linked-range snapshot holds the right values, and an Edit Data link opens "Chart in Report.docx - Cells". A second
+  launch or a later link reaching the running Cells wasn't tried there; only reading the launch arguments is tested.
+- The AI streaming path against a fake local endpoint (a reply split mid-character across network chunks), the four
+  tools through the app with canned replies, and each dialog in light and dark.
+- Regional entry and display in tests for US, German, British and ISO settings; the shared settings file's merge
+  (only changed keys, maps key by key) keeping a change Inkspire made in between.
+
+**Deviations from PLAN.md**
+
+- Ribbon components and tokens aren't shared packages: the two ribbons have no code in common and only 19 token names
+  match (reasons in `docs/shared-packages.md`).
+- Inkspire's built-in AI model doesn't run in Cells yet; Cells points to Ollama or LM Studio instead (I9).
+- The plan's cross-app checks (a linked table updating in Inkspire, Word opening Inkspire's linked files) wait for
+  Inkspire's side, which is listed in `docs/inkspire-todo.md` (I1–I9) and done in the Inkspire project.
+
+**Open**: see `docs/verify-list.md`.
+
 ## 2026-11-15 — Phase 4: files and data tools (0.4.0)
 
 **Built**

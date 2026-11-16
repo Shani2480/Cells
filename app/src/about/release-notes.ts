@@ -7,7 +7,7 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: "0.5.0",
-    date: "2026-11-15",
+    date: "2026-11-16",
     notes: [
       "A short setup the first time Cells opens: your name (notes and comments are signed with it), how you write dates and numbers, and light or dark. It starts from what your system says, or from what you already set in Inkspire, and Skip keeps those.",
       "File › Options: your user name and initials, the Office Theme (your system's setting, White or Black), and on the Advanced page your region, short date and separators. Run setup again is there too.",
