@@ -182,7 +182,8 @@ export type ShellRequests = {
   /** The error alert after an entry breaks a rule; `answer` gets the button pressed. */
   validationAlert?(alert: ValidationAlert, answer: (a: AlertAnswer) => void): void
   /** Alt+Down on a cell with an in-cell list: open it. */
-  openCellList?(): void
+  /** Opens the active cell's in-cell list; `pick`: the column's own entries (Pick From Drop-down List). */
+  openCellList?(pick?: boolean): void
   /** Insert › Table (Ctrl+T): the Create Table dialog. */
   createTable?(init: CreateTableInit): void
   /** Selects a ribbon tab (Chart Design after a chart is inserted). */
@@ -1534,6 +1535,43 @@ export class SheetController {
     return { items, current: String(value ?? ""), pick: (item) => this.validation.pick(row, col, item) }
   }
 
+  /**
+   * Pick From Drop-down List (the cell menu, or Alt+Down on a cell without a list): the text entries in the unbroken
+   * run of cells above and below in the column, A to Z, each once (as AutoComplete knows them). Null when there are
+   * none. Formulas and numbers aren't offered, as in Excel.
+   */
+  pickList(row: number, col: number): { items: string[]; current: string; pick: (item: string) => void } | null {
+    const cells = this.sheet.cells
+    const texts = new Map<string, string>()
+    const filled = (r: number) => {
+      const value = cells.get(r, col)?.value
+      return value !== undefined && value !== ""
+    }
+    // The run from its top down, so the first spelling in the column is the one kept.
+    let top = row
+    while (top > 0 && filled(top - 1)) top--
+    for (let r = top; r === row || filled(r); r++) {
+      if (r === row) continue
+      const data = cells.get(r, col)!
+      if (typeof data.value === "string" && !data.input?.startsWith("=") && !data.spill) {
+        const key = data.value.toLowerCase()
+        if (!texts.has(key)) texts.set(key, data.value)
+      }
+    }
+    if (!texts.size) return null
+    const items = [...texts.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+    const value = cells.get(row, col)?.value
+    return { items, current: String(value ?? ""), pick: (item) => this.validation.pick(row, col, item) }
+  }
+
+  /** The cell menu's Pick From Drop-down List: the list under the active cell. False when there is nothing to pick. */
+  openPickList(): boolean {
+    const { row, col } = this.selection.active
+    if (!this.shell.openCellList || !(this.cellList(row, col) ?? this.pickList(row, col))) return false
+    this.shell.openCellList(!this.cellList(row, col))
+    return true
+  }
+
   // ── Keyboard ───────────────────────────────────────────────────────────────────────────────────────────────
 
   /**
@@ -1632,13 +1670,7 @@ export class SheetController {
         return true
     }
     if (alt && !primary && key === "ArrowDown" && this.data.openMenuAtActive()) return true
-    if (alt && !primary && key === "ArrowDown" && this.shell.openCellList) {
-      const { row, col } = this.selection.active
-      if (this.cellList(row, col)) {
-        this.shell.openCellList()
-        return true
-      }
-    }
+    if (alt && !primary && key === "ArrowDown" && this.openPickList()) return true
     if (primary && !alt) {
       const lower = key.toLowerCase()
       if (lower === "z" && !shift) return (this.undo(), true)

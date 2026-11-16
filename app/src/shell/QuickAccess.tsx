@@ -1,6 +1,6 @@
 import { Check, ChevronDown, Search } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { QAT_CHOICES } from "@/ribbon/qat-commands"
+import { QAT_CHOICES, QAT_LABELS } from "@/ribbon/qat-commands"
 import { iconOf, NOT_BUILT, shortcutText, type CommandRegistry, type RibbonEnv } from "@/ribbon/registry"
 import { searchCommands } from "@/ribbon/tell-me"
 import { ContextMenu } from "./ContextMenu"
@@ -85,7 +85,7 @@ export function QuickAccess({ registry, env, ids, onChange, onDone }: QatProps) 
               : [
                   ...QAT_CHOICES.map((id) => ({
                     kind: "item" as const,
-                    label: registry.get(id)?.label ?? id,
+                    label: QAT_LABELS[id] ?? registry.get(id)?.label ?? id,
                     icon: ids.includes(id) ? <Check size={14} strokeWidth={2} /> : undefined,
                     onSelect: () => toggle(id),
                   })),

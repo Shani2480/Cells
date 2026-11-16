@@ -1,6 +1,6 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
 import { parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
 import { GridView, type GridContextMenu } from "@/grid/GridView"
 import { usePlatform } from "@/platform/context"
@@ -15,6 +15,7 @@ import { LiveLinks } from "@/links/live"
 import { SheetController } from "@/sheet/controller"
 import { absoluteName } from "@/sheet/text-columns"
 import { buildRegistry } from "@/ribbon/commands"
+import { pictureFor } from "@/ribbon/pictures"
 import type { RibbonEnv } from "@/ribbon/registry"
 import { ActionSheet } from "@/phone/ActionSheet"
 import { PhoneShell } from "@/phone/PhoneShell"
@@ -451,7 +452,7 @@ function WorkbookWindow({
       chartData: () => setDialog({ kind: "selectData" }),
       showTab: (id) => ribbonHandle.current?.showTab(id),
       resizeTable: (range) => setDialog({ kind: "resizeTable", range }),
-      openCellList: () => window.dispatchEvent(new CustomEvent("cells:open-cell-list")),
+      openCellList: (pick) => window.dispatchEvent(new CustomEvent("cells:open-cell-list", { detail: { pick } })),
     }
   }, [controller])
 
@@ -522,9 +523,8 @@ function WorkbookWindow({
       {
         kind: "item",
         label: "Paste Special...",
-        disabled: true,
-        title: NOT_BUILT,
-        onSelect: () => undefined,
+        disabled: !registry.isEnabled("PasteSpecialDialog", env),
+        onSelect: () => registry.get("PasteSpecialDialog")?.run?.(env),
       },
       { kind: "separator" },
     ]
@@ -563,6 +563,41 @@ function WorkbookWindow({
         ]
       return [item("New Comment", () => a.newComment()), item("New Note", () => a.newNote())]
     }
+    const active = controller.selection.active
+    const data = controller.data
+    const act = (label: string, onSelect: () => void, disabled = false, icon?: ReactNode): MenuItem => ({
+      kind: "item",
+      label,
+      disabled,
+      icon,
+      onSelect,
+    })
+    // The cell menu's Filter ›, by the active cell (Excel's order).
+    const filterItems = (): MenuItem[] => {
+      const header = data.filteredHeader()
+      return [
+        act(`Clear Filter From "${header ?? ""}"`, () => void data.clearColumnFilter(), header === null),
+        act("Reapply", () => void data.reapply(), data.autoFilter === null),
+        { kind: "separator" },
+        act("Filter by Selected Cell's Value", () => void data.filterBySelected("value")),
+        act("Filter by Selected Cell's Color", () => void data.filterBySelected("cell")),
+        act("Filter by Selected Cell's Font Color", () => void data.filterBySelected("font")),
+        later("Filter by Selected Cell's Icon"),
+      ]
+    }
+    const sortItems = (): MenuItem[] => {
+      const names = data.labels()
+      return [
+        act(names.ascending, () => data.quickSort(false), false, pictureFor("SortAscendingExcel", 16)),
+        act(names.descending, () => data.quickSort(true), false, pictureFor("SortDescendingExcel", 16)),
+        { kind: "separator" },
+        act("Put Selected Cell Color On Top", () => void data.sortSelectedColorOnTop("cell")),
+        act("Put Selected Font Color On Top", () => void data.sortSelectedColorOnTop("font")),
+        later("Put Selected Cell Icon On Top"),
+        { kind: "separator" },
+        act("Custom Sort...", () => data.openSortDialog()),
+      ]
+    }
     // Excel's lists (en-US), with what isn't built yet shown disabled.
     if (target === "cells") {
       items.push(
@@ -572,15 +607,27 @@ function WorkbookWindow({
         { kind: "separator" },
         later("Quick Analysis"),
         { kind: "separator" },
-        later("Filter", true),
-        later("Sort", true),
+        { kind: "item", label: "Filter", items: filterItems(), onSelect: () => undefined },
+        { kind: "item", label: "Sort", items: sortItems(), onSelect: () => undefined },
         { kind: "separator" },
-        later("Get Data from Table/Range..."),
+        // Power Query, which Cells doesn't have (docs/next-todo.md, Phase 7).
+        {
+          kind: "item",
+          label: "Get Data from Table/Range...",
+          disabled: true,
+          title: "Needs Power Query, which Cells doesn't have.",
+          onSelect: () => undefined,
+        },
         { kind: "separator" },
         ...annotationItems(),
         { kind: "separator" },
         formatCells,
-        later("Pick From Drop-down List..."),
+        {
+          kind: "item",
+          label: "Pick From Drop-down List...",
+          disabled: !(controller.cellList(active.row, active.col) ?? controller.pickList(active.row, active.col)),
+          onSelect: () => void controller.openPickList(),
+        },
         { kind: "item", label: "Define Name...", onSelect: () => openDialog("defineName") },
         { kind: "separator" },
         later("Link", true),

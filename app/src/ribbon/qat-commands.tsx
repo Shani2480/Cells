@@ -1,4 +1,4 @@
-import { ArrowDownAZ, ArrowUpAZ, FilePlus2, FolderOpen, Printer, Redo2, Save, Undo2 } from "lucide-react"
+import { FilePlus2, FolderOpen, Printer, Redo2, Save, Undo2 } from "lucide-react"
 import type { Command } from "./registry"
 
 const icon = { size: 16, strokeWidth: 1.75 }
@@ -49,8 +49,6 @@ export function qatCommands(): Command[] {
       enabled: (env) => Boolean(env.files),
     },
     { id: "FilePrintQuick", label: "Quick Print", icon: <Printer {...icon} /> },
-    { id: "SortAscendingExcel", label: "Sort Ascending", icon: <ArrowUpAZ {...icon} /> },
-    { id: "SortDescendingExcel", label: "Sort Descending", icon: <ArrowDownAZ {...icon} /> },
   ]
 }
 
@@ -66,6 +64,12 @@ export const QAT_CHOICES = [
   "SortAscendingExcel",
   "SortDescendingExcel",
 ]
+
+/** The Customize menu's own names where they differ from the command's (Sort A to Z is Home's, named by the data). */
+export const QAT_LABELS: Record<string, string> = {
+  SortAscendingExcel: "Sort Ascending",
+  SortDescendingExcel: "Sort Descending",
+}
 
 export const QAT_DEFAULT = ["Undo", "Redo"]
 const QAT_KEY = "cells.qat"

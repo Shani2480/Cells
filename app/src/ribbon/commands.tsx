@@ -287,8 +287,9 @@ function otherCommands(): Command[] {
 }
 
 /** The registry: built commands, plus every other control on the tabs, by Excel's name, shown as not built yet. */
-export function buildRegistry(): CommandRegistry {
-  const registry = new CommandRegistry().add(
+/** Every command Cells defines, from each tab's file. An id appears once: a second one would replace the first. */
+export function allCommands(): Command[] {
+  return [
     ...homeCommands(),
     ...conditionalCommands(),
     ...reviewCommands(),
@@ -298,7 +299,11 @@ export function buildRegistry(): CommandRegistry {
     ...chartCommands(),
     ...pageLayoutCommands(),
     ...otherCommands(),
-  )
+  ]
+}
+
+export function buildRegistry(): CommandRegistry {
+  const registry = new CommandRegistry().add(...allCommands())
   for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN]) {
     for (const id of controlIds(tab)) {
       if (!registry.get(id)) registry.add({ id, label: LABELS[id] ?? excelLabel(id) ?? id })

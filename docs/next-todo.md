@@ -77,7 +77,7 @@ Cells (typing and showing dates and numbers); each app keeps its own recent-file
       `calculateGrid`/`calculateFormula` in `@cells/core` (`docs/shared-packages.md`)
 - [x] Wrap-up docs (changes.md, verify-list, What's new for 0.5.0)
 
-## Phase 6 — Packaging and phone UI (in progress, version 0.6.0 not shipped yet)
+## Phase 6 — Packaging and phone UI (done, 0.6.0)
 
 Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed measured in the emulator for now.
 
@@ -99,8 +99,7 @@ Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed 
       ribbon's tabs as a command palette in a bottom sheet (tab picker, menus and fields in place, swipe to close),
       fling scrolling; long press, pinch and double tap from the tablet work. Status bar follows the theme.
 - [x] Phone dialogs, the File view and setup full screen (`app/src/styles/phone.css`)
-- [ ] Simplified phone forms of mouse-only features (chart elements, drag-to-resize panes); the context menu is still
-      the desktop's, at the finger
+- [ ] Simplified phone forms of mouse-only features (chart elements, drag-to-resize panes)
 - [x] Emulator smoke test (`scripts/android-smoke.sh`): open, edit, save and read back, frame times, Back; phone and
       tablet screenshots in `docs/images`. It found two bugs, both fixed: the keyboard turned a landscape tablet into
       the phone layout mid-typing, and Back ended Cells (with unsaved work) instead of closing what was open
@@ -108,6 +107,41 @@ Decided 2026-11-16: Linux, Windows, macOS and Android as planned, no iOS; speed 
       that touch the app); not run yet, as the account's Actions are blocked by billing
 - [x] Long press on a phone: an action sheet with the context menu's items (`app/src/phone/ActionSheet.tsx`)
 - [x] Wrap-up docs (changes.md, verify-list, What's new for 0.6.0)
+
+## Phase 7 — The commands marked "not built" (0.7.0)
+
+Asked 2026-11-16: build what the ribbon and the right-click menus show as "Not built yet." (about 90 ribbon
+commands, 10 menu items), then Inkspire's side of the link. In parts, each one shippable, most useful first. Each
+follows Excel's names, dialogs and behaviour; what stays out is listed at the end with the reason.
+
+- [ ] Part 1 — Menus wired to what exists: the cell menu's Paste Special, Filter › and Sort › (by the cell's value,
+      colour, font colour, icon; Reapply, Clear), Pick From Drop-down List; Sort A→Z / Z→A on the Data tab; Select
+      All Sheets; Show Comments (the Comments pane); the Office Clipboard pane (Home › Clipboard launcher)
+- [ ] Part 2 — Formula auditing: Name Manager, Create from Selection, Trace Precedents / Dependents and Remove
+      Arrows (drawn on the sheet), Error Checking, Evaluate Formula, Watch Window
+- [ ] Part 3 — Outline: Group / Ungroup rows and columns, the outline bar with its levels, Show / Hide Detail,
+      Subtotals, Settings; read and written in Excel files (today kept but not shown)
+- [ ] Part 4 — Data tools: Advanced Filter, Consolidate, What-If Analysis (Goal Seek, Scenario Manager, Data
+      Table), Forecast Sheet, Refresh All and Queries & Connections for text and CSV imports, Edit Links
+- [ ] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
+      Symbol, Header & Footer (opens Page Setup's tab until Page Layout view exists)
+- [ ] Part 6 — Views and windows: Page Break Preview, Page Layout view, Custom Views, Ruler, New Window, Arrange
+      All, Split, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
+- [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
+      Workbook Statistics, Check Accessibility, Allow Edit Ranges
+- [ ] Part 8 — Objects: Text Box, Shapes, Pictures, Icons, WordArt; Bring Forward / Send Backward, Align, Group,
+      Rotate, Selection Pane; Sheet Background; Themes, theme colours, fonts and effects
+- [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis
+- [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
+- [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
+      GitHub issue the person reviews), Show Training
+- [ ] Then: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project
+
+Staying out, with the reason in the code: Power Query's online sources, subscriptions and the Data Model
+(Relationships, Manage Data Model) need Microsoft's engine and services; co-authoring, Hide Ink and Screenshot need
+an account, a pen layer or a desktop capture Cells doesn't have; View Code and Macros need VBA, which Cells doesn't
+run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signature Line and Object (OLE) are
+decided when Part 8 is done.
 
 ## Later (from Phase 4)
 

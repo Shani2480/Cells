@@ -496,4 +496,81 @@ export class DataCommands {
     const sel = this.c.selection
     return this.c.transact(ops, { label: "Sort", before: sel, after: sel }) !== null
   }
+
+  // ── The cell menu's Filter › and Sort › (by the active cell) ──
+
+  /** The active cell's shown text, fill and font colour (as Filter by Color reads them). */
+  private activeLook() {
+    const { row, col } = this.c.selection.active
+    const data = this.c.sheet.cells.get(row, col)
+    const style = this.c.wb.styles.get(data?.style ?? 0)
+    const code = this.c.wb.styles.get(this.c.sheet.styleAt(row, col)).numberFormat
+    return {
+      row,
+      col,
+      data,
+      text: displayText(data?.value, code),
+      fill: style.fill ?? null,
+      font: style.fontColor ?? null,
+    }
+  }
+
+  /** The filter over the active cell's column, below its header row. */
+  private hostOver(row: number, col: number): FilterHost | null {
+    const h = this.host()
+    const r = h?.filter.range
+    return h && r && col >= r.c0 && col <= r.c1 && row > r.r0 ? h : null
+  }
+
+  /**
+   * Filter › Filter by Selected Cell's Value, Color or Font Color: the active cell's column keeps the rows that match
+   * it. Turns the filter on for the data around the cell first, as Excel does.
+   */
+  filterBySelected(by: "value" | "cell" | "font"): boolean {
+    if (this.c.edit) this.c.commitEdit()
+    const look = this.activeLook()
+    if (!this.hostOver(look.row, look.col)) {
+      if (this.host()) return false
+      this.toggleFilter()
+    }
+    if (!this.hostOver(look.row, look.col)) return false
+    const filter: ColumnFilter =
+      by === "value"
+        ? look.data?.value === undefined || look.text === ""
+          ? { kind: "values", values: [], blanks: true }
+          : { kind: "values", values: [look.text] }
+        : { kind: "color", cell: by === "cell", color: by === "cell" ? look.fill : look.font }
+    return this.filterColumn(look.col, filter)
+  }
+
+  /** The header of the active cell's filtered column, for 'Clear Filter From "Amount"'; null when it has no filter. */
+  filteredHeader(): string | null {
+    const { row, col } = this.c.selection.active
+    const h = this.hostOver(row, col)
+    if (!h || !h.filter.columns[col - h.filter.range.c0]) return null
+    const r0 = h.filter.range.r0
+    const code = this.c.wb.styles.get(this.c.sheet.styleAt(r0, col)).numberFormat
+    return displayText(this.c.sheet.cells.get(r0, col)?.value, code)
+  }
+
+  /** Filter › Clear Filter From: the active cell's column only. */
+  clearColumnFilter(): boolean {
+    return this.filteredHeader() === null ? false : this.filterColumn(this.c.selection.active.col, null)
+  }
+
+  /** Sort › Put Selected Cell Color (Font Color) On Top: the data around the cell, that colour first. */
+  sortSelectedColorOnTop(on: "cell" | "font"): boolean {
+    const look = this.activeLook()
+    const t = this.target()
+    return this.sort(t.range, {
+      header: t.header,
+      keys: [
+        {
+          index: look.col,
+          on: on === "cell" ? "cellColor" : "fontColor",
+          color: on === "cell" ? look.fill : look.font,
+        },
+      ],
+    })
+  }
 }

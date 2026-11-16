@@ -26,7 +26,8 @@ export function ValidationLayer({
 }) {
   const sheet = controller.sheet
   const { row, col } = controller.selection.active
-  const [open, setOpen] = useState<{ row: number; col: number } | null>(null)
+  // `pick`: Pick From Drop-down List (the column's own entries) rather than the cell's list.
+  const [open, setOpen] = useState<{ row: number; col: number; pick?: boolean } | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const [pick, setPick] = useState(0)
 
@@ -38,22 +39,25 @@ export function ValidationLayer({
     return { x, y, w: sheet.cols.size(c), h: sheet.rows.size(r) }
   }
 
-  const list = controller.cellList(row, col)
+  const own = controller.cellList(row, col)
+  const picking = open?.pick === true && open.row === row && open.col === col
+  const list = own ?? (picking ? controller.pickList(row, col) : null)
   const items = list?.items ?? null
   const editing = Boolean(controller.edit)
   const shown = visible(row, col) ? rect(row, col) : null
   // The list belongs to the cell it was opened on; moving away closes it.
   const isOpen = open !== null && open.row === row && open.col === col && items !== null && shown !== null
 
-  const show = () => {
-    if (!items) return
-    const at = items.findIndex((i) => i === list?.current)
+  const show = (pickList = false) => {
+    const shownList = own ?? (pickList ? controller.pickList(row, col) : null)
+    if (!shownList) return
+    const at = shownList.items.findIndex((i) => i === shownList.current)
     setPick(Math.max(0, at))
-    setOpen({ row, col })
+    setOpen({ row, col, pick: !own && pickList })
   }
 
   useEffect(() => {
-    const onOpen = () => show()
+    const onOpen = (event: Event) => show(Boolean((event as CustomEvent<{ pick?: boolean }>).detail?.pick))
     window.addEventListener("cells:open-cell-list", onOpen)
     return () => window.removeEventListener("cells:open-cell-list", onOpen)
   })
@@ -98,7 +102,7 @@ export function ValidationLayer({
           />
         )
       })}
-      {items && shown && !editing ? (
+      {own && shown && !editing ? (
         <button
           type="button"
           className={`filter-button dv-list-button${isOpen ? " is-open" : ""}`}

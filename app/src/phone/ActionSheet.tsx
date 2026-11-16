@@ -1,4 +1,5 @@
-import { ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useState } from "react"
 import type { MenuItem } from "@/shell/ContextMenu"
 import { BottomSheet } from "./BottomSheet"
 
@@ -30,14 +31,23 @@ export function actionSheetItems(items: MenuItem[]): { quick: Action[]; groups: 
 }
 
 export function ActionSheet({ label, items, onClose }: { label: string; items: MenuItem[]; onClose: () => void }) {
-  const { quick, groups } = actionSheetItems(items)
+  // A submenu (Filter ›, Sort ›) shown in place, with a Back row.
+  const [inside, setInside] = useState<Action | null>(null)
+  const { quick, groups } = actionSheetItems(inside?.items ?? items)
   const choose = (item: Action) => {
+    if (item.items) return setInside(item)
     onClose()
     item.onSelect()
   }
   return (
     <BottomSheet label={label} onClose={onClose} header={<span className="phone-sheet-title">{label}</span>}>
-      {quick.length ? (
+      {inside ? (
+        <button type="button" className="phone-row is-back" onClick={() => setInside(null)}>
+          <ChevronLeft size={20} aria-hidden />
+          <span>{inside.label}</span>
+        </button>
+      ) : null}
+      {quick.length && !inside ? (
         <div className="phone-quick-row" role="group" aria-label="Clipboard">
           {quick.map((item) => (
             <button key={item.label} type="button" className="phone-quick" onClick={() => choose(item)}>
@@ -57,7 +67,7 @@ export function ActionSheet({ label, items, onClose }: { label: string; items: M
                 {item.icon}
               </span>
               <span className="phone-row-label">{item.label.replace(/\.\.\.$/, "…")}</span>
-              {item.more ? <ChevronRight size={18} aria-hidden /> : null}
+              {item.more || item.items ? <ChevronRight size={18} aria-hidden /> : null}
             </button>
           ))}
         </div>

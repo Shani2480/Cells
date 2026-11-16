@@ -161,3 +161,58 @@ describe("Sort & Filter: AutoFilter", () => {
     expect(c.sheet.autoFilter).not.toBeNull()
   })
 })
+
+describe("the cell menu's Filter › and Sort ›", () => {
+  const shown = (c: SheetController) => [1, 2, 3].filter((r) => !c.sheet.rows.isHidden(r))
+
+  it("filters by the selected cell's value, turning the filter on first, and clears that column", () => {
+    const c = table()
+    c.goTo({ r0: 1, c0: 1, r1: 1, c1: 1 })
+    expect(c.data.filteredHeader()).toBeNull()
+    expect(c.data.filterBySelected("value")).toBe(true)
+    expect(c.sheet.autoFilter?.range).toEqual({ r0: 0, c0: 0, r1: 3, c1: 2 })
+    expect(shown(c)).toEqual([1, 3])
+    expect(c.data.filteredHeader()).toBe("Team")
+    expect(c.data.clearColumnFilter()).toBe(true)
+    expect(shown(c)).toEqual([1, 2, 3])
+  })
+
+  it("filters by the selected cell's fill and font colour", () => {
+    const c = table()
+    c.goTo({ r0: 2, c0: 0, r1: 2, c1: 0 })
+    c.format.fill("#FFFF00")
+    c.data.filterBySelected("cell")
+    expect(shown(c)).toEqual([2])
+    c.data.clearColumnFilter()
+    c.goTo({ r0: 1, c0: 0, r1: 1, c1: 0 })
+    c.data.filterBySelected("font")
+    // Automatic font everywhere: every row matches.
+    expect(shown(c)).toEqual([1, 2, 3])
+  })
+
+  it("puts the selected cell's colour on top", () => {
+    const c = table()
+    c.goTo({ r0: 3, c0: 2, r1: 3, c1: 2 })
+    c.format.fill("#FF0000")
+    expect(c.data.sortSelectedColorOnTop("cell")).toBe(true)
+    expect(column(c, 0)).toEqual(["Name", "Cy", "Ann", "Bob"])
+  })
+})
+
+describe("Pick From Drop-down List", () => {
+  it("lists the column's text entries above and below, A to Z, each once; numbers and formulas aren't offered", () => {
+    const c = new SheetController()
+    const put = (row: number, text: string) => {
+      c.goTo({ r0: row, c0: 0, r1: row, c1: 0 })
+      c.beginEdit("enter", text)
+      c.commitEdit()
+    }
+    ;["pear", "Apple", "apple", "12", "=1+1", "fig"].forEach((t, r) => put(r, t))
+    put(8, "after the gap")
+    const list = c.pickList(6, 0)!
+    expect(list.items).toEqual(["Apple", "fig", "pear"])
+    list.pick("fig")
+    expect(c.sheet.cells.get(6, 0)?.value).toBe("fig")
+    expect(c.pickList(20, 0)).toBeNull()
+  })
+})

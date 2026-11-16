@@ -1,6 +1,6 @@
 [package]
 name = "cells"
-version = "0.6.0"
+version = "0.7.0"
 description = "Cells spreadsheet"
 authors = ["The Cells authors"]
 license = "MIT"
