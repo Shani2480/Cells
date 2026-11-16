@@ -170,7 +170,7 @@ Phase 3, added at the end:
       60 fps, the picker's rows).
 - [x] Touch gestures on the real tablet: dragging a gripper stretches the selection, long press opens the menu and
       Back closes it, double tap edits and the editor stays above the keyboard.
-- [ ] Pinch zoom on a real tablet (adb can't make two fingers; only synthetic events in tests so far).
+- [x] Pinch zoom on a real tablet: checked by hand (2026-11-16).
 
 ## Not built in Phase 1 (noted for later phases)
 
