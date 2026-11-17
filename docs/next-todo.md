@@ -141,7 +141,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         Header/Footer), blank pages after the data, rulers in in/cm, no frozen panes or split in this view
   - [x] Custom Views: Add (print settings, hidden rows and columns), Show, Delete; read from and written to Excel files
         (customWorkbookViews, customSheetViews, Z_<guid>_.wvu names), checked in Excel 365
-- [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
+- [x] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
   - [x] Spelling (F7): sheet or selection, Ignore Once/All, Add to Dictionary (shared with Inkspire), Change/Change
         All, Excel's end message; English Hunspell (SCOWL, dictionary-en) bundled. Thesaurus (Shift+F7) pane from
