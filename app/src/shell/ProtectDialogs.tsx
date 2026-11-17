@@ -129,7 +129,7 @@ export function UnprotectSheetDialog({ controller, onClose }: { controller: Shee
 }
 
 /** Confirm Password: the password again; a mismatch shows Excel's message and goes back to the first dialog. */
-function ConfirmPassword({
+export function ConfirmPassword({
   password,
   onBack,
   onMismatch,

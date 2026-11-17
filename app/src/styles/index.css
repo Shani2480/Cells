@@ -1068,6 +1068,44 @@ html.is-browser .app-window-frame {
   text-underline-offset: 2px;
 }
 
+/* Review › Allow Edit Ranges: a two-column list with its buttons beside it. */
+.edit-ranges {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.edit-ranges-list {
+  height: 150px;
+}
+
+.edit-ranges-head,
+.dialog-list-item.edit-ranges-row {
+  display: grid;
+  grid-template-columns: 40% 60%;
+  gap: 8px;
+  text-align: left;
+}
+
+.edit-ranges-head {
+  position: sticky;
+  top: 0;
+  padding: 3px 8px;
+  font-weight: 600;
+  background: var(--app-field-bg);
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.edit-ranges-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-ranges-protect {
+  margin-top: 10px;
+}
+
 /* Review › Workbook Statistics: labels left, counts right, a heading per part. */
 .stats {
   display: grid;

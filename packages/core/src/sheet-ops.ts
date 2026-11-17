@@ -1,4 +1,5 @@
 import { copyHyperlinks, type Hyperlink } from "./hyperlinks"
+import { copyEditRanges, type EditRange } from "./edit-ranges"
 import type { Range } from "./address"
 import { copyPageSetup, type PageSetup } from "./page-setup"
 import type { AnnotationWrite } from "./annotations"
@@ -47,6 +48,7 @@ export type SheetSnapshot = {
   consolidate?: ConsolidateSettings | null
   queryTables?: QueryTable[]
   hyperlinks?: Hyperlink[]
+  editRanges?: EditRange[]
   tabColor?: string
   hidden: boolean
 }
@@ -82,6 +84,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     consolidate: copyConsolidate(sheet.consolidate),
     queryTables: copyQueryTables(sheet.queryTables),
     hyperlinks: copyHyperlinks(sheet.hyperlinks),
+    editRanges: copyEditRanges(sheet.editRanges),
     tabColor: sheet.tabColor,
     hidden: sheet.hidden,
   }
@@ -117,6 +120,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.consolidate = copyConsolidate(s.consolidate ?? null)
   sheet.queryTables = copyQueryTables(s.queryTables ?? [])
   sheet.hyperlinks = copyHyperlinks(s.hyperlinks ?? [])
+  sheet.editRanges = copyEditRanges(s.editRanges ?? [])
   sheet.tabColor = s.tabColor
   sheet.hidden = s.hidden
   return sheet

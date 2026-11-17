@@ -1,3 +1,4 @@
+import type { EditRange } from "./edit-ranges"
 import type { SheetChart } from "./chart"
 import { defaultPageSetup, type PageSetup } from "./page-setup"
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
@@ -176,6 +177,10 @@ export class Sheet {
   queryTables: QueryTable[] = []
   /** Insert › Link: links over cells, oldest first. */
   hyperlinks: Hyperlink[] = []
+  /** Review › Allow Edit Ranges. */
+  editRanges: EditRange[] = []
+  /** Edit ranges unlocked with their password this session (lower-case titles; not saved, not undone). */
+  readonly unlockedEditRanges = new Set<string>()
 
   constructor(name: string) {
     this.name = name

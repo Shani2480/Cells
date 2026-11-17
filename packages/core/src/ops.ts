@@ -9,6 +9,7 @@ import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./
 import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
 import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tables"
 import { copyHyperlinks, shiftHyperlinks, type Hyperlink } from "./hyperlinks"
+import { copyEditRanges, shiftEditRanges, type EditRange } from "./edit-ranges"
 import { copyExternalBooks, type ExternalBook } from "./links"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
@@ -83,6 +84,7 @@ export type Op =
       advancedFilter?: AdvancedFilter | null
       queryTables?: QueryTable[]
       hyperlinks?: Hyperlink[]
+      editRanges?: EditRange[]
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -98,6 +100,8 @@ export type Op =
   | { kind: "annotations"; sheet: number; writes: AnnotationWrite[] }
   /** Insert › Link, Remove Hyperlinks: the sheet's whole list of links. */
   | { kind: "hyperlinks"; sheet: number; links: Hyperlink[] }
+  /** Review › Allow Edit Ranges: the sheet's whole list. */
+  | { kind: "editRanges"; sheet: number; ranges: EditRange[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
   /** The linked workbooks and the values read from them (update, change source, break). */
@@ -141,6 +145,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "sheetProps",
   "scenarios",
   "hyperlinks",
+  "editRanges",
 ])
 
 /**
@@ -261,6 +266,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       sheet.pageSetup = copyPageSetup(op.setup)
       return {
         inverse: [{ kind: "pageSetup", sheet: op.sheet, setup: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "editRanges": {
+      const before = copyEditRanges(sheet.editRanges)
+      sheet.editRanges = copyEditRanges(op.ranges)
+      return {
+        inverse: [{ kind: "editRanges", sheet: op.sheet, ranges: before }],
         change: { sheet: op.sheet, structural: false, format: true },
       }
     }
@@ -408,6 +421,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     advancedFilter: copyAdvancedFilter(sheet.advancedFilter),
     queryTables: copyQueryTables(sheet.queryTables),
     hyperlinks: copyHyperlinks(sheet.hyperlinks),
+    editRanges: copyEditRanges(sheet.editRanges),
   }
 }
 
@@ -432,6 +446,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   if (op.advancedFilter !== undefined) sheet.advancedFilter = copyAdvancedFilter(op.advancedFilter)
   if (op.queryTables) sheet.queryTables = copyQueryTables(op.queryTables)
   if (op.hyperlinks) sheet.hyperlinks = copyHyperlinks(op.hyperlinks)
+  if (op.editRanges) sheet.editRanges = copyEditRanges(op.editRanges)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -456,7 +471,8 @@ function hasLayout(sheet: Sheet) {
     sheet.scenarios.resultCells.length > 0 ||
     sheet.advancedFilter !== null ||
     sheet.queryTables.length > 0 ||
-    sheet.hyperlinks.length > 0
+    sheet.hyperlinks.length > 0 ||
+    sheet.editRanges.length > 0
   )
 }
 
@@ -568,6 +584,7 @@ function insertLines(
   if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, count)
   if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, count)
   if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, count)
+  if (sheet.editRanges.length) sheet.editRanges = shiftEditRanges(sheet.editRanges, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
   if (layout) inverse.push(layout)
@@ -627,6 +644,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, -count)
   if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, -count)
   if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, -count)
+  if (sheet.editRanges.length) sheet.editRanges = shiftEditRanges(sheet.editRanges, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
   if (layout) inverse.push(layout)
   if (removed.length) {

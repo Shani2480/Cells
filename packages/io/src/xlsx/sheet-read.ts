@@ -34,6 +34,7 @@ import { formulaFromFile } from "./formula"
 import type { StylesIn } from "./styles"
 import { readValidationExt, readValidations } from "./validation"
 import { readHyperlinks, type HyperlinkRead } from "./hyperlinks"
+import { readEditRanges } from "./edit-ranges"
 import { readCustomSheetViews, type CustomSheetViewRead } from "./custom-views"
 import { colWidthToPx, pointsToPx } from "./units"
 
@@ -126,6 +127,7 @@ const OWN = new Set([
   "cols",
   "sheetData",
   "sheetProtection",
+  "protectedRanges",
   "scenarios",
   "autoFilter",
   "mergeCells",
@@ -462,6 +464,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         break
       case "sheetProtection":
         sheet.protection = readProtection(parseFragment(source, rootTag).root)
+        break
+      case "protectedRanges":
+        sheet.editRanges = readEditRanges(parseFragment(source, rootTag).root)
         break
       case "scenarios":
         sheet.scenarios = readScenarios(parseFragment(source, rootTag).root)

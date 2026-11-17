@@ -9,6 +9,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     version: "0.7.0",
     date: "2026-11-16",
     notes: [
+      "Allow Edit Ranges (Review tab): pick ranges of a sheet that people can still edit after you protect it, each with its own password if you like. A range with a password asks for it once, then stays open until you close the workbook. Works the same in Excel.",
       "Workbook Statistics (Review tab): how many cells with data, formulas, tables, charts, comments and notes the sheet and the whole workbook have, and where the sheet ends.",
       "Page Layout view (View tab, or the middle button by the zoom): the sheet as printed pages, with their margins, the header and footer, and blank pages after your data to type into. You can edit cells right on the pages; click the header or footer to change it. Rulers above and beside the pages measure in inches or centimetres (View › Ruler turns them off).",
       "Custom Views (View tab): save how the workbook looks under a name (each sheet's selection, scroll, zoom, frozen panes, gridlines and headings, and if you like its hidden rows and columns and print settings) and switch back to it later with Show. Custom views are saved in Excel files and work in Excel too, and the ones made in Excel open in Cells.",

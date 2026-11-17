@@ -80,6 +80,7 @@ import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
 import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
+import { AllowEditRangesDialog, UnlockRangeDialog } from "@/shell/EditRangesDialogs"
 import { loadDemo } from "./demo"
 import { FileCommands, type SaveChoice } from "@/file/commands"
 import { newDocument, type FileProblem, type WorkbookDocument } from "@/file/document"
@@ -119,6 +120,7 @@ type DialogState =
         | "fillAcross"
         | "customViews"
         | "statistics"
+        | "allowEditRanges"
         | "cfManage"
         | "protectSheet"
         | "unprotectSheet"
@@ -145,6 +147,7 @@ type DialogState =
         | "symbol"
     }
   | { kind: "cfQuick"; quick: QuickKind }
+  | { kind: "unlockRange"; name: string; then: () => void }
   | { kind: "sort"; range: Range }
   | { kind: "sortWarning"; then: (expand: boolean) => void; warning?: "sort" | "duplicates" }
   | { kind: "removeDuplicates"; range: Range }
@@ -483,6 +486,7 @@ function WorkbookWindow({
       insertFunction: () => setDialog({ kind: "insertFunction" }),
       openDialog: (name) => openDialogRef.current(name),
       sortWarning: (then, warning) => setDialog({ kind: "sortWarning", then, warning }),
+      unlockRange: (name, then) => setDialog({ kind: "unlockRange", name, then }),
       removeDuplicates: (range) => setDialog({ kind: "removeDuplicates", range }),
       textToColumns: (range, texts) => setDialog({ kind: "textToColumns", range, texts }),
       sortDialog: (range) => setDialog({ kind: "sort", range }),
@@ -780,7 +784,8 @@ function WorkbookWindow({
       kind === "zoom" ||
       kind === "fillAcross" ||
       kind === "customViews" ||
-      kind === "statistics"
+      kind === "statistics" ||
+      kind === "allowEditRanges"
     )
       setDialog({ kind })
     else if (kind === "zoomToSelection") zoomToSelection()
@@ -1229,6 +1234,21 @@ function WorkbookWindow({
               setSetupAgain(false)
               focusGrid()
             }}
+          />
+        ) : null}
+        {dialog?.kind === "allowEditRanges" ? (
+          <AllowEditRangesDialog
+            controller={controller}
+            onClose={closeDialog}
+            onProtect={() => setDialog({ kind: "protectSheet" })}
+          />
+        ) : null}
+        {dialog?.kind === "unlockRange" ? (
+          <UnlockRangeDialog
+            controller={controller}
+            name={dialog.name}
+            onUnlocked={dialog.then}
+            onClose={closeDialog}
           />
         ) : null}
         {dialog?.kind === "statistics" ? (

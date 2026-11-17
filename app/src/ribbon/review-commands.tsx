@@ -103,6 +103,15 @@ export function reviewCommands(): Command[] {
       enabled: (env) => env.c.wb.sheets.some((s) => s.annotations.all().some((a) => a.value.kind === "note")),
     },
     {
+      id: "ReviewAllowUsersToEditRangesCoauth",
+      label: "Allow Edit Ranges",
+      description:
+        "Choose ranges of this sheet that people can still edit once it's protected, each with its own password if you like.",
+      run: (env) => env.dialog("allowEditRanges"),
+      // Excel greys it out while the sheet is protected.
+      enabled: (env) => !env.c.sheet.protection,
+    },
+    {
       id: "StatusWorkbookStatistics",
       label: "Workbook Statistics",
       description:

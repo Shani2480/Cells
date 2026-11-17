@@ -3,6 +3,7 @@ import type { Op } from "./ops"
 import type { Sheet } from "./sheet"
 import type { StyleTable } from "./styles"
 import { sha512 } from "./sha512"
+import { editRangeOpen } from "./edit-ranges"
 
 /**
  * Protect Sheet: what users may still do on a protected sheet (Excel's "Allow all users of this worksheet to:"
@@ -149,6 +150,15 @@ export function passwordMatches(p: { password?: string; hash?: PasswordHash }, p
 export const PROTECTED_MESSAGE =
   "The cell or chart you're trying to change is on a protected sheet. To make a change, unprotect the sheet. You might be requested to enter a password."
 
+/** Whether a cell's contents can change now: an unprotected sheet, an unlocked cell, or an open edit range. */
+export function canEditCell(sheet: Sheet, styles: StyleTable, row: number, col: number): boolean {
+  return (
+    !sheet.protection ||
+    !isLocked(sheet, styles, row, col) ||
+    editRangeOpen(sheet.editRanges, sheet.unlockedEditRanges, row, col)
+  )
+}
+
 /** Whether a cell is locked: the default, unless its format unlocks it (Format Cells › Protection). */
 export function isLocked(sheet: Sheet, styles: StyleTable, row: number, col: number): boolean {
   return styles.get(sheet.styleAt(row, col)).locked !== false
@@ -190,7 +200,11 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
   if (!p) return false
   switch (op.kind) {
     case "setCells":
-      return op.cells.some((w) => isLocked(sheet, styles, w.row, w.col))
+      return op.cells.some(
+        (w) =>
+          isLocked(sheet, styles, w.row, w.col) &&
+          !editRangeOpen(sheet.editRanges, sheet.unlockedEditRanges, w.row, w.col),
+      )
     case "moveCells": {
       const s = op.source
       return anyLocked(sheet, styles, [s, { r0: s.r0 + op.dr, r1: s.r1 + op.dr, c0: s.c0 + op.dc, c1: s.c1 + op.dc }])
@@ -211,6 +225,9 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
     case "annotations":
     case "charts":
       return !p.editObjects
+    case "editRanges":
+      // Allow Edit Ranges is greyed out on a protected sheet.
+      return true
     case "hyperlinks":
       // Excel: "Insert hyperlinks, even in unlocked cells" is its own option.
       return !p.insertHyperlinks

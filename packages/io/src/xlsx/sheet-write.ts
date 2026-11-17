@@ -1,3 +1,4 @@
+import { editRangesXml } from "./edit-ranges"
 import {
   tableAt,
   CONSOLIDATE_FUNCTIONS,
@@ -220,6 +221,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     cols: colsXml(sheet, xf, ctx.source?.colExtras),
     sheetData: rowParts.length ? `<sheetData>${rowParts.join("")}</sheetData>` : `<sheetData/>`,
     sheetProtection: protectionXml(sheet),
+    protectedRanges: editRangesXml(sheet.editRanges, rangeRef),
     scenarios: scenariosXml(sheet),
     ...(sheet.consolidate ? { dataConsolidate: consolidateXml(sheet.consolidate) } : {}),
     autoFilter: sheet.autoFilter ? autoFilterXml(sheet.autoFilter, styles, rangeRef) : "",

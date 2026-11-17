@@ -300,3 +300,22 @@ describe("Excel's custom-views.xlsx (View › Custom Views)", () => {
     expect(strip(again.workbook)).toEqual(strip(read.workbook))
   })
 })
+
+describe("Excel's edit-ranges.xlsx (Review › Allow Edit Ranges)", () => {
+  it("reads each range, its cells and its password, and writes them back the same", async () => {
+    const read = await openXlsx(fixture("edit-ranges"), "edit-ranges.xlsx")
+    const [inputs, rates] = read.workbook.sheets[0].editRanges
+    expect(inputs).toEqual({ name: "Inputs", ranges: [{ r0: 1, c0: 1, r1: 4, c1: 1 }] })
+    expect(rates.name).toBe("Rates")
+    expect(rates.ranges).toHaveLength(2)
+    expect(passwordMatches(rates, "pw")).toBe(true)
+    expect(passwordMatches(rates, "nope")).toBe(false)
+    const bytes = await saveXlsx(read.workbook, { source: read.source, views: read.views })
+    const xml = new TextDecoder().decode(
+      (await readZip(bytes)).find((e) => e.normalizedName === "xl/worksheets/sheet1.xml")!.data,
+    )
+    expect(xml.match(/<protectedRanges>/g)).toHaveLength(1)
+    const again = await openXlsx(bytes, "again.xlsx")
+    expect(again.workbook.sheets[0].editRanges).toEqual(read.workbook.sheets[0].editRanges)
+  })
+})

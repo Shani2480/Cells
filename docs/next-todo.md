@@ -143,6 +143,8 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         (customWorkbookViews, customSheetViews, Z_<guid>_.wvu names), checked in Excel 365
 - [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
+  - [x] Allow Edit Ranges: New, Modify, Delete, Apply, Protect Sheet; Unlock Range asks a range's password once;
+        ranges follow inserted rows and columns; read from and written to Excel files, checked in Excel 365
   - [x] Workbook Statistics (sheet and workbook counts; pictures and other objects join the list with Part 8)
 - [ ] Part 8 — Objects: Text Box, Shapes, Pictures, Icons, WordArt; Bring Forward / Send Backward, Align, Group,
       Rotate, Selection Pane; Sheet Background; Themes, theme colours, fonts and effects
@@ -159,6 +161,9 @@ run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signatur
 decided when Part 8 is done.
 
 ## Later (from Phase 7)
+
+- Allow Edit Ranges: Permissions... (Windows users and groups) isn't offered; a file's permissions are kept as read.
+  Refers to cells is typed (no collapse-to-pick button yet).
 
 - Page Layout: Excel edits the header and footer in place on the page (Cells opens Page Setup › Header/Footer);
   print titles aren't repeated on each page; the ruler setting isn't saved with the sheet (sheetView showRuler).

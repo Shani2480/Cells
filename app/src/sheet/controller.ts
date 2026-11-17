@@ -7,7 +7,7 @@ import {
   PROTECTED_MESSAGE,
   breaksDataTable,
   isDataTableInput,
-  isLocked,
+  canEditCell,
   protectionBlocks,
   structureBlocks,
   MAX_ROWS,
@@ -92,6 +92,7 @@ import { NameCommands } from "./names"
 import { ConditionalCommands } from "./conditional"
 import { GROUP_MESSAGE, SheetGroup } from "./group"
 import { CustomViewCommands } from "./custom-views"
+import { EditRangeCommands } from "./edit-ranges"
 import { PAGE_GAP, pageAxis, plainMetric, type AxisMetric, type PageAxis } from "./page-map"
 import { SHEET_MESSAGES, SheetCommands } from "./sheets"
 
@@ -183,6 +184,8 @@ export type ShellRequests = {
   documentPath?(): string | null
   goTo(): void
   insertDelete(request: InsertDeleteRequest): void
+  /** Unlock Range: the password of the sheet's edit range `name`; `then` runs once it's open. */
+  unlockRange?(name: string, then: () => void): void
   /** Ask before going on (Excel's OK/Cancel warnings); `ok` runs on OK. */
   confirm(message: string, ok: () => void): void
   /** A message with only OK (Excel's refusals); `then` runs when it closes (instead of focusing the sheet). */
@@ -343,6 +346,8 @@ export class SheetController {
 
   /** A change that isn't an undo step but still needs saving (the open document counts it). */
   unsavedChange: () => void = () => this.changed()
+  /** Review › Allow Edit Ranges. */
+  readonly editRanges: EditRangeCommands = new EditRangeCommands(this)
   /** View › Custom Views. */
   readonly customViews: CustomViewCommands = new CustomViewCommands(this)
   /** Grouped sheets: edits on the active sheet repeat on each of them. */
@@ -482,14 +487,23 @@ export class SheetController {
       const sheet = "sheet" in op ? sheets[op.sheet] : undefined
       return sheet !== undefined && sheet.protection !== null && protectionBlocks(sheet, this.wb.styles, op)
     })
-    if (blocked) this.shell.alert(PROTECTED_MESSAGE)
+    if (blocked) {
+      // Cells of an edit range with a password: ask for it (the change is made again once it's open).
+      const shut = ops.flatMap((op) =>
+        op.kind === "setCells" && op.sheet === this.sheetIndex
+          ? op.cells.flatMap((w) => this.editRanges.shutRangeAt(w.row, w.col) ?? [])
+          : [],
+      )[0]
+      if (shut && this.shell.unlockRange) this.shell.unlockRange(shut.name, () => undefined)
+      else this.shell.alert(PROTECTED_MESSAGE)
+    }
     return blocked
   }
 
   /** Whether the active cell can be edited (not a locked cell on a protected sheet). */
   canEditActive(): boolean {
     const { row, col } = this.selection.active
-    return !this.sheet.protection || !isLocked(this.sheet, this.wb.styles, row, col)
+    return canEditCell(this.sheet, this.wb.styles, row, col)
   }
 
   /** Shows another sheet; the one left keeps its selection and scroll for when it comes back. */
@@ -768,7 +782,11 @@ export class SheetController {
   /** Starts an entry: typing replaces (enter mode) or F2/double-click edits the content (edit mode). */
   beginEdit(mode: "enter" | "edit", text?: string, surface: "cell" | "bar" = "cell") {
     if (!this.canEditActive()) {
-      this.shell.alert(PROTECTED_MESSAGE)
+      // A cell in an edit range with a password: Unlock Range, then the entry starts as asked.
+      const { row, col } = this.selection.active
+      const shut = this.editRanges.shutRangeAt(row, col)
+      if (shut && this.shell.unlockRange) this.shell.unlockRange(shut.name, () => this.beginEdit(mode, text, surface))
+      else this.shell.alert(PROTECTED_MESSAGE)
       return
     }
     const { row, col } = this.selection.active
