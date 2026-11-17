@@ -41,6 +41,7 @@ export function tableCommands(): Command[] {
           panel: (env, close) => (
             <TableStyleGallery
               current={env.c.tables.active()?.style}
+              theme={env.c.wb.theme}
               onPick={(style) => {
                 close()
                 env.c.tables.openCreate(style ?? undefined)
@@ -138,7 +139,9 @@ export function tableCommands(): Command[] {
       description: "Pick a visual style for the table.",
       keytip: "S",
       enabled: inTable,
-      largeIcon: (env) => <TableStyleThumb style={env.c.tables.active()?.style ?? "TableStyleMedium2"} />,
+      largeIcon: (env) => (
+        <TableStyleThumb style={env.c.tables.active()?.style ?? "TableStyleMedium2"} theme={env.c.wb.theme} />
+      ),
       menu: [
         {
           panel: (env, close) => {
@@ -146,6 +149,7 @@ export function tableCommands(): Command[] {
             return (
               <TableStyleGallery
                 current={t?.style ?? null}
+                theme={env.c.wb.theme}
                 withNone
                 options={t ?? undefined}
                 onPick={(style) => {

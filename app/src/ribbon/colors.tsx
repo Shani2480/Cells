@@ -1,23 +1,87 @@
-import type { ShapeColor } from "@cells/core"
+import {
+  OFFICE_THEME,
+  SHEET_THEME_SLOTS,
+  themeColorHex,
+  type ShapeColor,
+  type Theme,
+  type ThemeColorRef,
+} from "@cells/core"
 import { useState } from "react"
 
 /**
- * Excel's colour menus: Theme Colors (ten theme colours with five tints and shades each), Standard Colors, and the
- * Automatic / No Fill row. Theme colours are the Office 2023 theme; tints use Excel's luminance rule.
+ * Excel's colour menus: Theme Colors (the workbook theme's ten colours with five lighter and darker steps each),
+ * Standard Colors, and the Automatic / No Fill row. A theme colour is picked with its reference (slot and tint), so
+ * cells and shapes keep following the theme when Page Layout › Themes changes it.
  */
 
-export const THEME_COLORS = [
-  { name: "White, Background 1", hex: "#FFFFFF" },
-  { name: "Black, Text 1", hex: "#000000" },
-  { name: "Light Gray, Background 2", hex: "#E8E8E8" },
-  { name: "Dark Blue, Text 2", hex: "#0E2841" },
-  { name: "Blue, Accent 1", hex: "#156082" },
-  { name: "Orange, Accent 2", hex: "#E97132" },
-  { name: "Dark Green, Accent 3", hex: "#196B24" },
-  { name: "Turquoise, Accent 4", hex: "#0F9ED5" },
-  { name: "Purple, Accent 5", hex: "#A02B93" },
-  { name: "Green, Accent 6", hex: "#4EA72E" },
+/** The ten colours of the menu's first row, in SpreadsheetML's order (lt1, dk1, lt2, dk2, accent1–6). */
+const ROLES = [
+  "Background 1",
+  "Text 1",
+  "Background 2",
+  "Text 2",
+  "Accent 1",
+  "Accent 2",
+  "Accent 3",
+  "Accent 4",
+  "Accent 5",
+  "Accent 6",
 ]
+
+/** Office 2023's colour names, as Excel shows them for the default theme. */
+const OFFICE_NAMES: Record<string, string> = {
+  FFFFFF: "White",
+  "000000": "Black",
+  E8E8E8: "Light Gray",
+  "0E2841": "Dark Blue",
+  "156082": "Dark Teal",
+  E97132: "Orange",
+  "196B24": "Dark Green",
+  "0F9ED5": "Turquoise",
+  A02B93: "Purple",
+  "4EA72E": "Green",
+}
+
+/** A plain name for a colour (Excel names theme colours by what they look like). */
+export function colorName(hex: string): string {
+  const up = hex.replace("#", "").toUpperCase()
+  if (OFFICE_NAMES[up]) return OFFICE_NAMES[up]
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(up.slice(i, i + 2), 16) / 255)
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  const sat = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1))
+  const shade = l < 0.3 ? "Dark " : l > 0.75 ? "Light " : ""
+  if (sat < 0.15) return l > 0.95 ? "White" : l < 0.08 ? "Black" : `${shade}Gray`
+  const d = max - min
+  const h = 60 * (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4)
+  const hue =
+    h < 15 || h >= 345
+      ? "Red"
+      : h < 40
+        ? l < 0.4
+          ? "Brown"
+          : "Orange"
+        : h < 55
+          ? "Gold"
+          : h < 70
+            ? "Yellow"
+            : h < 160
+              ? "Green"
+              : h < 190
+                ? "Teal"
+                : h < 205
+                  ? "Turquoise"
+                  : h < 255
+                    ? "Blue"
+                    : h < 290
+                      ? "Purple"
+                      : "Pink"
+  return shade + hue
+}
+
+/** A swatch of the menu: its name, look and, for theme colours, the reference cells and shapes keep. */
+export type Swatch = { name: string; hex: string; ref?: ThemeColorRef }
 
 export const STANDARD_COLORS = [
   { name: "Dark Red", hex: "#C00000" },
@@ -43,85 +107,80 @@ function variations(hex: string): number[] {
 }
 
 function lightness(hex: string) {
-  const [r, g, b] = rgb(hex)
+  const n = parseInt(hex.replace("#", ""), 16)
+  const [r, g, b] = [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
   return (Math.max(r, g, b) + Math.min(r, g, b)) / 2
 }
 
-function rgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16)
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
-}
-
-/** Excel's tint: lighter moves luminance toward white by `t`, darker scales it by 1 + t (in HSL). */
-export function tint(hex: string, t: number): string {
-  const [r, g, b] = rgb(hex)
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  let l = (max + min) / 2
-  const d = max - min
-  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
-  let h = 0
-  if (d) {
-    if (max === r) h = ((g - b) / d) % 6
-    else if (max === g) h = (b - r) / d + 2
-    else h = (r - g) / d + 4
-    h = (h * 60 + 360) % 360
-  }
-  l = t < 0 ? l * (1 + t) : l * (1 - t) + t
-  const c = (1 - Math.abs(2 * l - 1)) * s
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = l - c / 2
-  const [r1, g1, b1] =
-    h < 60
-      ? [c, x, 0]
-      : h < 120
-        ? [x, c, 0]
-        : h < 180
-          ? [0, c, x]
-          : h < 240
-            ? [0, x, c]
-            : h < 300
-              ? [x, 0, c]
-              : [c, 0, x]
-  const out = (v: number) =>
-    Math.round(Math.min(1, Math.max(0, v + m)) * 255)
-      .toString(16)
-      .padStart(2, "0")
-      .toUpperCase()
-  return `#${out(r1)}${out(g1)}${out(b1)}`
+/** Excel's tint amounts as it writes them (Excel stores 0.8 as 0.79998168889431442 and so on). */
+const STORED_TINT: Record<string, number> = {
+  "0.8": 0.7999816888943144,
+  "0.6": 0.5999938962981048,
+  "0.4": 0.3999755851924192,
+  "0.5": 0.499984740745262,
+  "0.35": 0.3499862666707358,
+  "0.25": 0.249977111117893,
+  "0.15": 0.1499679555650502,
+  "0.05": 0.0499893185216834,
+  "0.9": 0.8999908444471572,
+  "0.75": 0.7499923703726921,
+  "0.1": 0.0999786370433668,
+  "-0.05": -0.0499893185216834,
+  "-0.15": -0.1499984740745262,
+  "-0.25": -0.249977111117893,
+  "-0.35": -0.3499862666707358,
+  "-0.5": -0.499984740745262,
+  "-0.1": -0.0999786370433668,
+  "-0.75": -0.7499923703726921,
+  "-0.9": -0.8999908444471572,
 }
 
 function percent(t: number) {
   return t > 0 ? `Lighter ${Math.round(t * 100)}%` : `Darker ${Math.round(-t * 100)}%`
 }
 
-/** The theme grid, rows of ten: the colours, then their five variations. */
-export function themeGrid(): { name: string; hex: string }[][] {
-  const rows = [THEME_COLORS]
-  for (let i = 0; i < 5; i++)
+/** The theme grid, rows of ten: the theme's colours, then their five variations. */
+export function themeGrid(theme: Theme = OFFICE_THEME): Swatch[][] {
+  const first: Swatch[] = SHEET_THEME_SLOTS.slice(0, 10).map((slot, i) => {
+    const hex = `#${theme.colors[slot].toUpperCase()}`
+    return { name: `${colorName(hex)}, ${ROLES[i]}`, hex, ref: { theme: i } }
+  })
+  const rows = [first]
+  for (let v = 0; v < 5; v++)
     rows.push(
-      THEME_COLORS.map((c) => {
-        const t = variations(c.hex)[i]
-        return { name: `${c.name}, ${percent(t)}`, hex: tint(c.hex, t) }
+      first.map((c, i) => {
+        const t = variations(c.hex)[v]
+        const ref = { theme: i, tint: STORED_TINT[String(t)] ?? t }
+        return { name: `${c.name}, ${percent(t)}`, hex: themeColorHex(ref, theme), ref }
       }),
     )
   return rows
 }
 
-const GRID = themeGrid()
+/** The grid of a theme, kept while the theme is the same. */
+let cached: { theme: Theme; grid: Swatch[][] } | null = null
+function gridOf(theme: Theme): Swatch[][] {
+  if (!cached || cached.theme !== theme) cached = { theme, grid: themeGrid(theme) }
+  return cached.grid
+}
 
 export function ColorPanel({
   noneLabel,
   onPick,
   current,
+  theme = OFFICE_THEME,
 }: {
   /** "Automatic" (font colour) or "No Fill". */
   noneLabel: string
-  onPick: (hex: string | null) => void
+  /** The colour picked (null: Automatic / No Fill), with its theme reference for a theme colour. */
+  onPick: (hex: string | null, ref?: ThemeColorRef) => void
   current?: string
+  /** The workbook's theme, whose colours the first rows show. */
+  theme?: Theme
 }) {
   const [hover, setHover] = useState<string | null>(null)
-  const swatch = (c: { name: string; hex: string }, key: string, cls = "") => (
+  const GRID = gridOf(theme)
+  const swatch = (c: Swatch, key: string, cls = "") => (
     <button
       key={key}
       type="button"
@@ -133,7 +192,7 @@ export function ColorPanel({
       style={{ background: c.hex }}
       onMouseEnter={() => setHover(c.name)}
       onMouseLeave={() => setHover(null)}
-      onClick={() => onPick(c.hex)}
+      onClick={() => onPick(c.hex, c.ref)}
     />
   )
   return (
@@ -153,20 +212,14 @@ export function ColorPanel({
   )
 }
 
-const SLOTS = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6"] as const
-
 /**
  * A colour picked from the menu as a shape keeps it: a theme colour (with its lighter or darker step, as DrawingML's
  * lumMod/lumOff) so it follows the workbook's theme, or a standard colour as RGB.
  */
-export function shapeColorOf(hex: string): ShapeColor {
-  const up = hex.toUpperCase()
-  for (let r = 0; r < GRID.length; r++) {
-    const i = GRID[r].findIndex((c) => c.hex.toUpperCase() === up)
-    if (i < 0) continue
-    if (r === 0) return { theme: SLOTS[i] }
-    const t = variations(THEME_COLORS[i].hex)[r - 1]
-    return t > 0 ? { theme: SLOTS[i], lumMod: 1 - t, lumOff: t } : { theme: SLOTS[i], lumMod: 1 + t }
-  }
-  return { rgb: up.replace("#", "") }
+export function shapeColorOf(hex: string, ref?: ThemeColorRef): ShapeColor {
+  if (!ref) return { rgb: hex.replace("#", "").toUpperCase() }
+  const slot = SHEET_THEME_SLOTS[ref.theme]
+  const t = ref.tint ? Math.round(ref.tint * 100) / 100 : 0
+  if (!t) return { theme: slot }
+  return t > 0 ? { theme: slot, lumMod: 1 - t, lumOff: t } : { theme: slot, lumMod: 1 + t }
 }

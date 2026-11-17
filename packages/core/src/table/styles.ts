@@ -1,3 +1,4 @@
+import { OFFICE_THEME, rethemeColor, sameLook, type Theme } from "../theme"
 import type { Border, CellStyle } from "../styles"
 import { BUILT_IN_TABLE_STYLES } from "./built-in"
 import { tableRows, type Table } from "./table"
@@ -29,10 +30,34 @@ export type TableStyleElementName =
 
 export type TableStyleDef = Partial<Record<TableStyleElementName, TableStyleElement>>
 
-/** The built-in style for a name ("TableStyleMedium2"), or null. */
-export function tableStyleDef(name: string | null): TableStyleDef | null {
+/**
+ * The built-in style for a name ("TableStyleMedium2"), or null. Its colours are Office's theme colours; with another
+ * `theme` they are that theme's, as Excel draws them.
+ */
+export function tableStyleDef(name: string | null, theme?: Theme): TableStyleDef | null {
   if (!name) return null
-  return BUILT_IN_TABLE_STYLES[name.replace(/^TableStyle/i, "")] ?? null
+  const def = BUILT_IN_TABLE_STYLES[name.replace(/^TableStyle/i, "")] ?? null
+  if (!def || !theme || sameLook(theme, OFFICE_THEME)) return def
+  let byName = themed.get(theme)
+  if (!byName) themed.set(theme, (byName = new Map()))
+  let out = byName.get(name)
+  if (!out) byName.set(name, (out = rethemeDef(def, theme)))
+  return out
+}
+
+const themed = new WeakMap<Theme, Map<string, TableStyleDef>>()
+
+function rethemeDef(def: TableStyleDef, theme: Theme): TableStyleDef {
+  const color = (hex: string | undefined) => (hex ? rethemeColor(hex, theme) : hex)
+  const out: TableStyleDef = {}
+  for (const [key, e] of Object.entries(def) as [TableStyleElementName, TableStyleElement][]) {
+    const border = e.border
+      ? Object.fromEntries(Object.entries(e.border).map(([side, b]) => [side, { ...b, color: color(b.color) }]))
+      : undefined
+    out[key] = { ...e, fill: color(e.fill), color: color(e.color), ...(border ? { border } : {}) }
+    for (const k of ["fill", "color"] as const) if (out[key]![k] === undefined) delete out[key]![k]
+  }
+  return out
 }
 
 /** The built-in styles in Excel's gallery order, by group. */

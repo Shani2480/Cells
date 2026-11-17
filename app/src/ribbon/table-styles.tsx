@@ -1,5 +1,5 @@
 import { memo } from "react"
-import { TABLE_STYLE_GROUPS, tableCellLook, type Border, type Table } from "@cells/core"
+import { TABLE_STYLE_GROUPS, tableCellLook, tableStyleDef, type Border, type Table, type Theme } from "@cells/core"
 
 /** The made-up table each thumbnail draws: a header and four rows of five columns, as Excel's gallery shows. */
 const SAMPLE: Table = {
@@ -25,7 +25,10 @@ const width = (b: Border) => (b.style === "thick" || b.style === "double" ? 1.6 
 export const TableStyleThumb = memo(function TableStyleThumb({
   style,
   options,
+  theme,
 }: {
+  /** The workbook's theme, whose colours the built-in styles take. */
+  theme?: Theme
   style: string | null
   options?: Partial<Pick<Table, "header" | "totals" | "firstColumn" | "lastColumn" | "rowStripes" | "columnStripes">>
 }) {
@@ -37,7 +40,7 @@ export const TableStyleThumb = memo(function TableStyleThumb({
   const lines: React.ReactNode[] = []
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
-      const look = style ? tableCellLook(t, r, c) : null
+      const look = style ? tableCellLook(t, r, c, tableStyleDef(style, theme)) : null
       const x = c * CW + 0.5
       const y = r * RH + 0.5
       if (look?.fill) fills.push(<rect key={`f${r}-${c}`} x={x} y={y} width={CW} height={RH} fill={look.fill} />)
@@ -107,8 +110,10 @@ export function TableStyleGallery({
   current,
   withNone = false,
   options,
+  theme,
   onPick,
 }: {
+  theme?: Theme
   current?: string | null
   withNone?: boolean
   options?: Parameters<typeof TableStyleThumb>[0]["options"]
@@ -131,7 +136,7 @@ export function TableStyleGallery({
                 data-keep-light
                 onClick={() => onPick(name)}
               >
-                <TableStyleThumb style={name} options={options} />
+                <TableStyleThumb style={name} options={options} theme={theme} />
               </button>
             ))}
           </div>

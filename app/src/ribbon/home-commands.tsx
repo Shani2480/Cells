@@ -1,3 +1,4 @@
+import type { ThemeColorRef } from "@cells/core"
 import { FONT_SIZES, formatValue, formatWithCode, type BorderPreset } from "@cells/core"
 import {
   AArrowDown,
@@ -28,7 +29,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { DEFAULT_FONT, NUMBER_FORMATS } from "@/sheet/format"
-import { CELL_STYLES, CELL_STYLE_SECTIONS, cellStylePatch } from "./cell-styles"
+import { CELL_STYLES, CELL_STYLE_SECTIONS, cellStylePatch, styleColor, styleFont } from "./cell-styles"
 import { ColorPanel } from "./colors"
 import {
   AccountingIcon,
@@ -135,7 +136,9 @@ const BORDER_ITEMS: { id: string; preset: BorderPreset; label: string }[] = [
 ]
 
 /** The colour the Fill / Font Color buttons apply, remembered from the last pick (Excel starts with yellow / red). */
-const lastColor = { fill: "#FFFF00", font: "#FF0000" }
+/** The colours the Fill Color and Font Color buttons put on (the last picked, with its theme reference). */
+const lastColor: { fill: Picked; font: Picked } = { fill: { hex: "#FFFF00" }, font: { hex: "#FF0000" } }
+type Picked = { hex: string; ref?: ThemeColorRef }
 
 /** Whole sheet selections act on the used area for AutoSum's guess. */
 function autoSumText(env: RibbonEnv, fn: string): string {
@@ -372,8 +375,10 @@ export function homeCommands(): Command[] {
             <ColorPanel
               noneLabel="Automatic"
               current={f(env).pen.color}
-              onPick={(hex) => {
-                f(env).pen = { ...f(env).pen, color: hex ?? undefined }
+              theme={env.c.wb.theme}
+              onPick={(hex, ref) => {
+                const style = f(env).pen.style
+                f(env).pen = { style, ...(hex ? { color: hex } : {}), ...(hex && ref ? { theme: ref } : {}) }
                 close()
               }}
             />
@@ -435,17 +440,18 @@ export function homeCommands(): Command[] {
       label: "Fill Color",
       description: "Color the background of cells to make them stand out.",
       keytip: "H",
-      icon: () => <FillColorIcon color={lastColor.fill} />,
-      run: (env) => f(env).fill(lastColor.fill),
+      icon: () => <FillColorIcon color={lastColor.fill.hex} />,
+      run: (env) => f(env).fill(lastColor.fill.hex, lastColor.fill.ref),
       menu: [
         {
           panel: (env, close) => (
             <ColorPanel
               noneLabel="No Fill"
               current={active(env).fill}
-              onPick={(hex) => {
-                if (hex) lastColor.fill = hex
-                f(env).fill(hex)
+              theme={env.c.wb.theme}
+              onPick={(hex, ref) => {
+                if (hex) lastColor.fill = { hex, ref }
+                f(env).fill(hex, ref)
                 close()
               }}
             />
@@ -460,17 +466,18 @@ export function homeCommands(): Command[] {
       label: "Font Color",
       description: "Change the color of your text.",
       keytip: "FC",
-      icon: () => <FontColorIcon color={lastColor.font} />,
-      run: (env) => f(env).fontColor(lastColor.font),
+      icon: () => <FontColorIcon color={lastColor.font.hex} />,
+      run: (env) => f(env).fontColor(lastColor.font.hex, lastColor.font.ref),
       menu: [
         {
           panel: (env, close) => (
             <ColorPanel
               noneLabel="Automatic"
               current={active(env).fontColor}
-              onPick={(hex) => {
-                if (hex) lastColor.font = hex
-                f(env).fontColor(hex)
+              theme={env.c.wb.theme}
+              onPick={(hex, ref) => {
+                if (hex) lastColor.font = { hex, ref }
+                f(env).fontColor(hex, ref)
                 close()
               }}
             />
@@ -778,21 +785,27 @@ export function homeCommands(): Command[] {
                         type="button"
                         role="menuitem"
                         className="cell-style-item"
-                        style={{
-                          color: s.font?.color,
-                          background: s.fill ?? undefined,
-                          fontWeight: s.font?.bold ? 700 : undefined,
-                          fontStyle: s.font?.italic ? "italic" : undefined,
-                          fontSize: s.font?.size ? Math.min(16, s.font.size) : undefined,
-                          borderBottom: s.borders?.bottom
-                            ? `${s.borders.bottom.style === "double" ? "3px double" : s.borders.bottom.style === "thin" ? "1px solid" : "2px solid"} ${s.borders.bottom.color}`
-                            : undefined,
-                          outline: s.borders?.top ? `1px solid ${s.borders.top.color}` : undefined,
-                          outlineOffset: -1,
-                        }}
+                        style={(() => {
+                          const theme = env.c.wb.theme
+                          const hex = (c: string | null | undefined) => (c ? styleColor(c, theme).hex : undefined)
+                          const font = styleFont(s.font?.name, theme)
+                          return {
+                            color: hex(s.font?.color),
+                            background: hex(s.fill),
+                            fontFamily: font ? `"${font}", sans-serif` : undefined,
+                            fontWeight: s.font?.bold ? 700 : undefined,
+                            fontStyle: s.font?.italic ? "italic" : undefined,
+                            fontSize: s.font?.size ? Math.min(16, s.font.size) : undefined,
+                            borderBottom: s.borders?.bottom
+                              ? `${s.borders.bottom.style === "double" ? "3px double" : s.borders.bottom.style === "thin" ? "1px solid" : "2px solid"} ${hex(s.borders.bottom.color)}`
+                              : undefined,
+                            outline: s.borders?.top ? `1px solid ${hex(s.borders.top.color)}` : undefined,
+                            outlineOffset: -1,
+                          }
+                        })()}
                         data-keep-light
                         onClick={() => {
-                          f(env).apply(cellStylePatch(s), "Cell Style")
+                          f(env).apply(cellStylePatch(s, env.c.wb.theme), "Cell Style")
                           close()
                         }}
                       >

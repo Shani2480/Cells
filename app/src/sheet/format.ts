@@ -1,3 +1,4 @@
+import type { ThemeColorRef } from "@cells/core"
 import {
   CLEAR_ALL,
   EXPLICIT_DEFAULT_ID,
@@ -98,12 +99,13 @@ export class FormatCommands {
     this.fontSize(stepFontSize(this.active.fontSize ?? 11, dir))
   }
 
-  fontColor(color: string | null) {
-    this.apply({ fontColor: color }, "Font Color")
+  /** `ref`: the colour is the theme's (it follows Page Layout › Themes). */
+  fontColor(color: string | null, ref?: ThemeColorRef) {
+    this.apply({ fontColor: color, fontThemeColor: (color && ref) || null }, "Font Color")
   }
 
-  fill(color: string | null) {
-    this.apply({ fill: color }, "Fill Color")
+  fill(color: string | null, ref?: ThemeColorRef) {
+    this.apply({ fill: color, fillThemeColor: (color && ref) || null }, "Fill Color")
   }
 
   // ── Alignment ──────────────────────────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
+import { themeAccents } from "@/sheet/charts"
 import {
-  CHART_PALETTES,
+  palettesFor,
   CHART_STYLES,
   QUICK_LAYOUTS,
   chartElements,
@@ -383,24 +384,26 @@ export function chartCommands(): Command[] {
                 {(["Colorful", "Monochromatic"] as const).map((group) => (
                   <div key={group}>
                     <div className="color-heading">{group}</div>
-                    {CHART_PALETTES.filter((p) => p.group === group).map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={spec.palette === p.id}
-                        className={`chart-palette${spec.palette === p.id ? " is-on" : ""}`}
-                        title={p.label}
-                        onClick={() => {
-                          close()
-                          env.c.charts.change((s) => ({ ...s, palette: p.id }), "Change Colors")
-                        }}
-                      >
-                        {p.colors.slice(0, 6).map((c, i) => (
-                          <span key={i} style={{ background: c }} />
-                        ))}
-                      </button>
-                    ))}
+                    {palettesFor({ accents: themeAccents(env.c.wb.theme) })
+                      .filter((p) => p.group === group)
+                      .map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={spec.palette === p.id}
+                          className={`chart-palette${spec.palette === p.id ? " is-on" : ""}`}
+                          title={p.label}
+                          onClick={() => {
+                            close()
+                            env.c.charts.change((s) => ({ ...s, palette: p.id }), "Change Colors")
+                          }}
+                        >
+                          {p.colors.slice(0, 6).map((c, i) => (
+                            <span key={i} style={{ background: c }} />
+                          ))}
+                        </button>
+                      ))}
                   </div>
                 ))}
               </div>

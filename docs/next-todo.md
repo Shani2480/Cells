@@ -152,12 +152,13 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Allow Edit Ranges: New, Modify, Delete, Apply, Protect Sheet; Unlock Range asks a range's password once;
         ranges follow inserted rows and columns; read from and written to Excel files, checked in Excel 365
   - [x] Workbook Statistics (sheet and workbook counts; pictures and other objects join the list with Part 8)
-- [ ] Part 8 — Objects
+- [x] Part 8 — Objects
   - [x] Text Box, Shapes, Pictures, Icons, WordArt: one object list per sheet (charts included) in stacking order;
         Shape Format and Picture Format tabs; Arrange (order, Align, Group, Rotate, Flip); Selection Pane; Alt Text
         for every object; xlsx read/write keeping Excel's own objects exactly unless edited; printing; statistics
   - [x] Sheet Background (tiled behind the cells, screen only; dimmed in dark mode; xlsx `<picture>`)
-  - [ ] Themes: theme colours, fonts and effects galleries, writing the theme part
+  - [x] Themes: Themes, Colors and Fonts galleries, Browse for Themes, writing the theme part; cells, cell styles,
+        table styles, charts and shapes follow the theme
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
@@ -182,6 +183,10 @@ decided when Part 8 is done.
   shape is typed as plain text (one format for all of it); Graphics Fill for icons; the Size dialog (Format Shape
   pane). Spelling doesn't check text in shapes yet.
 
+- Themes: Effects (the gallery is shown but not built: Cells' shapes don't use the theme's effect styles yet);
+  Customize Colors and Customize Fonts (custom sets); Save Current Theme; Reset to Theme from Template. Conditional
+  formats and colours in charts read from a file keep their colours (Excel's follow the theme). .xls files keep their
+  colours as read (BIFF8 has no theme references).
 - Sheet Background: .xls files open without theirs (the BIFF BITMAP record isn't read).
 
 - Check Accessibility: contrast ignores conditional formats, table styles and number-format colours; Excel's

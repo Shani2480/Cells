@@ -7,6 +7,7 @@ import {
   type CellValue,
   type CFResult,
   type Range,
+  tableStyleDef,
 } from "@cells/core"
 import { drawIcon } from "./cf-icons"
 import type { SheetController } from "@/sheet/controller"
@@ -104,7 +105,7 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   const lookAt = (r: number, c: number, cf: CFResult | null = cfOf(r, c)): CellLook => {
     const id = sheet.styleAt(r, c)
     const table = tablesOn ? tableAt(sheet, r, c) : null
-    const tableLook = table ? tableCellLook(table, r, c) : null
+    const tableLook = table ? tableCellLook(table, r, c, tableStyleDef(table.style, controller.wb.theme)) : null
     const cfLook = cf && (cf.style || cf.fill)
     if (!tableLook && !cfLook) return lookOf(styles, id)
     const merged = { ...withTableLook(styles.get(id), tableLook), ...cf?.style }

@@ -1,3 +1,4 @@
+import type { Theme } from "@cells/core"
 import {
   formatValue,
   formatWithCode,
@@ -108,23 +109,24 @@ export function FormatCellsDialog({
         {tab === "alignment" ? (
           <AlignmentTab style={style} set={set} merged={merge ?? controller.format.isMerged()} setMerge={setMerge} />
         ) : null}
-        {tab === "font" ? <FontTab style={style} set={set} /> : null}
+        {tab === "font" ? <FontTab style={style} set={set} theme={controller.wb.theme} /> : null}
         {tab === "border" ? (
           <BorderTab
             plan={{ ...initialBorders, ...borders }}
             multiRow={range.r1 > range.r0}
             multiCol={range.c1 > range.c0}
             onChange={(edges) => setBorders((b) => ({ ...b, ...edges }))}
+            theme={controller.wb.theme}
           />
         ) : null}
-        {tab === "fill" ? <FillTab style={style} set={set} /> : null}
+        {tab === "fill" ? <FillTab style={style} set={set} theme={controller.wb.theme} /> : null}
         {tab === "protection" ? <ProtectionTab style={style} set={set} /> : null}
       </div>
     </Dialog>
   )
 }
 
-type TabProps = { style: CellStyle; set: (fields: StylePatch) => void }
+type TabProps = { style: CellStyle; set: (fields: StylePatch) => void; theme?: Theme }
 
 function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
@@ -458,7 +460,7 @@ function AlignmentTab({
 const FONT_STYLES = ["Regular", "Italic", "Bold", "Bold Italic"] as const
 const SIZES = ["8", "9", "10", "11", "12", "14", "16", "18", "20", "22", "24", "26", "28", "36", "48", "72"]
 
-function FontTab({ style, set }: TabProps) {
+function FontTab({ style, set, theme }: TabProps) {
   const font = style.fontName ?? DEFAULT_FONT
   const fontStyle = FONT_STYLES[(style.bold ? 2 : 0) + (style.italic ? 1 : 0)]
   const size = String(style.fontSize ?? 11)
@@ -527,8 +529,9 @@ function FontTab({ style, set }: TabProps) {
             <ColorPanel
               noneLabel="Automatic"
               current={style.fontColor}
-              onPick={(hex) => {
-                set({ fontColor: hex })
+              theme={theme}
+              onPick={(hex, ref) => {
+                set({ fontColor: hex, fontThemeColor: ref ?? null })
                 setColorOpen(false)
               }}
             />
@@ -597,11 +600,13 @@ function BorderTab({
   multiRow,
   multiCol,
   onChange,
+  theme,
 }: {
   plan: BorderPlan
   multiRow: boolean
   multiCol: boolean
   onChange: (edges: BorderPlan) => void
+  theme?: Theme
 }) {
   const [pen, setPen] = useState<Border>({ style: "thin" })
   const [colorOpen, setColorOpen] = useState(false)
@@ -704,8 +709,9 @@ function BorderTab({
           <ColorPanel
             noneLabel="Automatic"
             current={pen.color}
-            onPick={(hex) => {
-              setPen({ ...pen, color: hex ?? undefined })
+            theme={theme}
+            onPick={(hex, ref) => {
+              setPen({ style: pen.style, ...(hex ? { color: hex } : {}), ...(hex && ref ? { theme: ref } : {}) })
               setColorOpen(false)
             }}
           />
@@ -784,12 +790,17 @@ function BorderTab({
 
 // ── Fill ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-function FillTab({ style, set }: TabProps) {
+function FillTab({ style, set, theme }: TabProps) {
   return (
     <div className="fc-two">
       <div className="fc-column">
         <span className="dialog-label">Background Color:</span>
-        <ColorPanel noneLabel="No Color" current={style.fill} onPick={(hex) => set({ fill: hex })} />
+        <ColorPanel
+          noneLabel="No Color"
+          current={style.fill}
+          theme={theme}
+          onPick={(hex, ref) => set({ fill: hex, fillThemeColor: ref ?? null })}
+        />
       </div>
       <fieldset className="dialog-group fc-grow">
         <legend>Sample</legend>

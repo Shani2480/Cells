@@ -169,8 +169,9 @@ function colorMenu(noneLabel: string, pick: (env: RibbonEnv, color: ShapeColor |
     panel: (env, close) => (
       <ColorPanel
         noneLabel={noneLabel}
-        onPick={(hex) => {
-          pick(env, hex ? shapeColorOf(hex) : null)
+        theme={env.c.wb.theme}
+        onPick={(hex, ref) => {
+          pick(env, hex ? shapeColorOf(hex, ref) : null)
           close()
         }}
       />

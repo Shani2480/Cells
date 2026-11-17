@@ -23,6 +23,7 @@ import {
   type TotalsFunction,
   fillInputOp,
   tableRows,
+  tableStyleDef,
 } from "@cells/core"
 import type { SheetController } from "./controller"
 
@@ -494,7 +495,7 @@ export class TableCommands {
     const styles = this.c.wb.styles
     for (let row = t.range.r0; row <= t.range.r1; row++)
       for (let col = t.range.c0; col <= t.range.c1; col++) {
-        const look = tableCellLook(t, row, col)
+        const look = tableCellLook(t, row, col, tableStyleDef(t.style, this.c.wb.theme))
         if (!look) continue
         const own = styles.get(sheet.styleAt(row, col))
         const patch: Partial<CellStyle> = {}

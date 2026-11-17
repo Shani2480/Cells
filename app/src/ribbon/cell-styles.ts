@@ -1,9 +1,19 @@
-import { CLEAR_ALL, type Border, type StylePatch } from "@cells/core"
+import {
+  CLEAR_ALL,
+  OFFICE_THEME,
+  themeColorHex,
+  themeRefOf,
+  type Border,
+  type StylePatch,
+  type Theme,
+  type ThemeColorRef,
+} from "@cells/core"
 
 /**
  * Excel's built-in cell styles (Home › Cell Styles), read from Excel 16 with the Office 2023 theme: what each one sets
  * and the gallery section it sits in. Applying a style resets the parts it covers (font, fill, border, number) to the
- * style's values, as Excel does, and records the style's name.
+ * style's values, as Excel does, and records the style's name. Colours that are the theme's (Office's here) and the
+ * headings font follow the workbook's theme, as in Excel.
  */
 export type CellStyleDef = {
   name: string
@@ -117,27 +127,53 @@ export const CELL_STYLES: CellStyleDef[] = [
   { name: "Percent", section: "Number Format", numberFormat: "0%" },
 ]
 
-/** The patch that applies a style: the parts it covers set to its values, plus its name. */
-export function cellStylePatch(def: CellStyleDef): StylePatch {
+/** A style's colour under `theme`, with its theme reference when it is a theme colour. */
+export function styleColor(hex: string, theme: Theme = OFFICE_THEME): { hex: string; ref?: ThemeColorRef } {
+  const ref = themeRefOf(hex)
+  return ref ? { hex: themeColorHex(ref, theme), ref } : { hex }
+}
+
+/** The theme's font for a style's font name (the headings font for Office's Aptos Display). */
+export function styleFont(name: string | undefined, theme: Theme = OFFICE_THEME): string | undefined {
+  return name === OFFICE_THEME.fonts.major ? theme.fonts.major : name
+}
+
+function styleBorder(b: Border | undefined, theme: Theme): Border | null {
+  if (!b) return null
+  if (!b.color) return b
+  const c = styleColor(b.color, theme)
+  return c.ref ? { style: b.style, color: c.hex, theme: c.ref } : { style: b.style, color: c.hex }
+}
+
+/** The patch that applies a style: the parts it covers set to its values (in `theme`), plus its name. */
+export function cellStylePatch(def: CellStyleDef, theme: Theme = OFFICE_THEME): StylePatch {
   if (def.name === "Normal") return CLEAR_ALL
   const patch: StylePatch = { cellStyle: def.name }
   if (def.font) {
+    const color = def.font.color ? styleColor(def.font.color, theme) : null
+    const major = def.font.name === OFFICE_THEME.fonts.major
     Object.assign(patch, {
-      fontName: def.font.name ?? null,
+      fontName: styleFont(def.font.name, theme) ?? null,
+      fontScheme: major ? "major" : null,
       fontSize: def.font.size ?? null,
       bold: def.font.bold ?? null,
       italic: def.font.italic ?? null,
       underline: null,
       strike: null,
-      fontColor: def.font.color ?? null,
+      fontColor: color?.hex ?? null,
+      fontThemeColor: color?.ref ?? null,
     })
   }
-  if (def.fill !== undefined) patch.fill = def.fill
+  if (def.fill !== undefined) {
+    const fill = def.fill ? styleColor(def.fill, theme) : null
+    patch.fill = fill?.hex ?? null
+    patch.fillThemeColor = fill?.ref ?? null
+  }
   if (def.borders !== undefined) {
-    patch.borderTop = def.borders?.top ?? null
-    patch.borderBottom = def.borders?.bottom ?? null
-    patch.borderLeft = def.borders?.left ?? null
-    patch.borderRight = def.borders?.right ?? null
+    patch.borderTop = styleBorder(def.borders?.top, theme)
+    patch.borderBottom = styleBorder(def.borders?.bottom, theme)
+    patch.borderLeft = styleBorder(def.borders?.left, theme)
+    patch.borderRight = styleBorder(def.borders?.right, theme)
   }
   if (def.numberFormat) patch.numberFormat = def.numberFormat
   return patch

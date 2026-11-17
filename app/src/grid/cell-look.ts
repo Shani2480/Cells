@@ -50,9 +50,20 @@ export type CellLook = {
 /** Pixels per indent level at 100% (Excel indents by about three characters' worth of the default font). */
 export const INDENT_PX = 9
 
+/** The workbook theme's body font, which cells without a font of their own use (Excel's Normal style). */
+let bodyFont = "Aptos Narrow"
+
+/** Sets the body font (Page Layout › Themes); looks made with another are dropped. */
+export function setBodyFont(name: string) {
+  if (name === bodyFont) return
+  bodyFont = name
+  looks = new WeakMap()
+}
+
 export function fontFor(style: CellStyle, scale = 1): { font: string; px: number } {
   const px = (style.fontSize ?? DEFAULT_FONT_PT) * PX_PER_PT * scale
-  const family = style.fontName ? `"${style.fontName.replace(/"/g, "")}", ${CELL_FONT_FAMILY}` : CELL_FONT_FAMILY
+  const name = style.fontName ?? bodyFont
+  const family = name && name !== "Aptos Narrow" ? `"${name.replace(/"/g, "")}", ${CELL_FONT_FAMILY}` : CELL_FONT_FAMILY
   const font = `${style.italic ? "italic " : ""}${style.bold ? "bold " : ""}${round2(px)}px ${family}`
   return { font, px }
 }
@@ -65,7 +76,7 @@ function rotationOf(r: number | undefined): CellLook["rotation"] {
   return r <= 90 ? r : -(r - 90)
 }
 
-const looks = new WeakMap<StyleTable, Map<number, CellLook>>()
+let looks = new WeakMap<StyleTable, Map<number, CellLook>>()
 
 export function lookOf(styles: StyleTable, id: number): CellLook {
   let table = looks.get(styles)

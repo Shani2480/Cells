@@ -12,6 +12,7 @@ import { canvasMeasure, objectAt } from "@/drawing/render"
 import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
 import { drawCells } from "@/grid/draw-cells"
+import { setBodyFont } from "@/grid/cell-look"
 import { colX, rowY, type GridLayout, type Line } from "@/grid/layout"
 import { CELL_FONT, CELL_FONT_FAMILY, LIGHT_THEME, type GridTheme } from "@/grid/theme"
 
@@ -259,6 +260,7 @@ export async function drawPage(
   const view = paperController(c, sheet, setup.gridlines)
   p.font = CELL_FONT
   p.textBaseline = "alphabetic"
+  setBodyFont(view.wb.theme.fonts.minor)
   for (const pane of layout.panes)
     drawCells({ painter: p, layout: pane, controller: view, theme: PAPER_THEME, measure })
   if (setup.headings) drawHeadings(p, layout)

@@ -205,6 +205,11 @@ export type ChartSpec = {
   /** Word's chart styles, 1 to 14. */
   style: number
   palette: string
+  /**
+   * The document theme's six accent colours ("#rrggbb"), which the palettes are made of; Office 2013's when absent.
+   * A spreadsheet passes its workbook theme's, so charts follow Page Layout › Themes.
+   */
+  accents?: string[]
   valueAxis: ValueAxis
   categoryReverse: boolean
   gapWidth: number
@@ -926,43 +931,61 @@ export function switchRowColumn(spec: ChartSpec): ChartSpec {
 
 const ACCENTS = THEME_ACCENTS.filter((item) => item.id.startsWith("accent")).map((item) => item.color)
 
-export const CHART_PALETTES: { id: string; label: string; group: "Colorful" | "Monochromatic"; colors: string[] }[] = [
-  { id: "colorful1", label: "Colorful Palette 1", group: "Colorful", colors: ACCENTS },
-  {
-    id: "colorful2",
-    label: "Colorful Palette 2",
-    group: "Colorful",
-    colors: [1, 3, 5, 0, 2, 4].map((i) => ACCENTS[i]!),
-  },
-  {
-    id: "colorful3",
-    label: "Colorful Palette 3",
-    group: "Colorful",
-    colors: [2, 4, 0, 1, 3, 5].map((i) => ACCENTS[i]!),
-  },
-  {
-    id: "colorful4",
-    label: "Colorful Palette 4",
-    group: "Colorful",
-    colors: [5, 4, 3, 2, 1, 0].map((i) => ACCENTS[i]!),
-  },
-  ...ACCENTS.map((color, index) => ({
-    id: `mono${index + 1}`,
-    label: `Monochromatic Palette ${index + 1}`,
-    group: "Monochromatic" as const,
-    colors: [-0.5, -0.25, 0, 0.3, 0.55, 0.75].map((amount) => shade(color, amount)),
-  })),
-  {
-    id: "mono7",
-    label: "Monochromatic Palette 7",
-    group: "Monochromatic",
-    colors: [-0.75, -0.55, -0.35, 0.1, 0.4, 0.7].map((amount) => shade("#7f7f7f", amount)),
-  },
-]
+/** The palettes (Change Colors) made of a theme's six accents. */
+export function chartPalettes(
+  accents: string[] = ACCENTS,
+): { id: string; label: string; group: "Colorful" | "Monochromatic"; colors: string[] }[] {
+  return [
+    { id: "colorful1", label: "Colorful Palette 1", group: "Colorful", colors: accents },
+    {
+      id: "colorful2",
+      label: "Colorful Palette 2",
+      group: "Colorful",
+      colors: [1, 3, 5, 0, 2, 4].map((i) => accents[i]!),
+    },
+    {
+      id: "colorful3",
+      label: "Colorful Palette 3",
+      group: "Colorful",
+      colors: [2, 4, 0, 1, 3, 5].map((i) => accents[i]!),
+    },
+    {
+      id: "colorful4",
+      label: "Colorful Palette 4",
+      group: "Colorful",
+      colors: [5, 4, 3, 2, 1, 0].map((i) => accents[i]!),
+    },
+    ...accents.map((color, index) => ({
+      id: `mono${index + 1}`,
+      label: `Monochromatic Palette ${index + 1}`,
+      group: "Monochromatic" as const,
+      colors: [-0.5, -0.25, 0, 0.3, 0.55, 0.75].map((amount) => shade(color, amount)),
+    })),
+    {
+      id: "mono7",
+      label: "Monochromatic Palette 7",
+      group: "Monochromatic",
+      colors: [-0.75, -0.55, -0.35, 0.1, 0.4, 0.7].map((amount) => shade("#7f7f7f", amount)),
+    },
+  ]
+}
+
+export const CHART_PALETTES = chartPalettes()
+
+let lastPalettes: { key: string; list: ReturnType<typeof chartPalettes> } | null = null
+
+/** The palettes for a spec: its theme's accents, or Office 2013's. */
+export function palettesFor(spec: Pick<ChartSpec, "accents">) {
+  if (!spec.accents || spec.accents.length < 6) return CHART_PALETTES
+  const key = spec.accents.join()
+  if (lastPalettes?.key !== key) lastPalettes = { key, list: chartPalettes(spec.accents) }
+  return lastPalettes.list
+}
 
 /** The colour of the n-th series (or pie slice) in the spec's palette. */
-export function paletteColor(spec: Pick<ChartSpec, "palette">, index: number) {
-  const palette = CHART_PALETTES.find((item) => item.id === spec.palette) ?? CHART_PALETTES[0]!
+export function paletteColor(spec: Pick<ChartSpec, "palette" | "accents">, index: number) {
+  const palettes = palettesFor(spec)
+  const palette = palettes.find((item) => item.id === spec.palette) ?? palettes[0]!
   const colors = palette.colors
   const base = colors[index % colors.length]!
   const round = Math.floor(index / colors.length)

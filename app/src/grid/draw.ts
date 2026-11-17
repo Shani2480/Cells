@@ -1,6 +1,6 @@
 import { columnName, isWholeColumns, isWholeRows, rangeIntersection, type Range } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
-import { prefersDarkText, type Measure } from "./cell-look"
+import { prefersDarkText, setBodyFont, type Measure } from "./cell-look"
 import { drawCells } from "./draw-cells"
 import { drawBackground } from "./background"
 import { drawPageLayout } from "./page-layout"
@@ -69,6 +69,7 @@ const BASELINE_FROM_BOTTOM = 5
 
 export function drawGrid(options: DrawOptions) {
   const { painter: p, layout, theme, dpr } = options
+  setBodyFont(options.controller.wb.theme.fonts.minor)
   p.setTransform(dpr, 0, 0, dpr, 0, 0)
   p.fillStyle = theme.background
   p.fillRect(0, 0, layout.width, layout.height)

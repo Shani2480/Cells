@@ -13,6 +13,7 @@ import {
   type ChartAnchor,
   type Sheet,
   type SheetChart,
+  type Theme,
 } from "@cells/core"
 import {
   defaultChartSpec,
@@ -55,6 +56,11 @@ export function anchorOf(sheet: Sheet, box: ChartBox): ChartAnchor {
  * Charts: Insert › Charts (and Alt+F1), selecting a chart and moving, sizing and deleting it, and the Chart Design
  * tab's changes. A chart's look is its spec; its numbers come from its ranges each time it is drawn.
  */
+/** A theme's six accents as charts take them. */
+export function themeAccents(theme: Theme): string[] {
+  return (["accent1", "accent2", "accent3", "accent4", "accent5", "accent6"] as const).map((s) => `#${theme.colors[s]}`)
+}
+
 export class ChartCommands {
   /**
    * The selected chart's id (Excel selects a chart instead of cells; the Chart Design tab shows): the object
@@ -90,10 +96,13 @@ export class ChartCommands {
   }
 
   /** The spec a chart is drawn with: its own look, with the categories and series read from its ranges now. */
+  /** The chart as drawn: its look, its data read from the sheet, and the workbook theme's accent colours. */
   liveSpec(chart: SheetChart): ChartSpec {
     const look = chart.spec as Partial<ChartSpec>
-    if (!chart.refs) return normalizeChartSpec(look)
-    return withSheetData(look, readChartData(this.c.wb.sheets, this.c.wb.styles, chart.refs))
+    const spec = chart.refs
+      ? withSheetData(look, readChartData(this.c.wb.sheets, this.c.wb.styles, chart.refs))
+      : normalizeChartSpec(look)
+    return { ...spec, accents: themeAccents(this.c.wb.theme) }
   }
 
   private commit(charts: SheetChart[], label: string): boolean {

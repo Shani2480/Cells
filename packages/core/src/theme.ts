@@ -93,7 +93,7 @@ function luminance(hex: string, mod: number, off: number): string {
 /**
  * Excel's tint: lighten (tint > 0) or darken (tint < 0) the colour's luminance. Excel works in Windows' integer HLS
  * (0–240, ColorRGBToHLS / ColorHLSToRGB) and truncates the new luminance; this matches the colours Excel 365 shows
- * (62 of 66 sampled theme tints exactly, the rest within 1 of 255).
+ * (all 66 sampled theme tints).
  */
 export function applyTint(hex: string, tint: number): string {
   const H = 240
@@ -121,7 +121,7 @@ export function applyTint(hex: string, tint: number): string {
   const lum = div(tint < 0 ? l * (1 + tint) : l * (1 - tint) + (H - H * (1 - tint)))
   const to = (v: number) => Math.min(255, Math.max(0, v)).toString(16).padStart(2, "0")
   if (s === 0) {
-    const v = to(div((lum * M) / H))
+    const v = to(div((lum * M + H / 2) / H))
     return (v + v + v).toUpperCase()
   }
   const hue = (n1: number, n2: number, x: number) => {
@@ -165,3 +165,46 @@ export function themeColorHex(ref: ThemeColorRef, theme: Theme): string {
 
 /** Which of the theme's fonts a cell's font follows: headings (major) or body (minor). */
 export type FontScheme = "major" | "minor"
+
+/** Tint amounts as Excel stores them (0.8 is written 0.79998168889431442 and so on), by their rounded value. */
+const STORED_TINTS = [
+  0.7999816888943144, 0.5999938962981048, 0.3999755851924192, 0.499984740745262, 0.3499862666707358,
+  0.249977111117893, 0.1499679555650502, 0.0499893185216834, 0.8999908444471572, 0.7499923703726921,
+  0.0999786370433668, 0.1999633777886288, -0.0499893185216834, -0.1499984740745262, -0.249977111117893,
+  -0.3499862666707358, -0.499984740745262, -0.0999786370433668, -0.7499923703726921, -0.8999908444471572,
+] // prettier-ignore
+
+/** A tint as Excel writes it: 0.8 → 0.79998168889431442 (others as they are). */
+export function storedTint(t: number): number {
+  return STORED_TINTS.find((s) => Math.abs(s - t) < 0.001) ?? t
+}
+
+const lookups = new WeakMap<Theme, Map<string, ThemeColorRef>>()
+
+/**
+ * The theme colour a colour is, under `theme` (Office's by default): a slot of the first ten with one of Excel's
+ * usual tints; null when it is none of them. Built-in styles (cell styles, table styles) are kept as Office's
+ * colours and follow another theme through this.
+ */
+export function themeRefOf(hex: string, theme: Theme = OFFICE_THEME): ThemeColorRef | null {
+  let map = lookups.get(theme)
+  if (!map) {
+    map = new Map()
+    // Plain theme colours first, then their usual tints, so the simplest reading wins.
+    for (const t of [0, ...[...STORED_TINTS].sort((a, b) => Math.abs(a) - Math.abs(b))])
+      for (let i = 0; i < 10; i++) {
+        const ref: ThemeColorRef = t ? { theme: i, tint: t } : { theme: i }
+        const key = themeColorHex(ref, theme)
+        if (!map.has(key)) map.set(key, ref)
+      }
+    lookups.set(theme, map)
+  }
+  return map.get(("#" + hex.replace("#", "")).toUpperCase()) ?? null
+}
+
+/** An Office-theme colour as it looks under `theme` (unchanged when it isn't a theme colour). */
+export function rethemeColor(hex: string, theme: Theme): string {
+  if (theme === OFFICE_THEME) return hex
+  const ref = themeRefOf(hex)
+  return ref ? themeColorHex(ref, theme) : hex
+}

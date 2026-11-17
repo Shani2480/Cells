@@ -1,5 +1,5 @@
 import { copyTheme, OFFICE_THEME, sameLook, SHEET_THEME_SLOTS, type Theme, type ThemeSlot } from "@cells/core"
-import { escapeXml } from "@cells/ooxml"
+import { escapeXml, readZip } from "@cells/ooxml"
 import { themeColorsFrom, DEFAULT_THEME_COLORS, type ThemeColors } from "./colors"
 import { at, kid, parseTree, type XNode } from "./dom"
 
@@ -149,4 +149,23 @@ export function themeChanged(theme: Theme, read: Theme | undefined): boolean {
     (theme.colorsName ?? "") !== (before.colorsName ?? "") ||
     (theme.fontsName ?? "") !== (before.fontsName ?? "")
   )
+}
+
+/**
+ * Page Layout › Themes › Browse for Themes: the theme in an Office theme file (.thmx), or in a document that has one
+ * (.xlsx, .docx, .pptx); null when there is none.
+ */
+export async function themeFromFile(bytes: Uint8Array): Promise<Theme | null> {
+  let xml: string | undefined
+  try {
+    const entries = await readZip(bytes)
+    const part =
+      entries.find((e) => /^theme\/theme\/theme\d*\.xml$/i.test(e.name)) ??
+      entries.find((e) => /^(xl|word|ppt)\/theme\/theme1\.xml$/i.test(e.name))
+    xml = part ? new TextDecoder().decode(part.data) : undefined
+  } catch {
+    return null
+  }
+  if (!xml || !/clrScheme/.test(xml)) return null
+  return readTheme(xml, readThemeColors(xml))
 }
