@@ -30,6 +30,7 @@ const pick = (s: SharedSettings): SharedSettings => ({
   aiProvider: s.aiProvider,
   aiModels: s.aiModels,
   aiAddresses: s.aiAddresses,
+  dictionaryWords: s.dictionaryWords,
 })
 
 /** Reads the shared file (on start, and when the window is focused again). */

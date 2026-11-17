@@ -25,6 +25,7 @@ describe("the settings file shared with Inkspire", () => {
       aiProvider: "builtin",
       aiModels: {},
       aiAddresses: {},
+      dictionaryWords: [],
     })
     expect(hasSharedValues(inkspire)).toBe(true)
   })
@@ -100,5 +101,13 @@ describe("guessing from the system (as Inkspire does)", () => {
       addresses: { lmstudio: "http://127.0.0.1:1234/v1" },
     })
     expect(merged.apps).toEqual({ inkspire: { setupDone: true }, cells: { ai: true } })
+  })
+})
+
+describe("dictionary words", () => {
+  it("adds to the file's list, keeping words the other app added", () => {
+    const file = JSON.stringify({ proofing: { customWords: ["Zorbly"] } })
+    const merged = mergeShared(file, { dictionaryWords: ["Flurbo"] })
+    expect(parseShared(merged).dictionaryWords).toEqual(["Zorbly", "Flurbo"])
   })
 })

@@ -143,6 +143,9 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         (customWorkbookViews, customSheetViews, Z_<guid>_.wvu names), checked in Excel 365
 - [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
+  - [x] Spelling (F7): sheet or selection, Ignore Once/All, Add to Dictionary (shared with Inkspire), Change/Change
+        All, Excel's end message; English Hunspell (SCOWL, dictionary-en) bundled. Thesaurus (Shift+F7) pane from
+        WordNet 3.1 (tools/build-thesaurus.mjs, 1.5 MB), meanings, synonyms, antonyms, look up, Insert
   - [x] Check Accessibility: pane with errors and warnings (alt text, table header, contrast, merged cells, default
         sheet names, unclear link text), go to each, recommended actions, Why/How to fix; status bar indicator;
         chart Alt Text (description, Mark as decorative) in xlsx, checked in Excel 365
@@ -164,6 +167,10 @@ run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signatur
 decided when Part 8 is done.
 
 ## Later (from Phase 7)
+
+- Spelling and Thesaurus: more languages as optional downloads (first-run setup / Settings), with the language
+  picker in the Spelling dialog; Excel's proofing options (ignore words in UPPERCASE, with numbers, addresses) in
+  File › Options › Proofing; AutoCorrect; checking text in charts, text boxes, comments and the header/footer.
 
 - Check Accessibility: contrast ignores conditional formats, table styles and number-format colours; Excel's
   "Keep accessibility checker running" setting and its Tips aren't there; Alt Text moves to the chart's Format tab

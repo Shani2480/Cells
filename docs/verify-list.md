@@ -148,6 +148,8 @@ Phase 3, added at the end:
 - [ ] Page Break Preview against Excel: the grey and blue, the "Page N" size, and what Excel does when an automatic
       break is dragged further than a page holds (Excel lowers the scale to fit; Cells' manual break then gets an
       automatic one after it).
+- [ ] Spelling: where Excel starts and stops with one cell selected (from the active cell, wrapping round with a
+      "continue from the beginning?" question?), and its exact end message.
 - [ ] Check Accessibility: Excel's exact list of rules and their names (does it flag unclear link text, tables
       without a header row as errors, hidden sheets?), and which cells it counts for contrast.
 - [ ] Allow Edit Ranges: Excel's wording for a bad reference, a missing or taken title; whether ranges unlocked

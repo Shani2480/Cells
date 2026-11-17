@@ -45,6 +45,8 @@ export type SharedSettings = {
   aiModels: Partial<Record<AiProviderName, string>>
   /** Addresses of local and compatible endpoints (`ai.addresses`); blank: the default. */
   aiAddresses: Partial<Record<AddressedProvider, string>>
+  /** Words added to the dictionary (Spelling › Add to Dictionary), shared by both apps (`proofing.customWords`). */
+  dictionaryWords: string[]
 }
 
 export const SETTINGS_VERSION = 1
@@ -62,6 +64,7 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   aiProvider: "",
   aiModels: {},
   aiAddresses: {},
+  dictionaryWords: [],
 }
 
 type Json = Record<string, unknown>
@@ -89,6 +92,7 @@ export function parseShared(source: string | null): SharedSettings {
   const appearance = section(root, "appearance")
   const cells = section(section(root, "apps"), "cells")
   const ai = section(root, "ai")
+  const proofing = section(root, "proofing")
   const theme = appearance.theme
   const strings = (value: unknown, keys: readonly string[]) =>
     Object.fromEntries(
@@ -107,6 +111,9 @@ export function parseShared(source: string | null): SharedSettings {
     aiProvider: AI_PROVIDERS.includes(ai.provider as AiProviderName) ? (ai.provider as AiProviderName) : "",
     aiModels: strings(ai.models, AI_PROVIDERS),
     aiAddresses: strings(ai.addresses, Object.keys(DEFAULT_ADDRESSES)),
+    dictionaryWords: Array.isArray(proofing.customWords)
+      ? proofing.customWords.filter((w): w is string => typeof w === "string" && w.trim() !== "")
+      : [],
   }
 }
 
@@ -130,6 +137,7 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   aiProvider: ["ai", "provider"],
   aiModels: ["ai", "models"],
   aiAddresses: ["ai", "addresses"],
+  dictionaryWords: ["proofing", "customWords"],
 }
 
 /**
@@ -149,6 +157,12 @@ export function mergeShared(source: string | null, changes: Partial<SharedSettin
     }
     const last = path[path.length - 1]
     // A map (models, addresses) is merged key by key, so the other app's entries for other providers stay.
+    // Added words join the file's list, so a word the other app added meanwhile stays.
+    if (key === "dictionaryWords" && Array.isArray(value)) {
+      const had = Array.isArray(at[last]) ? (at[last] as unknown[]).filter((w) => typeof w === "string") : []
+      at[last] = [...new Set([...had, ...value])]
+      continue
+    }
     at[last] = isObject(value) ? { ...(isObject(at[last]) ? at[last] : {}), ...value } : value
   }
   return JSON.stringify(root, null, 2) + "\n"

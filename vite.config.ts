@@ -12,7 +12,11 @@ export default defineConfig(() => ({
   publicDir: path.resolve(rootDir, "app/public"),
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { "@": path.resolve(rootDir, "app/src") },
+    alias: {
+      "@": path.resolve(rootDir, "app/src"),
+      // Spelling: the English Hunspell files (the package itself only exports a Node loader).
+      "dictionary-en-files": path.resolve(rootDir, "node_modules/dictionary-en"),
+    },
   },
   build: {
     outDir: path.resolve(rootDir, "dist"),

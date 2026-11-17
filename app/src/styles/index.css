@@ -3597,3 +3597,134 @@ html.is-phone .forecast-options {
   overflow-wrap: anywhere;
   pointer-events: none;
 }
+
+/* Review › Spelling: the word and suggestions on the left, their buttons on the right (Excel's layout). */
+.spelling {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: start;
+}
+
+.spelling-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.spelling-buttons .dialog-btn {
+  min-width: 140px;
+}
+
+.spelling-list {
+  height: 132px;
+}
+
+.spelling-none {
+  display: block;
+  padding: 4px 8px;
+  color: var(--app-muted, inherit);
+  opacity: 0.75;
+}
+
+/* Review › Thesaurus: search box, meanings with their words, each word with an Insert button on hover. */
+.thesaurus-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.thesaurus-search .dialog-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.thesaurus-list {
+  padding: 6px 4px;
+}
+
+.thesaurus-meaning h3 {
+  margin: 8px 8px 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.thesaurus-meaning h4 {
+  margin: 6px 8px 2px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.thesaurus-pos {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.thesaurus-meaning ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thesaurus-word {
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  border-radius: 4px;
+}
+
+.thesaurus-word:hover {
+  background: var(--app-hover);
+}
+
+.thesaurus-look {
+  flex: 1;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.thesaurus-look:hover {
+  text-decoration: underline;
+}
+
+.thesaurus-insert {
+  margin-right: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--app-divider);
+  border-radius: 3px;
+  background: var(--app-field-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.thesaurus-word:hover .thesaurus-insert,
+.thesaurus-insert:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .thesaurus-insert {
+    opacity: 1;
+  }
+}
+
+.thesaurus-foot {
+  flex: none;
+  padding: 8px 14px;
+  border-top: 1px solid var(--app-divider);
+  font-size: 12px;
+  opacity: 0.75;
+}

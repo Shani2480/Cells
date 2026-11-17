@@ -103,6 +103,21 @@ export function reviewCommands(): Command[] {
       enabled: (env) => env.c.wb.sheets.some((s) => s.annotations.all().some((a) => a.value.kind === "note")),
     },
     {
+      id: "Spelling",
+      label: "Spelling",
+      shortcut: "F7",
+      description: "Check the spelling of text in the sheet, or in the cells selected, against the dictionary.",
+      run: (env) => env.dialog("spelling"),
+    },
+    {
+      id: "Thesaurus",
+      label: "Thesaurus",
+      shortcut: "Shift+F7",
+      description: "Suggest other words with a similar meaning to the word in the active cell.",
+      run: (env) => env.c.setThesaurusPane(),
+      pressed: (env) => env.c.thesaurusOpen,
+    },
+    {
       id: "MenuAccessibility",
       label: "Check Accessibility",
       description:

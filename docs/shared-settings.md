@@ -29,6 +29,7 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
     "models": { "ollama": "llama3.2", "anthropic": "" },
     "addresses": { "lmstudio": "http://127.0.0.1:1234/v1" }
   },
+  "proofing": { "customWords": ["Zorbly", "Q-Ledger"] },
   "apps": {
     "cells": { "setupDone": true, "ai": true },
     "inkspire": { "setupDone": true }
@@ -44,6 +45,8 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
 - `ai`: which AI both apps use, as Inkspire names providers, with a model and an address per provider (blank: the
   default). A map is merged key by key, so one app's change to one provider keeps the others. Keys are never here
   (`docs/ai.md`).
+- `proofing.customWords`: words added to the dictionary (Spelling › Add to Dictionary) in either app, kept as
+  typed. An app adds its words to the list in the file (never replaces it), so both apps' words stay.
 - `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on). An app never
   changes another app's entry.
 

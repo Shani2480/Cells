@@ -354,6 +354,24 @@ export class SheetController {
     this.changed()
   }
 
+  /** Review › Thesaurus: the Thesaurus pane is open. */
+  thesaurusOpen = false
+
+  setThesaurusPane(open = !this.thesaurusOpen) {
+    this.thesaurusOpen = open
+    this.changed()
+  }
+
+  /** Puts text into a cell as if typed there (Thesaurus › Insert), as one undo step. */
+  typeInto(at: CellAddress, text: string, label: string) {
+    const before = this.selection
+    this.transact([writeInputOp(this.sheetIndex, this.sheet, this.wb.styles, at.row, at.col, text)], {
+      label,
+      before,
+      after: before,
+    })
+  }
+
   /** Review › Allow Edit Ranges. */
   readonly editRanges: EditRangeCommands = new EditRangeCommands(this)
   /** View › Custom Views. */
@@ -2014,6 +2032,12 @@ export class SheetController {
         }
         if (!shift) return false
         this.shell.insertFunction?.()
+        return true
+      case "F7":
+        // F7: Spelling; Shift+F7: Thesaurus (Excel).
+        if (primary || alt) return false
+        if (shift) this.setThesaurusPane(true)
+        else this.shell.openDialog?.("spelling")
         return true
       case "F11":
         // Shift+F11 inserts a sheet (F11 alone makes a chart sheet: not built yet).

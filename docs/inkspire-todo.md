@@ -31,6 +31,9 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       keeping what is there; then read and merge them as the other settings. Keys are already shared (same keyring
       service). Later: let Cells use the built-in engine (share `local_ai`'s engine and model folder, or run one
       server both apps talk to).
+- [ ] I10. **Shared dictionary words.** Keep words added with Add to Dictionary in `proofing.customWords` of the shared
+      settings file (`docs/shared-settings.md`), adding to the list there instead of only Inkspire's own store, and
+      load them into the speller, so a word added in either app is known in both.
 - [ ] I8. **Shared code** (`docs/shared-packages.md`): add Cells as a submodule at `vendor/cells` and its
       `ooxml`, `core` and `chart` packages to the npm workspaces. Then: - replace `document/docx/xml.ts`, `zip.ts` and `opc.ts` with `@cells/ooxml` (`WORD_PACKAGE`, through a small
       wrapper that keeps `openPackage`/`writePackage`); - replace `editor/chart-spec.ts`, `chart-expand.ts`, `chart-map.ts`, `chart-sheet.ts` and

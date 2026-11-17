@@ -39,6 +39,8 @@ import { TooltipProvider } from "@/ui/tooltip"
 import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
 import { AccessibilityPane } from "@/shell/AccessibilityPane"
+import { SpellingDialog } from "@/shell/SpellingDialog"
+import { ThesaurusPane } from "@/shell/ThesaurusPane"
 import { QueriesPane } from "@/shell/QueriesPane"
 import { WorkbookLinksPane } from "@/shell/WorkbookLinksPane"
 import { QueryPropertiesDialog } from "@/shell/QueryPropertiesDialog"
@@ -122,6 +124,7 @@ type DialogState =
         | "fillAcross"
         | "customViews"
         | "statistics"
+        | "spelling"
         | "allowEditRanges"
         | "cfManage"
         | "protectSheet"
@@ -788,6 +791,7 @@ function WorkbookWindow({
       kind === "fillAcross" ||
       kind === "customViews" ||
       kind === "statistics" ||
+      kind === "spelling" ||
       kind === "allowEditRanges"
     )
       setDialog({ kind })
@@ -1010,6 +1014,7 @@ function WorkbookWindow({
               <main className="sheet-area">{grid}</main>
               {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
               {controller.accessibilityOpen ? accessibilityPane : null}
+              {controller.thesaurusOpen ? <ThesaurusPane controller={controller} onDone={focusGrid} /> : null}
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
               {controller.data.linksOpen ? linksPane : null}
@@ -1025,6 +1030,9 @@ function WorkbookWindow({
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}
         {shell === "phone" && controller.accessibilityOpen ? accessibilityPane : null}
+        {shell === "phone" && controller.thesaurusOpen ? (
+          <ThesaurusPane controller={controller} onDone={focusGrid} />
+        ) : null}
         {shell === "phone" && controller.annotations.paneOpen ? (
           <CommentsPane controller={controller} onDone={focusGrid} />
         ) : null}
@@ -1263,6 +1271,7 @@ function WorkbookWindow({
             onClose={closeDialog}
           />
         ) : null}
+        {dialog?.kind === "spelling" ? <SpellingDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "statistics" ? (
           <WorkbookStatisticsDialog controller={controller} onClose={closeDialog} />
         ) : null}
