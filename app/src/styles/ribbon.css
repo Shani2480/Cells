@@ -3546,3 +3546,35 @@
   border-color: var(--app-field-focus);
   background: var(--app-pressed);
 }
+
+/* Sparkline › Style: Excel's 36 styles, six across. */
+.spark-gallery {
+  display: grid;
+  grid-template-columns: repeat(6, auto);
+  gap: 2px;
+  padding: 4px;
+}
+
+.spark-gallery-item {
+  display: grid;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: var(--app-field-bg);
+  place-items: center;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.spark-gallery-item:hover,
+.spark-gallery-item:focus-visible {
+  border-color: var(--app-theme-primary);
+  background: var(--app-hover);
+  outline: none;
+}
+
+.spark-gallery-item[aria-selected="true"] {
+  border-color: var(--app-theme-primary);
+  box-shadow: inset 0 0 0 1px var(--app-theme-primary);
+}

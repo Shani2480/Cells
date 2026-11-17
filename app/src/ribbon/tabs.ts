@@ -652,6 +652,40 @@ export const MODEL3D_FORMAT: Tab = {
   ],
 }
 
+/** Sparkline, while the active cell holds a sparkline (Excel 365's tab at a wide window). */
+export const SPARKLINE: Tab = {
+  id: "TabSparkline",
+  label: "Sparkline",
+  keytip: "JS",
+  contextual: true,
+  groups: [
+    { id: "GroupSparklineData", label: "Sparkline", columns: [L("SparklineEditData")] },
+    {
+      id: "GroupSparklineType",
+      label: "Type",
+      columns: [L("SparklineTypeLine"), L("SparklineTypeColumn"), L("SparklineTypeWinLoss")],
+    },
+    {
+      id: "GroupSparklineShow",
+      label: "Show",
+      columns: [
+        smalls(C("SparklineShowHigh"), C("SparklineShowLow"), C("SparklineShowNegative")),
+        smalls(C("SparklineShowFirst"), C("SparklineShowLast"), C("SparklineShowMarkers")),
+      ],
+    },
+    {
+      id: "GroupSparklineStyle",
+      label: "Style",
+      columns: [L("SparklineStyleGallery"), smalls(S("SparklineColor"), S("SparklineMarkerColor"))],
+    },
+    {
+      id: "GroupSparklineGroup",
+      label: "Group",
+      columns: [L("SparklineAxis"), smalls(S("SparklineGroup"), S("SparklineUngroup"), S("SparklineClear"))],
+    },
+  ],
+}
+
 /**
  * Table Design, while the active cell is in a table. Built from Excel 365 at a wide window (no reference screenshot
  * in docs/reference yet). External Table Data (Export, Refresh, Unlink…) is left out: Cells has no linked tables.

@@ -363,6 +363,8 @@ export function focusSheet() {
 /** After a ribbon command: the keyboard back where typing was (a shape's text being typed, else the sheet). */
 export function focusAfterCommand() {
   requestAnimationFrame(() => {
+    // A command that opened a dialog leaves the focus in it.
+    if (document.activeElement?.closest("[role=dialog], [role=alertdialog]")) return
     const shapeText = document.querySelector<HTMLTextAreaElement>(".object-text-editor")
     ;(shapeText ?? sheetEditor())?.focus({ preventScroll: true })
   })

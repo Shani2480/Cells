@@ -1,3 +1,4 @@
+import { SparklineCommands, type SparklineDialogInit } from "./sparklines"
 import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
 import { PrintCommands } from "./print"
@@ -225,6 +226,8 @@ export type ShellRequests = {
   chartData?(): void
   /** Table Design › Resize Table: the dialog, on the table's range. */
   resizeTable?(range: Range): void
+  /** Insert › Sparklines and the Sparkline tab's Edit Data. */
+  sparklineDialog?(init: SparklineDialogInit): void
   /** A link to follow outside this sheet: open a workbook in Cells, or hand a web page, mail or file to the system. */
   followLink?(target: LinkTarget): void
   /** Ctrl+1: the Format Cells dialog, on a tab. */
@@ -388,6 +391,8 @@ export class SheetController {
   readonly data: DataCommands = new DataCommands(this)
   /** Insert › Link and following links. */
   readonly hyperlinks: HyperlinkCommands = new HyperlinkCommands(this)
+  /** Insert › Sparklines and the Sparkline tab. */
+  readonly sparklines: SparklineCommands = new SparklineCommands(this)
   readonly audit: AuditCommands = new AuditCommands(this)
   readonly outline: OutlineCommands = new OutlineCommands(this)
   /** Data › Data Validation. */

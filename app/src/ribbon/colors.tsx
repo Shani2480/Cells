@@ -170,8 +170,8 @@ export function ColorPanel({
   current,
   theme = OFFICE_THEME,
 }: {
-  /** "Automatic" (font colour) or "No Fill". */
-  noneLabel: string
+  /** "Automatic" (font colour) or "No Fill"; without it the panel has no such row (sparkline colours). */
+  noneLabel?: string
   /** The colour picked (null: Automatic / No Fill), with its theme reference for a theme colour. */
   onPick: (hex: string | null, ref?: ThemeColorRef) => void
   current?: string
@@ -197,10 +197,12 @@ export function ColorPanel({
   )
   return (
     <div className="color-panel" role="menu" aria-label={hover ?? undefined}>
-      <button type="button" role="menuitem" className="menu-row color-none" onClick={() => onPick(null)}>
-        <span className="color-none-mark" data-none={noneLabel !== "Automatic" || undefined} />
-        <span>{noneLabel}</span>
-      </button>
+      {noneLabel ? (
+        <button type="button" role="menuitem" className="menu-row color-none" onClick={() => onPick(null)}>
+          <span className="color-none-mark" data-none={noneLabel !== "Automatic" || undefined} />
+          <span>{noneLabel}</span>
+        </button>
+      ) : null}
       <div className="color-heading">Theme Colors</div>
       <div className="color-grid">{GRID[0].map((c, i) => swatch(c, `t${i}`))}</div>
       <div className="color-grid is-tints">

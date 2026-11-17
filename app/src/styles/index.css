@@ -3894,3 +3894,17 @@ html.is-phone .forecast-options {
   display: flex;
   gap: 18px;
 }
+
+/* Create / Edit Sparklines: a heading over each range box, the label beside it. */
+.spark-heading {
+  margin: 2px 0 6px;
+  font-weight: 600;
+}
+
+.spark-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 12px;
+}

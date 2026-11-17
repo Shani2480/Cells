@@ -64,6 +64,7 @@ export type Command = {
 /** Commands Excel greys out while sheets are grouped: features that belong to one sheet. */
 const ONE_SHEET_PREFIXES = [
   "Table",
+  "Sparkline",
   "FormatAsTable",
   "Chart",
   "ConditionalFormatting",

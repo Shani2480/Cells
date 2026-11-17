@@ -43,9 +43,17 @@ import {
   SMARTART_FORMAT,
   PICTURE_FORMAT,
   SHAPE_FORMAT,
+  SPARKLINE,
   TABLE_DESIGN,
   TABS,
 } from "@/ribbon/tabs"
+import {
+  SparklineAxisDialog,
+  SparklineDataDialog,
+  SparklineDateDialog,
+  SparklineEmptyDialog,
+} from "@/shell/SparklineDialogs"
+import type { SparklineDialogInit } from "@/sheet/sparklines"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
 import { whatsNewOnStart } from "@/about/release-notes"
@@ -139,6 +147,8 @@ import type { TextImport } from "@cells/io"
 
 const NOT_BUILT = "Not built yet."
 const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
+const TABS_IN_SPARKLINE = [...TABS, SPARKLINE]
+const TABS_IN_TABLE_SPARKLINE = [...TABS, TABLE_DESIGN, SPARKLINE]
 const TABS_IN_CHART = [...TABS, CHART_DESIGN]
 const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
 const TABS_IN_EQUATION = [...TABS, SHAPE_FORMAT, EQUATION]
@@ -205,6 +215,10 @@ type DialogState =
   | { kind: "signatureSetup"; editing?: number }
   | { kind: "pageSetup"; tab: PageSetupTab }
   | { kind: "resizeTable"; range: Range }
+  | { kind: "sparklineData"; init: SparklineDialogInit }
+  | { kind: "sparklineEmpty" }
+  | { kind: "sparklineDates" }
+  | { kind: "sparklineAxis"; which: "min" | "max" }
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
@@ -551,6 +565,7 @@ function WorkbookWindow({
       chartData: () => setDialog({ kind: "selectData" }),
       showTab: (id) => ribbonHandle.current?.showTab(id),
       resizeTable: (range) => setDialog({ kind: "resizeTable", range }),
+      sparklineDialog: (init) => setDialog({ kind: "sparklineData", init }),
       followLink: (target) => void followLink(target),
       openCellList: (pick) => window.dispatchEvent(new CustomEvent("cells:open-cell-list", { detail: { pick } })),
     }
@@ -861,6 +876,8 @@ function WorkbookWindow({
     )
       setDialog({ kind })
     else if (kind === "zoomToSelection") zoomToSelection()
+    else if (kind === "sparklineEmpty" || kind === "sparklineDates") setDialog({ kind })
+    else if (kind === "sparklineAxis" && (arg === "min" || arg === "max")) setDialog({ kind, which: arg })
     else if (kind === "cf" && isQuickKind(arg)) setDialog({ kind: "cfQuick", quick: arg })
     else if (kind === "cfNew") setDialog({ kind: "cfNew", start: arg ?? "contains" })
     else if (kind === "cfManage") setDialog({ kind: "cfManage" })
@@ -1027,9 +1044,13 @@ function WorkbookWindow({
             ? drawings.length === 1 && isEquation(drawings[0])
               ? TABS_IN_EQUATION
               : TABS_IN_SHAPE
-            : controller.tables.active()
-              ? TABS_IN_TABLE
-              : TABS
+            : controller.sparklines.active()
+              ? controller.tables.active()
+                ? TABS_IN_TABLE_SPARKLINE
+                : TABS_IN_SPARKLINE
+              : controller.tables.active()
+                ? TABS_IN_TABLE
+                : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 
@@ -1299,6 +1320,18 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "createTable" ? (
           <CreateTableDialog controller={controller} init={dialog.init} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "sparklineData" ? (
+          <SparklineDataDialog controller={controller} init={dialog.init} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "sparklineEmpty" ? (
+          <SparklineEmptyDialog controller={controller} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "sparklineDates" ? (
+          <SparklineDateDialog controller={controller} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "sparklineAxis" ? (
+          <SparklineAxisDialog controller={controller} which={dialog.which} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "resizeTable" ? (
           <ResizeTableDialog controller={controller} range={dialog.range} onClose={closeDialog} />
