@@ -1,4 +1,5 @@
 import { SlicerCommands } from "./slicers"
+import { QuickAnalysis } from "./quick-analysis"
 import { SparklineCommands, type SparklineDialogInit } from "./sparklines"
 import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
@@ -394,6 +395,8 @@ export class SheetController {
   readonly hyperlinks: HyperlinkCommands = new HyperlinkCommands(this)
   /** Insert › Sparklines and the Sparkline tab. */
   readonly sparklines: SparklineCommands = new SparklineCommands(this)
+  /** Quick Analysis (Ctrl+Q): the gallery's choices, their previews and the changes they make. */
+  readonly quick: QuickAnalysis = new QuickAnalysis(this)
   readonly slicers: SlicerCommands = new SlicerCommands(this)
   readonly audit: AuditCommands = new AuditCommands(this)
   readonly outline: OutlineCommands = new OutlineCommands(this)
@@ -2121,6 +2124,7 @@ export class SheetController {
       if (lower === "f" && !shift) return (this.shell.findReplace?.("find"), true)
       if (lower === "h" && !shift) return (this.shell.findReplace?.("replace"), true)
       if (lower === "k" && !shift) return (this.shell.openDialog?.("insertLink"), true)
+      if (lower === "q" && !shift) return (this.quick.show(), true)
       if (this.formatKey(key, shift)) return true
       if (key === "-") return (this.insertOrDelete("delete"), true)
       if (key === "+" || (key === "=" && shift)) return (this.insertOrDelete("insert"), true)

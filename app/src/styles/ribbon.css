@@ -3595,3 +3595,162 @@
   flex-wrap: wrap;
   gap: 2px;
 }
+
+/* Quick Analysis: the button at the selection's corner and its gallery (Excel's five tabs of choices). */
+.quick-button {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  padding: 0;
+  border: 1px solid var(--filter-button-border);
+  border-radius: 3px;
+  background: var(--filter-button-bg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  place-items: center;
+}
+
+.quick-button:hover,
+.quick-button.is-open {
+  border-color: var(--app-theme-primary);
+  background: var(--filter-button-hover);
+}
+
+.quick-gallery {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  width: 380px;
+  max-width: calc(100vw - 8px);
+  box-sizing: border-box;
+  flex-direction: column;
+  border: 1px solid var(--app-popover-border);
+  border-radius: 6px;
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+  color: var(--app-ribbon-text);
+  font: 12px var(--font-ui);
+  will-change: opacity;
+}
+
+.qa-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.qa-tab {
+  position: relative;
+  padding: 5px 6px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--app-ribbon-muted);
+  font: inherit;
+  white-space: nowrap;
+}
+
+.qa-tab:hover {
+  color: var(--app-ribbon-text);
+}
+
+.qa-tab[aria-selected="true"] {
+  color: var(--app-theme-primary);
+  font-weight: 600;
+}
+
+.qa-tab[aria-selected="true"]::after {
+  position: absolute;
+  right: 6px;
+  bottom: -1px;
+  left: 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--app-theme-primary);
+  content: "";
+}
+
+.qa-tab:focus-visible,
+.qa-item:focus-visible {
+  outline: 2px solid var(--app-theme-primary);
+  outline-offset: -2px;
+}
+
+.qa-items {
+  display: grid;
+  min-height: 78px;
+  padding: 8px;
+  gap: 2px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+/* Totals: the row-below totals on top, the column-right ones under them (Excel scrolls one row of ten). */
+.qa-items.is-totals {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.qa-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.qa-item > span {
+  overflow-wrap: normal;
+}
+
+.qa-item:hover:not([aria-disabled="true"]) {
+  border-color: var(--app-theme-primary);
+  background: var(--app-hover);
+}
+
+.qa-item[aria-disabled="true"] {
+  color: var(--app-ribbon-disabled);
+}
+
+.qa-item[aria-disabled="true"] .qa-icon,
+.qa-item[aria-disabled="true"] .chart-type-icon {
+  opacity: 0.45;
+}
+
+.qa-empty {
+  align-self: center;
+  color: var(--app-ribbon-muted);
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.qa-text {
+  min-height: 16px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--app-divider);
+  color: var(--app-ribbon-muted);
+}
+
+.qa-chart {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-popover-border);
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: var(--app-popover-shadow);
+  line-height: 0;
+  pointer-events: none;
+}
+
+.qa-chart.is-below {
+  top: calc(100% + 6px);
+  bottom: auto;
+}

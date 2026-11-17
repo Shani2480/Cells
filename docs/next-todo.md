@@ -190,7 +190,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         SmartArt Styles (3D and effects), Excel's text kept as formatted when only some points change (now the data is
         written anew), Office layouts Cells doesn't have drawn as they are (now as the nearest of Cells' own after an
         edit; Excel lays them out properly again)
-- [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
+- [x] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
   - [x] Filter and sort by icon: Filter/Sort by Color › by Cell Icon, the cell menu's icon commands, Sort On
         Conditional Formatting Icon; Filter and Sort by Color see conditional formats' colours; iconFilter in xlsx
         (checked against a file Excel 365 made)
@@ -207,7 +207,11 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         (caption, Slicer Settings, Report Connections greyed, style gallery, columns, button height and width, size,
         arrange; Group and Rotate off for slicers). Opened in Excel 365 with every setting. Not yet: the Format
         Slicer pane, hover colours, copying a sheet links its slicers to the copied table
-  - [ ] Quick Analysis (Ctrl+Q)
+  - [x] Quick Analysis (Ctrl+Q, the button at the selection's corner, the cell menu): Formatting (numbers, text,
+        dates), Charts (up to five recommended, drawn from the data on hover), Totals (Sum, Average, Count, % Total,
+        Running Total, below or right; asks before replacing cells), Tables, Sparklines; hover previews on the sheet
+        outside undo and unsaved changes. Built from Excel 365 as remembered (no reference screenshot). Not yet:
+        PivotTable choices (Part 10), More Charts opens the Insert tab (no Insert Chart dialog)
   - Timelines go with Part 10 (Excel only links them to PivotTables)
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled

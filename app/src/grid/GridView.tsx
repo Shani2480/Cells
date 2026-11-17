@@ -11,6 +11,7 @@ import { pagePartAt } from "./page-layout"
 import { OutlineBar, outlineBarSize } from "./OutlineBar"
 import { FilterButtons } from "./FilterButtons"
 import { ValidationLayer } from "./ValidationLayer"
+import { QuickAnalysisLayer } from "./QuickAnalysis"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
 import { drawGrid } from "./draw"
 import { onBackgroundLoaded } from "./background"
@@ -92,6 +93,8 @@ export function GridView({
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const layoutRef = useRef<GridLayout | null>(null)
   const dragRef = useRef<Drag | null>(null)
+  // Bumped when a drag ends, so what waits for it (the Quick Analysis button) shows.
+  const [, setDragsEnded] = useState(0)
   const pointerRef = useRef<{ x: number; y: number; ctrl: boolean } | null>(null)
   // Fingers on the canvas (CSS px from its top-left), the long-press timer and the last tap (double tap edits).
   const touchesRef = useRef(new Map<number, Point>())
@@ -700,6 +703,7 @@ export function GridView({
     dragRef.current = null
     pointerRef.current = null
     setResizeTip(null)
+    if (drag) setDragsEnded((n) => n + 1)
     const press = linkPress.current
     linkPress.current = null
     if (!drag) return
@@ -1112,6 +1116,15 @@ export function GridView({
         {layout ? <TraceLayer controller={controller} layout={layout} zoom={zoom} /> : null}
         {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+        {layout ? (
+          <QuickAnalysisLayer
+            controller={controller}
+            layout={layout}
+            zoom={zoom}
+            dragging={dragRef.current !== null}
+            onDone={focusInput}
+          />
+        ) : null}
         {layout ? (
           <AnnotationLayer
             controller={controller}

@@ -684,14 +684,6 @@ function WorkbookWindow({
       },
       { kind: "separator" },
     ]
-    const later = (label: string, more = false): MenuItem => ({
-      kind: "item",
-      label,
-      more,
-      disabled: true,
-      title: NOT_BUILT,
-      onSelect: () => undefined,
-    })
     // The cell menu's links: Link › Insert Link on a plain cell; Edit, Open and Remove on a linked one (Excel 365).
     const linkItems = (): MenuItem[] => {
       const { row, col } = controller.selection.active
@@ -791,7 +783,13 @@ function WorkbookWindow({
         { kind: "item", label: "Delete...", onSelect: () => controller.insertOrDelete("delete") },
         { kind: "item", label: "Clear Contents", onSelect: () => controller.clearContents() },
         { kind: "separator" },
-        later("Quick Analysis"),
+        {
+          kind: "item",
+          label: "Quick Analysis",
+          disabled: controller.quick.range() === null,
+          // The menu hands focus back to the grid as it closes; the gallery opens after that.
+          onSelect: () => void requestAnimationFrame(() => controller.quick.show()),
+        },
         { kind: "separator" },
         { kind: "item", label: "Filter", items: filterItems(), onSelect: () => undefined },
         { kind: "item", label: "Sort", items: sortItems(), onSelect: () => undefined },

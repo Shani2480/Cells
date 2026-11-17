@@ -208,10 +208,17 @@ export class TableCommands {
 
   /** The dialog's OK: makes the table (a header row of Column1, Column2… goes in above the data when it has none). */
   create(range: Range, header: boolean, style: string): boolean {
+    const ops = this.createOps(range, header, style)
+    if (typeof ops === "string") return this.refuse(ops)
+    return this.change(ops, "Create Table")
+  }
+
+  /** The changes that make a table of `range` (Quick Analysis previews them), or Excel's reason it can't. */
+  createOps(range: Range, header: boolean, style: string): Op[] | string {
     const sheet = this.c.sheet
     const index = this.c.sheetIndex
-    if (tableOverlaps(sheet, range)) return this.refuse(OVERLAP_TABLE)
-    if (sheet.merges.overlapping(range).length) return this.refuse(OVERLAP_MERGED)
+    if (tableOverlaps(sheet, range)) return OVERLAP_TABLE
+    if (sheet.merges.overlapping(range).length) return OVERLAP_MERGED
     const ops: Op[] = []
     const width = range.c1 - range.c0 + 1
     let r = { ...range }
@@ -255,7 +262,7 @@ export class TableCommands {
       autoFilter: { range: { ...r }, columns: {} },
     }
     ops.push({ kind: "tables", sheet: index, tables: [...sheet.tables, table] })
-    return this.change(ops, "Create Table")
+    return ops
   }
 
   /** Rows the table's filter hid shown again (its Filter Button or header row goes). */

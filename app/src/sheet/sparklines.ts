@@ -5,6 +5,7 @@ import {
   sparkStyleIndex,
   sparklinesFor,
   sparkRefText,
+  type Op,
   type Range,
   type SparkAxisScale,
   type SparkColor,
@@ -148,6 +149,18 @@ export class SparklineCommands {
       this.c.shell.showTab?.("TabSparkline")
     }
     return ok
+  }
+
+  /**
+   * The change that adds a group of sparklines of `data` (one per row or column) in `location` on this sheet (Quick
+   * Analysis previews it), or Excel's message.
+   */
+  createOps(type: SparklineType, data: Range, location: Range): Op[] | string {
+    const made = sparklinesFor(this.c.sheet.name, data, location)
+    if ("error" in made) return made.error
+    const groups = withoutCells(this.groups, made.sparklines)
+    groups.push(newSparklineGroup(type, made.sparklines))
+    return [{ kind: "sparklines", sheet: this.c.sheetIndex, groups }]
   }
 
   /** Edit Group Location & Data: the active group's sparklines made anew from the ranges, its options kept. */

@@ -11,6 +11,8 @@ import {
   readChartData,
   switchChartRefs,
   type ChartAnchor,
+  type ChartRefs,
+  type Range,
   type Sheet,
   type SheetChart,
   type Theme,
@@ -132,17 +134,7 @@ export class ChartCommands {
     const single = sel.r0 === sel.r1 && sel.c0 === sel.c1
     const range = single ? currentRegion(sheet, this.c.selection.active) : { ...sel }
     const empty = single && sheet.cells.get(range.r0, range.c0)?.value === undefined && range.r0 === range.r1
-    const refs = empty ? null : chartRefsFor(sheet, range)
-    const base = withVariant(defaultChartSpec("column"), variant)
-    const spec: ChartSpec = { ...base, categories: [], series: [] }
-    // Excel titles a one-series chart with the series' name, others "Chart Title".
-    const data = refs ? readChartData(this.c.wb.sheets, this.c.wb.styles, refs) : null
-    spec.title = {
-      show: true,
-      text: data?.series.length === 1 && data.series[0].name ? data.series[0].name : "Chart Title",
-    }
-    // One series: no legend (its name is the title); a pie keeps one, its slices being the categories.
-    if (data?.series.length === 1 && spec.type !== "pie" && spec.type !== "doughnut") spec.legend = "none"
+    const { spec, refs } = this.draft(variant, empty ? null : range)
     const zoom = this.c.zoom || 1
     const x = Math.max(0, this.c.scrollX + (this.c.viewWidth / zoom - CHART_WIDTH) / 2)
     const y = Math.max(0, this.c.scrollY + (this.c.viewHeight / zoom - CHART_HEIGHT) / 2)
@@ -157,6 +149,26 @@ export class ChartCommands {
     this.select(chart.id)
     this.c.shell.showTab?.("TabChartDesign")
     return chart
+  }
+
+  /**
+   * A new chart's look and ranges for data on this sheet (null: an empty chart). Quick Analysis draws its previews
+   * from the same, with the data read in (`liveSpec`).
+   */
+  draft(variant: string, range: Range | null): { spec: ChartSpec; refs: ChartRefs | null } {
+    const sheet = this.c.sheet
+    const refs = range ? chartRefsFor(sheet, range) : null
+    const base = withVariant(defaultChartSpec("column"), variant)
+    const spec: ChartSpec = { ...base, categories: [], series: [] }
+    // Excel titles a one-series chart with the series' name, others "Chart Title".
+    const data = refs ? readChartData(this.c.wb.sheets, this.c.wb.styles, refs) : null
+    spec.title = {
+      show: true,
+      text: data?.series.length === 1 && data.series[0].name ? data.series[0].name : "Chart Title",
+    }
+    // One series: no legend (its name is the title); a pie keeps one, its slices being the categories.
+    if (data?.series.length === 1 && spec.type !== "pie" && spec.type !== "doughnut") spec.legend = "none"
+    return { spec, refs }
   }
 
   // ── Clipboard ──

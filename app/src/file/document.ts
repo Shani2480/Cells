@@ -15,6 +15,7 @@ import type { FileRef, FileType } from "@cells/platform"
 import { SheetController } from "@/sheet/controller"
 import { DocumentWindows } from "./windows"
 import { startCalculation, type WorkerCalculator } from "@/engine-host/host"
+import { previewing } from "@/sheet/quick-analysis"
 
 export const PACKAGE_EXTENSIONS = ["xlsx", "xlsm", "xltx", "xltm"]
 export const TEXT_EXTENSIONS = ["csv", "txt", "tsv"]
@@ -102,7 +103,8 @@ export class WorkbookDocument {
     this.text = o.text ?? null
     this.warnings = o.warnings ?? []
     this.unsubscribe = main.wb.subscribe((_changes, ops) => {
-      if (ops.length) {
+      // A Quick Analysis preview comes and goes without changing the workbook.
+      if (ops.length && !previewing.has(main.wb)) {
         this.edits++
         this.controller.changed()
       }

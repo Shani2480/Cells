@@ -85,9 +85,11 @@ export function Ribbon({
   /** A collapsed ribbon shows a tab's commands over the sheet while one is picked. */
   const [peek, setPeek] = useState(false)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
-  // A gallery's live preview ends with its menu, however the menu closes.
+  // A gallery's live preview ends with its menu, however the menu closes (only then: Quick Analysis previews too).
+  const hadMenu = useRef(false)
   useEffect(() => {
-    if (openMenu === null && env.c.conditional.preview) env.c.conditional.setPreview(null)
+    if (openMenu === null && hadMenu.current && env.c.conditional.preview) env.c.conditional.setPreview(null)
+    hadMenu.current = openMenu !== null
   }, [openMenu, env])
   const [kt, setKt] = useState<KeyTipState>(null)
   const tab = tabs.find((t) => t.id === tabId) ?? tabs[0]
