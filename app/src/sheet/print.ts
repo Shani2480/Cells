@@ -73,11 +73,48 @@ export class PrintCommands {
 
   /** Where the active sheet's pages break (the dashed lines on the sheet): first rows and columns of pages. */
   breaks(): { rows: number[]; cols: number[] } {
+    return pageBreaks(this.current())
+  }
+
+  /** The active sheet's pages, worked out again only when the workbook changes (drawing asks every frame). */
+  current(): Pagination {
     const sheet = this.c.sheet
     const version = this.c.wb.version
     if (this.cached?.sheet !== sheet || this.cached.version !== version)
       this.cached = { sheet, version, pagination: this.pages(sheet) }
-    return pageBreaks(this.cached.pagination)
+    return this.cached.pagination
+  }
+
+  /**
+   * Page Break Preview: a blue line dragged to the boundary before row or column `to`. A page break moves there
+   * (it becomes one set by hand; dragged off its print area it goes away). An edge of the print area moves the
+   * print area's edge (the printed cells become the print area when there was none).
+   */
+  moveLine(line: { axis: "rows" | "cols"; index: number; kind: "edge" | "break"; area: number }, to: number) {
+    if (to === line.index) return
+    const areas = this.current().areas.map((a) => ({ ...a }))
+    const a = areas[line.area]
+    if (!a) return
+    const rows = line.axis === "rows"
+    if (line.kind === "break") {
+      const lo = rows ? a.r0 : a.c0
+      const hi = rows ? a.r1 + 1 : a.c1 + 1
+      this.change((s) => {
+        const list = (rows ? s.rowBreaks : s.colBreaks).filter((b) => b !== line.index)
+        if (to > lo && to < hi && !list.includes(to)) list.push(to)
+        list.sort((x, y) => x - y)
+        if (rows) s.rowBreaks = list
+        else s.colBreaks = list
+      }, "Move Page Break")
+      return
+    }
+    // An edge: the side nearest `line.index` follows the drag; the area keeps at least one row or column.
+    if (rows) {
+      if (line.index === a.r0) a.r0 = Math.min(to, a.r1)
+      else a.r1 = Math.max(to - 1, a.r0)
+    } else if (line.index === a.c0) a.c0 = Math.min(to, a.c1)
+    else a.c1 = Math.max(to - 1, a.c0)
+    this.change((s) => (s.printArea = areas), "Set Print Area")
   }
 
   /** The pages a sheet prints (File › Print, the dashed page breaks). */

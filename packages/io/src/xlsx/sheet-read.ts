@@ -46,6 +46,9 @@ export type SheetView = {
    */
   split?: { width: number; height: number; topLeft: { row: number; col: number } } | null
   zoom: number
+  /** Normal, Page Break Preview or Page Layout (absent: normal), and each view's zoom as the file keeps it. */
+  mode?: "normal" | "pageBreakPreview" | "pageLayout"
+  zooms?: Partial<Record<"normal" | "pageBreakPreview" | "pageLayout", number>>
   showGridlines: boolean
   showHeadings: boolean
   topLeft: { row: number; col: number }
@@ -609,10 +612,23 @@ function readView(root: XNode, warnings: string[]): SheetView {
     .map((r) => parseRange(r))
     .filter((r): r is Range => r !== null)
   const zoom = Number(at(v, "zoomScale") ?? 100)
+  const modeAttr = at(v, "view")
+  const mode = modeAttr === "pageBreakPreview" || modeAttr === "pageLayout" ? modeAttr : "normal"
+  const zooms: NonNullable<SheetView["zooms"]> = {}
+  for (const [key, attr] of [
+    ["normal", "zoomScaleNormal"],
+    ["pageBreakPreview", "zoomScaleSheetLayoutView"],
+    ["pageLayout", "zoomScalePageLayoutView"],
+  ] as const) {
+    const z = Number(at(v, attr) ?? 0)
+    if (z > 0) zooms[key] = z / 100
+  }
   return {
     freeze,
     split,
     zoom: zoom > 0 ? zoom / 100 : 1,
+    ...(mode !== "normal" ? { mode } : {}),
+    ...(Object.keys(zooms).length ? { zooms } : {}),
     showGridlines: at(v, "showGridLines") !== "0" && at(v, "showGridLines") !== "false",
     showHeadings: at(v, "showRowColHeaders") !== "0" && at(v, "showRowColHeaders") !== "false",
     topLeft: split

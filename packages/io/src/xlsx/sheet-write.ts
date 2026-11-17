@@ -285,6 +285,12 @@ function withTabColor(xml: string, tab: string): string {
   return out
 }
 
+/** A view's zoom as the file keeps it (percent), when it isn't 100%. */
+function zoomOf(view: SheetView, mode: "normal" | "pageBreakPreview" | "pageLayout"): number | undefined {
+  const z = (view.mode ?? "normal") === mode ? view.zoom : view.zooms?.[mode]
+  return z !== undefined && Math.abs(z - 1) > 1e-9 ? Math.round(z * 100) : undefined
+}
+
 function viewsXml(view: SheetView, showSymbols: boolean): string {
   const cell = (p: { row: number; col: number }) => ref(p.row, p.col)
   const attrs = attrText({
@@ -292,8 +298,11 @@ function viewsXml(view: SheetView, showSymbols: boolean): string {
     showGridLines: view.showGridlines ? undefined : "0",
     showRowColHeaders: view.showHeadings ? undefined : "0",
     showOutlineSymbols: showSymbols ? undefined : "0",
+    view: view.mode && view.mode !== "normal" ? view.mode : undefined,
     zoomScale: view.zoom !== 1 ? Math.round(view.zoom * 100) : undefined,
-    zoomScaleNormal: view.zoom !== 1 ? Math.round(view.zoom * 100) : undefined,
+    zoomScaleNormal: zoomOf(view, "normal"),
+    zoomScaleSheetLayoutView: zoomOf(view, "pageBreakPreview"),
+    zoomScalePageLayoutView: zoomOf(view, "pageLayout"),
     topLeftCell: view.split
       ? view.split.topLeft.row || view.split.topLeft.col
         ? cell(view.split.topLeft)

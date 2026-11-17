@@ -136,6 +136,12 @@ export type Freeze = { row: number; col: number; top: number; left: number }
  */
 export type Split = { width: number; height: number; scrollX: number; scrollY: number }
 
+/** View › Workbook Views: Normal, Page Break Preview or Page Layout (per sheet, as Excel). */
+export type SheetViewMode = "normal" | "pageBreakPreview" | "pageLayout"
+
+/** The zoom a view starts at the first time a sheet is shown in it (Excel: 60% for Page Break Preview). */
+const VIEW_ZOOM: Record<SheetViewMode, number> = { normal: 1, pageBreakPreview: 0.6, pageLayout: 1 }
+
 /** Excel's zoom range. */
 export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 4
@@ -148,6 +154,9 @@ type SheetView = {
   freeze: Freeze | null
   split: Split | null
   zoom: number
+  /** View › Workbook Views, with the zoom each of the other views had last. */
+  view: SheetViewMode
+  viewZooms: Partial<Record<SheetViewMode, number>>
   showGridlines: boolean
   showHeadings: boolean
 }
@@ -257,8 +266,12 @@ export class SheetController {
   freeze: Freeze | null = null
   /** View › Split (per sheet); never together with frozen panes. */
   split: Split | null = null
-  /** View › Zoom: 1 is 100% (per sheet). */
+  /** View › Zoom: 1 is 100% (per sheet, and per view). */
   zoom = 1
+  /** View › Workbook Views (per sheet). */
+  view: SheetViewMode = "normal"
+  /** The zoom of the views not shown, for when they come back. */
+  viewZooms: Partial<Record<SheetViewMode, number>> = {}
   /** View › Gridlines. */
   showGridlines = true
   /** View › Headings (row numbers and column letters). */
@@ -463,6 +476,8 @@ export class SheetController {
         freeze: this.freeze,
         split: this.split,
         zoom: this.zoom,
+        view: this.view,
+        viewZooms: this.viewZooms,
         showGridlines: this.showGridlines,
         showHeadings: this.showHeadings,
       })
@@ -474,6 +489,8 @@ export class SheetController {
     this.freeze = view?.freeze ?? null
     this.split = view?.split ?? null
     this.zoom = view?.zoom ?? 1
+    this.view = view?.view ?? "normal"
+    this.viewZooms = view?.viewZooms ?? {}
     this.showGridlines = view?.showGridlines ?? true
     this.showHeadings = view?.showHeadings ?? true
     this.lastCtrlARegion = null
@@ -512,6 +529,8 @@ export class SheetController {
             }
           : null,
         zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom)),
+        view: v.mode ?? "normal",
+        viewZooms: { ...(v.zooms ?? {}) },
         showGridlines: v.showGridlines,
         showHeadings: v.showHeadings,
       })
@@ -536,6 +555,8 @@ export class SheetController {
             freeze: this.freeze,
             split: this.split,
             zoom: this.zoom,
+            view: this.view,
+            viewZooms: this.viewZooms,
             showGridlines: this.showGridlines,
             showHeadings: this.showHeadings,
           }
@@ -551,6 +572,8 @@ export class SheetController {
             }
           : null,
         zoom: v.zoom,
+        mode: v.view,
+        zooms: { ...v.viewZooms, [v.view]: v.zoom },
         showGridlines: v.showGridlines,
         showHeadings: v.showHeadings,
         topLeft: { row: sheet.rows.indexAt(v.scrollY), col: sheet.cols.indexAt(v.scrollX) },
@@ -1724,6 +1747,21 @@ export class SheetController {
     // The scrolling part goes on where the frozen part ends, so nothing on screen moves.
     this.scrollX = this.sheet.cols.offset(f.col)
     this.scrollY = this.sheet.rows.offset(f.row)
+    this.scrollIntoView(this.selection.active)
+    this.changed()
+  }
+
+  /**
+   * View › Normal, Page Break Preview, Page Layout (and the status bar's view buttons). Each view keeps its own zoom
+   * (Page Break Preview starts at 60%, as Excel). Page Break Preview shows the page breaks from then on.
+   */
+  setView(view: SheetViewMode) {
+    if (this.edit) this.commitEdit()
+    if (view === this.view) return
+    this.viewZooms = { ...this.viewZooms, [this.view]: this.zoom }
+    this.view = view
+    this.zoom = this.viewZooms[view] ?? VIEW_ZOOM[view]
+    if (view !== "normal") this.print.showBreaks = true
     this.scrollIntoView(this.selection.active)
     this.changed()
   }

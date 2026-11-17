@@ -14,6 +14,7 @@ import { drawGrid } from "./draw"
 import { lookOf, shownText } from "./cell-look"
 import { PAD } from "./draw-cells"
 import { FormulaAssist, FormulaHighlight } from "./FormulaAssist"
+import { boundaryAt, breakLineAt, type BreakLine } from "./break-preview"
 import { cellAt, colX, computeLayout, hitTest, rangeRect, rowY, type GridLayout, type Hit } from "./layout"
 import { CELL_FONT, LIGHT_THEME, readGridTheme, type GridTheme } from "./theme"
 import { Scrollbar } from "./Scrollbar"
@@ -42,6 +43,8 @@ type Drag =
   | { kind: "point"; anchor: CellAddress }
   | { kind: "resize-col"; col: number; startX: number; startSize: number; size: number }
   | { kind: "resize-row"; row: number; startY: number; startSize: number; size: number }
+  /** Page Break Preview: dragging a page break or the print area's edge to the boundary before `to`. */
+  | { kind: "pageLine"; line: BreakLine; to: number }
   /** Moving a split bar (`x`: the vertical one, `y`: the horizontal one). */
   | { kind: "split"; x: boolean; y: boolean }
   | {
@@ -358,6 +361,10 @@ export function GridView({
         controller.changed()
         break
       }
+      case "pageLine":
+        drag.to = boundaryAt(controller, layout, drag.line.axis, drag.line.axis === "rows" ? y : x)
+        controller.changed()
+        break
       case "split":
         controller.moveSplit(
           drag.x ? x - layout.rowHeaderWidth : controller.frozenWidth,
@@ -517,6 +524,11 @@ export function GridView({
     }
     canvasRef.current!.setPointerCapture(event.pointerId)
     pointerRef.current = { x, y, ctrl }
+    const pageLine = hit.zone === "cell" ? breakLineAt(controller, layout, x, y) : null
+    if (pageLine) {
+      dragRef.current = { kind: "pageLine", line: pageLine, to: pageLine.index }
+      return
+    }
     switch (hit.zone) {
       case "corner":
         controller.selectEverything()
@@ -631,26 +643,31 @@ export function GridView({
       hoverAt(null)
       hideLinkTip()
     }
+    const pageLine = hit.zone === "cell" ? breakLineAt(controller, layout, x, y) : null
     setCursor(
-      linked
-        ? "pointer"
-        : hit.zone === "split"
-          ? hit.x && hit.y
-            ? "move"
-            : hit.x
+      pageLine
+        ? pageLine.axis === "rows"
+          ? "row-resize"
+          : "col-resize"
+        : linked
+          ? "pointer"
+          : hit.zone === "split"
+            ? hit.x && hit.y
+              ? "move"
+              : hit.x
+                ? "col-resize"
+                : "row-resize"
+            : hit.zone === "colResize"
               ? "col-resize"
-              : "row-resize"
-          : hit.zone === "colResize"
-            ? "col-resize"
-            : hit.zone === "rowResize"
-              ? "row-resize"
-              : hit.zone === "fillHandle"
-                ? "crosshair"
-                : hit.zone === "colHeader"
-                  ? "s-resize"
-                  : hit.zone === "rowHeader"
-                    ? "e-resize"
-                    : "cell",
+              : hit.zone === "rowResize"
+                ? "row-resize"
+                : hit.zone === "fillHandle"
+                  ? "crosshair"
+                  : hit.zone === "colHeader"
+                    ? "s-resize"
+                    : hit.zone === "rowHeader"
+                      ? "e-resize"
+                      : "cell",
     )
   }
 
@@ -678,6 +695,8 @@ export function GridView({
     const ctrl = platform.os === "macos" ? event.metaKey : event.ctrlKey
     if (drag.kind === "fill" && controller.fillPreview) {
       controller.fillTo(controller.fillPreview, ctrl)
+    } else if (drag.kind === "pageLine") {
+      controller.print.moveLine(drag.line, drag.to)
     } else if (drag.kind === "resize-col") {
       const cols = resizeTargets(controller, "cols", drag.col)
       controller.setLineSize("cols", cols, drag.size)
@@ -1089,6 +1108,16 @@ export function GridView({
             style={{
               left: (colX(sheet, layout, dragRef.current.col) + dragRef.current.size) * zoom,
             }}
+          />
+        ) : null}
+        {dragRef.current?.kind === "pageLine" && layout ? (
+          <div
+            className={`resize-guide is-page-line ${dragRef.current.line.axis === "rows" ? "is-horizontal" : "is-vertical"}`}
+            style={
+              dragRef.current.line.axis === "rows"
+                ? { top: rowY(sheet, layout, dragRef.current.to) * zoom }
+                : { left: colX(sheet, layout, dragRef.current.to) * zoom }
+            }
           />
         ) : null}
         {dragRef.current?.kind === "resize-row" && layout ? (

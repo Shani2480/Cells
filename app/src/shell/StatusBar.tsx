@@ -1,7 +1,10 @@
 import { cellName, formatGeneral, formatValue, selectionStats } from "@cells/core"
 import { useMemo, useSyncExternalStore } from "react"
-import { Minus, Plus } from "lucide-react"
-import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
+import { FileText, Minus, Plus, Rows3, Table2 } from "lucide-react"
+import { MAX_ZOOM, MIN_ZOOM, type SheetController, type SheetViewMode } from "@/sheet/controller"
+
+/** Page Layout view isn't there yet: its button stays greyed out. */
+const PAGE_LAYOUT_BUILT = false
 
 const MODE_LABEL = { ready: "Ready", enter: "Enter", edit: "Edit", point: "Point" } as const
 
@@ -68,8 +71,40 @@ export function StatusBar({ controller, onZoomDialog }: { controller: SheetContr
           {stats.numericCount > 0 ? <span>Sum: {show(stats.sum)}</span> : null}
         </div>
       ) : null}
+      <StatusViews controller={controller} />
       <StatusZoom controller={controller} onZoomDialog={onZoomDialog} />
     </footer>
+  )
+}
+
+const VIEWS: { view: SheetViewMode; label: string; icon: React.ReactNode }[] = [
+  { view: "normal", label: "Normal", icon: <Table2 size={14} strokeWidth={1.6} /> },
+  { view: "pageLayout", label: "Page Layout", icon: <FileText size={14} strokeWidth={1.6} /> },
+  { view: "pageBreakPreview", label: "Page Break Preview", icon: <Rows3 size={14} strokeWidth={1.6} /> },
+]
+
+/** The view buttons left of the zoom (Excel's Normal, Page Layout and Page Break Preview). */
+function StatusViews({ controller }: { controller: SheetController }) {
+  return (
+    <div className="status-views" role="group" aria-label="Views">
+      {VIEWS.map((v) => {
+        const built = v.view !== "pageLayout" || PAGE_LAYOUT_BUILT
+        return (
+          <button
+            key={v.view}
+            type="button"
+            className="status-view"
+            aria-label={v.label}
+            title={built ? v.label : `${v.label}: not built yet.`}
+            aria-pressed={controller.view === v.view}
+            disabled={!built}
+            onClick={() => controller.setView(v.view)}
+          >
+            {v.icon}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 

@@ -145,6 +145,9 @@ Phase 3, added at the end:
       panes' own size, 15 twips to a pixel at 100%), and the split bar's look and width.
 - [ ] Split: overlays (charts, notes, arrows, the cell editor) in the top and left panes are placed in the bottom-right
       pane when it shows the same cells; Excel draws them in each pane.
+- [ ] Page Break Preview against Excel: the grey and blue, the "Page N" size, and what Excel does when an automatic
+      break is dragged further than a page holds (Excel lowers the scale to fit; Cells' manual break then gets an
+      automatic one after it).
 - [ ] Fill Across Worksheets on whole rows and columns (Cells copies the used part of the cells; row and column
       formats aren't copied).
 

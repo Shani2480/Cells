@@ -160,8 +160,17 @@ function otherCommands(): Command[] {
       description: "View the document normally.",
       keytip: "L",
       largeIcon: <Table2 {...large} />,
-      run: () => undefined,
-      pressed: () => true,
+      run: (env) => env.c.setView("normal"),
+      pressed: (env) => env.c.view === "normal",
+    },
+    {
+      id: "ViewPageBreakPreviewView",
+      label: "Page Break Preview",
+      description:
+        "See where the pages break when the sheet prints. Drag a blue line to move a page break, or the edge of what prints.",
+      keytip: "I",
+      run: (env) => env.c.setView("pageBreakPreview"),
+      pressed: (env) => env.c.view === "pageBreakPreview",
     },
     {
       id: "ViewFreezePanesGallery",
