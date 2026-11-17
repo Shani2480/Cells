@@ -3260,7 +3260,11 @@
 
 .equation-symbol {
   height: 28px;
-  font: 16px/1 "Cambria Math", "STIX Two Math", "DejaVu Math TeX Gyre", serif;
+  font:
+    16px/1 "Cambria Math",
+    "STIX Two Math",
+    "DejaVu Math TeX Gyre",
+    serif;
 }
 
 .equation-structures {
@@ -3284,6 +3288,65 @@
 }
 
 .math-icon.is-linear {
-  font: italic 9px/1 "Cambria Math", "STIX Two Math", "DejaVu Math TeX Gyre", serif;
+  font:
+    italic 9px/1 "Cambria Math",
+    "STIX Two Math",
+    "DejaVu Math TeX Gyre",
+    serif;
   letter-spacing: -0.02em;
+}
+
+/* Insert › 3D Models: the handle in a model's middle turns it; the live picture while it turns. */
+.model3d-turn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.85);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  color: #444;
+  cursor: grab;
+  touch-action: none;
+}
+
+.model3d-turn:active {
+  cursor: grabbing;
+}
+
+.model-preview {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* 3D Model › 3D Model Views. */
+.model-views {
+  display: grid;
+  grid-template-columns: repeat(4, 76px);
+  gap: 4px;
+  padding: 8px;
+}
+
+.model-view {
+  display: grid;
+  place-items: center;
+  height: 64px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.model-view:hover {
+  border-color: var(--app-field-focus);
+  background: var(--app-hover);
+}
+
+.model-view-blank {
+  width: 64px;
+  height: 52px;
 }

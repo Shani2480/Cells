@@ -171,8 +171,13 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         xlsx `oleObjects` + VML + embeddings (a file in an OLE package; Office files as they are)
   - [x] Equations: Insert › Equation and its gallery; linear (UnicodeMath) and professional display; the
         Equation tab's structures and symbols; OMML in xlsx text boxes with Excel's text fallback
-  - [ ] 3D Models: Insert › 3D Models from a file (.glb, .gltf, .obj, .stl); drawn with WebGL, turned with the 3D
-        handle; 3D Model tab (Views, Pan & Zoom, Reset); xlsx `am3d:model3d` with its picture fallback
+  - [x] 3D Models: Insert › 3D Models from a file (.glb, .gltf, .fbx, .obj, .3mf, .ply, .stl; other formats turned
+        into .glb with three.js, as Office keeps them); drawn with WebGL (three.js, loaded only when a model is drawn),
+        Office's camera, lights and turn order (x, then y, then z) matched against Excel's pictures; turned with the
+        handle in the middle, 3D Model tab (Change, Reset / Reset and Size, Views, X/Y/Z turns, Alt Text, Arrange,
+        Size); xlsx `am3d:model3d` in mc:AlternateContent with its picture fallback, checked in Excel (no repair,
+        Shape.Type 30, same rotation). Later: Pan & Zoom (Excel keeps the pan in a part of `am3d` not worked out yet),
+        Stock 3D Models (online), animated models, models in groups (written as their picture)
   - [ ] SmartArt: Insert › SmartArt (the most used layouts of each category), Text Pane, SmartArt Design and Format
         tabs; xlsx diagram parts (data, layout, style, colours, drawing) read and written
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon

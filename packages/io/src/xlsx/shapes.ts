@@ -17,7 +17,8 @@ import type {
 import { NS_R } from "./constants"
 import { at, kid, kids, type XDoc, type XNode } from "./dom"
 import { mathFallbackText, mathLook, mathParaXml, NS_A14, readMath } from "./omml"
-import type { MathList } from "@cells/core"
+import type { MathList, Model3D } from "@cells/core"
+import { model3dObjectXml } from "./model3d"
 
 /**
  * DrawingML shapes, pictures and groups in a sheet's drawing (xdr:sp, xdr:cxnSp, xdr:pic, xdr:grpSp): read into
@@ -520,6 +521,8 @@ export type ObjectWriter = {
   /** Equations as their linear text (the fallback for readers without Office Math). */
   mathAsText?: boolean
   imageRel(src: string, was?: string): string
+  /** A 3D model's file as a relationship (the same part when it is the one read as `was`); absent in groups. */
+  modelRel?(data: Uint8Array, was?: string): string
   decorativeXml(o: DrawingObject, id: number): string
 }
 
@@ -537,15 +540,13 @@ const xfrmXml = (o: DrawingObject, box: ChildBox, group?: { w: number; h: number
 /** An object's XML (sp, cxnSp, pic or grpSp) at `box` (pixels: on the sheet, or in its group). */
 export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): string {
   const id = w.nextId()
-  const nv = (tag: string, inner: string) => {
-    const descr = o.altText ? ` descr="${esc(o.altText)}"` : ""
-    const hidden = o.hidden ? ` hidden="1"` : ""
-    const ext = w.decorativeXml(o, id)
-    const c = ext
-      ? `<xdr:cNvPr id="${id}" name="${esc(o.name)}"${descr}${hidden}>${ext}</xdr:cNvPr>`
-      : `<xdr:cNvPr id="${id}" name="${esc(o.name)}"${descr}${hidden}/>`
-    return `<xdr:${tag}>${c}${inner}</xdr:${tag}>`
-  }
+  const descr = o.altText ? ` descr="${esc(o.altText)}"` : ""
+  const hidden = o.hidden ? ` hidden="1"` : ""
+  const ext = w.decorativeXml(o, id)
+  const cNvPr = ext
+    ? `<xdr:cNvPr id="${id}" name="${esc(o.name)}"${descr}${hidden}>${ext}</xdr:cNvPr>`
+    : `<xdr:cNvPr id="${id}" name="${esc(o.name)}"${descr}${hidden}/>`
+  const nv = (tag: string, inner: string) => `<xdr:${tag}>${cNvPr}${inner}</xdr:${tag}>`
   if (o.kind === "shape") {
     const geom = o.geometry === "custom" ? "rect" : o.geometry
     const av = o.adjust
@@ -574,6 +575,16 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
     const svg = o.svg
       ? `<a:extLst><a:ext uri="${SVG_EXT}"><asvg:svgBlip xmlns:asvg="${NS_ASVG}" xmlns:r="${NS_R}" r:embed="${w.imageRel(o.svg, o.source?.rels?.svg)}"/></a:ext></a:extLst>`
       : ""
+    if (o.model3d && w.modelRel) {
+      // Office's picture of the model, which nothing can change but the model's view.
+      const locks = `noGrp="1" noRot="1" noChangeAspect="1" noMove="1" noResize="1" noEditPoints="1" noAdjustHandles="1" noChangeArrowheads="1" noChangeShapeType="1" noCrop="1"`
+      const fallback =
+        `<xdr:pic>${nv("nvPicPr", `<xdr:cNvPicPr><a:picLocks ${locks}/></xdr:cNvPicPr>`)}` +
+        `<xdr:blipFill><a:blip xmlns:r="${NS_R}" r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>` +
+        `<xdr:spPr>${xfrmXml(o, box)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>`
+      const modelRid = w.modelRel(o.model3d.data, o.source?.rels?.model)
+      return model3dObjectXml(o as SheetPicture & { model3d: Model3D }, box, cNvPr, modelRid, rid, fallback)
+    }
     const crop = o.crop
       ? `<a:srcRect l="${Math.round(o.crop.l * 100000)}" t="${Math.round(o.crop.t * 100000)}" r="${Math.round(o.crop.r * 100000)}" b="${Math.round(o.crop.b * 100000)}"/>`
       : ""
@@ -585,7 +596,7 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
   }
   const items = o.items
     .filter((i): i is DrawingObject => "kind" in i)
-    .map((i) => objectXml(i, i.box ?? { x: 0, y: 0, w: o.child.w, h: o.child.h }, w))
+    .map((i) => objectXml(i, i.box ?? { x: 0, y: 0, w: o.child.w, h: o.child.h }, { ...w, modelRel: undefined }))
     .join("")
   return (
     `<xdr:grpSp>${nv("nvGrpSpPr", "<xdr:cNvGrpSpPr/>")}<xdr:grpSpPr>${xfrmXml(o, box, o.child)}</xdr:grpSpPr>` +
@@ -627,6 +638,8 @@ export function objectKey(o: DrawingObject): string {
       ? undefined
       : (k === "src" || k === "svg") && typeof v === "string"
         ? `${v.length}:${v.slice(-64)}`
-        : v,
+        : v instanceof Uint8Array
+          ? `${v.length}:${Array.from(v.subarray(-32)).join(",")}`
+          : v,
   )
 }

@@ -45,3 +45,7 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       (`@cells/io` `xlsx/omml.ts`, DrawingML run properties; Word's `w:rPr` needs a variant), and an SVG layout
       (`app/src/drawing/math.ts`, to move into a package before sharing). Word's `m:oMathPara`/`m:oMath` in paragraphs
       could use them for display and editing.
+- [ ] I12. **3D models from Cells.** Word keeps 3D models the same way (`am3d:model3d` in a graphic frame, the .glb by a
+      `model3d` relationship, a picture fallback). Cells' pieces: the view and its XML (`@cells/core` `model3d.ts`,
+      `@cells/io` `xlsx/model3d.ts`: the frame needs `wp:inline`/`wp:anchor` instead of `xdr`), and the renderer and
+      file import (`app/src/drawing/model3d.ts`, three.js; to move into a package before sharing).

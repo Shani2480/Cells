@@ -28,6 +28,7 @@ import { NS_R } from "./constants"
 import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
 import { objectKey, objectWithMathXml, readObject } from "./shapes"
 import { isEmbeddedObject } from "./ole-objects"
+import { CT_GLB, model3dNode, readModel3d, REL_MODEL3D } from "./model3d"
 
 export const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 
@@ -61,6 +62,8 @@ export type DrawingSource = {
   charts: Map<number, { partName: string; print: string; cache: string }>
   /** The pictures read, by relationship id: the same picture written again uses the same part. */
   images: Map<string, string>
+  /** The 3D models read, by relationship id (likewise). */
+  models?: Map<string, Uint8Array>
 }
 
 const print = (chart: SheetChart) => JSON.stringify({ spec: chart.spec, refs: chart.refs })
@@ -103,6 +106,13 @@ export function readDrawing(
     chartRels: new Set(),
     charts: new Map(),
     images: new Map(),
+    models: new Map(),
+  }
+  const model = (rid: string) => {
+    const rel = rels.find((r) => r.id === rid && r.type === REL_MODEL3D)
+    const data = bytes(rel?.partName)?.data
+    if (data) source.models!.set(rid, data)
+    return data
   }
   const image = (rid: string) => {
     if (source.images.has(rid)) return source.images.get(rid)
@@ -120,7 +130,11 @@ export function readDrawing(
     const alternate = kid(anchor, "AlternateContent")
     const choice = kids(alternate, "Choice").find((c) => /\ba14\b/.test(at(c, "Requires") ?? ""))
     const mathShape = choice?.children.find((c) => OBJECTS.has(c.local) && c.local !== "graphicFrame")
-    const content = mathShape ?? anchor.children.find((c) => OBJECTS.has(c.local))
+    // A 3D model: Office's frame in the Choice, its picture in the Fallback.
+    const modelNode = model3dNode(kids(alternate, "Choice").find((c) => /\bam3d\b/.test(at(c, "Requires") ?? "")))
+    const modelPic = modelNode ? kid(kid(alternate, "Fallback"), "pic") : undefined
+    const read3d = modelNode && modelPic ? readModel3d(doc, modelNode, model) : null
+    const content = mathShape ?? (read3d ? modelPic : undefined) ?? anchor.children.find((c) => OBJECTS.has(c.local))
     if (placed && content && content.local !== "graphicFrame") {
       const object = readObject(content, { nextId, image, doc }, isDecorative)
       if (object) {
@@ -134,8 +148,12 @@ export function readDrawing(
           .map((e) => at(kid(e, "svgBlip"), "embed", NS_R))
           .find(Boolean)
         if (svg) embeds.svg = svg
+        if (read3d && object.kind === "picture") {
+          object.model3d = read3d.model
+          embeds.model = read3d.rid
+        }
         object.source = {
-          xml: raw(doc, mathShape ? alternate! : content),
+          xml: raw(doc, mathShape || read3d ? alternate! : content),
           key: objectKey(object),
           part: partName,
           ...(Object.keys(embeds).length ? { rels: embeds } : {}),
@@ -252,6 +270,7 @@ export function writeDrawing(
   const rawUsed = new Set<string>()
   // A picture written again uses its part; a new one gets a part of its own (one per picture data in this save).
   const newImages = new Map<string, string>()
+  const newModels = new Map<Uint8Array, string>()
   const writer = {
     nextId: () => ++shapeId,
     imageRel: (src: string, was?: string) => {
@@ -260,6 +279,16 @@ export function writeDrawing(
       if (rid) return rid
       rid = out.addRel(partName, REL_IMAGE, putPicture(src, out))
       newImages.set(src, rid)
+      return rid
+    },
+    modelRel: (data: Uint8Array, was?: string) => {
+      if (was && source?.models?.get(was) === data && rels.some((r) => r.id === was)) return was
+      let rid = newModels.get(data)
+      if (rid) return rid
+      const part = out.freeName((n) => `/xl/media/model3d${n}.glb`)
+      out.putBytes(part, CT_GLB, data)
+      rid = out.addRel(partName, REL_MODEL3D, part)
+      newModels.set(data, rid)
       return rid
     },
     decorativeXml: (o: DrawingObject) => (o.decorative ? decorativeExt() : ""),

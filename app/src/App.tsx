@@ -34,7 +34,16 @@ import { PhoneShell } from "@/phone/PhoneShell"
 import { installBackHandler, syncSystemBars } from "@/platform/android-files"
 import { useShellKind } from "@/phone/shell-choice"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
-import { CHART_DESIGN, EQUATION, HELP, PICTURE_FORMAT, SHAPE_FORMAT, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
+import {
+  CHART_DESIGN,
+  EQUATION,
+  HELP,
+  MODEL3D_FORMAT,
+  PICTURE_FORMAT,
+  SHAPE_FORMAT,
+  TABLE_DESIGN,
+  TABS,
+} from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
 import { whatsNewOnStart } from "@/about/release-notes"
@@ -130,6 +139,7 @@ const TABS_IN_CHART = [...TABS, CHART_DESIGN]
 const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
 const TABS_IN_EQUATION = [...TABS, SHAPE_FORMAT, EQUATION]
 const TABS_IN_PICTURE = [...TABS, PICTURE_FORMAT]
+const TABS_IN_MODEL3D = [...TABS, MODEL3D_FORMAT]
 
 type DialogState =
   | { kind: "goto" }
@@ -995,15 +1005,17 @@ function WorkbookWindow({
   const drawings = controller.objects.drawings()
   const ribbonTabs = controller.charts.active()
     ? TABS_IN_CHART
-    : drawings.length && drawings.every((o) => o.kind === "picture")
-      ? TABS_IN_PICTURE
-      : drawings.length
-        ? drawings.length === 1 && isEquation(drawings[0])
-          ? TABS_IN_EQUATION
-          : TABS_IN_SHAPE
-        : controller.tables.active()
-          ? TABS_IN_TABLE
-          : TABS
+    : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
+      ? TABS_IN_MODEL3D
+      : drawings.length && drawings.every((o) => o.kind === "picture")
+        ? TABS_IN_PICTURE
+        : drawings.length
+          ? drawings.length === 1 && isEquation(drawings[0])
+            ? TABS_IN_EQUATION
+            : TABS_IN_SHAPE
+          : controller.tables.active()
+            ? TABS_IN_TABLE
+            : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 

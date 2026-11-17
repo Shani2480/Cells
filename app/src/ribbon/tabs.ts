@@ -570,6 +570,45 @@ export const PICTURE_FORMAT: Tab = {
   ],
 }
 
+/** 3D Model, while a 3D model is selected (Excel's 3D Model tab, with its turns as fields beside the views). */
+export const MODEL3D_FORMAT: Tab = {
+  id: "TabModel3DFormat",
+  label: "3D Model",
+  keytip: "J3",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupModel3DAdjust",
+      label: "Adjust",
+      columns: [L("Model3DChange", "Change 3D Model"), L("Model3DReset", "Reset 3D Model")],
+    },
+    {
+      id: "GroupModel3DViews",
+      label: "3D Model Views",
+      columns: [
+        L("Model3DViewsGallery", "Views"),
+        stack(
+          [{ kind: "label", text: "X" }, F("Model3DRotationX")],
+          [{ kind: "label", text: "Y" }, F("Model3DRotationY")],
+          [{ kind: "label", text: "Z" }, F("Model3DRotationZ")],
+        ),
+      ],
+    },
+    { id: "GroupModel3DAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
+    {
+      id: "GroupArrange",
+      label: "Arrange",
+      columns: [
+        L("ObjectBringForwardMenu"),
+        L("ObjectSendBackwardMenu"),
+        L("SelectionPane", "Selection Pane"),
+        smalls(S("ObjectAlignMenu")),
+      ],
+    },
+    SIZE,
+  ],
+}
+
 /**
  * Table Design, while the active cell is in a table. Built from Excel 365 at a wide window (no reference screenshot
  * in docs/reference yet). External Table Data (Export, Refresh, Unlink…) is left out: Cells has no linked tables.

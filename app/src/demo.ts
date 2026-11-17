@@ -1,7 +1,17 @@
-import { BUILTIN_EQUATIONS, parseInput, parseRange, type CFEntry, type CellWrite, type Op, type StylePatch } from "@cells/core"
+import {
+  BUILTIN_EQUATIONS,
+  parseInput,
+  parseRange,
+  type CFEntry,
+  type CellWrite,
+  type Op,
+  type StylePatch,
+} from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
 import { embedDocument, OBJECT_ICON_SIZE } from "@/drawing/embed"
 import { SIGNATURE_SIZE, signatureDocument } from "@/drawing/signature"
+
+const loaded = new WeakSet<SheetController>()
 
 /**
  * Made-up data for trying the grid at scale: `?demo=100k` (100,000 rows × 20 columns) or `?demo=small`. Nothing
@@ -9,8 +19,12 @@ import { SIGNATURE_SIZE, signatureDocument } from "@/drawing/signature"
  */
 export function loadDemo(controller: SheetController, name: string | null) {
   if (!name) return
+  // Once per sheet: React runs the effect that loads it twice in development.
+  if (name !== "small" && loaded.has(controller)) return
+  loaded.add(controller)
   if (name === "formats") return formatsDemo(controller)
   if (name === "equations") return equationsDemo(controller)
+  if (name === "models") return void modelsDemo(controller)
   if (name === "objects") {
     formatsDemo(controller)
     return objectsDemo(controller)
@@ -334,6 +348,37 @@ function objectsDemo(c: SheetController) {
     c.objects.insertObject(embed, svg(embedDocument(embed, iw, ih, c.wb.theme)), OBJECT_ICON_SIZE)
   })
   at(0, 0)
+}
+
+/**
+ * Insert › 3D Models: two made-up models (built here with three.js, nothing read from a file): a ring knot seen
+ * from the front and a stack of coloured blocks turned to show three sides.
+ */
+async function modelsDemo(c: SheetController) {
+  const T = await import("three")
+  const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js")
+  const { newModel } = await import("@/drawing/model3d")
+  const glb = async (o: import("three").Object3D) =>
+    new Uint8Array((await new GLTFExporter().parseAsync(o, { binary: true })) as ArrayBuffer)
+  const knot = new T.Mesh(
+    new T.TorusKnotGeometry(1, 0.32, 160, 24),
+    new T.MeshStandardMaterial({ color: 0x2f7fd8, roughness: 0.35, metalness: 0.1 }),
+  )
+  const blocks = new T.Group()
+  const colors = [0xe0533d, 0xf2b134, 0x3fa66b, 0x3d7fd9]
+  colors.forEach((color, i) => {
+    const b = new T.Mesh(new T.BoxGeometry(2 - i * 0.4, 0.5, 2 - i * 0.4), new T.MeshStandardMaterial({ color }))
+    b.position.y = i * 0.5
+    blocks.add(b)
+  })
+  const a = await c.objects.insertModel3D(await newModel(await glb(knot)))
+  const b = await c.objects.insertModel3D(await newModel(await glb(blocks)))
+  if (a) c.objects.place(new Map([[a.id, { ...c.objects.box(a), x: 40, y: 30 }]]))
+  if (b) {
+    c.objects.place(new Map([[b.id, { ...c.objects.box(b), x: 420, y: 30 }]]))
+    await c.objects.setModelView(b.id, { rot: { x: 25, y: 35, z: 0 } }, "3D Model Views")
+  }
+  c.objects.select(null)
 }
 
 /** Insert › Equation: Office's built-in equations and one of each structure, in two columns. */

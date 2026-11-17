@@ -1,6 +1,16 @@
 import { renderChart } from "@cells/chart"
-import { isChart, plainText, type DrawingObject, type SheetChart, type SheetObject, type Theme } from "@cells/core"
+import {
+  isChart,
+  plainText,
+  type DrawingObject,
+  type Model3D,
+  type SheetChart,
+  type SheetObject,
+  type Theme,
+} from "@cells/core"
+import { Rotate3d } from "lucide-react"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { renderModel } from "@/drawing/model3d"
 import { canvasMeasure, objectAt, objectDocument } from "@/drawing/render"
 import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
@@ -15,6 +25,48 @@ type Handle = (typeof HANDLES)[number]
 const DRAG_START = 4
 /** The smallest object a drag makes (pixels at 100%). */
 const MIN_SIZE = 8
+
+/** Degrees a 3D model turns for each pixel dragged. */
+const TURN_PER_PIXEL = 0.5
+
+/**
+ * A 3D model drawn live while it's being turned: the whole view square around the frame's middle, so nothing is
+ * cut off before the frame fits the model again.
+ */
+function ModelPreview({ model, frame, zoom }: { model: Model3D; frame: ChartBox; zoom: number }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const latest = useRef(model)
+  latest.current = model
+  const busy = useRef(false)
+  const again = useRef(false)
+  useEffect(() => {
+    const draw = () => {
+      if (busy.current) {
+        again.current = true
+        return
+      }
+      busy.current = true
+      const m = latest.current
+      void renderModel(m, { box: { w: m.viewport, h: m.viewport }, into: canvas.current ?? undefined }).finally(() => {
+        busy.current = false
+        if (again.current) {
+          again.current = false
+          requestAnimationFrame(draw)
+        }
+      })
+    }
+    draw()
+  }, [model])
+  const side = model.viewport * zoom
+  return (
+    <canvas
+      ref={canvas}
+      className="model-preview"
+      style={{ left: (frame.w * zoom - side) / 2, top: (frame.h * zoom - side) / 2, width: side, height: side }}
+      aria-hidden
+    />
+  )
+}
 
 /** One object's picture: SVG markup at its size in sheet pixels, scaled by the view. */
 const Picture = memo(function Picture({
@@ -75,7 +127,9 @@ function resized(box: ChartBox, handle: Handle, dx: number, dy: number, keepRati
 
 type Gesture = {
   ids: number[]
-  handle: Handle | "move" | "rotate"
+  handle: Handle | "move" | "rotate" | "turn3d"
+  /** A 3D model's turn as the drag began. */
+  rot?: Model3D["rot"]
   x: number
   y: number
   boxes: Map<number, ChartBox>
@@ -106,6 +160,8 @@ export function ObjectLayer({
   const version = controller.version
   const objects = controller.objects
   const [drag, setDragState] = useState<{ boxes: Map<number, ChartBox>; rotation?: number } | null>(null)
+  // A 3D model being turned (kept until its new picture is in).
+  const [turn, setTurn] = useState<{ id: number; model: Model3D } | null>(null)
   const [draw, setDrawState] = useState<ChartBox | null>(null)
   // The latest drag and drawn box, for the pointer-up that may come before React draws them.
   const dragNow = useRef<typeof drag>(null)
@@ -119,6 +175,8 @@ export function ObjectLayer({
     setDrawState(d)
   }
   const gesture = useRef<Gesture | null>(null)
+  const turnNow = useRef(turn)
+  turnNow.current = turn
   const drawStart = useRef<{ x: number; y: number } | null>(null)
   const layer = useRef<HTMLDivElement>(null)
 
@@ -206,6 +264,11 @@ export function ObjectLayer({
       const frame = (event.currentTarget as HTMLElement).closest(".object-frame")!.getBoundingClientRect()
       center = { x: frame.left + frame.width / 2, y: frame.top + frame.height / 2 }
     }
+    if (handle === "turn3d" && !isChart(o) && o.kind === "picture" && o.model3d) {
+      gesture.current = { ids, handle, x: event.clientX, y: event.clientY, boxes, rot: o.model3d.rot, moved: false }
+      capture(event)
+      return
+    }
     gesture.current = {
       ids,
       handle,
@@ -218,6 +281,11 @@ export function ObjectLayer({
     }
     capture(event)
   }
+  // A 3D model keeps its proportions as it's sized (its picture is of the model, not stretched).
+  const isModel = (id: number) => {
+    const o = objects.find(id)
+    return !!o && !isChart(o) && o.kind === "picture" && !!o.model3d
+  }
   const move = (event: React.PointerEvent) => {
     const g = gesture.current
     if (!g) return
@@ -225,6 +293,19 @@ export function ObjectLayer({
     const dy = (event.clientY - g.y) / zoom
     if (!g.moved && Math.hypot(dx, dy) < DRAG_START / zoom) return
     g.moved = true
+    if (g.handle === "turn3d" && g.rot) {
+      // Across turns it about the up axis, up and down about the side axis (Shift: in 15° steps).
+      const step = (a: number) => (event.shiftKey ? Math.round(a / 15) * 15 : a)
+      const o = objects.find(g.ids[0]!)
+      if (!o || isChart(o) || o.kind !== "picture" || !o.model3d) return
+      const rot = {
+        ...g.rot,
+        x: step(g.rot.x + dy * zoom * TURN_PER_PIXEL),
+        y: step(g.rot.y + dx * zoom * TURN_PER_PIXEL),
+      }
+      setTurn({ id: o.id, model: { ...o.model3d, rot } })
+      return
+    }
     if (g.handle === "rotate" && g.center) {
       let angle = (Math.atan2(event.clientY - g.center.y, event.clientX - g.center.x) * 180) / Math.PI + 90
       if (event.shiftKey) angle = Math.round(angle / 15) * 15
@@ -237,7 +318,7 @@ export function ObjectLayer({
         id,
         g.handle === "move"
           ? { ...box, x: Math.max(0, box.x + dx), y: Math.max(0, box.y + dy) }
-          : resized(box, g.handle as Handle, ...turned(dx, dy, g.rotation ?? 0), event.shiftKey),
+          : resized(box, g.handle as Handle, ...turned(dx, dy, g.rotation ?? 0), event.shiftKey || isModel(id)),
       )
     }
     setDrag({ boxes })
@@ -246,6 +327,14 @@ export function ObjectLayer({
     const g = gesture.current
     const last = dragNow.current
     gesture.current = null
+    if (g?.handle === "turn3d") {
+      const t = turnNow.current
+      if (g.moved && t)
+        void objects.setModelView(t.id, { rot: t.model.rot }, "3D Rotation").finally(() => setTurn(null))
+      else setTurn(null)
+      if (objects.editing === null) onDone()
+      return
+    }
     if (g?.moved && last) {
       if (g.handle === "rotate" && last.rotation !== undefined) objects.rotate(last.rotation, true)
       else objects.place(last.boxes, g.handle === "move" ? "Move Object" : "Size")
@@ -292,9 +381,16 @@ export function ObjectLayer({
               else objects.startText(o.id)
             }}
           >
-            <div className="object-picture" style={flips ? { transform: flips.trim() } : undefined}>
+            <div
+              className="object-picture"
+              style={{
+                ...(flips ? { transform: flips.trim() } : {}),
+                ...(turn?.id === o.id ? { visibility: "hidden" } : {}),
+              }}
+            >
               <Picture svg={p.svg} w={p.box.w} h={p.box.h} className={isChart(o) ? "chart-svg" : "object-svg"} />
             </div>
+            {turn?.id === o.id ? <ModelPreview model={turn.model} frame={p.box} zoom={zoom} /> : null}
             {editing ? (
               <TextEditor
                 id={o.id}
@@ -317,7 +413,19 @@ export function ObjectLayer({
                   />
                 ))
               : null}
-            {single && !editing && !isChart(o) ? (
+            {single && !isChart(o) && o.kind === "picture" && o.model3d ? (
+              <span
+                className="model3d-turn"
+                title="Turn the 3D model: drag in any direction"
+                aria-label="3D rotation"
+                onPointerDown={(event) => begin(event, o, "turn3d")}
+                onPointerMove={move}
+                onPointerUp={end}
+              >
+                <Rotate3d size={22} strokeWidth={1.75} aria-hidden />
+              </span>
+            ) : null}
+            {single && !editing && !isChart(o) && !(o.kind === "picture" && o.model3d) ? (
               <span
                 className="object-rotate"
                 title="Rotate"

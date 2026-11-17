@@ -18,7 +18,10 @@ import {
   type SheetShape,
   type SignatureSetup,
   type EmbeddedFile,
+  type Model3D,
+  normalRotation,
 } from "@cells/core"
+import { renderModel } from "@/drawing/model3d"
 import { textSize } from "@/drawing/render"
 import { anchorOf, chartBox, type ChartBox } from "./charts"
 import type { SheetController } from "./controller"
@@ -276,6 +279,79 @@ export class ObjectCommands {
     return this.put(picture, "Insert Object") as SheetPicture
   }
 
+  /**
+   * Insert › 3D Models: the model (as Office sets up a new one) at the active cell, its frame fitted to it. Null
+   * where the model can't be drawn (no WebGL).
+   */
+  async insertModel3D(model: Model3D): Promise<SheetPicture | null> {
+    const pic = await renderModel(model)
+    if (!pic) return null
+    const id = this.nextId()
+    const { row, col } = this.c.selection.active
+    const x = this.c.sheet.cols.offset(col)
+    const y = this.c.sheet.rows.offset(row)
+    const picture: SheetPicture = {
+      kind: "picture",
+      id,
+      name: `3D Model ${id}`,
+      anchor: anchorOf(this.c.sheet, { x, y, w: pic.size.w, h: pic.size.h }),
+      src: pic.src,
+      model3d: model,
+      placement: "move",
+    }
+    const out = this.put(picture, "Insert 3D Model") as SheetPicture
+    this.c.shell.showTab?.("TabModel3DFormat")
+    return out
+  }
+
+  /** The selected 3D model, if one is selected alone. */
+  model(): (SheetPicture & { model3d: Model3D }) | null {
+    const p = this.picture()
+    return p?.model3d ? (p as SheetPicture & { model3d: Model3D }) : null
+  }
+
+  /**
+   * A 3D model's view changed (turned, a view from the gallery, Reset): drawn anew, its frame fitted to the model
+   * around the same middle (`keepSize`: the frame stays, the model scaled into it), as one undo step.
+   */
+  async setModelView(
+    id: number,
+    change: Partial<Pick<Model3D, "rot" | "viewport" | "data" | "xml">>,
+    label: string,
+    keepSize = false,
+  ): Promise<boolean> {
+    const o = this.find(id)
+    if (!o || isChart(o) || o.kind !== "picture" || !o.model3d) return false
+    const model: Model3D = { ...o.model3d, ...change }
+    if (change.rot) model.rot = normalRotation(change.rot)
+    const box = this.box(o)
+    // Kept size: the turned model scaled to fit the frame it has.
+    const pic = await renderModel(model, keepSize ? { box, fit: true } : {})
+    if (!pic) return false
+    model.viewport = pic.viewport
+    const size = keepSize ? box : pic.size
+    const next = { x: box.x + (box.w - size.w) / 2, y: box.y + (box.h - size.h) / 2, w: size.w, h: size.h }
+    const src = pic.src
+    return this.update(
+      label,
+      (x) => {
+        if (isChart(x) || x.kind !== "picture") return
+        x.model3d = model
+        x.src = src
+        x.anchor = anchorOf(this.c.sheet, { ...next, x: Math.max(0, next.x), y: Math.max(0, next.y) })
+      },
+      [id],
+    )
+  }
+
+  /** A 3D model's picture drawn again for the frame it has now (after it was sized), not a step of its own. */
+  private async redrawModel(o: SheetPicture & { model3d: Model3D }) {
+    const pic = await renderModel(o.model3d, { box: this.box(o) })
+    if (!pic || !this.list.includes(o)) return
+    o.src = pic.src
+    this.c.changed()
+  }
+
   /** Signature Setup on a line already there: new details and the picture drawn from them. */
   setSignature(id: number, setup: SignatureSetup, png: string): boolean {
     return this.update(
@@ -353,14 +429,27 @@ export class ObjectCommands {
 
   /** Moves or sizes objects to boxes (pixels at 100%), as one step. */
   place(boxes: Map<number, ChartBox>, label = "Move Object") {
+    const sized: number[] = []
     this.update(
       label,
       (o) => {
         const box = boxes.get(o.id)
-        if (box) o.anchor = anchorOf(this.c.sheet, box)
+        if (!box) return
+        const was = this.box(o)
+        o.anchor = anchorOf(this.c.sheet, box)
+        // A 3D model grows with its frame (its view square scaled), and is drawn again for it.
+        if (!isChart(o) && o.kind === "picture" && o.model3d && (box.w !== was.w || box.h !== was.h)) {
+          o.model3d = { ...o.model3d, viewport: o.model3d.viewport * Math.min(box.w / was.w, box.h / was.h) }
+          sized.push(o.id)
+        }
       },
       [...boxes.keys()],
     )
+    for (const id of sized) {
+      const o = this.find(id)
+      if (o && !isChart(o) && o.kind === "picture" && o.model3d)
+        void this.redrawModel(o as SheetPicture & { model3d: Model3D })
+    }
   }
 
   box(o: SheetObject): ChartBox {

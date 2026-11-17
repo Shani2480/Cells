@@ -156,6 +156,21 @@ export type SignatureSetup = {
 export const SIGNING_INSTRUCTIONS = "Before signing this document, verify that the content you are signing is correct."
 
 /**
+ * Insert › 3D Models: a model (glTF binary) and the view of it. Office keeps the camera, the model's scale and its
+ * lights in the file's `am3d:model3d` element (`xml`, kept and written back); Cells turns and zooms it.
+ */
+export type Model3D = {
+  /** The model as a .glb file. */
+  data: Uint8Array
+  /** Turned about x, y and z, in degrees (Format 3D Model › Rotation). */
+  rot: { x: number; y: number; z: number }
+  /** The view's square, pixels across: the model's size on the sheet follows it (Pan & Zoom). */
+  viewport: number
+  /** The model's `am3d:model3d` element as written (camera, scale, lights). */
+  xml?: string
+}
+
+/**
  * Insert › Object: a file embedded in the workbook, shown as its icon and name and opened in its own app. `src` is
  * the icon picture files carry.
  */
@@ -176,6 +191,8 @@ export type SheetPicture = ObjectBase & {
   embed?: EmbeddedFile
   /** A signature line (Insert › Signature Line): drawn from its setup. */
   signature?: SignatureSetup
+  /** A 3D model (Insert › 3D Models): `src` is its picture from its view. */
+  model3d?: Model3D
   /** The picture as a data URL ("data:image/png;base64,…"). */
   src: string
   /** An SVG picture (icons): drawn instead of `src`, which is its PNG for apps that can't show SVG. */
@@ -233,6 +250,7 @@ export function copyObject<T extends SheetObject>(o: T): T {
     if (p.line) out.line = copyLine(p.line)
     if (p.signature) out.signature = { ...p.signature }
     if (p.embed) out.embed = { ...p.embed }
+    if (p.model3d) out.model3d = { ...p.model3d, rot: { ...p.model3d.rot } }
   } else {
     const g = o as SheetGroup
     out.child = { ...g.child }
