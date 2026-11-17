@@ -5,6 +5,8 @@ import { DEFAULT_VIEW as DEFAULT_FILE_VIEW, type SheetView as FileSheetView } fr
 import {
   MAX_COLS,
   PROTECTED_MESSAGE,
+  breaksDataTable,
+  isDataTableInput,
   isLocked,
   protectionBlocks,
   structureBlocks,
@@ -221,6 +223,9 @@ function clearCellsOp(sheetIndex: number, sheet: Sheet, range: Range): Op {
   return { kind: "setCells", sheet: sheetIndex, cells }
 }
 
+/** Excel's message when an edit would change some of a What-If data table's cells. */
+const DATA_TABLE_MESSAGE = "Cannot change part of a data table."
+
 /**
  * The state and behaviour of one sheet view: selection, in-cell editing, scrolling, clipboard and every keyboard
  * command, on top of the core workbook. No React and no DOM: views subscribe and draw.
@@ -384,6 +389,10 @@ export class SheetController {
       return true
     }
     const sheets = this.wb.sheets
+    if (ops.some((op) => "sheet" in op && sheets[op.sheet] !== undefined && breaksDataTable(sheets[op.sheet], op))) {
+      this.shell.alert(DATA_TABLE_MESSAGE)
+      return true
+    }
     const blocked = ops.some((op) => {
       const sheet = "sheet" in op ? sheets[op.sheet] : undefined
       return sheet !== undefined && sheet.protection !== null && protectionBlocks(sheet, this.wb.styles, op)
@@ -602,6 +611,9 @@ export class SheetController {
     const { row, col } = this.selection.active
     const anchor = this.spillAnchorOf(row, col)
     if (anchor) return this.sheet.cells.input(anchor.row, anchor.col) ?? ""
+    const input = this.sheet.cells.input(row, col)
+    // A data table cell shows its TABLE formula in braces, as Excel does.
+    if (isDataTableInput(input)) return `{${input}}`
     return (
       this.sheet.cells.input(row, col) ??
       editTextFor(this.sheet.cells.value(row, col), this.wb.styles.get(this.sheet.styleAt(row, col)).numberFormat)
@@ -639,6 +651,10 @@ export class SheetController {
       return
     }
     const { row, col } = this.selection.active
+    if (isDataTableInput(this.sheet.cells.input(row, col))) {
+      this.shell.alert(DATA_TABLE_MESSAGE)
+      return
+    }
     const initial = text ?? (mode === "edit" ? this.formulaBarText() : "")
     this.edit = {
       row,

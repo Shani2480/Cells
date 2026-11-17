@@ -544,6 +544,7 @@ export class CalcEngine {
       dateSerial(now.getFullYear(), now.getMonth() + 1, now.getDate()) +
       (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds() / 1000) / 86_400
     setCurrentYear(now.getFullYear())
+    this.whatIfReaders.clear()
     this.circular = null
     const stack = [...dirty]
     let rounds = 0
@@ -622,7 +623,7 @@ export class CalcEngine {
     const circularBefore = this.circular
     this.circular = null
     try {
-      result = evaluateFormula(f.ast, ctx)
+      result = isDataTable(f.ast) ? this.dataTable(f, f.ast, this.ctx) : evaluateFormula(f.ast, ctx)
     } catch (error) {
       if (error instanceof NeedsValue) return error.formula
       throw error
@@ -635,6 +636,97 @@ export class CalcEngine {
     // A formula in a circular reference shows 0 (iterative calculation is off, as in a new Excel workbook).
     this.store(f, hitCircle ? 0 : result)
     return null
+  }
+
+  // ── What-If data tables ──────────────────────────────────────────────────────────────────────────────────────
+
+  /** Formulas that depend on a data table's input cells, worked out once per recalculation. */
+  private whatIfReaders = new Map<string, Set<Formula>>()
+
+  /**
+   * One cell of a What-If data table, {=TABLE(row input, column input)}, as Excel lays them out: the cells holding the
+   * same TABLE formula form a block; the row above it and the column left of it hold the values to try and the
+   * formulas to work out. The formula is worked out again with the input cell(s) taken as this cell's values; only
+   * the formulas that depend on an input are, privately (nothing is written to the sheet).
+   */
+  private dataTable(f: Formula, ast: Extract<Node, { type: "func" }>, ctx: FormulaContext): Value {
+    const inputOf = (node: Node | undefined): Area | null | "bad" => {
+      if (!node || node.type === "missing") return null
+      if (node.type !== "ref") return "bad"
+      const area = refArea(node, ctx)
+      return isError(area) || area.r0 !== area.r1 || area.c0 !== area.c1 ? "bad" : area
+    }
+    const rowIn = inputOf(ast.args[0])
+    const colIn = inputOf(ast.args[1])
+    if (rowIn === "bad" || colIn === "bad" || ast.args.length !== 2 || (!rowIn && !colIn)) return errorValue("#REF!")
+    let top = f.row
+    while (top > 0 && this.formulaAt(f.sheet, top - 1, f.col)?.text === f.text) top--
+    let left = f.col
+    while (left > 0 && this.formulaAt(f.sheet, f.row, left - 1)?.text === f.text) left--
+    if (top === 0 || left === 0) return errorValue("#REF!")
+    const read = (row: number, col: number) => {
+      ctx.dynamicReference({ sheet: f.sheet, r0: row, r1: row, c0: col, c1: col })
+      return ctx.cell(f.sheet, row, col)
+    }
+    const overrides = new Map<number, Scalar>()
+    let formula: { row: number; col: number }
+    if (rowIn && colIn) {
+      formula = { row: top - 1, col: left - 1 }
+      overrides.set(keyOf(rowIn.sheet, rowIn.r0, rowIn.c0), read(top - 1, f.col))
+      overrides.set(keyOf(colIn.sheet, colIn.r0, colIn.c0), read(f.row, left - 1))
+    } else if (colIn) {
+      formula = { row: top - 1, col: f.col }
+      overrides.set(keyOf(colIn.sheet, colIn.r0, colIn.c0), read(f.row, left - 1))
+    } else {
+      formula = { row: f.row, col: left - 1 }
+      overrides.set(keyOf(rowIn!.sheet, rowIn!.r0, rowIn!.c0), read(top - 1, f.col))
+    }
+    const plain = read(formula.row, formula.col)
+    const g = this.formulaAt(f.sheet, formula.row, formula.col)
+    const inputs = [rowIn, colIn].filter((a): a is Area => a !== null)
+    const readers = this.readersOfInputs(inputs)
+    if (!g || !readers.has(g)) return plain
+    const state: WhatIfState = { overrides, readers, memo: new Map(), visiting: new Set(), cache: new Map() }
+    return this.whatIfValue(g, state, ctx)
+  }
+
+  /** Every formula that depends on the input cells, data tables left out (they hold their own values). */
+  private readersOfInputs(inputs: Area[]): Set<Formula> {
+    const key = inputs.map((a) => keyOf(a.sheet, a.r0, a.c0)).join(",")
+    let out = this.whatIfReaders.get(key)
+    if (out) return out
+    out = new Set()
+    const queue: Formula[] = []
+    const add = (g: Formula) => {
+      if (out!.has(g) || isDataTable(g.ast)) return
+      out!.add(g)
+      queue.push(g)
+    }
+    for (const a of inputs) for (const g of this.readersOf(a)) add(g)
+    while (queue.length) {
+      const g = queue.pop()!
+      this.forEachReaderOfCell(g.sheet, g.row, g.col, add)
+    }
+    this.whatIfReaders.set(key, out)
+    return out
+  }
+
+  /** @internal A formula's value with the data table's inputs in place (WhatIfContext reads through it). */
+  whatIfValue(g: Formula, state: WhatIfState, base: FormulaContext): Scalar {
+    const known = state.memo.get(g)
+    if (known !== undefined) return known
+    if (state.visiting.has(g) || state.visiting.size > 256) return 0
+    if (!g.ast) return errorValue("#NAME?")
+    state.visiting.add(g)
+    let v: Value
+    try {
+      v = evaluateFormula(g.ast, new WhatIfContext(base, this, g, state))
+    } finally {
+      state.visiting.delete(g)
+    }
+    const scalar: Scalar = isMatrix(v) ? (v.data[0] ?? 0) : isRef(v) ? CALC : ((v as Scalar) ?? 0)
+    state.memo.set(g, scalar)
+    return scalar
   }
 
   private setDynamic(f: Formula, areas: Area[]) {
@@ -905,6 +997,107 @@ function sameValue(a: CellValue | undefined, b: CellValue | undefined) {
 }
 
 export { serialToDate }
+
+/** A data table cell: {=TABLE(row input, column input)}. */
+function isDataTable(ast: Node | null): ast is Extract<Node, { type: "func" }> {
+  return ast?.type === "func" && ast.name === "TABLE"
+}
+
+type WhatIfState = {
+  /** The input cells, by key, with the values tried. */
+  overrides: Map<number, Scalar>
+  /** Formulas that depend on the inputs: worked out again. The rest read as they are. */
+  readers: Set<Formula>
+  memo: Map<Formula, Scalar>
+  visiting: Set<Formula>
+  /** Lookup indexes for this evaluation only (the inputs change what they'd index). */
+  cache: Map<string, unknown>
+}
+
+/** Reads cells for one formula inside a data table's evaluation: inputs and the formulas that use them substituted. */
+class WhatIfContext implements EvalContext {
+  readonly sheet: number
+  readonly row: number
+  readonly col: number
+  readonly cache: Map<string, unknown>
+
+  constructor(
+    private readonly base: FormulaContext,
+    private readonly engine: CalcEngine,
+    at: { sheet: number; row: number; col: number },
+    private readonly state: WhatIfState,
+  ) {
+    this.sheet = at.sheet
+    this.row = at.row
+    this.col = at.col
+    this.cache = state.cache
+  }
+
+  private substitute(sheet: number, row: number, col: number): { value: Scalar } | null {
+    const k = keyOf(sheet, row, col)
+    if (this.state.overrides.has(k)) return { value: this.state.overrides.get(k)! }
+    const g = this.engine.formulaAt(sheet, row, col)
+    if (g && this.state.readers.has(g)) return { value: this.engine.whatIfValue(g, this.state, this.base) }
+    return null
+  }
+
+  cell(sheet: number, row: number, col: number): Scalar {
+    return this.substitute(sheet, row, col)?.value ?? this.base.cell(sheet, row, col)
+  }
+
+  values(area: Area, visit: (value: Scalar, row: number, col: number) => void) {
+    const seen = new Set<number>()
+    this.base.values(area, (value, row, col) => {
+      seen.add(keyOf(area.sheet, row, col))
+      const sub = this.substitute(area.sheet, row, col)
+      if (!sub) visit(value, row, col)
+      else if (sub.value !== null) visit(sub.value, row, col)
+    })
+    // An input that was blank still counts once it has a value.
+    for (const [k, value] of this.state.overrides) {
+      if (seen.has(k) || value === null) continue
+      const at = cellOfKey(k)
+      if (at.sheet === area.sheet && contains(area, at.sheet, at.row, at.col)) visit(value, at.row, at.col)
+    }
+  }
+
+  usedArea(area: Area) {
+    return this.base.usedArea(area)
+  }
+  sheetIndex(name: string) {
+    return this.base.sheetIndex(name)
+  }
+  sheetName(i: number) {
+    return this.base.sheetName(i)
+  }
+  sheetCount() {
+    return this.base.sheetCount()
+  }
+  defined(name: string, sheet: number) {
+    return this.base.defined(name, sheet)
+  }
+  spillArea(sheet: number, row: number, col: number) {
+    return this.base.spillArea(sheet, row, col)
+  }
+  isFormula(sheet: number, row: number, col: number) {
+    return this.base.isFormula(sheet, row, col)
+  }
+  formulaText(sheet: number, row: number, col: number) {
+    return this.base.formulaText(sheet, row, col)
+  }
+  now() {
+    return this.base.now()
+  }
+  random() {
+    return this.base.random()
+  }
+  isHiddenRow(sheet: number, row: number) {
+    return this.base.isHiddenRow(sheet, row)
+  }
+  tables() {
+    return this.base.tables()
+  }
+}
 
 const toScalar = (v: CellValue | undefined): Scalar => (v === undefined ? null : v)
 

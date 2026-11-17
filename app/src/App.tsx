@@ -41,7 +41,7 @@ import { CommentsPane } from "@/shell/CommentsPane"
 import { CreateNamesDialog, ErrorCheckingDialog, EvaluateFormulaDialog, NameManagerDialog } from "@/shell/AuditDialogs"
 import { WatchWindow } from "@/shell/WatchWindow"
 import { GroupDialog, OutlineSettingsDialog, SubtotalDialog } from "@/shell/OutlineDialogs"
-import { GoalSeekDialog } from "@/shell/WhatIfDialogs"
+import { DataTableDialog, GoalSeekDialog } from "@/shell/WhatIfDialogs"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
 import { FormulaBar } from "@/shell/FormulaBar"
 import { DefineNameDialog } from "@/shell/DefineNameDialog"
@@ -119,6 +119,7 @@ type DialogState =
         | "outlineSettings"
         | "subtotal"
         | "goalSeek"
+        | "dataTable"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
@@ -731,7 +732,8 @@ function WorkbookWindow({
       kind === "outlineUngroup" ||
       kind === "outlineSettings" ||
       kind === "subtotal" ||
-      kind === "goalSeek"
+      kind === "goalSeek" ||
+      kind === "dataTable"
     )
       setDialog({ kind })
   }
@@ -977,6 +979,7 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "subtotal" ? <SubtotalDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "goalSeek" ? <GoalSeekDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "dataTable" ? <DataTableDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "evaluateFormula" ? (
           <EvaluateFormulaDialog controller={controller} onClose={closeDialog} />
         ) : null}

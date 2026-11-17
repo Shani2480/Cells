@@ -1,5 +1,7 @@
 import type { CellValue } from "./values"
-import type { Op } from "./ops"
+import type { CellWrite, Op } from "./ops"
+import type { Range } from "./address"
+import type { Sheet } from "./sheet"
 import { Workbook } from "./workbook"
 
 /**
@@ -116,4 +118,110 @@ export function goalSeek(
   function done(b: { x: number; fx: number | null }, found: boolean, iterations: number): GoalSeekResult {
     return { value: b.x, result: b.fx === null ? null : b.fx + target, found, iterations }
   }
+}
+
+// ── Data tables ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The input of a What-If data table cell: =TABLE(row input, column input). */
+export const isDataTableInput = (input: string | undefined): input is string => !!input && /^=TABLE\(/i.test(input)
+
+/** The block of data table cells holding the same TABLE formula as the cell at row, col (or null if it holds none). */
+export function dataTableBlockAt(sheet: Sheet, row: number, col: number): Range | null {
+  const text = sheet.cells.input(row, col)
+  if (!isDataTableInput(text)) return null
+  const same = (r: number, c: number) => r >= 0 && c >= 0 && sheet.cells.input(r, c) === text
+  let r0 = row
+  while (same(r0 - 1, col)) r0--
+  let c0 = col
+  while (same(row, c0 - 1)) c0--
+  let r1 = row
+  while (same(r1 + 1, col)) r1++
+  let c1 = col
+  while (same(row, c1 + 1)) c1++
+  return { r0, c0, r1, c1 }
+}
+
+/**
+ * Whether an operation would change part of a data table ("Cannot change part of a data table."): writing some but
+ * not all of its cells, or inserting, deleting or moving cells through it. Writing or clearing a whole table is fine.
+ */
+export function breaksDataTable(sheet: Sheet, op: Op): boolean {
+  if (!("sheet" in op)) return false
+  switch (op.kind) {
+    case "setCells": {
+      let written: Set<string> | null = null
+      for (const w of op.cells) {
+        if (!isDataTableInput(sheet.cells.input(w.row, w.col))) continue
+        // A rewrite of the same TABLE formula (the Data Table dialog over an existing table) is fine.
+        if (w.data?.input === sheet.cells.input(w.row, w.col)) continue
+        const block = dataTableBlockAt(sheet, w.row, w.col)!
+        written ??= new Set(op.cells.map((c) => `${c.row},${c.col}`))
+        for (let r = block.r0; r <= block.r1; r++)
+          for (let c = block.c0; c <= block.c1; c++) if (!written.has(`${r},${c}`)) return true
+      }
+      return false
+    }
+    case "insertRows":
+    case "deleteRows":
+    case "insertCols":
+    case "deleteCols": {
+      const rows = op.kind === "insertRows" || op.kind === "deleteRows"
+      const deleting = op.kind === "deleteRows" || op.kind === "deleteCols"
+      return dataTableBlocks(sheet).some((b) => {
+        const [lo, hi] = rows ? [b.r0, b.r1] : [b.c0, b.c1]
+        // Inserting inside a table splits it; deleting part of it (but not all) breaks it.
+        if (!deleting) return op.at > lo && op.at <= hi
+        const end = op.at + op.count - 1
+        return op.at <= hi && end >= lo && !(op.at <= lo && end >= hi)
+      })
+    }
+    case "insertCells":
+    case "deleteCells":
+    case "moveCells": {
+      const area = op.kind === "moveCells" ? op.source : op.range
+      return dataTableBlocks(sheet).some(
+        (b) =>
+          b.r0 <= area.r1 &&
+          b.r1 >= area.r0 &&
+          b.c0 <= area.c1 &&
+          b.c1 >= area.c0 &&
+          !(area.r0 <= b.r0 && area.r1 >= b.r1 && area.c0 <= b.c0 && area.c1 >= b.c1),
+      )
+    }
+    default:
+      return false
+  }
+}
+
+/** Every data table block on the sheet. */
+export function dataTableBlocks(sheet: Sheet): Range[] {
+  const out: Range[] = []
+  sheet.cells.forEachFormula((row, col, input) => {
+    if (!isDataTableInput(input)) return
+    if (out.some((b) => row >= b.r0 && row <= b.r1 && col >= b.c0 && col <= b.c1)) return
+    out.push(dataTableBlockAt(sheet, row, col)!)
+  })
+  return out
+}
+
+/**
+ * Data › What-If Analysis › Data Table: the TABLE formula for the cells of `range` past its first row and column
+ * (the first row and column hold the formulas and the values to try). Null when the range is too small.
+ */
+export function dataTableOp(
+  sheet: Sheet,
+  sheetIndex: number,
+  range: Range,
+  rowInput: string | null,
+  colInput: string | null,
+): Op | null {
+  if (range.r1 <= range.r0 || range.c1 <= range.c0 || (!rowInput && !colInput)) return null
+  const input = `=TABLE(${rowInput ?? ""},${colInput ?? ""})`
+  const cells: CellWrite[] = []
+  for (let r = range.r0 + 1; r <= range.r1; r++)
+    for (let c = range.c0 + 1; c <= range.c1; c++) {
+      const style = sheet.cells.style(r, c)
+      cells.push({ row: r, col: c, data: { input, value: 0, ...(style ? { style } : {}) } })
+    }
+  return { kind: "setCells", sheet: sheetIndex, cells }
 }

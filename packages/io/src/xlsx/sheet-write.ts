@@ -177,6 +177,13 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
       }
     }
     const tAttr = t ? ` t="${t}"` : ""
+    if (formula && DATA_TABLE.test(formula)) {
+      // A What-If data table: the block's first cell carries <f t="dataTable">, the others only their values.
+      const block = dataTableBlock(sheet, row, col, formula)
+      const vXml = v !== "" ? `<v>${v}</v>` : ""
+      if (!block) return `<c r="${r}"${sAttr}${tAttr}>${vXml}</c>`
+      return `<c r="${r}"${sAttr}${tAttr}>${dataTableXml(formula, rangeRef(block))}${vXml}</c>`
+    }
     if (formula) {
       const spill = ctx.spills.get(`${row},${col}`)
       const spillError = isError(value) && value.error === "#SPILL!"
@@ -510,4 +517,27 @@ function withOutlineLevels(xml: string, rows: number, cols: number): string {
   const add = `${rows ? ` outlineLevelRow="${rows}"` : ""}${cols ? ` outlineLevelCol="${cols}"` : ""}`
   if (add) out = out.replace(/^(<(?:\w+:)?sheetFormatPr\b[^>]*?)(\s*\/?>)/, `$1${add}$2`)
   return out
+}
+
+const DATA_TABLE = /^=TABLE\(([^,()]*),([^,()]*)\)$/i
+
+/** The block of a data table whose first (top-left) cell this is, or null for the block's other cells. */
+function dataTableBlock(sheet: Sheet, row: number, col: number, formula: string): Range | null {
+  const same = (r: number, c: number) => r >= 0 && c >= 0 && sheet.cells.input(r, c) === formula
+  if (same(row - 1, col) || same(row, col - 1)) return null
+  let c1 = col
+  while (same(row, c1 + 1)) c1++
+  let r1 = row
+  while (same(r1 + 1, col)) r1++
+  return { r0: row, c0: col, r1, c1 }
+}
+
+function dataTableXml(formula: string, ref: string): string {
+  const [, rowIn, colIn] = DATA_TABLE.exec(formula)!
+  const attr = (name: string, cell: string, del: string) =>
+    cell.trim().toUpperCase() === "#REF!" ? ` ${del}="1"` : ` ${name}="${escapeXml(cell.trim().replace(/\$/g, ""))}"`
+  if (rowIn.trim() && colIn.trim())
+    return `<f t="dataTable" ref="${ref}" dt2D="1" dtr="1"${attr("r1", rowIn, "del1")}${attr("r2", colIn, "del2")}/>`
+  if (rowIn.trim()) return `<f t="dataTable" ref="${ref}" dt2D="0" dtr="1"${attr("r1", rowIn, "del1")}/>`
+  return `<f t="dataTable" ref="${ref}" dt2D="0" dtr="0"${attr("r1", colIn, "del1")}/>`
 }

@@ -182,7 +182,17 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let cellType = ""
   let cellStyle = 0
   let cellMeta = false
-  let fAttrs: { t?: string; ref?: string; si?: string } | null = null
+  let fAttrs: {
+    t?: string
+    ref?: string
+    si?: string
+    dt2D?: string
+    dtr?: string
+    r1?: string
+    r2?: string
+    del1?: string
+    del2?: string
+  } | null = null
   let fText = ""
   let vText = ""
   let isText = ""
@@ -190,6 +200,8 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let inIs = false
   const shared = new Map<string, { row: number; col: number; formula: string }>()
   const arrays: Range[] = []
+  /** What-If data tables: only the first cell has the <f>; every cell of the block gets the TABLE formula. */
+  const dataTables: { range: Range; formula: string }[] = []
   let lastRow = -1
 
   const inArray = (r: number, c: number) => {
@@ -215,7 +227,11 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
           if (master) formula = copyFormula(master.formula, row - master.row, col - master.col)
         }
       } else if (t === "dataTable") {
-        warnings.push("What-If data tables ({=TABLE()}) aren't supported; their values are kept as numbers.")
+        const range = fAttrs.ref ? parseRange(fAttrs.ref) : null
+        if (range) {
+          formula = dataTableFormula(fAttrs)
+          dataTables.push({ range, formula })
+        }
       } else if (fText) formula = formulaFromFile(fText)
       if (t === "array" && fAttrs.ref) {
         const r = parseRange(fAttrs.ref)
@@ -224,6 +240,10 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
           dynamic = true
         }
       }
+    }
+    if (!formula && dataTables.length) {
+      const table = dataTables.find(({ range: r }) => row >= r.r0 && row <= r.r1 && col >= r.c0 && col <= r.c1)
+      if (table) formula = table.formula
     }
     // A spilled cell belongs to its array formula: the calculation fills it.
     if (!formula && arrays.length && inArray(row, col)) {
@@ -328,6 +348,15 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         inIs = false
       } else if (local === "f") {
         fAttrs = { t: attr("t"), ref: attr("ref"), si: attr("si") }
+        if (fAttrs.t === "dataTable")
+          Object.assign(fAttrs, {
+            dt2D: attr("dt2D"),
+            dtr: attr("dtr"),
+            r1: attr("r1"),
+            r2: attr("r2"),
+            del1: attr("del1"),
+            del2: attr("del2"),
+          })
         capture = "f"
       } else if (local === "v") capture = "v"
       else if (local === "is") inIs = true
@@ -729,3 +758,22 @@ function colorOf(n: XNode | undefined, styles: StylesIn | null): string | null {
 
 const truthy = (v: string | undefined) => v === "1" || v === "true"
 const falsy = (v: string | undefined) => v === "0" || v === "false"
+
+/**
+ * The TABLE formula of a What-If data table's <f t="dataTable">: =TABLE(row input, column input). Two inputs: r1 is
+ * the row input, r2 the column input. One: r1, a row input when dtr is set.
+ */
+export function dataTableFormula(f: {
+  dt2D?: string
+  dtr?: string
+  r1?: string
+  r2?: string
+  del1?: string
+  del2?: string
+}): string {
+  const on = (v?: string) => v === "1" || v === "true"
+  const r1 = on(f.del1) ? "#REF!" : (f.r1 ?? "")
+  const r2 = on(f.del2) ? "#REF!" : (f.r2 ?? "")
+  if (on(f.dt2D)) return `=TABLE(${r1},${r2})`
+  return on(f.dtr) ? `=TABLE(${r1},)` : `=TABLE(,${r1})`
+}

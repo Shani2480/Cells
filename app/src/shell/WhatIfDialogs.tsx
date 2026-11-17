@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { goalSeek, parseCell, type GoalSeekResult } from "@cells/core"
+import { dataTableOp, goalSeek, parseCell, type GoalSeekResult } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
 import { Dialog } from "./Dialog"
 
@@ -83,7 +83,14 @@ export function GoalSeekDialog({ controller, onClose }: { controller: SheetContr
         <label className="dialog-label" htmlFor="goal-set">
           S<u>e</u>t cell:
         </label>
-        <input id="goal-set" className="dialog-field" value={setText} onChange={(e) => setSetText(e.target.value)} />
+        <input
+          id="goal-set"
+          className="dialog-field"
+          autoFocus
+          onFocus={(e) => e.target.select()}
+          value={setText}
+          onChange={(e) => setSetText(e.target.value)}
+        />
         <label className="dialog-label" htmlFor="goal-to">
           To <u>v</u>alue:
         </label>
@@ -92,6 +99,55 @@ export function GoalSeekDialog({ controller, onClose }: { controller: SheetContr
           By <u>c</u>hanging cell:
         </label>
         <input id="goal-by" className="dialog-field" value={changing} onChange={(e) => setChanging(e.target.value)} />
+      </div>
+    </Dialog>
+  )
+}
+
+/**
+ * Data › What-If Analysis › Data Table: the selection's first row and column hold the values to try and the formulas;
+ * the cells past them get {=TABLE(row input, column input)} and show each formula's result for each value.
+ */
+export function DataTableDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
+  const [rowText, setRowText] = useState("")
+  const [colText, setColText] = useState("")
+  const run = () => {
+    const ranges = controller.selection.ranges
+    const range = ranges[ranges.length - 1]
+    if (ranges.length !== 1 || range.r1 <= range.r0 || range.c1 <= range.c0)
+      return controller.shell.alert("Selection not valid.")
+    const input = (text: string) => {
+      if (!text.trim()) return null
+      const at = cellOnSheet(controller, text)
+      return at ? `${columnLetter(at.col)}${at.row + 1}` : "bad"
+    }
+    const rowIn = input(rowText)
+    const colIn = input(colText)
+    if (rowIn === "bad" || colIn === "bad" || (!rowIn && !colIn))
+      return controller.shell.alert("Input cell reference is not valid.")
+    const op = dataTableOp(controller.sheet, controller.sheetIndex, range, rowIn, colIn)
+    if (!op) return controller.shell.alert("Selection not valid.")
+    const sel = controller.selection
+    controller.transact([op], { label: "Data Table", before: sel, after: sel })
+    onClose()
+  }
+  return (
+    <Dialog title="Data Table" onCancel={onClose} onAccept={run} width={300}>
+      <div className="goal-seek-fields">
+        <label className="dialog-label" htmlFor="table-row">
+          <u>R</u>ow input cell:
+        </label>
+        <input
+          id="table-row"
+          className="dialog-field"
+          autoFocus
+          value={rowText}
+          onChange={(e) => setRowText(e.target.value)}
+        />
+        <label className="dialog-label" htmlFor="table-col">
+          <u>C</u>olumn input cell:
+        </label>
+        <input id="table-col" className="dialog-field" value={colText} onChange={(e) => setColText(e.target.value)} />
       </div>
     </Dialog>
   )

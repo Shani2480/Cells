@@ -333,7 +333,38 @@ export function printing(): Workbook {
   return done(wb)
 }
 
+/** What-If Analysis: a loan payment with a one-input and a two-input data table. */
+export function whatIf(): Workbook {
+  const wb = new Workbook(["Loan"])
+  const s = wb.sheets[0]
+  const put = (row: number, col: number, v: string | number) =>
+    s.cells.set(row, col, typeof v === "string" && v.startsWith("=") ? { input: v, value: 0 } : { value: v })
+  put(0, 0, "Rate")
+  put(0, 1, 0.05)
+  put(1, 0, "Months")
+  put(1, 1, 60)
+  put(2, 0, "Amount")
+  put(2, 1, 10000)
+  put(3, 0, "Payment")
+  put(3, 1, "=PMT(B1/12,B2,-B3)")
+  // One input: rates down D2:D5, the payment for each in E2:E5.
+  put(0, 4, "=B4")
+  ;[0.03, 0.04, 0.05, 0.06].forEach((r, i) => {
+    put(i + 1, 3, r)
+    put(i + 1, 4, "=TABLE(,B1)")
+  })
+  // Two inputs: amounts across H1:J1, months down G2:G4.
+  put(0, 6, "=B4")
+  ;[5000, 10000, 15000].forEach((a, i) => put(0, 7 + i, a))
+  ;[36, 48, 60].forEach((m, i) => {
+    put(i + 1, 6, m)
+    for (let c = 0; c < 3; c++) put(i + 1, 7 + c, "=TABLE(B3,B2)")
+  })
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  whatIf,
   budget,
   formats,
   conditional,

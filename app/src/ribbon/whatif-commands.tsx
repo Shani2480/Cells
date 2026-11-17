@@ -1,20 +1,26 @@
 import type { Command } from "./registry"
 
-/** Data › Forecast › What-If Analysis. (Scenario Manager and Data Table come with Part 4's next steps.) */
+/** Data › Forecast › What-If Analysis. */
 export function whatIfCommands(): Command[] {
   return [
     {
       id: "WhatIfAnalysisMenu",
       label: "What-If Analysis",
       description: "Try out various values for the formulas in the sheet.",
-      run: (env) => env.dialog("goalSeek"),
-      menu: ["GoalSeek"],
+      menu: ["GoalSeek", "DataTable"],
     },
     {
       id: "GoalSeek",
       label: "Goal Seek...",
       description: "Find the right input for the value you want.",
       run: (env) => env.dialog("goalSeek"),
+    },
+    {
+      id: "DataTable",
+      label: "Data Table...",
+      description:
+        "See the results of a formula for several values at once: put the values in the first row or column of the selection.",
+      run: (env) => env.dialog("dataTable"),
     },
   ]
 }

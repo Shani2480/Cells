@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { SheetController } from "@/sheet/controller"
-import { GoalSeekDialog } from "./WhatIfDialogs"
+import { DataTableDialog, GoalSeekDialog } from "./WhatIfDialogs"
 
 function setup(cells: [number, number, string][]) {
   const c = new SheetController()
@@ -47,5 +47,49 @@ describe("Goal Seek", () => {
     fireEvent.change(screen.getByLabelText("By changing cell:"), { target: { value: "A2" } })
     fireEvent.click(screen.getByRole("button", { name: "OK" }))
     expect(alert).toHaveBeenCalledWith("Cell must contain a formula.")
+  })
+})
+
+describe("Data Table", () => {
+  it("fills the selection with TABLE, shows braces in the formula bar and refuses a part edit", () => {
+    // A1 rate, A2 = A1*100; D1 = A2; C2:C3 rates to try.
+    const c = setup([
+      [0, 0, "0.1"],
+      [1, 0, "=A1*100"],
+      [0, 3, "=A2"],
+      [1, 2, "0.2"],
+      [2, 2, "0.3"],
+    ])
+    const alert = vi.fn()
+    c.shell = { ...c.shell, alert }
+    c.goTo({ r0: 0, c0: 2, r1: 2, c1: 3 })
+    const close = vi.fn()
+    render(<DataTableDialog controller={c} onClose={close} />)
+    fireEvent.change(screen.getByLabelText("Column input cell:"), { target: { value: "$A$1" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    expect(close).toHaveBeenCalled()
+    c.wb.calculate(true)
+    expect([c.sheet.cells.value(1, 3), c.sheet.cells.value(2, 3)]).toEqual([20, 30])
+    c.goTo({ r0: 1, c0: 3, r1: 1, c1: 3 })
+    expect(c.formulaBarText()).toBe("{=TABLE(,A1)}")
+    c.beginEdit("enter", "5")
+    expect(alert).toHaveBeenCalledWith("Cannot change part of a data table.")
+    expect(c.edit).toBeNull()
+    c.clearContents()
+    expect(c.sheet.cells.input(1, 3)).toBe("=TABLE(,A1)")
+    c.goTo({ r0: 1, c0: 3, r1: 2, c1: 3 })
+    c.clearContents()
+    expect(c.sheet.cells.input(1, 3)).toBeUndefined()
+  })
+
+  it("needs a selection of two rows and two columns, and an input cell", () => {
+    const c = setup([[0, 0, "1"]])
+    const alert = vi.fn()
+    c.shell = { ...c.shell, alert }
+    c.goTo({ r0: 0, c0: 0, r1: 3, c1: 0 })
+    render(<DataTableDialog controller={c} onClose={() => undefined} />)
+    fireEvent.change(screen.getByLabelText("Row input cell:"), { target: { value: "B1" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    expect(alert).toHaveBeenCalledWith("Selection not valid.")
   })
 })

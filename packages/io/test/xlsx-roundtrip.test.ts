@@ -109,3 +109,49 @@ describe("outlines in .xlsx", () => {
     expect(again.match(/outlineLevel="2"/g)).toHaveLength(1)
   })
 })
+
+describe("What-If data tables", () => {
+  it('writes <f t="dataTable"> on the block\'s first cell and reads every cell back as TABLE', async () => {
+    const { Workbook } = await import("@cells/core")
+    const wb = new Workbook(["Sheet1"])
+    const cells: { row: number; col: number; data: { input?: string; value: number } }[] = [
+      { row: 0, col: 0, data: { value: 1 } },
+      { row: 1, col: 0, data: { value: 1 } },
+      { row: 2, col: 0, data: { input: "=A1*A2", value: 1 } },
+      { row: 0, col: 2, data: { input: "=A3", value: 1 } },
+      { row: 0, col: 3, data: { value: 2 } },
+      { row: 0, col: 4, data: { value: 3 } },
+      { row: 1, col: 2, data: { value: 10 } },
+      { row: 2, col: 2, data: { value: 100 } },
+      { row: 4, col: 0, data: { input: "=A3*2", value: 2 } },
+      { row: 5, col: 0, data: { value: 5 } },
+      { row: 5, col: 1, data: { input: "=TABLE(,A1)", value: 0 } },
+    ]
+    for (const [row, col] of [
+      [1, 3],
+      [1, 4],
+      [2, 3],
+      [2, 4],
+    ])
+      cells.push({ row, col, data: { input: "=TABLE(A1,A2)", value: 0 } })
+    // A one-input table: the formula above it (B5), the value to try left of it (A6).
+    cells.push({ row: 4, col: 1, data: { input: "=A5", value: 2 } })
+    wb.transact([{ kind: "setCells", sheet: 0, cells }], { label: "Load", history: false })
+    wb.calculate(true)
+    const bytes = await saveXlsx(wb)
+    const entries = await readZip(bytes)
+    const sheet = new TextDecoder().decode(entries.find((e) => e.normalizedName === "xl/worksheets/sheet1.xml")!.data)
+    expect(sheet).toContain(`<c r="D2"><f t="dataTable" ref="D2:E3" dt2D="1" dtr="1" r1="A1" r2="A2"/><v>20</v></c>`)
+    expect(sheet).toContain(`<c r="E3"><v>300</v></c>`)
+    expect(sheet).toContain(`<c r="B6"><f t="dataTable" ref="B6" dt2D="0" dtr="0" r1="A1"/><v>10</v></c>`)
+    const back = (await openXlsx(bytes)).workbook
+    const s = back.sheets[0]
+    expect(s.cells.input(2, 4)).toBe("=TABLE(A1,A2)")
+    expect(s.cells.input(5, 1)).toBe("=TABLE(,A1)")
+    back.calculate(true)
+    expect([s.cells.value(1, 3), s.cells.value(1, 4), s.cells.value(2, 3), s.cells.value(2, 4)]).toEqual([
+      20, 30, 200, 300,
+    ])
+    expect(s.cells.value(5, 1)).toBe(10)
+  })
+})
