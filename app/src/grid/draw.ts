@@ -2,7 +2,16 @@ import { columnName, isWholeColumns, isWholeRows, rangeIntersection, type Range 
 import type { SheetController } from "@/sheet/controller"
 import type { Measure } from "./cell-look"
 import { drawCells } from "./draw-cells"
-import { colX, fillHandleRect, rangeRect, rowY, selectionGrippers, type GridLayout } from "./layout"
+import {
+  colX,
+  fillHandleRect,
+  rangeRect,
+  rowY,
+  selectionGrippers,
+  SPLIT_BAR,
+  type GridLayout,
+  type Line,
+} from "./layout"
 import { GRIPPER_RADIUS } from "./touch"
 import { CELL_FONT, type GridTheme } from "./theme"
 
@@ -72,8 +81,14 @@ export function drawGrid(options: DrawOptions) {
   }
   drawHeaders(options)
 
-  // Frozen panes: a thin dark line where the frozen rows and columns end, across headers and cells (Excel).
-  if (layout.frozen) {
+  // Split panes: a grey bar between the panes, across headers and cells (Excel).
+  if (layout.frozen?.split) {
+    p.fillStyle = theme.splitBar
+    const half = SPLIT_BAR / 2
+    if (layout.originY > layout.headerHeight) p.fillRect(0, layout.originY - half, layout.width, SPLIT_BAR)
+    if (layout.originX > layout.rowHeaderWidth) p.fillRect(layout.originX - half, 0, SPLIT_BAR, layout.height)
+  } else if (layout.frozen) {
+    // Frozen panes: a thin dark line where the frozen rows and columns end, across headers and cells (Excel).
     p.strokeStyle = theme.freezeLine
     p.lineWidth = 1
     p.beginPath()
@@ -354,13 +369,11 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
   p.fillStyle = theme.headerBackground
   p.fillRect(rowHeaderWidth, 0, width - rowHeaderWidth, headerHeight)
   p.textAlign = "center"
-  const frozenCol = layout.frozen?.col ?? 0
-  const frozenRow = layout.frozen?.row ?? 0
   /** The part of the header row (or column) a line belongs to: frozen lines don't scroll under the others. */
-  const colBand = (index: number) => (index < frozenCol ? [rowHeaderWidth, layout.originX] : [layout.originX, width])
-  const rowBand = (index: number) => (index < frozenRow ? [headerHeight, layout.originY] : [layout.originY, height])
+  const colBand = (line: Line) => (line.frozen ? [rowHeaderWidth, layout.originX] : [layout.originX, width])
+  const rowBand = (line: Line) => (line.frozen ? [headerHeight, layout.originY] : [layout.originY, height])
   for (const col of layout.cols) {
-    const [b0, b1] = colBand(col.index)
+    const [b0, b1] = colBand(col)
     p.save()
     p.beginPath()
     p.rect(b0, 0, b1 - b0, headerHeight)
@@ -390,7 +403,7 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
   p.fillStyle = theme.headerBackground
   p.fillRect(0, headerHeight, rowHeaderWidth, height - headerHeight)
   for (const row of layout.rows) {
-    const [b0, b1] = rowBand(row.index)
+    const [b0, b1] = rowBand(row)
     p.save()
     p.beginPath()
     p.rect(0, b0, rowHeaderWidth, b1 - b0)
@@ -426,14 +439,14 @@ function drawHeaders({ painter: p, layout, controller, theme }: DrawOptions) {
   p.beginPath()
   for (const col of layout.cols) {
     const x = Math.round(col.start + col.size) - 0.5
-    const [b0, b1] = colBand(col.index)
+    const [b0, b1] = colBand(col)
     if (x < b0 || x > b1) continue
     p.moveTo(x, 0)
     p.lineTo(x, headerHeight)
   }
   for (const row of layout.rows) {
     const y = Math.round(row.start + row.size) - 0.5
-    const [b0, b1] = rowBand(row.index)
+    const [b0, b1] = rowBand(row)
     if (y < b0 || y > b1) continue
     p.moveTo(0, y)
     p.lineTo(rowHeaderWidth, y)

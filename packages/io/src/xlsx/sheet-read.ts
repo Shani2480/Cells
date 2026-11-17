@@ -40,6 +40,11 @@ import { colWidthToPx, pointsToPx } from "./units"
 export type SheetView = {
   /** Frozen panes as Cells keeps them: first unfrozen row and column, and the top-left cell when frozen. */
   freeze: { row: number; col: number; top: number; left: number } | null
+  /**
+   * Split panes: the left and top panes' size in pixels at 100% (the file keeps twips, 15 to a pixel), and the
+   * top-left pane's first cell. `topLeft` is then the bottom-right pane's first cell.
+   */
+  split?: { width: number; height: number; topLeft: { row: number; col: number } } | null
   zoom: number
   showGridlines: boolean
   showHeadings: boolean
@@ -572,6 +577,9 @@ function dropConditionalExt(source: string): string {
   return /<(\w+:)?ext\b/.test(out) ? out : ""
 }
 
+/** Split positions are kept in twips (1/20 pt); a pixel at 100% is 0.75 pt. */
+export const TWIPS_PER_PIXEL = 15
+
 function readView(root: XNode, warnings: string[]): SheetView {
   const v = kid(root, "sheetView")
   if (!v) return { ...DEFAULT_VIEW }
@@ -582,13 +590,16 @@ function readView(root: XNode, warnings: string[]): SheetView {
   const topLeft = cell(at(v, "topLeftCell"))
   const pane = kid(v, "pane")
   let freeze: SheetView["freeze"] = null
+  let split: SheetView["split"] = null
   if (pane) {
     const state = at(pane, "state")
     const xs = Math.round(Number(at(pane, "xSplit") ?? 0))
     const ys = Math.round(Number(at(pane, "ySplit") ?? 0))
     if (state === "frozen" || state === "frozenSplit")
       freeze = { row: topLeft.row + ys, col: topLeft.col + xs, top: topLeft.row, left: topLeft.col }
-    else warnings.push("Split panes aren't supported yet; the sheet opens without them.")
+    else if (xs > 0 || ys > 0)
+      split = { width: Math.round(xs / TWIPS_PER_PIXEL), height: Math.round(ys / TWIPS_PER_PIXEL), topLeft }
+    void warnings
   }
   const selections = kids(v, "selection")
   const sel = selections.find((s) => at(s, "pane") === at(pane, "activePane")) ?? selections[selections.length - 1]
@@ -600,15 +611,18 @@ function readView(root: XNode, warnings: string[]): SheetView {
   const zoom = Number(at(v, "zoomScale") ?? 100)
   return {
     freeze,
+    split,
     zoom: zoom > 0 ? zoom / 100 : 1,
     showGridlines: at(v, "showGridLines") !== "0" && at(v, "showGridLines") !== "false",
     showHeadings: at(v, "showRowColHeaders") !== "0" && at(v, "showRowColHeaders") !== "false",
-    topLeft: freeze
-      ? {
-          row: Math.max(freeze.row, cell(at(pane, "topLeftCell")).row),
-          col: Math.max(freeze.col, cell(at(pane, "topLeftCell")).col),
-        }
-      : topLeft,
+    topLeft: split
+      ? cell(at(pane, "topLeftCell") ?? at(v, "topLeftCell"))
+      : freeze
+        ? {
+            row: Math.max(freeze.row, cell(at(pane, "topLeftCell")).row),
+            col: Math.max(freeze.col, cell(at(pane, "topLeftCell")).col),
+          }
+        : topLeft,
     active,
     selection: ranges.length ? ranges : [{ r0: active.row, c0: active.col, r1: active.row, c1: active.col }],
     selected: at(v, "tabSelected") === "1" || at(v, "tabSelected") === "true",

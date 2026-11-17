@@ -1,6 +1,6 @@
 import { linkCommands } from "./link-commands"
 import { pageLayoutCommands } from "./page-layout-commands"
-import { Calculator, CircleHelp, Eye, Scan, Snowflake, Sparkles, Table2, ZoomIn } from "lucide-react"
+import { Calculator, CircleHelp, Columns2, Eye, Scan, Snowflake, Sparkles, Table2, ZoomIn } from "lucide-react"
 import labels from "./excel-labels.json"
 import { conditionalCommands } from "./cf-commands"
 import { homeCommands } from "./home-commands"
@@ -174,6 +174,16 @@ function otherCommands(): Command[] {
         "ViewFreezeTopRow",
         "ViewFreezeFirstColumn",
       ],
+    },
+    {
+      id: "WindowSplitToggle",
+      label: "Split",
+      description:
+        "Divide the window into different panes that each scroll separately. Click Split again, or double-click a split bar, to remove it.",
+      keytip: "S",
+      icon: <Columns2 {...small} />,
+      run: (env) => env.c.toggleSplit(),
+      pressed: (env) => env.c.split !== null,
     },
     {
       id: "ViewFreezePanes",

@@ -20,6 +20,8 @@ export type GridTheme = {
   spillBorder: string
   /** Where frozen rows and columns end. */
   freezeLine: string
+  /** The bar between split panes. */
+  splitBar: string
   /** Page breaks once the sheet has been paged (dashed). */
   pageBreak: string
   /** The corner marks of a note (red) and a comment (purple). */
@@ -48,6 +50,7 @@ const TOKENS: Record<Exclude<keyof GridTheme, "refColors">, string> = {
   cornerTriangle: "--grid-corner-triangle",
   spillBorder: "--grid-spill-border",
   freezeLine: "--grid-freeze-line",
+  splitBar: "--grid-split-bar",
   pageBreak: "--grid-page-break",
   noteMark: "--grid-note-mark",
   commentMark: "--grid-comment-mark",
@@ -73,6 +76,7 @@ export const LIGHT_THEME: GridTheme = {
   cornerTriangle: "#b8b8b8",
   spillBorder: "#4a7bd0",
   freezeLine: "#9e9e9e",
+  splitBar: "#c8c8c8",
   pageBreak: "#6e6e6e",
   noteMark: "#e00000",
   commentMark: "#8a3fd1",

@@ -129,6 +129,13 @@ export type ClipState = { range: Range; cut: boolean; text: string; block: CellB
  */
 export type Freeze = { row: number; col: number; top: number; left: number }
 
+/**
+ * View › Split: the window in two or four panes that scroll on their own. `width` and `height` are the left and top
+ * panes' size in sheet pixels (0: no split that way); `scrollX` / `scrollY` are where those panes are scrolled to.
+ * The bottom-right pane is the controller's own scroll.
+ */
+export type Split = { width: number; height: number; scrollX: number; scrollY: number }
+
 /** Excel's zoom range. */
 export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 4
@@ -139,6 +146,7 @@ type SheetView = {
   scrollX: number
   scrollY: number
   freeze: Freeze | null
+  split: Split | null
   zoom: number
   showGridlines: boolean
   showHeadings: boolean
@@ -214,6 +222,8 @@ export const LARGE_HEADER_HEIGHT = 30
 const FIT_KEYS = new Set(["fontSize", "fontName", "wrap", "rotation", "indent", "numberFormat"])
 /** Edits touching more rows than this don't refit rows (see fitRows). */
 const FIT_LIMIT = 20_000
+/** The smallest pane a split leaves (sheet pixels); a split bar dragged closer to an edge goes away. */
+export const SPLIT_MIN = 24
 
 /** Today as a date serial (local time), for "A Date Occurring" rules. */
 export function todaySerial(): number {
@@ -245,6 +255,8 @@ export class SheetController {
   showFormulas = false
   /** View › Freeze Panes (per sheet). */
   freeze: Freeze | null = null
+  /** View › Split (per sheet); never together with frozen panes. */
+  split: Split | null = null
   /** View › Zoom: 1 is 100% (per sheet). */
   zoom = 1
   /** View › Gridlines. */
@@ -449,6 +461,7 @@ export class SheetController {
         scrollX: this.scrollX,
         scrollY: this.scrollY,
         freeze: this.freeze,
+        split: this.split,
         zoom: this.zoom,
         showGridlines: this.showGridlines,
         showHeadings: this.showHeadings,
@@ -459,6 +472,7 @@ export class SheetController {
     this.scrollX = view?.scrollX ?? 0
     this.scrollY = view?.scrollY ?? 0
     this.freeze = view?.freeze ?? null
+    this.split = view?.split ?? null
     this.zoom = view?.zoom ?? 1
     this.showGridlines = view?.showGridlines ?? true
     this.showHeadings = view?.showHeadings ?? true
@@ -489,6 +503,14 @@ export class SheetController {
         scrollX: sheet.cols.offset(v.topLeft.col),
         scrollY: sheet.rows.offset(v.topLeft.row),
         freeze: v.freeze,
+        split: v.split
+          ? {
+              width: v.split.width,
+              height: v.split.height,
+              scrollX: sheet.cols.offset(v.split.topLeft.col),
+              scrollY: sheet.rows.offset(v.split.topLeft.row),
+            }
+          : null,
         zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom)),
         showGridlines: v.showGridlines,
         showHeadings: v.showHeadings,
@@ -512,6 +534,7 @@ export class SheetController {
             scrollX: this.scrollX,
             scrollY: this.scrollY,
             freeze: this.freeze,
+            split: this.split,
             zoom: this.zoom,
             showGridlines: this.showGridlines,
             showHeadings: this.showHeadings,
@@ -520,6 +543,13 @@ export class SheetController {
       if (!v) return { ...DEFAULT_FILE_VIEW, selected: this.group.has(i) }
       return {
         freeze: v.freeze,
+        split: v.split
+          ? {
+              width: v.split.width,
+              height: v.split.height,
+              topLeft: { row: sheet.rows.indexAt(v.split.scrollY), col: sheet.cols.indexAt(v.split.scrollX) },
+            }
+          : null,
         zoom: v.zoom,
         showGridlines: v.showGridlines,
         showHeadings: v.showHeadings,
@@ -1481,11 +1511,13 @@ export class SheetController {
 
   /** Width of the frozen columns and height of the frozen rows (sheet pixels). */
   get frozenWidth(): number {
+    if (this.split) return Math.min(this.split.width, Math.max(0, this.viewWidth - SPLIT_MIN))
     const f = this.freeze
     return f ? this.sheet.cols.offset(f.col) - this.sheet.cols.offset(f.left) : 0
   }
 
   get frozenHeight(): number {
+    if (this.split) return Math.min(this.split.height, Math.max(0, this.viewHeight - SPLIT_MIN))
     const f = this.freeze
     return f ? this.sheet.rows.offset(f.row) - this.sheet.rows.offset(f.top) : 0
   }
@@ -1500,6 +1532,95 @@ export class SheetController {
   }
 
   /** With frozen panes the scrolling part starts at the first unfrozen row and column. */
+  /** View › Split: on (from the active cell, as Excel) or off. Frozen panes turn into a split at the same place. */
+  toggleSplit() {
+    if (this.edit) this.commitEdit()
+    if (this.split) {
+      this.removeSplit()
+      return
+    }
+    const rows = this.sheet.rows
+    const cols = this.sheet.cols
+    const f = this.freeze
+    if (f) {
+      // The frozen part becomes the top and left panes, scrolled where they were.
+      this.freeze = null
+      this.split = {
+        width: cols.offset(f.col) - cols.offset(f.left),
+        height: rows.offset(f.row) - rows.offset(f.top),
+        scrollX: cols.offset(f.left),
+        scrollY: rows.offset(f.top),
+      }
+      this.changed()
+      return
+    }
+    const { row: top, col: left } = this.topLeft
+    let { row, col } = this.selection.active
+    // The split goes above and left of the active cell; from the top-left cell in view, at the middle of the window.
+    if (row <= top && col <= left) {
+      row = rows.indexAt(this.scrollY + this.viewHeight / 2)
+      col = cols.indexAt(this.scrollX + this.viewWidth / 2)
+    }
+    const width = col > left ? cols.offset(col) - this.scrollX : 0
+    const height = row > top ? rows.offset(row) - this.scrollY : 0
+    if (width <= 0 && height <= 0) return
+    this.split = {
+      width: Math.max(0, width),
+      height: Math.max(0, height),
+      scrollX: this.scrollX,
+      scrollY: this.scrollY,
+    }
+    // The bottom-right pane goes on where the top-left one ends, so nothing on screen moves.
+    this.scrollX = this.scrollX + Math.max(0, width)
+    this.scrollY = this.scrollY + Math.max(0, height)
+    this.changed()
+  }
+
+  /** Removes the split: the top-left pane's scroll stays (Excel keeps what was at the top left). */
+  removeSplit() {
+    const sp = this.split
+    if (!sp) return
+    this.split = null
+    this.scrollX = sp.width ? sp.scrollX : this.scrollX
+    this.scrollY = sp.height ? sp.scrollY : this.scrollY
+    this.changed()
+  }
+
+  /**
+   * Moves the split bars (dragging them): sizes in sheet pixels. A bar dragged to the edge goes away; with neither,
+   * the split does.
+   */
+  moveSplit(width: number, height: number) {
+    const sp = this.split
+    if (!sp) return
+    const w = width < SPLIT_MIN || width > this.viewWidth - SPLIT_MIN ? 0 : Math.round(width)
+    const h = height < SPLIT_MIN || height > this.viewHeight - SPLIT_MIN ? 0 : Math.round(height)
+    if (!w && !h) {
+      this.removeSplit()
+      return
+    }
+    // A bar that is new (dragged out again) starts its pane where the bottom-right pane is.
+    this.split = {
+      width: w,
+      height: h,
+      scrollX: sp.width ? sp.scrollX : this.scrollX,
+      scrollY: sp.height ? sp.scrollY : this.scrollY,
+    }
+    this.changed()
+  }
+
+  /** Scrolls the top or left pane of a split (its wheel or its own scroll bar). */
+  scrollSplitTo(x: number, y: number) {
+    const sp = this.split
+    if (!sp) return
+    const nx = Math.max(0, Math.min(x, this.sheet.cols.total - Math.max(1, sp.width)))
+    const ny = Math.max(0, Math.min(y, this.sheet.rows.total - Math.max(1, sp.height)))
+    if (nx === sp.scrollX && ny === sp.scrollY) return
+    this.split = { ...sp, scrollX: nx, scrollY: ny }
+    this.scrollVersion++
+    for (const listener of this.scrollListeners) listener()
+  }
+
   get minScrollX(): number {
     return this.freeze ? this.sheet.cols.offset(this.freeze.col) : 0
   }
@@ -1554,6 +1675,17 @@ export class SheetController {
    */
   freezePanes() {
     if (this.edit) this.commitEdit()
+    // With split panes, Freeze Panes freezes where the split is (Excel).
+    const sp = this.split
+    if (sp) {
+      const top = this.sheet.rows.indexAt(sp.scrollY)
+      const left = this.sheet.cols.indexAt(sp.scrollX)
+      const row = sp.height ? this.sheet.rows.indexAt(sp.scrollY + sp.height) : top
+      const col = sp.width ? this.sheet.cols.indexAt(sp.scrollX + sp.width) : left
+      this.split = null
+      this.setFreeze({ row, col, top, left })
+      return
+    }
     const { row: top, col: left } = this.topLeft
     let { row, col } = this.selection.active
     if (row <= top && col <= left) {
@@ -1587,6 +1719,7 @@ export class SheetController {
 
   private setFreeze(f: Freeze) {
     if (f.row === f.top && f.col === f.left) return
+    this.split = null
     this.freeze = f
     // The scrolling part goes on where the frozen part ends, so nothing on screen moves.
     this.scrollX = this.sheet.cols.offset(f.col)

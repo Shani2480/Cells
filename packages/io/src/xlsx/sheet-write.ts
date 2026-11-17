@@ -25,7 +25,7 @@ import { assemble, attrText, type Kept } from "./dom"
 import { printElementsXml, withFitToPage } from "./page-setup"
 import type { LinkTable } from "./links"
 import { formulaToFile } from "./formula"
-import { PROTECTION_FLAGS, type SheetView } from "./sheet-read"
+import { PROTECTION_FLAGS, TWIPS_PER_PIXEL, type SheetView } from "./sheet-read"
 import type { SheetSource } from "./read"
 import type { StylesOut } from "./styles"
 import { pxToColWidth, pxToPoints } from "./units"
@@ -294,13 +294,17 @@ function viewsXml(view: SheetView, showSymbols: boolean): string {
     showOutlineSymbols: showSymbols ? undefined : "0",
     zoomScale: view.zoom !== 1 ? Math.round(view.zoom * 100) : undefined,
     zoomScaleNormal: view.zoom !== 1 ? Math.round(view.zoom * 100) : undefined,
-    topLeftCell: view.freeze
-      ? view.freeze.top || view.freeze.left
-        ? cell({ row: view.freeze.top, col: view.freeze.left })
+    topLeftCell: view.split
+      ? view.split.topLeft.row || view.split.topLeft.col
+        ? cell(view.split.topLeft)
         : undefined
-      : view.topLeft.row || view.topLeft.col
-        ? cell(view.topLeft)
-        : undefined,
+      : view.freeze
+        ? view.freeze.top || view.freeze.left
+          ? cell({ row: view.freeze.top, col: view.freeze.left })
+          : undefined
+        : view.topLeft.row || view.topLeft.col
+          ? cell(view.topLeft)
+          : undefined,
     workbookViewId: 0,
   })
   const sqref = view.selection.map(rangeRef).join(" ")
@@ -318,6 +322,14 @@ function viewsXml(view: SheetView, showSymbols: boolean): string {
     const pane = xs && ys ? "bottomRight" : ys ? "bottomLeft" : "topRight"
     const topLeft = { row: Math.max(view.topLeft.row, f.row), col: Math.max(view.topLeft.col, f.col) }
     inner += `<pane${attrText({ xSplit: xs || undefined, ySplit: ys || undefined, topLeftCell: cell(topLeft), activePane: pane, state: "frozen" })}/>`
+    if (xs && ys) inner += `<selection pane="topRight"/><selection pane="bottomLeft"/>`
+    inner += `<selection${selAttrs(pane)}/>`
+  } else if (view.split && (view.split.width > 0 || view.split.height > 0)) {
+    // Split panes: positions in twips; the bottom-right pane is the one with the selection.
+    const xs = Math.round(view.split.width * TWIPS_PER_PIXEL)
+    const ys = Math.round(view.split.height * TWIPS_PER_PIXEL)
+    const pane = xs && ys ? "bottomRight" : ys ? "bottomLeft" : "topRight"
+    inner += `<pane${attrText({ xSplit: xs || undefined, ySplit: ys || undefined, topLeftCell: cell(view.topLeft), activePane: pane })}/>`
     if (xs && ys) inner += `<selection pane="topRight"/><selection pane="bottomLeft"/>`
     inner += `<selection${selAttrs(pane)}/>`
   } else if (view.active.row || view.active.col || sqref !== "A1") inner += `<selection${selAttrs()}/>`

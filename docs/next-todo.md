@@ -129,10 +129,12 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
 - [x] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
       Symbol, Header & Footer (opens Page Setup's tab until Page Layout view exists)
 - [ ] Part 6 — Views and windows: Page Break Preview, Page Layout view, Custom Views, Ruler, New Window, Arrange
-      All, Split, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
+      All, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
   - [x] Grouped sheets: Shift/Ctrl+click tabs, Select All Sheets / Ungroup Sheets, Ctrl+Shift+PgDn/PgUp, edits
         repeated on each sheet as one undo step, Delete and Hide on the group, [Group] in the title, one-sheet
         commands greyed out, Fill › Across Worksheets, the group saved in Excel files (tabSelected)
+  - [x] Split: from the active cell, split bars dragged or double-clicked away, each pane's own wheel and scroll
+        bars, Freeze Panes ⇄ Split, saved in Excel files (pane state "split", twips)
 - [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
 - [ ] Part 8 — Objects: Text Box, Shapes, Pictures, Icons, WordArt; Bring Forward / Send Backward, Align, Group,

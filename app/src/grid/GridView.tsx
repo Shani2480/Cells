@@ -42,6 +42,8 @@ type Drag =
   | { kind: "point"; anchor: CellAddress }
   | { kind: "resize-col"; col: number; startX: number; startSize: number; size: number }
   | { kind: "resize-row"; row: number; startY: number; startSize: number; size: number }
+  /** Moving a split bar (`x`: the vertical one, `y`: the horizontal one). */
+  | { kind: "split"; x: boolean; y: boolean }
   | {
       kind: "pan"
       startX: number
@@ -356,6 +358,12 @@ export function GridView({
         controller.changed()
         break
       }
+      case "split":
+        controller.moveSplit(
+          drag.x ? x - layout.rowHeaderWidth : controller.frozenWidth,
+          drag.y ? y - layout.headerHeight : controller.frozenHeight,
+        )
+        break
       case "resize-row": {
         const size = Math.max(0, Math.round(drag.startSize + (y - drag.startY)))
         drag.size = size
@@ -384,7 +392,8 @@ export function GridView({
       const drag = dragRef.current
       const point = pointerRef.current
       const layout = layoutRef.current
-      if (!drag || !point || !layout || drag.kind === "pan" || drag.kind.startsWith("resize")) return
+      if (!drag || !point || !layout || drag.kind === "pan" || drag.kind === "split" || drag.kind.startsWith("resize"))
+        return
       let dx = 0
       let dy = 0
       if (drag.kind !== "rows") {
@@ -533,6 +542,9 @@ export function GridView({
         controller.fillPreview = controller.selection.ranges[0]
         controller.changed()
         break
+      case "split":
+        dragRef.current = { kind: "split", x: hit.x, y: hit.y }
+        break
       case "colResize": {
         const startSize = controller.sheet.cols.size(hit.col)
         dragRef.current = { kind: "resize-col", col: hit.col, startX: x, startSize, size: startSize }
@@ -622,17 +634,23 @@ export function GridView({
     setCursor(
       linked
         ? "pointer"
-        : hit.zone === "colResize"
-          ? "col-resize"
-          : hit.zone === "rowResize"
-            ? "row-resize"
-            : hit.zone === "fillHandle"
-              ? "crosshair"
-              : hit.zone === "colHeader"
-                ? "s-resize"
-                : hit.zone === "rowHeader"
-                  ? "e-resize"
-                  : "cell",
+        : hit.zone === "split"
+          ? hit.x && hit.y
+            ? "move"
+            : hit.x
+              ? "col-resize"
+              : "row-resize"
+          : hit.zone === "colResize"
+            ? "col-resize"
+            : hit.zone === "rowResize"
+              ? "row-resize"
+              : hit.zone === "fillHandle"
+                ? "crosshair"
+                : hit.zone === "colHeader"
+                  ? "s-resize"
+                  : hit.zone === "rowHeader"
+                    ? "e-resize"
+                    : "cell",
     )
   }
 
@@ -708,6 +726,9 @@ export function GridView({
     const hit = hitTest(controller, layout, x, y)
     if (hit.zone === "cell") {
       controller.beginEdit("edit")
+    } else if (hit.zone === "split") {
+      // A double-click on a split bar takes it away (Excel).
+      controller.moveSplit(hit.x ? 0 : controller.frozenWidth, hit.y ? 0 : controller.frozenHeight)
     } else if (hit.zone === "colResize") {
       const cols = resizeTargets(controller, "cols", hit.col)
       for (const col of cols) controller.setLineSize("cols", [col], autofitColumnWidth(controller, col, measure))
@@ -797,6 +818,20 @@ export function GridView({
       if (event.shiftKey && dx === 0) {
         dx = dy
         dy = 0
+      }
+      // With split panes the wheel scrolls the pane under the pointer: rows by where it is up and down, columns by
+      // where it is across.
+      const layout = layoutRef.current
+      const sp = controller.split
+      if (sp && layout) {
+        const rect = canvas.getBoundingClientRect()
+        const px = (event.clientX - rect.left) / controller.zoom
+        const py = (event.clientY - rect.top) / controller.zoom
+        const leftPane = px < layout.originX && layout.originX > layout.rowHeaderWidth
+        const topPane = py < layout.originY && layout.originY > layout.headerHeight
+        controller.scrollSplitTo(sp.scrollX + (leftPane ? dx : 0), sp.scrollY + (topPane ? dy : 0))
+        if (leftPane) dx = 0
+        if (topPane) dy = 0
       }
       controller.scrollTo(controller.scrollX + dx, controller.scrollY + dy)
     }
@@ -1074,6 +1109,30 @@ export function GridView({
           onScroll={(y) => controller.scrollTo(controller.scrollX, y + minY)}
           onDone={focusInput}
         />
+        {controller.split && layout && controller.frozenHeight > 0 ? (
+          <Scrollbar
+            orientation="vertical"
+            length={layout.originY * zoom}
+            offset={layout.headerHeight * zoom}
+            position={controller.split.scrollY}
+            view={controller.frozenHeight}
+            content={contentHeight}
+            onScroll={(y) => controller.scrollSplitTo(controller.split?.scrollX ?? 0, y)}
+            onDone={focusInput}
+          />
+        ) : null}
+        {controller.split && layout && controller.frozenWidth > 0 ? (
+          <Scrollbar
+            orientation="horizontal"
+            length={layout.originX * zoom}
+            offset={layout.rowHeaderWidth * zoom}
+            position={controller.split.scrollX}
+            view={controller.frozenWidth}
+            content={contentWidth}
+            onScroll={(x) => controller.scrollSplitTo(x, controller.split?.scrollY ?? 0)}
+            onDone={focusInput}
+          />
+        ) : null}
         <Scrollbar
           orientation="horizontal"
           length={size.width}

@@ -141,6 +141,10 @@ Phase 3, added at the end:
       `app/src/ribbon/registry.ts`, from memory), and the message wording for a refused one (Cells' own).
 - [ ] Grouped sheets: whether Excel's Merge, Clear All and inserted rows on a group match Cells' (each sheet's own
       cells are cleared and merged); the look of grouped tabs in dark mode.
+- [ ] Split panes in an Excel file: whether xSplit/ySplit count the row and column headings (Cells writes the
+      panes' own size, 15 twips to a pixel at 100%), and the split bar's look and width.
+- [ ] Split: overlays (charts, notes, arrows, the cell editor) in the top and left panes are placed in the bottom-right
+      pane when it shows the same cells; Excel draws them in each pane.
 - [ ] Fill Across Worksheets on whole rows and columns (Cells copies the used part of the cells; row and column
       formats aren't copied).
 

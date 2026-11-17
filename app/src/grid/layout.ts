@@ -3,7 +3,10 @@ import { HEADER_HEIGHT, LARGE_HEADER_HEIGHT, type SheetController } from "@/shee
 import { GRIPPER_HIT, GRIPPER_RADIUS } from "./touch"
 
 /** One drawn row or column: its index and its span in canvas pixels. */
-export type Line = { index: number; start: number; size: number }
+/** How wide the bar between split panes is drawn, and how near it a press grabs it (sheet pixels). */
+export const SPLIT_BAR = 5
+
+export type Line = { index: number; start: number; size: number; frozen?: true }
 
 /**
  * What is on screen: header sizes and the visible rows and columns with their canvas positions. All sizes are in
@@ -26,20 +29,37 @@ export type GridLayout = {
   originX: number
   originY: number
   /** First unfrozen row and column, and the sheet offsets the frozen part shows from (null: nothing frozen). */
-  frozen: { row: number; col: number; scrollX: number; scrollY: number } | null
+  /**
+   * With split panes (`split`), the top and left panes scroll too and can show any row or column, so a line's pane
+   * comes from where it is, not from its index; `split` holds the rows and columns the bottom-right pane shows.
+   */
+  frozen: {
+    row: number
+    col: number
+    scrollX: number
+    scrollY: number
+    split?: { r0: number; r1: number; c0: number; c1: number }
+  } | null
   /** Where this layout may draw on the canvas (a pane's own rectangle; the whole cell area otherwise). */
   clip: { x0: number; y0: number; x1: number; y1: number }
   /** The parts of the cell area, drawn one by one (one when nothing is frozen). Panes have none of their own. */
   panes: GridLayout[]
 }
 
-function visibleLines(axis: Axis, scroll: number, origin: number, extent: number, end = axis.count): Line[] {
+function visibleLines(
+  axis: Axis,
+  scroll: number,
+  origin: number,
+  extent: number,
+  end = axis.count,
+  frozen = false,
+): Line[] {
   const lines: Line[] = []
   let index = axis.indexAt(scroll)
   let start = origin + axis.offset(index) - scroll
   while (index < end && start < origin + extent) {
     const size = axis.size(index)
-    if (size > 0) lines.push({ index, start, size })
+    if (size > 0) lines.push(frozen ? { index, start, size, frozen: true } : { index, start, size })
     start += size
     index++
   }
@@ -60,14 +80,18 @@ export function computeLayout(
 ): GridLayout {
   const sheet = controller.sheet
   const f = controller.freeze
+  const sp = controller.split
   // View › Headings off: no header row or column (the cells start at the edge).
   const headerHeight = controller.showHeadings ? (controller.largeHeaders ? LARGE_HEADER_HEIGHT : HEADER_HEIGHT) : 0
   const frozenH = controller.frozenHeight
   const frozenW = controller.frozenWidth
   const originY = headerHeight + frozenH
-  const fScrollY = f ? sheet.rows.offset(f.top) : 0
-  const fScrollX = f ? sheet.cols.offset(f.left) : 0
-  const frozenRows = f && frozenH > 0 ? visibleLines(sheet.rows, fScrollY, headerHeight, frozenH, f.row) : []
+  const fScrollY = sp ? sp.scrollY : f ? sheet.rows.offset(f.top) : 0
+  const fScrollX = sp ? sp.scrollX : f ? sheet.cols.offset(f.left) : 0
+  const frozenRows =
+    (f || sp) && frozenH > 0
+      ? visibleLines(sheet.rows, fScrollY, headerHeight, frozenH, f ? f.row : sheet.rows.count, true)
+      : []
   const scrollRows = visibleLines(sheet.rows, controller.scrollY, originY, height - originY)
   // The row header's width depends on the last visible row number, which depends on the header height only.
   const lastRow = scrollRows.at(-1)?.index ?? frozenRows.at(-1)?.index ?? 0
@@ -75,7 +99,10 @@ export function computeLayout(
     ? Math.max(controller.largeHeaders ? 36 : 0, rowHeaderWidthFor(lastRow, measure))
     : 0
   const originX = rowHeaderWidth + frozenW
-  const frozenCols = f && frozenW > 0 ? visibleLines(sheet.cols, fScrollX, rowHeaderWidth, frozenW, f.col) : []
+  const frozenCols =
+    (f || sp) && frozenW > 0
+      ? visibleLines(sheet.cols, fScrollX, rowHeaderWidth, frozenW, f ? f.col : sheet.cols.count, true)
+      : []
   const scrollCols = visibleLines(sheet.cols, controller.scrollX, originX, width - originX)
   const base = { width, height, rowHeaderWidth, headerHeight, frozen: null, panes: [] }
   const pane = (rows: Line[], cols: Line[], top: boolean, left: boolean): GridLayout => ({
@@ -105,7 +132,23 @@ export function computeLayout(
     scrollY: controller.scrollY,
     originX,
     originY,
-    frozen: f && (frozenH > 0 || frozenW > 0) ? { row: f.row, col: f.col, scrollX: fScrollX, scrollY: fScrollY } : null,
+    frozen:
+      sp && (frozenH > 0 || frozenW > 0)
+        ? {
+            row: 0,
+            col: 0,
+            scrollX: fScrollX,
+            scrollY: fScrollY,
+            split: {
+              r0: scrollRows[0]?.index ?? 0,
+              r1: scrollRows.at(-1)?.index ?? 0,
+              c0: scrollCols[0]?.index ?? 0,
+              c1: scrollCols.at(-1)?.index ?? 0,
+            },
+          }
+        : f && (frozenH > 0 || frozenW > 0)
+          ? { row: f.row, col: f.col, scrollX: fScrollX, scrollY: fScrollY }
+          : null,
     clip: { x0: rowHeaderWidth, y0: headerHeight, x1: width, y1: height },
     panes,
   }
@@ -114,6 +157,13 @@ export function computeLayout(
 /** A column's left edge on the canvas (in the frozen part when it is frozen). */
 export function colX(sheet: Sheet, layout: GridLayout, col: number): number {
   const f = layout.frozen
+  // A split's left pane: for columns the right pane doesn't show (the right pane wins when both do).
+  if (f?.split) {
+    const inLeft = layout.originX > layout.rowHeaderWidth && (col < f.split.c0 || col > f.split.c1)
+    return inLeft
+      ? layout.rowHeaderWidth + sheet.cols.offset(col) - f.scrollX
+      : layout.originX + sheet.cols.offset(col) - layout.scrollX
+  }
   if (f && col < f.col) return layout.rowHeaderWidth + sheet.cols.offset(col) - f.scrollX
   return layout.originX + sheet.cols.offset(col) - layout.scrollX
 }
@@ -121,6 +171,12 @@ export function colX(sheet: Sheet, layout: GridLayout, col: number): number {
 /** A row's top edge on the canvas. */
 export function rowY(sheet: Sheet, layout: GridLayout, row: number): number {
   const f = layout.frozen
+  if (f?.split) {
+    const inTop = layout.originY > layout.headerHeight && (row < f.split.r0 || row > f.split.r1)
+    return inTop
+      ? layout.headerHeight + sheet.rows.offset(row) - f.scrollY
+      : layout.originY + sheet.rows.offset(row) - layout.scrollY
+  }
   if (f && row < f.row) return layout.headerHeight + sheet.rows.offset(row) - f.scrollY
   return layout.originY + sheet.rows.offset(row) - layout.scrollY
 }
@@ -138,14 +194,19 @@ export function rangeRect(controller: SheetController, layout: GridLayout, range
 /** The column under a canvas x (frozen part first). */
 function colAtX(sheet: Sheet, layout: GridLayout, x: number): number {
   const f = layout.frozen
-  if (f && x < layout.originX)
-    return Math.min(f.col - 1, indexAtPixel(sheet.cols, x - layout.rowHeaderWidth + f.scrollX))
+  if (f && x < layout.originX) {
+    const col = indexAtPixel(sheet.cols, x - layout.rowHeaderWidth + f.scrollX)
+    return f.split ? col : Math.min(f.col - 1, col)
+  }
   return indexAtPixel(sheet.cols, x - layout.originX + layout.scrollX)
 }
 
 function rowAtY(sheet: Sheet, layout: GridLayout, y: number): number {
   const f = layout.frozen
-  if (f && y < layout.originY) return Math.min(f.row - 1, indexAtPixel(sheet.rows, y - layout.headerHeight + f.scrollY))
+  if (f && y < layout.originY) {
+    const row = indexAtPixel(sheet.rows, y - layout.headerHeight + f.scrollY)
+    return f.split ? row : Math.min(f.row - 1, row)
+  }
   return indexAtPixel(sheet.rows, y - layout.originY + layout.scrollY)
 }
 
@@ -159,12 +220,25 @@ export type Hit =
   /** A touch gripper on the selection's top-left (`start`) or bottom-right (`end`) corner. */
   | { zone: "gripper"; end: "start" | "end" }
   | { zone: "cell"; row: number; col: number }
+  /** A split bar (or where the two cross): dragging moves it, a double-click takes it away. */
+  | { zone: "split"; x: boolean; y: boolean }
 
 const RESIZE_SLOP = 3
+
+/** The split bar under a point, if any. */
+function splitBarAt(layout: GridLayout, x: number, y: number): Hit | null {
+  if (!layout.frozen?.split) return null
+  const reach = SPLIT_BAR / 2 + 1
+  const onX = layout.originX > layout.rowHeaderWidth && Math.abs(x - layout.originX) <= reach
+  const onY = layout.originY > layout.headerHeight && Math.abs(y - layout.originY) <= reach
+  return onX || onY ? { zone: "split", x: onX, y: onY } : null
+}
 
 /** What is under a point of the canvas (in CSS pixels). Points outside the cell area clamp to the nearest cell. */
 export function hitTest(controller: SheetController, layout: GridLayout, x: number, y: number): Hit {
   const sheet = controller.sheet
+  const bar = splitBarAt(layout, x, y)
+  if (bar) return bar
   const inColHeader = y < layout.headerHeight
   const inRowHeader = x < layout.rowHeaderWidth
   if (inColHeader && inRowHeader) {
