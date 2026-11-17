@@ -1,5 +1,7 @@
 import {
+  ICON_SETS,
   parseRange,
+  type IconSetName,
   type AutoFilter,
   type ColumnFilter,
   type DateGroup,
@@ -115,7 +117,15 @@ function readColumn(fc: XNode, styles: StylesIn | null, warnings: string[]): Col
     const dxf = at(color, "dxfId")
     return { kind: "color", cell, color: dxf !== undefined && styles ? styles.filterColor(Number(dxf), cell) : null }
   }
-  if (kid(fc, "iconFilter")) warnings.push("A filter by conditional formatting icon isn't supported; it was left out.")
+  const icon = kid(fc, "iconFilter")
+  if (icon) {
+    // iconId counts from the set's lowest band; no iconId is No Cell Icon.
+    const set = at(icon, "iconSet") ?? "3Arrows"
+    const id = at(icon, "iconId")
+    if (set in ICON_SETS)
+      return { kind: "icon", icon: id === undefined ? null : { set: set as IconSetName, index: Number(id) } }
+    warnings.push(`A filter by the ${set} icons isn't supported; the filter on its column was left out.`)
+  }
   return null
 }
 
@@ -164,6 +174,9 @@ function columnXml(column: ColumnFilter, styles: StylesOut): string {
       return `<dynamicFilter type="${column.type}"/>`
     case "color":
       return `<colorFilter${attrText({ dxfId: styles.filterDxf(column.cell, column.color), cellColor: column.cell ? undefined : "0" })}/>`
+    case "icon":
+      // No Cell Icon names no set: Excel writes the column's set; 3Arrows reads back as the same filter.
+      return `<iconFilter${attrText({ iconSet: column.icon?.set ?? "3Arrows", iconId: column.icon?.index })}/>`
   }
 }
 

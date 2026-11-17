@@ -191,6 +191,9 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         written anew), Office layouts Cells doesn't have drawn as they are (now as the nearest of Cells' own after an
         edit; Excel lays them out properly again)
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
+  - [x] Filter and sort by icon: Filter/Sort by Color › by Cell Icon, the cell menu's icon commands, Sort On
+        Conditional Formatting Icon; Filter and Sort by Color see conditional formats' colours; iconFilter in xlsx
+        (checked against a file Excel 365 made)
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
       GitHub issue the person reviews), Show Training

@@ -1,4 +1,6 @@
-import { columnName, isDateFormat, type Range, type SortKey } from "@cells/core"
+import { columnName, isDateFormat, shownColors, shownIcon, type IconRef, type Range, type SortKey } from "@cells/core"
+import { CfIcon } from "@/grid/CfIcon"
+import { iconName } from "@/grid/cf-icons"
 import { ArrowDown, ArrowUp, Copy, Plus, X } from "lucide-react"
 import { useMemo, useState } from "react"
 import type { SheetController } from "@/sheet/controller"
@@ -29,10 +31,11 @@ const MAX_LEVELS = 64
 
 type Level = {
   index: number
-  on: "values" | "cellColor" | "fontColor"
+  on: "values" | "cellColor" | "fontColor" | "icon"
   /** "asc" / "desc", or "list:N" for a custom list, ascending. */
   order: string
   color: string | null
+  icon?: IconRef | null
   /** Colour levels: On Top (false) or On Bottom (true). */
   bottom: boolean
 }
@@ -79,14 +82,25 @@ export function SortDialog({
     }
     return "text"
   }
+  const lookAt = (line: number, at: number) => (byColumns ? c.data.look(line, at) : c.data.look(at, line))
   const colorsOf = (line: number, on: Level["on"]) => {
     const found = new Set<string | null>()
     for (let at = first; at <= Math.min(last, first + 5000); at++) {
-      const style = c.wb.styles.get(cell(line, at)?.style ?? 0)
-      found.add(((on === "cellColor" ? style.fill : style.fontColor) ?? null)?.toUpperCase() ?? null)
+      const shown = shownColors(c.wb.styles.get(cell(line, at)?.style ?? 0), lookAt(line, at))
+      found.add(on === "cellColor" ? shown.fill : shown.font)
     }
     return [...found]
   }
+  /** The icons the line shows ("set:index", "" for No Cell Icon), best first. */
+  const iconsOf = (line: number) => {
+    const found = new Map<string, IconRef | null>()
+    for (let at = first; at <= Math.min(last, first + 5000); at++) {
+      const icon = shownIcon(lookAt(line, at))
+      found.set(icon ? `${icon.set}:${icon.index}` : "", icon)
+    }
+    return [...found.values()].sort((a, b) => (a ? (b ? b.index - a.index : -1) : b ? 1 : 0))
+  }
+  const iconKey = (icon: IconRef | null | undefined) => (icon ? `${icon.set}:${icon.index}` : "")
 
   const active = byColumns ? c.selection.active.row : c.selection.active.col
   const start = lines.includes(active) ? active : lines[0]
@@ -114,6 +128,7 @@ export function SortDialog({
 
   const accept = () => {
     const keys: SortKey[] = levels.map((l) => {
+      if (l.on === "icon") return { index: l.index, on: "icon", icon: l.icon ?? null, descending: l.bottom }
       if (l.on !== "values") return { index: l.index, on: l.on, color: l.color, descending: l.bottom }
       if (l.order.startsWith("list:")) return { index: l.index, list: CUSTOM_LISTS[Number(l.order.slice(5))] }
       return { index: l.index, descending: l.order === "desc" }
@@ -197,7 +212,8 @@ export function SortDialog({
             <span role="columnheader">Order</span>
           </div>
           {levels.map((level, i) => {
-            const colors = level.on === "values" ? [] : colorsOf(level.index, level.on)
+            const colors = level.on === "values" || level.on === "icon" ? [] : colorsOf(level.index, level.on)
+            const icons = level.on === "icon" ? iconsOf(level.index) : []
             return (
               <div
                 key={i}
@@ -226,12 +242,14 @@ export function SortDialog({
                   value={level.on}
                   onChange={(e) => {
                     const on = e.target.value as Level["on"]
-                    update(i, { on, color: on === "values" ? null : (colorsOf(level.index, on)[0] ?? null) })
+                    if (on === "icon") update(i, { on, color: null, icon: iconsOf(level.index)[0] ?? null })
+                    else update(i, { on, color: on === "values" ? null : (colorsOf(level.index, on)[0] ?? null) })
                   }}
                 >
                   <option value="values">Cell Values</option>
                   <option value="cellColor">Cell Color</option>
                   <option value="fontColor">Font Color</option>
+                  <option value="icon">Conditional Formatting Icon</option>
                 </select>
                 {level.on === "values" ? (
                   <select
@@ -250,24 +268,50 @@ export function SortDialog({
                   </select>
                 ) : (
                   <span className="sort-color">
-                    <select
-                      className="dialog-field"
-                      aria-label="Color"
-                      value={level.color ?? ""}
-                      onChange={(e) => update(i, { color: e.target.value || null })}
-                    >
-                      {colors.map((color) => (
-                        <option key={color ?? "none"} value={color ?? ""}>
-                          {color ?? (level.on === "cellColor" ? "No Cell Color" : "Automatic")}
-                        </option>
-                      ))}
-                    </select>
-                    <span
-                      className="sort-swatch"
-                      aria-hidden
-                      style={{ background: level.color ?? "transparent" }}
-                      data-empty={level.color ? undefined : ""}
-                    />
+                    {level.on === "icon" ? (
+                      <>
+                        <select
+                          className="dialog-field"
+                          aria-label="Icon"
+                          value={iconKey(level.icon)}
+                          onChange={(e) =>
+                            update(i, { icon: icons.find((x) => iconKey(x) === e.target.value) ?? null })
+                          }
+                        >
+                          {icons.map((icon) => (
+                            <option key={iconKey(icon)} value={iconKey(icon)}>
+                              {iconName(icon)}
+                            </option>
+                          ))}
+                        </select>
+                        {level.icon ? (
+                          <CfIcon icon={level.icon} />
+                        ) : (
+                          <span className="sort-swatch" aria-hidden data-empty="" />
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <select
+                          className="dialog-field"
+                          aria-label="Color"
+                          value={level.color ?? ""}
+                          onChange={(e) => update(i, { color: e.target.value || null })}
+                        >
+                          {colors.map((color) => (
+                            <option key={color ?? "none"} value={color ?? ""}>
+                              {color ?? (level.on === "cellColor" ? "No Cell Color" : "Automatic")}
+                            </option>
+                          ))}
+                        </select>
+                        <span
+                          className="sort-swatch"
+                          aria-hidden
+                          style={{ background: level.color ?? "transparent" }}
+                          data-empty={level.color ? undefined : ""}
+                        />
+                      </>
+                    )}
                     <select
                       className="dialog-field"
                       aria-label="Position"

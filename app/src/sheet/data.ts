@@ -23,6 +23,11 @@ import {
   SortError,
   regional,
   sortOps,
+  shownColors,
+  shownIcon,
+  type CellLook,
+  type IconRef,
+  type SortKey,
   type Range,
   type SortOptions,
 } from "@cells/core"
@@ -74,12 +79,24 @@ export const NO_FLASH_PATTERN =
 /** A filter and where it lives: the sheet's AutoFilter (table null) or a table's Filter Button. */
 export type FilterHost = { filter: AutoFilter; table: Table | null }
 
+/** What a dropdown or cell-menu sort puts first: a fill or font colour, or a conditional formatting icon. */
+export type SortBy = { on: "cell" | "font"; color: string | null } | { on: "icon"; icon: IconRef | null }
+
+function sortKeyBy(index: number, descending: boolean, by?: SortBy): SortKey {
+  if (!by) return { index, descending }
+  if (by.on === "icon") return { index, on: "icon", icon: by.icon }
+  return { index, on: by.on === "cell" ? "cellColor" : "fontColor", color: by.color }
+}
+
 /**
  * Data › Sort & Filter: Sort A to Z / Z to A on the data around the active cell, the Sort dialog's sort, and the
  * AutoFilter (its dropdowns, Clear and Reapply).
  */
 export class DataCommands {
   constructor(private readonly c: SheetController) {}
+
+  /** Conditional formats' colours and icons, for filtering and sorting by them. */
+  readonly look: CellLook = (row, col) => this.c.cfAt(row, col)
 
   /** Data › Queries & Connections: the pane of linked text files beside the sheet. */
   queriesOpen = false
@@ -184,7 +201,7 @@ export class DataCommands {
     if (this.c.edit) this.c.commitEdit()
     let ops
     try {
-      ops = sortOps(this.c.sheetIndex, this.c.sheet, this.c.wb.styles, range, options)
+      ops = sortOps(this.c.sheetIndex, this.c.sheet, this.c.wb.styles, range, options, this.look)
     } catch (error) {
       if (error instanceof SortError) {
         this.c.shell.alert(error.message)
@@ -447,7 +464,7 @@ export class DataCommands {
     const sheet = this.c.sheet
     const old = host?.filter ?? null
     const shown = filter ?? (old ? { range: old.range, columns: {} } : null)
-    const rows = shown ? filterRowEntries(sheet, this.c.wb.styles, shown, todaySerial()) : []
+    const rows = shown ? filterRowEntries(sheet, this.c.wb.styles, shown, todaySerial(), this.look) : []
     const index = this.c.sheetIndex
     if (host?.table) {
       const table = host.table
@@ -597,7 +614,7 @@ export class DataCommands {
   }
 
   /** Sort from a filter dropdown: the filter's data by that column; the button then shows the sort's arrow. */
-  sortFiltered(col: number, descending: boolean, color?: { on: "cell" | "font"; color: string | null }): boolean {
+  sortFiltered(col: number, descending: boolean, by?: SortBy): boolean {
     const host = this.host()
     if (!host) return false
     const f = host.filter
@@ -605,14 +622,14 @@ export class DataCommands {
     const range = this.extended(host)
     let ops: Op[]
     try {
-      ops = sortOps(this.c.sheetIndex, this.c.sheet, this.c.wb.styles, range, {
-        header: true,
-        keys: [
-          color
-            ? { index: col, on: color.on === "cell" ? "cellColor" : "fontColor", color: color.color }
-            : { index: col, descending },
-        ],
-      })
+      ops = sortOps(
+        this.c.sheetIndex,
+        this.c.sheet,
+        this.c.wb.styles,
+        range,
+        { header: true, keys: [sortKeyBy(col, descending, by)] },
+        this.look,
+      )
     } catch (error) {
       if (error instanceof SortError) {
         this.c.shell.alert(error.message)
@@ -632,20 +649,31 @@ export class DataCommands {
 
   // ── The cell menu's Filter › and Sort › (by the active cell) ──
 
-  /** The active cell's shown text, fill and font colour (as Filter by Color reads them). */
+  /**
+   * The active cell's shown text, fill and font colour and conditional formatting icon (as Filter by Color and by
+   * Cell Icon read them).
+   */
   private activeLook() {
     const { row, col } = this.c.selection.active
     const data = this.c.sheet.cells.get(row, col)
     const style = this.c.wb.styles.get(data?.style ?? 0)
     const code = this.c.wb.styles.get(this.c.sheet.styleAt(row, col)).numberFormat
+    const cf = this.look(row, col)
+    const shown = shownColors(style, cf)
     return {
       row,
       col,
       data,
       text: displayText(data?.value, code),
-      fill: style.fill ?? null,
-      font: style.fontColor ?? null,
+      fill: shown.fill,
+      font: shown.font,
+      icon: shownIcon(cf),
     }
+  }
+
+  /** Whether the active cell shows a conditional formatting icon (the cell menu offers its icon commands). */
+  get activeIcon(): IconRef | null {
+    return this.activeLook().icon
   }
 
   /** The filter over the active cell's column, below its header row. */
@@ -656,10 +684,10 @@ export class DataCommands {
   }
 
   /**
-   * Filter › Filter by Selected Cell's Value, Color or Font Color: the active cell's column keeps the rows that match
-   * it. Turns the filter on for the data around the cell first, as Excel does.
+   * Filter › Filter by Selected Cell's Value, Color, Font Color or Icon: the active cell's column keeps the rows that
+   * match it. Turns the filter on for the data around the cell first, as Excel does.
    */
-  filterBySelected(by: "value" | "cell" | "font"): boolean {
+  filterBySelected(by: "value" | "cell" | "font" | "icon"): boolean {
     if (this.c.edit) this.c.commitEdit()
     const look = this.activeLook()
     if (!this.hostOver(look.row, look.col)) {
@@ -672,7 +700,9 @@ export class DataCommands {
         ? look.data?.value === undefined || look.text === ""
           ? { kind: "values", values: [], blanks: true }
           : { kind: "values", values: [look.text] }
-        : { kind: "color", cell: by === "cell", color: by === "cell" ? look.fill : look.font }
+        : by === "icon"
+          ? { kind: "icon", icon: look.icon }
+          : { kind: "color", cell: by === "cell", color: by === "cell" ? look.fill : look.font }
     return this.filterColumn(look.col, filter)
   }
 
@@ -691,19 +721,11 @@ export class DataCommands {
     return this.filteredHeader() === null ? false : this.filterColumn(this.c.selection.active.col, null)
   }
 
-  /** Sort › Put Selected Cell Color (Font Color) On Top: the data around the cell, that colour first. */
-  sortSelectedColorOnTop(on: "cell" | "font"): boolean {
+  /** Sort › Put Selected Cell Color (Font Color, Icon) On Top: the data around the cell, that colour or icon first. */
+  sortSelectedColorOnTop(on: "cell" | "font" | "icon"): boolean {
     const look = this.activeLook()
     const t = this.target()
-    return this.sort(t.range, {
-      header: t.header,
-      keys: [
-        {
-          index: look.col,
-          on: on === "cell" ? "cellColor" : "fontColor",
-          color: on === "cell" ? look.fill : look.font,
-        },
-      ],
-    })
+    const by: SortBy = on === "icon" ? { on, icon: look.icon } : { on, color: on === "cell" ? look.fill : look.font }
+    return this.sort(t.range, { header: t.header, keys: [sortKeyBy(look.col, false, by)] })
   }
 }

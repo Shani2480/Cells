@@ -183,3 +183,33 @@ export function drawIcon(p: Painter, set: IconSetName, index: number, x: number,
     }
   }
 }
+
+/** Each set's icons by name, lowest band first (for lists that can't draw them, such as the Sort dialog's). */
+const ICON_NAMES: Record<IconSetName, string[]> = {
+  "3Arrows": ["Red Down Arrow", "Yellow Side Arrow", "Green Up Arrow"],
+  "3ArrowsGray": ["Gray Down Arrow", "Gray Side Arrow", "Gray Up Arrow"],
+  "4Arrows": ["Red Down Arrow", "Yellow Down-Right Arrow", "Yellow Up-Right Arrow", "Green Up Arrow"],
+  "5Arrows": [
+    "Red Down Arrow",
+    "Yellow Down-Right Arrow",
+    "Yellow Side Arrow",
+    "Yellow Up-Right Arrow",
+    "Green Up Arrow",
+  ],
+  "3TrafficLights1": ["Red Circle", "Yellow Circle", "Green Circle"],
+  "3Signs": ["Red Diamond", "Yellow Triangle", "Green Circle"],
+  "3Symbols": ["Red Cross Symbol", "Yellow Exclamation Symbol", "Green Check Symbol"],
+  "3Flags": ["Red Flag", "Yellow Flag", "Green Flag"],
+  "3Stars": ["Silver Star", "Half Gold Star", "Gold Star"],
+  "5Quarters": [
+    "White Circle (All White Quarters)",
+    "Circle with One Black Quarter",
+    "Circle with Two Black Quarters",
+    "Circle with Three Black Quarters",
+    "Black Circle",
+  ],
+}
+
+export function iconName(icon: { set: IconSetName; index: number } | null): string {
+  return icon ? (ICON_NAMES[icon.set]?.[icon.index] ?? `Icon ${icon.index + 1}`) : "No Cell Icon"
+}

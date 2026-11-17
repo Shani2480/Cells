@@ -93,6 +93,31 @@ export type CFResult = {
   hideValue?: boolean
 }
 
+/** One icon of an icon set (as Filter by Cell Icon and Sort On Conditional Formatting Icon name it). */
+export type IconRef = { set: IconSetName; index: number }
+
+/** What conditional formatting does to a cell of the sheet being filtered or sorted (null: nothing). */
+export type CellLook = (row: number, col: number) => CFResult | null
+
+/**
+ * The fill and font colour a cell shows, conditional formats included (Filter and Sort by Color list and match
+ * these, as Excel does): a colour scale over a rule's fill over the cell's own.
+ */
+export function shownColors(style: CellStyle, cf: CFResult | null): { fill: string | null; font: string | null } {
+  return {
+    fill: (cf?.fill ?? cf?.style?.fill ?? style.fill ?? null)?.toUpperCase() ?? null,
+    font: (cf?.style?.fontColor ?? style.fontColor ?? null)?.toUpperCase() ?? null,
+  }
+}
+
+/** The icon a cell shows, or null. */
+export function shownIcon(cf: CFResult | null): IconRef | null {
+  return cf?.icon ? { set: cf.icon.set, index: cf.icon.index } : null
+}
+
+export const sameIcon = (a: IconRef | null | undefined, b: IconRef | null | undefined) =>
+  (a ?? null) === (b ?? null) || (!!a && !!b && a.set === b.set && a.index === b.index)
+
 // ── Editing ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Moves a range for inserted (count > 0) or deleted (count < 0) lines; null when it is deleted whole. */

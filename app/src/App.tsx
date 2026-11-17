@@ -739,7 +739,7 @@ function WorkbookWindow({
         act("Filter by Selected Cell's Value", () => void data.filterBySelected("value")),
         act("Filter by Selected Cell's Color", () => void data.filterBySelected("cell")),
         act("Filter by Selected Cell's Font Color", () => void data.filterBySelected("font")),
-        later("Filter by Selected Cell's Icon"),
+        act("Filter by Selected Cell's Icon", () => void data.filterBySelected("icon"), data.activeIcon === null),
       ]
     }
     const sortItems = (): MenuItem[] => {
@@ -750,7 +750,7 @@ function WorkbookWindow({
         { kind: "separator" },
         act("Put Selected Cell Color On Top", () => void data.sortSelectedColorOnTop("cell")),
         act("Put Selected Font Color On Top", () => void data.sortSelectedColorOnTop("font")),
-        later("Put Selected Cell Icon On Top"),
+        act("Put Selected Cell Icon On Top", () => void data.sortSelectedColorOnTop("icon"), data.activeIcon === null),
         { kind: "separator" },
         act("Custom Sort...", () => data.openSortDialog()),
       ]

@@ -5,6 +5,7 @@ import type { AnnotationWrite } from "./annotations"
 import type { CellWrite, Op } from "./ops"
 import type { Sheet } from "./sheet"
 import type { StyleTable } from "./styles"
+import { sameIcon, shownColors, shownIcon, type CellLook, type IconRef } from "./conditional"
 import type { CellValue } from "./values"
 
 /**
@@ -116,10 +117,12 @@ export type SortKey = {
   /** The column (or row) in sheet coordinates. */
   index: number
   descending?: boolean
-  /** Sort On: cell values (default), the cell's fill colour or its font colour. */
-  on?: "values" | "cellColor" | "fontColor"
+  /** Sort On: cell values (default), the cell's fill colour, its font colour or its conditional formatting icon. */
+  on?: "values" | "cellColor" | "fontColor" | "icon"
   /** For colour keys: the colour that goes first ("On Top") or last ("On Bottom"); null is "No Cell Color". */
   color?: string | null
+  /** For icon keys: the icon that goes first or last; null is "No Cell Icon". */
+  icon?: IconRef | null
   /** For value keys: a custom list ("Jan, Feb, Mar…"); its entries order before everything else, in list order. */
   list?: string[]
 }
@@ -143,12 +146,20 @@ export class SortError extends Error {
 type Line = { index: number; keys: unknown[] }
 
 /** A cell's sort key under one level: a value (with its key cached), a colour match, or a list position. */
-function keyFor(data: CellData | undefined, key: SortKey, styles: StyleTable): unknown {
+function keyFor(
+  data: CellData | undefined,
+  key: SortKey,
+  styles: StyleTable,
+  look: CellLook | undefined,
+  row: number,
+  col: number,
+): unknown {
   if (key.on === "cellColor" || key.on === "fontColor") {
-    const style = styles.get(data?.style ?? 0)
-    const color = (key.on === "cellColor" ? style.fill : style.fontColor) ?? null
-    return (color?.toUpperCase() ?? null) === (key.color?.toUpperCase() ?? null) ? 0 : 1
+    const shown = shownColors(styles.get(data?.style ?? 0), look?.(row, col) ?? null)
+    const color = key.on === "cellColor" ? shown.fill : shown.font
+    return color === (key.color?.toUpperCase() ?? null) ? 0 : 1
   }
+  if (key.on === "icon") return sameIcon(shownIcon(look?.(row, col) ?? null), key.icon) ? 0 : 1
   const value = data?.value
   if (value === undefined || value === "") return undefined
   if (key.list && typeof value === "string") {
@@ -159,7 +170,7 @@ function keyFor(data: CellData | undefined, key: SortKey, styles: StyleTable): u
 }
 
 function compareKeys(a: unknown, b: unknown, key: SortKey, matchCase: boolean): number {
-  if (key.on === "cellColor" || key.on === "fontColor") {
+  if (key.on === "cellColor" || key.on === "fontColor" || key.on === "icon") {
     // "On Bottom" is descending: the colour last.
     return key.descending ? (b as number) - (a as number) : (a as number) - (b as number)
   }
@@ -191,9 +202,17 @@ function compareKeys(a: unknown, b: unknown, key: SortKey, matchCase: boolean): 
 /**
  * The operations that sort `range` on `sheet`: each row (or column) moves whole, formulas' relative references
  * shift with it as when copied, notes and comments go along. Hidden rows (columns) stay where they are, as in
- * Excel. Throws a SortError Excel would show (merged cells of different sizes).
+ * Excel. Throws a SortError Excel would show (merged cells of different sizes). `look` gives the conditional
+ * formats' colours and icons (for sorting by them).
  */
-export function sortOps(sheetIndex: number, sheet: Sheet, styles: StyleTable, range: Range, o: SortOptions): Op[] {
+export function sortOps(
+  sheetIndex: number,
+  sheet: Sheet,
+  styles: StyleTable,
+  range: Range,
+  o: SortOptions,
+  look?: CellLook,
+): Op[] {
   const byColumns = Boolean(o.byColumns)
   if (sheet.merges.overlapping(range).length)
     throw new SortError("To do this, all the merged cells need to be the same size.")
@@ -205,7 +224,10 @@ export function sortOps(sheetIndex: number, sheet: Sheet, styles: StyleTable, ra
     if (axis.isHidden(i)) continue
     lines.push({
       index: i,
-      keys: o.keys.map((k) => keyFor(byColumns ? sheet.cells.get(k.index, i) : sheet.cells.get(i, k.index), k, styles)),
+      keys: o.keys.map((k) => {
+        const [r, c] = byColumns ? [k.index, i] : [i, k.index]
+        return keyFor(sheet.cells.get(r, c), k, styles, look, r, c)
+      }),
     })
   }
   const matchCase = Boolean(o.matchCase)

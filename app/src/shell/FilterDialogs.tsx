@@ -86,7 +86,7 @@ export function CustomFilterDialog({
   const styles = controller.wb.styles
   const current = filter?.columns[col - (filter?.range.c0 ?? 0)]
   const choices = useMemo(
-    () => (filter ? filterChoices(sheet, styles, filter, col, todaySerial()) : null),
+    () => (filter ? filterChoices(sheet, styles, filter, col, todaySerial(), controller.data.look) : null),
     [filter, sheet, styles, col],
   )
   const [rows, setRows] = useState<[Row, Row]>(() => {

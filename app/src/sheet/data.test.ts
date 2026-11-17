@@ -1,3 +1,4 @@
+import { defaultIconThresholds } from "@cells/core"
 import { describe, expect, it, vi } from "vitest"
 import { DEFAULT_PROTECTION } from "@cells/core"
 import { SheetController } from "./controller"
@@ -188,6 +189,43 @@ describe("the cell menu's Filter › and Sort ›", () => {
     c.data.filterBySelected("font")
     // Automatic font everywhere: every row matches.
     expect(shown(c)).toEqual([1, 2, 3])
+  })
+
+  it("filters by the selected cell's icon and puts an icon on top; colour scales count as fills", () => {
+    const c = table()
+    c.sheet.conditional = [
+      {
+        id: 1,
+        ranges: [{ r0: 1, c0: 2, r1: 3, c1: 2 }],
+        rule: {
+          kind: "iconSet",
+          set: "3Arrows",
+          reverse: false,
+          thresholds: defaultIconThresholds(3),
+          showValue: true,
+        },
+        stopIfTrue: false,
+      },
+    ]
+    c.goTo({ r0: 1, c0: 2, r1: 1, c1: 2 })
+    expect(c.data.activeIcon).toEqual({ set: "3Arrows", index: 0 })
+    expect(c.data.sortSelectedColorOnTop("icon")).toBe(true)
+    expect(column(c, 0)).toEqual(["Name", "Ann", "Bob", "Cy"])
+    c.goTo({ r0: 3, c0: 2, r1: 3, c1: 2 })
+    expect(c.data.filterBySelected("icon")).toBe(true)
+    expect(shown(c)).toEqual([3])
+    c.data.clearColumnFilter()
+    c.sheet.conditional = [
+      {
+        id: 2,
+        ranges: [{ r0: 1, c0: 2, r1: 3, c1: 2 }],
+        rule: { kind: "cellIs", operator: "greaterThan", values: ["6"], style: { fill: "#FFC7CE" } },
+        stopIfTrue: false,
+      },
+    ]
+    c.goTo({ r0: 2, c0: 2, r1: 2, c1: 2 })
+    expect(c.data.filterBySelected("cell")).toBe(true)
+    expect(shown(c)).toEqual([2, 3])
   })
 
   it("puts the selected cell's colour on top", () => {

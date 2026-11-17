@@ -1,16 +1,19 @@
 import {
   displayText,
   filterChoices,
+  sameIcon as sameIconRef,
   valuesFilter,
   wildcardRegExp,
   type ColumnFilter,
   type DynamicFilter,
   type FilterChoices,
+  type IconRef,
 } from "@cells/core"
+import { CfIcon } from "./CfIcon"
 import { ArrowDownAZ, ArrowUpAZ, Check, ChevronRight, FunnelX, Minus, Plus, Search } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import type { CustomPreset, FilterDialogRequest } from "@/sheet/data"
+import type { CustomPreset, FilterDialogRequest, SortBy } from "@/sheet/data"
 import type { SheetController } from "@/sheet/controller"
 import { todaySerial } from "@/sheet/controller"
 import { cn } from "@/lib/cn"
@@ -32,7 +35,16 @@ const MONTHS = [
 
 type SubItem =
   | { kind: "separator" }
-  | { kind: "item"; label: string; checked?: boolean; run?: () => void; sub?: SubItem[]; swatch?: string | null }
+  | {
+      kind: "item"
+      label: string
+      checked?: boolean
+      run?: () => void
+      sub?: SubItem[]
+      swatch?: string | null
+      /** A conditional formatting icon, or null for No Cell Icon. */
+      icon?: IconRef | null
+    }
 
 /**
  * A filter button's dropdown, as Excel's: sorts, Clear Filter, Filter by Color, the Text / Number / Date Filters
@@ -60,7 +72,7 @@ export function FilterMenu({
   const sheet = controller.sheet
   const styles = controller.wb.styles
   // The menu reads the sheet once, when it opens.
-  const [initial] = useState(() => filterChoices(sheet, styles, filter, col, todaySerial()))
+  const [initial] = useState(() => filterChoices(sheet, styles, filter, col, todaySerial(), controller.data.look))
   const [choices, setChoices] = useState<FilterChoices>(initial)
   const [search, setSearch] = useState("")
   const [addToFilter, setAddToFilter] = useState(false)
@@ -113,9 +125,9 @@ export function FilterMenu({
     onClose()
     controller.data.filterColumn(col, column)
   }
-  const sort = (descending: boolean, color?: { on: "cell" | "font"; color: string | null }) => {
+  const sort = (descending: boolean, by?: SortBy) => {
     onClose()
-    controller.data.sortFiltered(col, descending, color)
+    controller.data.sortFiltered(col, descending, by)
   }
   const dialog = (request: FilterDialogRequest) => {
     onClose()
@@ -283,9 +295,22 @@ export function FilterMenu({
       if (out.length) out.push(sep)
       out.push({ kind: "item", label: `${byFilter ? "Filter" : "Sort"} by Font Color` }, ...fonts)
     }
+    if (initial.icons.length) {
+      if (out.length) out.push(sep)
+      out.push(
+        { kind: "item", label: `${byFilter ? "Filter" : "Sort"} by Cell Icon` },
+        ...initial.icons.map((icon): SubItem => ({
+          kind: "item",
+          label: icon ? "" : "No Cell Icon",
+          icon,
+          checked: current?.kind === "icon" && sameIconRef(current.icon, icon),
+          run: () => (byFilter ? apply({ kind: "icon", icon }) : sort(false, { on: "icon", icon })),
+        })),
+      )
+    }
     return out
   }
-  const hasColors = initial.cellColors.length > 1 || initial.fontColors.length > 1
+  const hasColors = initial.cellColors.length > 1 || initial.fontColors.length > 1 || initial.icons.length > 0
 
   const rowButton = (
     id: string,
@@ -485,6 +510,7 @@ function Submenu({ parent, items, onBack }: { parent: HTMLElement | null; items:
             onClick={() => (item.sub ? setOpen(i) : item.run?.())}
           >
             <span className="fm-row-icon">{item.checked ? <Check size={14} strokeWidth={1.8} /> : null}</span>
+            {item.icon ? <CfIcon icon={item.icon} /> : null}
             {item.swatch !== undefined ? (
               <span
                 className={cn("fm-swatch", item.swatch === "transparent" && "is-none")}

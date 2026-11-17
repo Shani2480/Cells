@@ -3,7 +3,7 @@ import type { CellData } from "./cell-store"
 import { serialToDate, serialWeekday } from "./formula/dates"
 import { displayText } from "./format"
 import { isDateFormat } from "./numfmt"
-import { shiftRange } from "./conditional"
+import { sameIcon, shiftRange, shownColors, shownIcon, type CellLook, type IconRef } from "./conditional"
 import type { AxisEntry } from "./ops"
 import type { Sheet } from "./sheet"
 import { compareSortText } from "./sort"
@@ -55,6 +55,8 @@ export type ColumnFilter =
   | { kind: "dynamic"; type: DynamicFilter }
   /** Filter by Color: the cell's fill (cell) or font colour; null is No Fill / Automatic. */
   | { kind: "color"; cell: boolean; color: string | null }
+  /** Filter by Cell Icon: the conditional formatting icon the cell shows; null is No Cell Icon. */
+  | { kind: "icon"; icon: IconRef | null }
 
 /**
  * A sheet's AutoFilter: its range (the header row first), the filters by column offset in the range, and the last
@@ -82,7 +84,7 @@ export function wildcardRegExp(pattern: string): RegExp {
   return new RegExp(`^${out}$`, "i")
 }
 
-type Cell = { data: CellData | undefined; text: string; code?: string }
+type Cell = { data: CellData | undefined; text: string; code?: string; row: number; col: number }
 
 const isBlank = (data: CellData | undefined) => data?.value === undefined || data.value === ""
 
@@ -192,7 +194,7 @@ function inDynamic(type: DynamicFilter, serial: number, today: number): boolean 
   }
 }
 
-function passes(cell: Cell, filter: ColumnFilter, p: Prepared, styles: StyleTable): boolean {
+function passes(cell: Cell, filter: ColumnFilter, p: Prepared, styles: StyleTable, look?: CellLook): boolean {
   const value = cell.data?.value
   switch (filter.kind) {
     case "values": {
@@ -222,10 +224,11 @@ function passes(cell: Cell, filter: ColumnFilter, p: Prepared, styles: StyleTabl
       }
       return typeof value === "number" && inDynamic(filter.type, value, p.today)
     case "color": {
-      const style = styles.get(cell.data?.style ?? 0)
-      const color = ((filter.cell ? style.fill : style.fontColor) ?? null)?.toUpperCase() ?? null
-      return color === (filter.color?.toUpperCase() ?? null)
+      const shown = shownColors(styles.get(cell.data?.style ?? 0), look?.(cell.row, cell.col) ?? null)
+      return (filter.cell ? shown.fill : shown.font) === (filter.color?.toUpperCase() ?? null)
     }
+    case "icon":
+      return sameIcon(shownIcon(look?.(cell.row, cell.col) ?? null), filter.icon)
   }
 }
 
@@ -235,28 +238,43 @@ export function filterColumnCells(sheet: Sheet, styles: StyleTable, range: Range
   for (let r = range.r0 + 1; r <= range.r1; r++) {
     const data = sheet.cells.get(r, col)
     const code = styles.get(sheet.styleAt(r, col)).numberFormat
-    cells.push({ data, code, text: displayText(data?.value, code) })
+    cells.push({ data, code, text: displayText(data?.value, code), row: r, col })
   }
   return cells
 }
 
-/** For each data row of the filter (from the row under the headers), whether it passes every column's filter. */
-export function filterVisibility(sheet: Sheet, styles: StyleTable, filter: AutoFilter, today: number): boolean[] {
+/**
+ * For each data row of the filter (from the row under the headers), whether it passes every column's filter. `look`
+ * gives the conditional formats' colours and icons (Filter by Color and by Cell Icon).
+ */
+export function filterVisibility(
+  sheet: Sheet,
+  styles: StyleTable,
+  filter: AutoFilter,
+  today: number,
+  look?: CellLook,
+): boolean[] {
   const { range } = filter
   const shown = new Array<boolean>(Math.max(0, range.r1 - range.r0)).fill(true)
   for (const [offset, column] of Object.entries(filter.columns)) {
     const cells = filterColumnCells(sheet, styles, range, range.c0 + Number(offset))
     const p = prepare(column, cells, today)
     cells.forEach((cell, i) => {
-      if (shown[i] && !passes(cell, column, p, styles)) shown[i] = false
+      if (shown[i] && !passes(cell, column, p, styles, look)) shown[i] = false
     })
   }
   return shown
 }
 
 /** The row changes that show and hide the filter's data rows (only those whose state changes). */
-export function filterRowEntries(sheet: Sheet, styles: StyleTable, filter: AutoFilter, today: number): AxisEntry[] {
-  const shown = filterVisibility(sheet, styles, filter, today)
+export function filterRowEntries(
+  sheet: Sheet,
+  styles: StyleTable,
+  filter: AutoFilter,
+  today: number,
+  look?: CellLook,
+): AxisEntry[] {
+  const shown = filterVisibility(sheet, styles, filter, today, look)
   const entries: AxisEntry[] = []
   shown.forEach((visible, i) => {
     const row = filter.range.r0 + 1 + i
@@ -328,6 +346,8 @@ export type FilterChoices = {
   /** The fills and font colours in the column (null: none / automatic), for Sort by Color and Filter by Color. */
   cellColors: (string | null)[]
   fontColors: (string | null)[]
+  /** The conditional formatting icons in the column (null: cells without one), for Sort and Filter by Cell Icon. */
+  icons: (IconRef | null)[]
 }
 
 const typeRank = (v: unknown) =>
@@ -343,14 +363,15 @@ export function filterChoices(
   filter: AutoFilter,
   col: number,
   today: number,
+  look?: CellLook,
 ): FilterChoices {
   const offset = col - filter.range.c0
   const others: AutoFilter = { range: filter.range, columns: { ...filter.columns } }
   delete others.columns[offset]
   const own = filter.columns[offset]
-  const left = filterVisibility(sheet, styles, others, today)
+  const left = filterVisibility(sheet, styles, others, today, look)
   const passing = own
-    ? filterVisibility(sheet, styles, { range: filter.range, columns: { [offset]: own } }, today)
+    ? filterVisibility(sheet, styles, { range: filter.range, columns: { [offset]: own } }, today, look)
     : null
   const cells = filterColumnCells(sheet, styles, filter.range, col)
   const values = new Map<string, { text: string; value: unknown; checked: boolean }>()
@@ -361,12 +382,16 @@ export function filterChoices(
   let texts = 0
   const fills = new Set<string | null>()
   const fonts = new Set<string | null>()
+  const icons = new Map<string, IconRef | null>()
   cells.forEach((cell, i) => {
     if (!left[i]) return
     const checked = passing ? passing[i] : true
-    const style = styles.get(sheet.styleAt(filter.range.r0 + 1 + i, col))
-    fills.add(style.fill?.toUpperCase() ?? null)
-    fonts.add(style.fontColor?.toUpperCase() ?? null)
+    const cf = look?.(cell.row, col) ?? null
+    const shown = shownColors(styles.get(sheet.styleAt(cell.row, col)), cf)
+    fills.add(shown.fill)
+    fonts.add(shown.font)
+    const icon = shownIcon(cf)
+    icons.set(icon ? `${icon.set}:${icon.index}` : "", icon)
     if (isBlank(cell.data)) {
       blanks = { checked: (blanks?.checked ?? false) || checked }
       return
@@ -402,6 +427,10 @@ export function filterChoices(
     blanks,
     cellColors: [...fills],
     fontColors: [...fonts],
+    // Excel lists a set's icons best first (the highest band), then No Cell Icon.
+    icons: [...icons.values()].some(Boolean)
+      ? [...icons.values()].sort((a, b) => (a ? (b ? b.index - a.index : -1) : b ? 1 : 0))
+      : [],
   }
 }
 
