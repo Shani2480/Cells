@@ -1,6 +1,6 @@
 /**
  * Review › Thesaurus: English synonyms from WordNet (© Princeton University), built into one file by
- * tools/build-thesaurus.mjs and read here. A word's meanings come most common first, each with its part of speech,
+ * scripts/build-thesaurus.mjs and read here. A word's meanings come most common first, each with its part of speech,
  * its synonyms, related words and opposites.
  */
 

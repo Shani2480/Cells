@@ -145,7 +145,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
   - [x] Spelling (F7): sheet or selection, Ignore Once/All, Add to Dictionary (shared with Inkspire), Change/Change
         All, Excel's end message; English Hunspell (SCOWL, dictionary-en) bundled. Thesaurus (Shift+F7) pane from
-        WordNet 3.1 (tools/build-thesaurus.mjs, 1.5 MB), meanings, synonyms, antonyms, look up, Insert
+        WordNet 3.1 (scripts/build-thesaurus.mjs, 1.5 MB), meanings, synonyms, antonyms, look up, Insert
   - [x] Check Accessibility: pane with errors and warnings (alt text, table header, contrast, merged cells, default
         sheet names, unclear link text), go to each, recommended actions, Why/How to fix; status bar indicator;
         chart Alt Text (description, Mark as decorative) in xlsx, checked in Excel 365
