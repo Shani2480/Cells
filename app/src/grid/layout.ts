@@ -1,5 +1,6 @@
 import type { Axis, Range, Sheet } from "@cells/core"
 import { HEADER_HEIGHT, LARGE_HEADER_HEIGHT, type SheetController } from "@/sheet/controller"
+import type { PageAxis } from "@/sheet/page-map"
 import { GRIPPER_HIT, GRIPPER_RADIUS } from "./touch"
 
 /** One drawn row or column: its index and its span in canvas pixels. */
@@ -44,6 +45,8 @@ export type GridLayout = {
   clip: { x0: number; y0: number; x1: number; y1: number }
   /** The parts of the cell area, drawn one by one (one when nothing is frozen). Panes have none of their own. */
   panes: GridLayout[]
+  /** View › Page Layout: where the rows and columns sit on the pages (nothing is frozen in this view). */
+  pages?: { rows: PageAxis; cols: PageAxis }
 }
 
 function visibleLines(
@@ -53,8 +56,19 @@ function visibleLines(
   extent: number,
   end = axis.count,
   frozen = false,
+  pages?: PageAxis,
 ): Line[] {
   const lines: Line[] = []
+  if (pages) {
+    // Page Layout: each line where its page puts it (a gap and margins between pages).
+    for (let index = pages.indexAt(scroll); index < Math.min(end, pages.count); index++) {
+      const start = origin + pages.pos(index) - scroll
+      if (start >= origin + extent) break
+      const size = axis.size(index)
+      if (size > 0) lines.push({ index, start, size })
+    }
+    return lines
+  }
   let index = axis.indexAt(scroll)
   let start = origin + axis.offset(index) - scroll
   while (index < end && start < origin + extent) {
@@ -81,6 +95,7 @@ export function computeLayout(
   const sheet = controller.sheet
   const f = controller.freeze
   const sp = controller.split
+  const pages = controller.pageMap() ?? undefined
   // View › Headings off: no header row or column (the cells start at the edge).
   const headerHeight = controller.showHeadings ? (controller.largeHeaders ? LARGE_HEADER_HEIGHT : HEADER_HEIGHT) : 0
   const frozenH = controller.frozenHeight
@@ -92,7 +107,15 @@ export function computeLayout(
     (f || sp) && frozenH > 0
       ? visibleLines(sheet.rows, fScrollY, headerHeight, frozenH, f ? f.row : sheet.rows.count, true)
       : []
-  const scrollRows = visibleLines(sheet.rows, controller.scrollY, originY, height - originY)
+  const scrollRows = visibleLines(
+    sheet.rows,
+    controller.scrollY,
+    originY,
+    height - originY,
+    sheet.rows.count,
+    false,
+    pages?.rows,
+  )
   // The row header's width depends on the last visible row number, which depends on the header height only.
   const lastRow = scrollRows.at(-1)?.index ?? frozenRows.at(-1)?.index ?? 0
   const rowHeaderWidth = controller.showHeadings
@@ -103,8 +126,16 @@ export function computeLayout(
     (f || sp) && frozenW > 0
       ? visibleLines(sheet.cols, fScrollX, rowHeaderWidth, frozenW, f ? f.col : sheet.cols.count, true)
       : []
-  const scrollCols = visibleLines(sheet.cols, controller.scrollX, originX, width - originX)
-  const base = { width, height, rowHeaderWidth, headerHeight, frozen: null, panes: [] }
+  const scrollCols = visibleLines(
+    sheet.cols,
+    controller.scrollX,
+    originX,
+    width - originX,
+    sheet.cols.count,
+    false,
+    pages?.cols,
+  )
+  const base = { width, height, rowHeaderWidth, headerHeight, frozen: null, panes: [], pages }
   const pane = (rows: Line[], cols: Line[], top: boolean, left: boolean): GridLayout => ({
     ...base,
     rows,
@@ -165,7 +196,7 @@ export function colX(sheet: Sheet, layout: GridLayout, col: number): number {
       : layout.originX + sheet.cols.offset(col) - layout.scrollX
   }
   if (f && col < f.col) return layout.rowHeaderWidth + sheet.cols.offset(col) - f.scrollX
-  return layout.originX + sheet.cols.offset(col) - layout.scrollX
+  return layout.originX + (layout.pages ? layout.pages.cols.pos(col) : sheet.cols.offset(col)) - layout.scrollX
 }
 
 /** A row's top edge on the canvas. */
@@ -178,7 +209,7 @@ export function rowY(sheet: Sheet, layout: GridLayout, row: number): number {
       : layout.originY + sheet.rows.offset(row) - layout.scrollY
   }
   if (f && row < f.row) return layout.headerHeight + sheet.rows.offset(row) - f.scrollY
-  return layout.originY + sheet.rows.offset(row) - layout.scrollY
+  return layout.originY + (layout.pages ? layout.pages.rows.pos(row) : sheet.rows.offset(row)) - layout.scrollY
 }
 
 /** A range's rectangle in canvas pixels (may extend past the canvas). */
@@ -198,7 +229,7 @@ function colAtX(sheet: Sheet, layout: GridLayout, x: number): number {
     const col = indexAtPixel(sheet.cols, x - layout.rowHeaderWidth + f.scrollX)
     return f.split ? col : Math.min(f.col - 1, col)
   }
-  return indexAtPixel(sheet.cols, x - layout.originX + layout.scrollX)
+  return indexAtPixel(layout.pages?.cols ?? sheet.cols, x - layout.originX + layout.scrollX)
 }
 
 function rowAtY(sheet: Sheet, layout: GridLayout, y: number): number {
@@ -207,7 +238,7 @@ function rowAtY(sheet: Sheet, layout: GridLayout, y: number): number {
     const row = indexAtPixel(sheet.rows, y - layout.headerHeight + f.scrollY)
     return f.split ? row : Math.min(f.row - 1, row)
   }
-  return indexAtPixel(sheet.rows, y - layout.originY + layout.scrollY)
+  return indexAtPixel(layout.pages?.rows ?? sheet.rows, y - layout.originY + layout.scrollY)
 }
 
 export type Hit =
@@ -293,7 +324,7 @@ export function cellAt(controller: SheetController, layout: GridLayout, x: numbe
   return { row: rowAtY(sheet, layout, y), col: colAtX(sheet, layout, x) }
 }
 
-function indexAtPixel(axis: Axis, px: number) {
+function indexAtPixel(axis: Pick<Axis, "indexAt">, px: number) {
   return axis.indexAt(Math.max(0, px))
 }
 

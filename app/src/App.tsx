@@ -416,6 +416,8 @@ function WorkbookWindow({
   recentFiles: RecentFile[]
 }) {
   const controller = doc.controller
+  // &F and &Z in the header and footer Page Layout shows.
+  controller.printFile = { fileName: doc.fileName, folder: folderOf(doc.ref?.path) }
   const platform = usePlatform()
   const [dialog, setDialog] = useState<DialogState>(null)
   const openDialogRef = useRef<(name: string) => void>(() => undefined)

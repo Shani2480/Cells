@@ -148,6 +148,8 @@ Phase 3, added at the end:
 - [ ] Page Break Preview against Excel: the grey and blue, the "Page N" size, and what Excel does when an automatic
       break is dragged further than a page holds (Excel lowers the scale to fit; Cells' manual break then gets an
       automatic one after it).
+- [ ] Page Layout: the gap between pages, how many blank pages Excel adds after the data, where the ruler counts
+      from (Cells: 0 at the margin), and when "Add header" shows (Excel: on hover).
 - [ ] Custom Views: Excel's own messages for replacing and deleting a view (Cells' wording), and whether Excel
       greys Custom Views out while sheets are grouped.
 - [ ] Fill Across Worksheets on whole rows and columns (Cells copies the used part of the cells; row and column

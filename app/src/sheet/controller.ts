@@ -77,6 +77,7 @@ import {
   Workbook,
   quoteSheet,
   rangeHtml,
+  type Pagination,
 } from "@cells/core"
 import { openLink } from "@/links/link"
 import { FormatCommands, NUMBER_FORMATS } from "./format"
@@ -91,6 +92,7 @@ import { NameCommands } from "./names"
 import { ConditionalCommands } from "./conditional"
 import { GROUP_MESSAGE, SheetGroup } from "./group"
 import { CustomViewCommands } from "./custom-views"
+import { PAGE_GAP, pageAxis, plainMetric, type AxisMetric, type PageAxis } from "./page-map"
 import { SHEET_MESSAGES, SheetCommands } from "./sheets"
 
 /**
@@ -306,6 +308,39 @@ export class SheetController {
   readonly conditional: ConditionalCommands = new ConditionalCommands(this)
   /** Sheet tabs: add, delete, rename, move, copy, colour, hide. */
   readonly sheets: SheetCommands = new SheetCommands(this)
+  /** View › Ruler (Page Layout only). */
+  showRuler = true
+
+  /** The file's name and folder, for the header and footer codes &F and &Z (Page Layout shows them). */
+  printFile = { fileName: "Book1.xlsx", folder: "" }
+
+  private pageMapCache: { pagination: Pagination; rows: PageAxis; cols: PageAxis } | null = null
+
+  /** View › Page Layout: where the rows and columns sit on the pages (null in the other views). */
+  pageMap(): { rows: PageAxis; cols: PageAxis } | null {
+    if (this.view !== "pageLayout") return null
+    const pagination = this.print.current()
+    if (this.pageMapCache?.pagination !== pagination)
+      this.pageMapCache = { pagination, ...pagesOf(this.sheet, pagination) }
+    return this.pageMapCache
+  }
+
+  /** How a sheet's view places its rows and columns (any sheet, any view: for its stored scroll position). */
+  private metricsFor(sheet: Sheet, view: SheetViewMode): { rows: AxisMetric; cols: AxisMetric } {
+    if (view !== "pageLayout") return { rows: plainMetric(sheet.rows), cols: plainMetric(sheet.cols) }
+    if (sheet === this.sheet && this.view === "pageLayout") return this.pageMap()!
+    return pagesOf(sheet, this.print.pages(sheet))
+  }
+
+  /** Rows and columns as the view places them: on pages in Page Layout, one after another otherwise. */
+  get rowMetric(): AxisMetric {
+    return this.pageMap()?.rows ?? plainMetric(this.sheet.rows)
+  }
+
+  get colMetric(): AxisMetric {
+    return this.pageMap()?.cols ?? plainMetric(this.sheet.cols)
+  }
+
   /** A change that isn't an undo step but still needs saving (the open document counts it). */
   unsavedChange: () => void = () => this.changed()
   /** View › Custom Views. */
@@ -520,10 +555,11 @@ export class SheetController {
           (r) => v.active.row >= r.r0 && v.active.row <= r.r1 && v.active.col >= r.c0 && v.active.col <= r.c1,
         ),
       )
+      const m = this.metricsFor(sheet, v.mode ?? "normal")
       this.views.set(sheet, {
         selection: { ranges, active: v.active, activeRange, anchor: v.active, focus: v.active },
-        scrollX: sheet.cols.offset(v.topLeft.col),
-        scrollY: sheet.rows.offset(v.topLeft.row),
+        scrollX: m.cols.pos(v.topLeft.col),
+        scrollY: m.rows.pos(v.topLeft.row),
         freeze: v.freeze,
         split: v.split
           ? {
@@ -567,6 +603,7 @@ export class SheetController {
           }
         : this.views.get(sheet)
       if (!v) return { ...DEFAULT_FILE_VIEW, selected: this.group.has(i) }
+      const m = this.metricsFor(sheet, v.view)
       return {
         freeze: v.freeze,
         split: v.split
@@ -581,7 +618,7 @@ export class SheetController {
         zooms: { ...v.viewZooms, [v.view]: v.zoom },
         showGridlines: v.showGridlines,
         showHeadings: v.showHeadings,
-        topLeft: { row: sheet.rows.indexAt(v.scrollY), col: sheet.cols.indexAt(v.scrollX) },
+        topLeft: { row: m.rows.indexAt(v.scrollY), col: m.cols.indexAt(v.scrollX) },
         active: v.selection.active,
         selection: [...v.selection.ranges],
         selected: this.group.has(i),
@@ -1152,7 +1189,7 @@ export class SheetController {
   }
 
   pointerRowHeader(row: number, options: { shift: boolean; ctrl: boolean }) {
-    const leftCol = this.sheet.cols.indexAt(this.scrollX)
+    const leftCol = this.colMetric.indexAt(this.scrollX)
     if (options.shift) {
       const anchor = this.selection.anchor.row
       this.setSelection(
@@ -1170,7 +1207,7 @@ export class SheetController {
   }
 
   pointerColHeader(col: number, options: { shift: boolean; ctrl: boolean }) {
-    const topRow = this.sheet.rows.indexAt(this.scrollY)
+    const topRow = this.rowMetric.indexAt(this.scrollY)
     if (options.shift) {
       const anchor = this.selection.anchor.col
       this.setSelection(
@@ -1188,10 +1225,7 @@ export class SheetController {
   }
 
   selectEverything() {
-    this.setSelection(
-      selectAll({ row: this.sheet.rows.indexAt(this.scrollY), col: this.sheet.cols.indexAt(this.scrollX) }),
-      null,
-    )
+    this.setSelection(selectAll(this.topLeft), null)
   }
 
   // ── Content commands ───────────────────────────────────────────────────────────────────────────────────────
@@ -1658,8 +1692,8 @@ export class SheetController {
   }
 
   scrollTo(x: number, y: number) {
-    const nx = Math.max(this.minScrollX, Math.min(x, this.sheet.cols.total - this.paneWidth))
-    const ny = Math.max(this.minScrollY, Math.min(y, this.sheet.rows.total - this.paneHeight))
+    const nx = Math.max(this.minScrollX, Math.min(x, this.colMetric.total - this.paneWidth))
+    const ny = Math.max(this.minScrollY, Math.min(y, this.rowMetric.total - this.paneHeight))
     if (nx !== this.scrollX || ny !== this.scrollY) {
       this.scrollX = nx
       this.scrollY = ny
@@ -1672,16 +1706,18 @@ export class SheetController {
   scrollIntoView(address: CellAddress) {
     const rows = this.sheet.rows
     const cols = this.sheet.cols
+    const ys = this.rowMetric
+    const xs = this.colMetric
     const f = this.freeze
     let { scrollX, scrollY } = this
     if (!f || address.row >= f.row) {
-      const top = rows.offset(address.row)
+      const top = ys.pos(address.row)
       const bottom = top + rows.size(address.row)
       if (top < scrollY) scrollY = top
       else if (bottom > scrollY + this.paneHeight) scrollY = Math.min(top, bottom - this.paneHeight)
     }
     if (!f || address.col >= f.col) {
-      const left = cols.offset(address.col)
+      const left = xs.pos(address.col)
       const right = left + cols.size(address.col)
       if (left < scrollX) scrollX = left
       else if (right > scrollX + this.paneWidth) scrollX = Math.min(left, right - this.paneWidth)
@@ -1694,7 +1730,7 @@ export class SheetController {
 
   /** The first row and column in view (of the scrolling part). */
   get topLeft(): CellAddress {
-    return { row: this.sheet.rows.indexAt(this.scrollY), col: this.sheet.cols.indexAt(this.scrollX) }
+    return { row: this.rowMetric.indexAt(this.scrollY), col: this.colMetric.indexAt(this.scrollX) }
   }
 
   /**
@@ -1763,9 +1799,23 @@ export class SheetController {
   setView(view: SheetViewMode) {
     if (this.edit) this.commitEdit()
     if (view === this.view) return
+    // Page Layout has no frozen panes or split (Excel takes them away).
+    if (view === "pageLayout") {
+      if (this.freeze) this.unfreeze()
+      this.split = null
+    }
+    const topLeft = this.topLeft
     this.viewZooms = { ...this.viewZooms, [this.view]: this.zoom }
     this.view = view
     this.zoom = this.viewZooms[view] ?? VIEW_ZOOM[view]
+    // The same cells at the top left: scroll positions mean other things in Page Layout.
+    // A line that starts a page shows that page whole: its margin (with the header) and the gap above it.
+    const pageStart = (m: AxisMetric, index: number) => {
+      const band = "bands" in m ? (m as PageAxis).bands.find((b) => b.first === index) : undefined
+      return band ? Math.max(0, band.start - PAGE_GAP) : m.pos(index)
+    }
+    this.scrollX = pageStart(this.colMetric, topLeft.col)
+    this.scrollY = pageStart(this.rowMetric, topLeft.row)
     if (view !== "normal") this.print.showBreaks = true
     this.scrollIntoView(this.selection.active)
     this.changed()
@@ -1791,8 +1841,8 @@ export class SheetController {
     const h = this.sheet.rows.offset(r.r1 + 1) - this.sheet.rows.offset(r.r0)
     const z = Math.floor(Math.min(cssWidth / Math.max(1, w), cssHeight / Math.max(1, h)) * 100) / 100
     this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
-    this.scrollX = Math.max(this.minScrollX, this.sheet.cols.offset(r.c0))
-    this.scrollY = Math.max(this.minScrollY, this.sheet.rows.offset(r.r0))
+    this.scrollX = Math.max(this.minScrollX, this.colMetric.pos(r.c0))
+    this.scrollY = Math.max(this.minScrollY, this.rowMetric.pos(r.r0))
     this.changed()
   }
 
@@ -2160,4 +2210,15 @@ export function htmlTableRows(html: string): string[][] {
 
 function primaryPointerIsTouch(): boolean {
   return typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches
+}
+
+/** A sheet's rows and columns on its pages (View › Page Layout). */
+function pagesOf(sheet: Sheet, pagination: Pagination): { rows: PageAxis; cols: PageAxis } {
+  const used = sheet.cells.usedBounds()
+  const lastRow = Math.max(used?.r1 ?? 0, ...pagination.areas.map((a) => a.r1))
+  const lastCol = Math.max(used?.c1 ?? 0, ...pagination.areas.map((a) => a.c1))
+  return {
+    rows: pageAxis(sheet.rows, pagination, "rows", lastRow),
+    cols: pageAxis(sheet.cols, pagination, "cols", lastCol),
+  }
 }

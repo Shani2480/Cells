@@ -46,6 +46,10 @@
   --grid-break-preview-shade: rgb(128 128 128 / 0.45);
   --grid-break-preview-label: rgb(128 128 128 / 0.35);
   --grid-break-preview-line: #2f5fe0;
+  --grid-page-desk: #e6e6e6;
+  --grid-page-edge: #b4b4b4;
+  --grid-page-hint: #8a8a8a;
+  --grid-ruler-margin: #c9c9c9;
   --grid-page-break: #6e6e6e;
   --grid-note-mark: #e00000;
   --grid-comment-mark: #8a3fd1;
@@ -112,6 +116,10 @@
   --grid-break-preview-shade: rgb(0 0 0 / 0.45);
   --grid-break-preview-label: rgb(255 255 255 / 0.22);
   --grid-break-preview-line: #6f9bff;
+  --grid-page-desk: #141414;
+  --grid-page-edge: #4a4a4a;
+  --grid-page-hint: #8c8c8c;
+  --grid-ruler-margin: #3a3a3a;
   --grid-page-break: #a8a8a8;
   --grid-note-mark: #ff4b4b;
   --grid-comment-mark: #b585f0;
@@ -2543,13 +2551,111 @@ html.is-phone .clipboard-item-delete {
 }
 
 .grid-frame > .grid-host {
-  grid-area: 2 / 2;
+  grid-area: 3 / 3;
   min-width: 0;
   min-height: 0;
 }
 
+/* View › Page Layout's rulers: shaded margins, a white printable part, ticks and numbers. */
+.ruler-corner {
+  grid-area: 1 / 1 / 3 / 3;
+  background: var(--grid-header-bg);
+}
+
+.ruler {
+  position: relative;
+  overflow: hidden;
+  background: var(--grid-page-desk);
+  color: var(--grid-header-text, var(--app-ribbon-text));
+  font-size: 9px;
+  line-height: 1;
+}
+
+.ruler.is-cols {
+  grid-area: 1 / 3;
+  border-bottom: 1px solid var(--grid-header-line, var(--app-divider));
+}
+
+.ruler.is-rows {
+  grid-area: 3 / 1;
+  border-right: 1px solid var(--grid-header-line, var(--app-divider));
+}
+
+.ruler-track {
+  position: absolute;
+  inset: 0;
+}
+
+.ruler.is-cols .ruler-track {
+  right: 0;
+}
+
+.ruler-page,
+.ruler-body {
+  position: absolute;
+}
+
+.ruler.is-cols .ruler-page,
+.ruler.is-cols .ruler-body {
+  top: 3px;
+  bottom: 3px;
+}
+
+.ruler.is-rows .ruler-page,
+.ruler.is-rows .ruler-body {
+  left: 3px;
+  right: 3px;
+}
+
+.ruler-page {
+  background: var(--grid-ruler-margin);
+}
+
+.ruler-body {
+  background: var(--grid-bg);
+}
+
+.ruler-tick,
+.ruler-label {
+  position: absolute;
+}
+
+.ruler.is-cols .ruler-tick {
+  bottom: 5px;
+  width: 1px;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.ruler.is-cols .ruler-tick.is-half {
+  height: 5px;
+}
+
+.ruler.is-rows .ruler-tick {
+  right: 5px;
+  height: 1px;
+  width: 3px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.ruler.is-rows .ruler-tick.is-half {
+  width: 5px;
+}
+
+.ruler.is-cols .ruler-label {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.ruler.is-rows .ruler-label {
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .outline-corner {
-  grid-area: 1 / 1;
+  grid-area: 2 / 2;
   background: var(--grid-header-bg);
   border-right: 1px solid var(--grid-header-line, var(--app-divider));
   border-bottom: 1px solid var(--grid-header-line, var(--app-divider));
@@ -2563,12 +2669,12 @@ html.is-phone .clipboard-item-delete {
 }
 
 .outline-bar.is-rows {
-  grid-area: 2 / 1;
+  grid-area: 3 / 2;
   border-right: 1px solid var(--grid-header-line, var(--app-divider));
 }
 
 .outline-bar.is-cols {
-  grid-area: 1 / 2;
+  grid-area: 2 / 3;
   border-bottom: 1px solid var(--grid-header-line, var(--app-divider));
 }
 

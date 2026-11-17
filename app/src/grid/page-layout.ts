@@ -1,0 +1,172 @@
+import type { PrintPage } from "@cells/core"
+import type { SheetController } from "@/sheet/controller"
+import type { PageAxis, PageBand } from "@/sheet/page-map"
+import { headerFooterLines } from "@/print/render"
+import type { GridLayout } from "./layout"
+import { CELL_FONT_FAMILY, type GridTheme } from "./theme"
+import type { Painter } from "./draw"
+
+/**
+ * View › Page Layout, as Excel draws it: the sheet as sheets of paper on a grey desk. The cells sit inside each
+ * page's margins; the header and footer show in the top and bottom margins. Cells are drawn first, then this covers
+ * what falls between the pages and in the margins.
+ */
+
+/** One page on screen: its paper and its printable part, in canvas pixels. */
+export type PageRect = {
+  rowBand: number
+  colBand: number
+  x: number
+  y: number
+  w: number
+  h: number
+  body: { x: number; y: number; w: number; h: number }
+}
+
+/** The pages in view. */
+export function visiblePages(layout: GridLayout): PageRect[] {
+  const pages = layout.pages
+  if (!pages) return []
+  const { clip } = layout
+  const along = (axis: PageAxis, origin: number, scroll: number, lo: number, hi: number) =>
+    axis.bands.flatMap((band, i) => {
+      const start = origin + band.start - scroll
+      return start + axis.page < lo || start > hi ? [] : [{ i, start, band }]
+    })
+  const rows = along(pages.rows, layout.originY, layout.scrollY, clip.y0, clip.y1)
+  const cols = along(pages.cols, layout.originX, layout.scrollX, clip.x0, clip.x1)
+  const out: PageRect[] = []
+  for (const r of rows)
+    for (const c of cols)
+      out.push({
+        rowBand: r.i,
+        colBand: c.i,
+        x: c.start,
+        y: r.start,
+        w: pages.cols.page,
+        h: pages.rows.page,
+        body: {
+          x: c.start + pages.cols.margin,
+          y: r.start + pages.rows.margin,
+          w: pages.cols.body,
+          h: pages.rows.body,
+        },
+      })
+  return out
+}
+
+/** A page's number as printing numbers it (down, then over, unless the setup says over, then down). */
+function pageNumber(controller: SheetController, rowBand: PageBand, colBand: PageBand, ri: number, ci: number) {
+  const p = controller.print.current()
+  const printed = p.pages.find((page) => page.rows[0] === rowBand.first && page.cols[0] === colBand.first)
+  if (printed) return printed.number
+  const map = controller.pageMap()
+  const rows = map?.rows.bands.length ?? 1
+  const cols = map?.cols.bands.length ?? 1
+  const first = p.pages[0]?.number ?? 1
+  return controller.sheet.pageSetup.order === "overThenDown" ? first + ri * cols + ci : first + ci * rows + ri
+}
+
+/** The desk, the margins, each page's edge, and the header and footer (after the cells). */
+export function drawPageLayout(p: Painter, controller: SheetController, layout: GridLayout, theme: GridTheme) {
+  const map = layout.pages
+  if (!map) return
+  const { clip } = layout
+  const pages = visiblePages(layout)
+  p.save()
+  p.beginPath()
+  p.rect(clip.x0, clip.y0, clip.x1 - clip.x0, clip.y1 - clip.y0)
+  p.clip()
+
+  // The desk: everything but the pages.
+  p.beginPath()
+  p.rect(clip.x0, clip.y0, clip.x1 - clip.x0, clip.y1 - clip.y0)
+  for (const page of pages) p.rect(page.x, page.y, page.w, page.h)
+  p.fillStyle = theme.pageDesk
+  p.fill("evenodd")
+
+  // The margins: the paper less its printable part (cells and their text stop at the margin, as on paper).
+  p.beginPath()
+  for (const page of pages) {
+    p.rect(page.x, page.y, page.w, page.h)
+    p.rect(page.body.x, page.body.y, page.body.w, page.body.h)
+  }
+  p.fillStyle = theme.background
+  p.fill("evenodd")
+
+  p.strokeStyle = theme.pageEdge
+  p.lineWidth = 1
+  for (const page of pages) p.strokeRect(page.x - 0.5, page.y - 0.5, page.w + 1, page.h + 1)
+
+  // Header and footer: 11 pt, scaled with the sheet as it prints.
+  const setup = controller.sheet.pageSetup
+  const pagination = controller.print.current()
+  const scale = pagination.scale || 1
+  const pxPerIn = 96 / scale
+  // 11 pt at the print scale, on a page drawn 1/scale as big: the same size on screen at any scale.
+  const size = 11 / 0.75
+  const lineHeight = size * 1.2
+  p.font = `${size}px ${CELL_FONT_FAMILY}`
+  p.textBaseline = "alphabetic"
+  const ctx = { ...controller.printFile, now: new Date(), total: Math.max(1, pagination.pages.length) }
+  for (const page of pages) {
+    const number = pageNumber(
+      controller,
+      map.rows.bands[page.rowBand],
+      map.cols.bands[page.colBand],
+      page.rowBand,
+      page.colBand,
+    )
+    const printPage: PrintPage = { area: 0, rows: [0, 0], cols: [0, 0], titleRows: null, titleCols: null, number }
+    const left = page.body.x
+    const right = page.body.x + page.body.w
+    for (const where of ["header", "footer"] as const) {
+      const hf = setup[where]
+      const empty = !hf.left && !hf.center && !hf.right
+      if (empty) {
+        // Excel's hint on the first page's empty header or footer, faint, where a click adds one.
+        if (page.rowBand || page.colBand) continue
+        p.fillStyle = theme.pageHint
+        p.textAlign = "center"
+        const y =
+          where === "header"
+            ? page.y + setup.margins.header * pxPerIn + size
+            : page.y + page.h - setup.margins.footer * pxPerIn
+        p.fillText(where === "header" ? "Add header" : "Add footer", (left + right) / 2, y)
+        continue
+      }
+      p.fillStyle = theme.text
+      for (const [section, align, x] of [
+        ["left", "left", left],
+        ["center", "center", (left + right) / 2],
+        ["right", "right", right],
+      ] as const) {
+        const text = hf[section]
+        if (!text) continue
+        const lines = headerFooterLines(text, printPage, controller.sheet, ctx)
+        p.textAlign = align
+        const top =
+          where === "header"
+            ? page.y + setup.margins.header * pxPerIn + size
+            : page.y + page.h - setup.margins.footer * pxPerIn - (lines.length - 1) * lineHeight
+        lines.forEach((line, i) => p.fillText(line, x, top + i * lineHeight))
+      }
+    }
+  }
+  p.textAlign = "left"
+  p.restore()
+}
+
+/** What part of a page a point is on: its header or footer margin, another margin or the desk, or its cells. */
+export function pagePartAt(layout: GridLayout, x: number, y: number) {
+  if (!layout.pages) return null
+  for (const page of visiblePages(layout)) {
+    if (x < page.x || x > page.x + page.w || y < page.y || y > page.y + page.h) continue
+    const b = page.body
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return null
+    if (y < b.y) return "header" as const
+    if (y > b.y + b.h) return "footer" as const
+    return "margin" as const
+  }
+  return "desk" as const
+}

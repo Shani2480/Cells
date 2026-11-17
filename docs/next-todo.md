@@ -128,7 +128,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
       Table), Forecast Sheet, Refresh All and Queries & Connections for text and CSV imports, Edit Links
 - [x] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
       Symbol, Header & Footer (opens Page Setup's tab until Page Layout view exists)
-- [ ] Part 6 — Views and windows: Page Layout view, Ruler, New Window, Arrange
+- [ ] Part 6 — Views and windows: New Window, Arrange
       All, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
   - [x] Grouped sheets: Shift/Ctrl+click tabs, Select All Sheets / Ungroup Sheets, Ctrl+Shift+PgDn/PgUp, edits
         repeated on each sheet as one undo step, Delete and Hide on the group, [Group] in the title, one-sheet
@@ -137,6 +137,8 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         bars, Freeze Panes ⇄ Split, saved in Excel files (pane state "split", twips)
   - [x] Page Break Preview: shading, blue page outlines (dashed automatic, solid manual), Page N, dragging breaks
         and the print area's edge, its own zoom, status bar view buttons, view and zooms in Excel files
+  - [x] Page Layout view and Ruler: rows and columns on pages as they print, margins, header and footer (click opens
+        Header/Footer), blank pages after the data, rulers in in/cm, no frozen panes or split in this view
   - [x] Custom Views: Add (print settings, hidden rows and columns), Show, Delete; read from and written to Excel files
         (customWorkbookViews, customSheetViews, Z_<guid>_.wvu names), checked in Excel 365
 - [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
@@ -156,6 +158,9 @@ run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signatur
 decided when Part 8 is done.
 
 ## Later (from Phase 7)
+
+- Page Layout: Excel edits the header and footer in place on the page (Cells opens Page Setup › Header/Footer);
+  print titles aren't repeated on each page; the ruler setting isn't saved with the sheet (sheetView showRuler).
 
 - Custom Views: a view's filter settings aren't saved or shown (Excel's .wvu.FilterData is kept as read), nor are
   split panes or hidden sheets.

@@ -6,6 +6,8 @@ import { isSystemShortcut, keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
 import { ChartLayer } from "./ChartLayer"
 import { TraceLayer } from "./TraceLayer"
+import { Ruler, RULER, rulerShown } from "./Ruler"
+import { pagePartAt } from "./page-layout"
 import { OutlineBar, outlineBarSize } from "./OutlineBar"
 import { FilterButtons } from "./FilterButtons"
 import { ValidationLayer } from "./ValidationLayer"
@@ -524,6 +526,12 @@ export function GridView({
     }
     canvasRef.current!.setPointerCapture(event.pointerId)
     pointerRef.current = { x, y, ctrl }
+    // Page Layout: the header or footer margin opens Header & Footer; the desk and side margins hold no cells.
+    const pagePart = hit.zone === "cell" ? pagePartAt(layout, x, y) : null
+    if (pagePart) {
+      if (pagePart === "header" || pagePart === "footer") controller.shell.openDialog?.("pageSetup:headerFooter")
+      return
+    }
     const pageLine = hit.zone === "cell" ? breakLineAt(controller, layout, x, y) : null
     if (pageLine) {
       dragRef.current = { kind: "pageLine", line: pageLine, to: pageLine.index }
@@ -644,30 +652,35 @@ export function GridView({
       hideLinkTip()
     }
     const pageLine = hit.zone === "cell" ? breakLineAt(controller, layout, x, y) : null
+    const pagePart = hit.zone === "cell" ? pagePartAt(layout, x, y) : null
     setCursor(
-      pageLine
-        ? pageLine.axis === "rows"
-          ? "row-resize"
-          : "col-resize"
-        : linked
-          ? "pointer"
-          : hit.zone === "split"
-            ? hit.x && hit.y
-              ? "move"
-              : hit.x
+      pagePart
+        ? pagePart === "header" || pagePart === "footer"
+          ? "text"
+          : "default"
+        : pageLine
+          ? pageLine.axis === "rows"
+            ? "row-resize"
+            : "col-resize"
+          : linked
+            ? "pointer"
+            : hit.zone === "split"
+              ? hit.x && hit.y
+                ? "move"
+                : hit.x
+                  ? "col-resize"
+                  : "row-resize"
+              : hit.zone === "colResize"
                 ? "col-resize"
-                : "row-resize"
-            : hit.zone === "colResize"
-              ? "col-resize"
-              : hit.zone === "rowResize"
-                ? "row-resize"
-                : hit.zone === "fillHandle"
-                  ? "crosshair"
-                  : hit.zone === "colHeader"
-                    ? "s-resize"
-                    : hit.zone === "rowHeader"
-                      ? "e-resize"
-                      : "cell",
+                : hit.zone === "rowResize"
+                  ? "row-resize"
+                  : hit.zone === "fillHandle"
+                    ? "crosshair"
+                    : hit.zone === "colHeader"
+                      ? "s-resize"
+                      : hit.zone === "rowHeader"
+                        ? "e-resize"
+                        : "cell",
     )
   }
 
@@ -981,23 +994,34 @@ export function GridView({
   // The scrollbars cover the scrolling part only (frozen rows and columns don't scroll).
   const minX = controller.minScrollX
   const minY = controller.minScrollY
-  const contentWidth =
-    Math.max(sheet.cols.offset((used?.c1 ?? 0) + 1), controller.scrollX + controller.paneWidth) +
-    controller.paneWidth / 2 -
-    minX
-  const contentHeight =
-    Math.max(sheet.rows.offset((used?.r1 ?? 0) + 1), controller.scrollY + controller.paneHeight) +
-    controller.paneHeight / 2 -
-    minY
+  // Page Layout: the pages (with a few blank ones after the cells in use).
+  const pageMap = controller.pageMap()
+  const contentWidth = pageMap
+    ? Math.max(pageMap.cols.total, controller.scrollX + controller.paneWidth)
+    : Math.max(sheet.cols.offset((used?.c1 ?? 0) + 1), controller.scrollX + controller.paneWidth) +
+      controller.paneWidth / 2 -
+      minX
+  const contentHeight = pageMap
+    ? Math.max(pageMap.rows.total, controller.scrollY + controller.paneHeight)
+    : Math.max(sheet.rows.offset((used?.r1 ?? 0) + 1), controller.scrollY + controller.paneHeight) +
+      controller.paneHeight / 2 -
+      minY
 
   const outlineW = outlineBarSize(controller, "rows")
   const outlineH = outlineBarSize(controller, "cols")
+  const ruler = rulerShown(controller) ? RULER : 0
 
   return (
     <div
       className="grid-frame"
-      style={{ gridTemplateColumns: `${outlineW}px minmax(0, 1fr)`, gridTemplateRows: `${outlineH}px minmax(0, 1fr)` }}
+      style={{
+        gridTemplateColumns: `${ruler}px ${outlineW}px minmax(0, 1fr)`,
+        gridTemplateRows: `${ruler}px ${outlineH}px minmax(0, 1fr)`,
+      }}
     >
+      {ruler ? <div className="ruler-corner" /> : null}
+      {layoutNow && ruler ? <Ruler controller={controller} layout={layoutNow} zoom={zoom} axis="cols" /> : null}
+      {layoutNow && ruler ? <Ruler controller={controller} layout={layoutNow} zoom={zoom} axis="rows" /> : null}
       {outlineW && outlineH ? <div className="outline-corner" /> : null}
       {layoutNow && outlineH ? (
         <OutlineBar controller={controller} layout={layoutNow} zoom={zoom} axis="cols" onDone={focusInput} />

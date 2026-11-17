@@ -56,6 +56,19 @@ function otherCommands(): Command[] {
     run: (env) => void env.files?.importText(),
     enabled: (env) => Boolean(env.files),
   }
+  const ruler: Command = {
+    id: "ViewRulerExcel",
+    label: "Ruler",
+    description: "Show the rulers next to the document, to measure and line things up. They show in Page Layout view.",
+    keytip: "VR",
+    check: true,
+    enabled: (env) => env.c.view === "pageLayout",
+    run: (env) => {
+      env.c.showRuler = !env.c.showRuler
+      env.c.changed()
+    },
+    pressed: (env) => env.c.showRuler,
+  }
   const gridlines: Command = {
     id: "GridlinesExcel",
     label: "Gridlines",
@@ -122,6 +135,7 @@ function otherCommands(): Command[] {
     removeDuplicates,
     textToColumns,
     gridlines,
+    ruler,
     { ...gridlines, id: "ViewSheetGridlines", label: "View", keytip: "VG" },
     {
       id: "ViewHeadings",
@@ -172,6 +186,15 @@ function otherCommands(): Command[] {
       run: (env) => env.dialog("customViews"),
     },
     {
+      id: "ViewPageLayoutView",
+      label: "Page Layout",
+      description:
+        "See what the printed pages will look like: where each page starts and ends, and the header and footer.",
+      keytip: "P",
+      run: (env) => env.c.setView("pageLayout"),
+      pressed: (env) => env.c.view === "pageLayout",
+    },
+    {
       id: "ViewPageBreakPreviewView",
       label: "Page Break Preview",
       description:
@@ -186,6 +209,8 @@ function otherCommands(): Command[] {
       description: "Freeze a portion of the sheet to keep it visible while you scroll through the rest of the sheet.",
       keytip: "F",
       largeIcon: <Snowflake {...large} />,
+      // Page Layout has no frozen panes (Excel greys it out there).
+      enabled: (env) => env.c.view !== "pageLayout",
       menu: (env) => [
         env.c.freeze ? "ViewUnfreezePanes" : "ViewFreezePanes",
         "ViewFreezeTopRow",
@@ -200,6 +225,7 @@ function otherCommands(): Command[] {
       keytip: "S",
       icon: <Columns2 {...small} />,
       run: (env) => env.c.toggleSplit(),
+      enabled: (env) => env.c.view !== "pageLayout",
       pressed: (env) => env.c.split !== null,
     },
     {

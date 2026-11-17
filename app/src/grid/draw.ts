@@ -2,6 +2,7 @@ import { columnName, isWholeColumns, isWholeRows, rangeIntersection, type Range 
 import type { SheetController } from "@/sheet/controller"
 import type { Measure } from "./cell-look"
 import { drawCells } from "./draw-cells"
+import { drawPageLayout } from "./page-layout"
 import { drawBreakPreview } from "./break-preview"
 import {
   colX,
@@ -75,6 +76,7 @@ export function drawGrid(options: DrawOptions) {
   // Each part of the cell area (frozen rows and columns, the scrolling part) draws in its own rectangle.
   for (const pane of layout.panes) {
     drawCells({ ...options, layout: pane })
+    drawPageLayout(p, options.controller, pane, theme)
     drawPageBreaks({ ...options, layout: pane })
     drawBreakPreview(p, options.controller, pane, theme)
     drawMarks({ ...options, layout: pane })
@@ -118,8 +120,8 @@ export function drawGrid(options: DrawOptions) {
 
 /** Page breaks as Excel shows them in Normal view once the sheet has been paged: dashed lines between pages. */
 function drawPageBreaks({ painter: p, layout, controller, theme }: DrawOptions) {
-  // Page Break Preview draws its own blue lines.
-  if (controller.view === "pageBreakPreview") return
+  // Page Break Preview draws its own blue lines; Page Layout shows the pages themselves.
+  if (controller.view !== "normal") return
   if (!controller.print.showBreaks || !layout.rows.length || !layout.cols.length) return
   const { rows, cols } = controller.print.breaks()
   if (!rows.length && !cols.length) return

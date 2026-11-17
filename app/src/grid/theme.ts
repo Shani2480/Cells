@@ -26,6 +26,10 @@ export type GridTheme = {
   breakPreviewShade: string
   breakPreviewLabel: string
   breakPreviewLine: string
+  /** View › Page Layout: the desk around the pages, a page's edge, and the faint "Add header" hint. */
+  pageDesk: string
+  pageEdge: string
+  pageHint: string
   /** Page breaks once the sheet has been paged (dashed). */
   pageBreak: string
   /** The corner marks of a note (red) and a comment (purple). */
@@ -58,6 +62,9 @@ const TOKENS: Record<Exclude<keyof GridTheme, "refColors">, string> = {
   breakPreviewShade: "--grid-break-preview-shade",
   breakPreviewLabel: "--grid-break-preview-label",
   breakPreviewLine: "--grid-break-preview-line",
+  pageDesk: "--grid-page-desk",
+  pageEdge: "--grid-page-edge",
+  pageHint: "--grid-page-hint",
   pageBreak: "--grid-page-break",
   noteMark: "--grid-note-mark",
   commentMark: "--grid-comment-mark",
@@ -87,6 +94,9 @@ export const LIGHT_THEME: GridTheme = {
   breakPreviewShade: "rgb(128 128 128 / 0.45)",
   breakPreviewLabel: "rgb(128 128 128 / 0.35)",
   breakPreviewLine: "#2f5fe0",
+  pageDesk: "#e6e6e6",
+  pageEdge: "#b4b4b4",
+  pageHint: "#8a8a8a",
   pageBreak: "#6e6e6e",
   noteMark: "#e00000",
   commentMark: "#8a3fd1",
