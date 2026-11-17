@@ -2959,3 +2959,254 @@ html.is-phone .forecast-options {
 .links-row {
   cursor: default;
 }
+
+/* ── Insert Hyperlink (Insert › Link, Ctrl+K) ──────────────────────────────────────────────────────────── */
+
+.link-dialog {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 14px;
+  min-height: 300px;
+}
+
+.link-to {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-pages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+}
+
+.link-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  font: 12px/1.25 var(--font-ui);
+  text-align: center;
+}
+
+.link-page svg {
+  color: var(--app-theme-primary);
+}
+
+.link-page:hover:not(:disabled) {
+  background: var(--app-hover);
+}
+
+.link-page.is-selected {
+  border-color: var(--app-theme-primary);
+  background: var(--app-theme-light);
+}
+
+.link-page:disabled {
+  opacity: 0.45;
+}
+
+.link-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link-row > .dialog-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.link-row > .dialog-label {
+  white-space: nowrap;
+}
+
+.link-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-places {
+  height: 170px;
+}
+
+.link-places-head {
+  padding: 4px 8px 2px;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.link-places .dialog-list-item {
+  padding-left: 22px;
+}
+
+.link-remove {
+  margin-right: auto;
+}
+
+@media (max-width: 560px) {
+  .link-dialog {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .link-pages {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .link-page {
+    min-width: 88px;
+  }
+}
+
+/* ── Symbol (Insert › Symbol) ───────────────────────────────────────────────────────────────────────────── */
+
+.symbol-page,
+.symbol-special {
+  height: 352px;
+}
+
+.symbol-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.symbol-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.symbol-row > select.dialog-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.symbol-grid,
+.symbol-recent {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+}
+
+.symbol-grid {
+  height: 214px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.symbol-cell {
+  display: flex;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-right: 1px solid var(--app-divider);
+  border-bottom: 1px solid var(--app-divider);
+  background: transparent;
+  color: var(--app-ribbon-text);
+  font: 17px var(--font-ui);
+}
+
+.symbol-cell:hover {
+  background: var(--app-hover);
+}
+
+.symbol-cell.is-selected {
+  background: var(--app-theme-primary);
+  color: #ffffff;
+}
+
+.symbol-cell:focus-visible {
+  outline: 2px solid var(--app-field-focus);
+  outline-offset: -2px;
+}
+
+.symbol-recent .symbol-cell {
+  border-bottom: 0;
+}
+
+.symbol-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--app-ribbon-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog-field.symbol-code {
+  width: 64px;
+  font-family: var(--font-mono, monospace);
+}
+
+.symbol-special .dialog-list-item {
+  display: flex;
+  gap: 12px;
+}
+
+.symbol-special-char {
+  width: 20px;
+  text-align: center;
+}
+
+@media (pointer: coarse) {
+  .symbol-cell {
+    height: 40px;
+  }
+}
+
+@media (max-width: 560px) {
+  .symbol-grid,
+  .symbol-recent {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .symbol-recent .symbol-cell:nth-child(n + 9) {
+    display: none;
+  }
+
+  .symbol-row {
+    flex-wrap: wrap;
+  }
+}
+
+.link-tip {
+  position: absolute;
+  z-index: 6;
+  max-width: 360px;
+  padding: 4px 8px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-ribbon-card);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.16);
+  color: var(--app-ribbon-text);
+  font: 12px/1.35 var(--font-ui);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}

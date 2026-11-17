@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { errorValue } from "@cells/core"
+import { errorValue, Workbook } from "@cells/core"
 import { openXlsx, saveXlsx } from "../src"
 import { readZip } from "@cells/ooxml"
 import { budget, linkedText } from "./samples"
@@ -263,5 +263,36 @@ describe("text links (connections and query tables)", () => {
     const out = connectionsXml(kept, linkedText().sheets[0].queryTables)!
     expect(out.xml).toContain(odbc)
     expect([...out.ids.values()]).toEqual([4])
+  })
+
+  it("keeps hyperlinks: web, mail, files and places, with ScreenTips", async () => {
+    const wb = new Workbook(["Links", "Data"])
+    const s = wb.sheets[0]
+    s.cells.set(0, 0, { value: "Site" })
+    s.cells.set(1, 0, { value: "Mail" })
+    s.cells.set(2, 0, { value: "Report" })
+    s.cells.set(3, 0, { value: "Totals" })
+    s.cells.set(4, 0, { value: "Prices" })
+    s.hyperlinks = [
+      { range: { r0: 0, c0: 0, r1: 0, c1: 1 }, address: "https://example.com/a?b=1&c=2", tooltip: "Our site" },
+      { range: { r0: 1, c0: 0, r1: 1, c1: 0 }, address: "mailto:alex@example.com?subject=Hi%20there" },
+      { range: { r0: 2, c0: 0, r1: 2, c1: 0 }, address: "C:\\Reports\\Q1.pdf" },
+      { range: { r0: 3, c0: 0, r1: 3, c1: 0 }, location: "Data!B2", display: "Totals" },
+      { range: { r0: 4, c0: 0, r1: 4, c1: 0 }, address: "Prices.xlsx", location: "Sheet1!A1" },
+    ]
+    const bytes = await saveXlsx(wb)
+    const entries = await readZip(bytes)
+    const sheet = part(entries, "xl/worksheets/sheet1.xml")
+    expect(sheet).toMatch(/<\/dataValidations>|<hyperlinks>/)
+    expect(sheet).toContain('<hyperlink ref="A4" location="Data!B2" display="Totals"/>')
+    const rels = part(entries, "xl/worksheets/_rels/sheet1.xml.rels")
+    expect(rels).toContain('Target="https://example.com/a?b=1&amp;c=2" TargetMode="External"')
+    expect(rels).toContain('Target="file:///C:\\Reports\\Q1.pdf"')
+    const back = await openXlsx(bytes)
+    expect(back.workbook.sheets[0].hyperlinks).toEqual(s.hyperlinks)
+    // A second save doesn't pile up relationships.
+    const again = await readZip(await saveXlsx(back.workbook, { source: back.source }))
+    const rels2 = part(again, "xl/worksheets/_rels/sheet1.xml.rels")
+    expect(rels2.match(/relationships\/hyperlink"/g)).toHaveLength(4)
   })
 })

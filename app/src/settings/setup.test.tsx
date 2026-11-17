@@ -38,7 +38,7 @@ function renderWith(initial: string | null) {
     },
     files: new MemoryFiles(),
     settings,
-    opens: { onRequest: () => () => {} },
+    opens: { onRequest: () => () => {}, external: async () => {} },
     links: new MemoryLinks(),
     ai: new MemoryAi(),
   }

@@ -19,6 +19,7 @@ import { formulaFromFile } from "../xlsx/formula"
 import { readPrintArea, readPrintTitles } from "../xlsx/page-setup"
 import { DEFAULT_VIEW, needsApostrophe, type SheetView } from "../xlsx/sheet-read"
 import { colWidthToPx, pointsToPx } from "../xlsx/units"
+import { readHlink, readHlinkTooltip } from "./hlink"
 import { Cursor, R, readRecords, type BiffRecord } from "./biff"
 import { CfbError, CompoundFile } from "./cfb"
 import { decodeFormula, errorText, FormulaSkip, type FormulaContext, type Xti } from "./formula"
@@ -27,8 +28,8 @@ import { decodeFormula, errorText, FormulaSkip, type FormulaContext, type Xti } 
  * Opens an Excel 97-2003 workbook (.xls, BIFF8 in a compound file): its sheets, values, formulas, number formats,
  * fonts, fills, borders, alignment, column widths, row heights, hidden rows and columns, merged cells, frozen panes,
  * defined names and print areas. It opens as a new workbook, as Excel's "convert" does: Cells saves .xlsx, never .xls.
- * Notes too. Left out for now, each with a warning: pictures and charts, conditional formats, data validation, AutoFilter,
- * hyperlinks and sheet protection.
+ * Notes too. Left out for now, each with a warning: pictures and charts, conditional formats, data validation, AutoFilter
+ * and sheet protection.
  */
 
 export class XlsError extends Error {
@@ -643,9 +644,18 @@ function readSheet(
       case 0x01be:
         left.add("data validation")
         break
-      case 0x01b8:
-        left.add("hyperlinks")
+      case 0x01b8: {
+        const link = readHlink(rec.data)
+        if (link) sheet.hyperlinks.push(link)
+        else left.add("some hyperlinks")
         break
+      }
+      case 0x0800: {
+        const tip = readHlinkTooltip(rec.data)
+        const link = tip && sheet.hyperlinks.find((l) => l.range.r0 === tip.r0 && l.range.c0 === tip.c0)
+        if (link) link.tooltip = tip.tooltip
+        break
+      }
       case 0x009d:
         left.add("AutoFilter")
         break

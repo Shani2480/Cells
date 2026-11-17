@@ -211,6 +211,9 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
     case "annotations":
     case "charts":
       return !p.editObjects
+    case "hyperlinks":
+      // Excel: "Insert hyperlinks, even in unlocked cells" is its own option.
+      return !p.insertHyperlinks
     case "autoFilter":
       // Use AutoFilter lets filters change; turning the filter on or off never works on a protected sheet.
       return !p.autoFilter || (sheet.autoFilter === null) !== (op.filter === null)

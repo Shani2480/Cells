@@ -1019,8 +1019,18 @@ export function homeCommands(): Command[] {
       run: (env) => env.c.annotations.clear("note"),
       enabled: (env) => env.c.annotations.selectionHas("note"),
     },
-    { id: "ClearHyperlinks", label: "Clear Hyperlinks" },
-    { id: "RemoveHyperlinks", label: "Remove Hyperlinks" },
+    {
+      id: "ClearHyperlinks",
+      label: "Clear Hyperlinks",
+      run: (env) => env.c.hyperlinks.remove(false),
+      enabled: (env) => env.c.hyperlinks.selectionHas(),
+    },
+    {
+      id: "RemoveHyperlinks",
+      label: "Remove Hyperlinks",
+      run: (env) => env.c.hyperlinks.remove(true),
+      enabled: (env) => env.c.hyperlinks.selectionHas(),
+    },
     {
       id: "SortFilterMenu",
       label: "Sort & Filter",

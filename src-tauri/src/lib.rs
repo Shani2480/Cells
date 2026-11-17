@@ -466,6 +466,8 @@ pub fn run() {
     }));
     builder
         .plugin(tauri_plugin_deep_link::init())
+        // Insert › Link: web pages, e-mail and files open in the system's apps.
+        .plugin(tauri_plugin_opener::init())
         .manage(PendingOpens::default())
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();

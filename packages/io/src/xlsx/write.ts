@@ -1,3 +1,4 @@
+import { hyperlinkTarget } from "./hyperlinks"
 import { columnName, quoteSheet, type Range, type Sheet, type Workbook } from "@cells/core"
 import {
   allowsMacros,
@@ -35,6 +36,7 @@ import {
   REL_SHARED_STRINGS,
   REL_STYLES,
   REL_TABLE,
+  REL_HYPERLINK,
   REL_THREADED,
   REL_VML,
   REL_WORKSHEET,
@@ -284,6 +286,13 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       put(part, CT_QUERY_TABLE, queryTableXml(q, conns!.ids.get(q)!))
       addRel(partName, REL_QUERY_TABLE, part)
     }
+    // Links out of the workbook: their addresses go in the sheet's relationships.
+    const hyperlinkRels = sheet.hyperlinks.map((l) => {
+      if (!l.address) return null
+      const id = newId(own)
+      own.push({ id, type: REL_HYPERLINK, target: hyperlinkTarget(l.address), targetMode: "External", partName: null })
+      return id
+    })
     const drawing = writeDrawing(wb, sheet, partName, s?.drawing, {
       put,
       removeTree,
@@ -305,6 +314,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       drawing,
       tableParts,
       links,
+      hyperlinkRels,
     })
     dynamic ||= written.dynamic
     put(partName, CT_WORKSHEET, written.xml)

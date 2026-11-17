@@ -244,6 +244,8 @@ export class FormatCommands {
     if (this.isMerged()) ops.push({ kind: "unmerge", sheet, ranges: [...this.c.selection.ranges] })
     const notes = this.c.annotations.removalOp()
     if (notes) ops.push(notes)
+    const links = this.c.hyperlinks.removalOp()
+    if (links) ops.push(links)
     this.run(ops, "Clear")
   }
 

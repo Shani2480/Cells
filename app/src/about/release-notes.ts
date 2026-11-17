@@ -9,6 +9,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     version: "0.7.0",
     date: "2026-11-16",
     notes: [
+      "Links (Insert › Link, or Ctrl+K): link a cell to a web page, a file, a place in this workbook or an e-mail address, with a ScreenTip of your own. Click a link to follow it, or click and hold to just select the cell; a workbook opens in Cells at the place the link names, and other files open in their own app after a warning. The cell menu has Edit, Open and Remove Hyperlink, and Home › Clear has Clear Hyperlinks and Remove Hyperlinks. Typing a web or e-mail address makes it a link, as in Excel. Links open and save with Excel files, .xls included, and so does the HYPERLINK function.",
+      "Symbol (Insert tab): pick a character that isn't on your keyboard, such as © € → or ½, from a grid of Unicode sets, or a dash, space or quote from Special Characters, and Insert puts it in the cell you are typing in. The ones you use most stay at hand under Recently used symbols.",
+      "Header & Footer (Insert tab) opens Page Setup on its Header/Footer page.",
       "Cells opens Excel 97-2003 workbooks (.xls): values, formulas, formatting, column widths, merged cells, frozen panes, names and notes. It opens a copy, and saving makes an .xlsx; the .xls stays as it was. On Android, Cells now shows up in Open with for .xls files, and the Open picker no longer greys them out.",
       "The cell menu's Filter and Sort work: filter by the cell's value, colour or font colour, clear one column's filter, reapply, Sort A to Z or Z to A, put the cell's colour on top, and Custom Sort. On a phone they open in the long-press panel.",
       "Paste Special is in the cell menu.",

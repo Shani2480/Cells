@@ -1,3 +1,4 @@
+import { copyHyperlinks, type Hyperlink } from "./hyperlinks"
 import type { Range } from "./address"
 import { copyPageSetup, type PageSetup } from "./page-setup"
 import type { AnnotationWrite } from "./annotations"
@@ -45,6 +46,7 @@ export type SheetSnapshot = {
   advancedFilter?: AdvancedFilter | null
   consolidate?: ConsolidateSettings | null
   queryTables?: QueryTable[]
+  hyperlinks?: Hyperlink[]
   tabColor?: string
   hidden: boolean
 }
@@ -79,6 +81,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     advancedFilter: copyAdvancedFilter(sheet.advancedFilter),
     consolidate: copyConsolidate(sheet.consolidate),
     queryTables: copyQueryTables(sheet.queryTables),
+    hyperlinks: copyHyperlinks(sheet.hyperlinks),
     tabColor: sheet.tabColor,
     hidden: sheet.hidden,
   }
@@ -113,6 +116,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.advancedFilter = copyAdvancedFilter(s.advancedFilter ?? null)
   sheet.consolidate = copyConsolidate(s.consolidate ?? null)
   sheet.queryTables = copyQueryTables(s.queryTables ?? [])
+  sheet.hyperlinks = copyHyperlinks(s.hyperlinks ?? [])
   sheet.tabColor = s.tabColor
   sheet.hidden = s.hidden
   return sheet

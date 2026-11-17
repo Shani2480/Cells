@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { readText, writeHtml, writeText } from "@tauri-apps/plugin-clipboard-manager"
 import { getCurrentWindow } from "@tauri-apps/api/window"
+import { openPath, openUrl } from "@tauri-apps/plugin-opener"
 import { onOpenedDocuments } from "./android-files"
 import { tauriFiles } from "./tauri-files"
 import { webPlatform } from "./web"
@@ -55,6 +56,11 @@ export function tauriPlatform(): Platform {
           if (listener === handler) listener = null
           unlisten?.()
         }
+      },
+      // Paths come resolved (app/src/sheet/hyperlinks.ts); anything with a scheme (https:, mailto:, content:) is a URL.
+      async external(target) {
+        if (/^[a-z][a-z0-9+.-]*:/i.test(target) && !/^[a-z]:[\\/]/i.test(target)) await openUrl(target)
+        else await openPath(target)
       },
     },
     ai: tauriAi(),

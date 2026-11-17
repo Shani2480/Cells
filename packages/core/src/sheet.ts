@@ -13,6 +13,7 @@ import { emptyScenarios, type ScenarioSet } from "./scenarios"
 import type { AdvancedFilter } from "./advanced-filter"
 import type { ConsolidateSettings } from "./consolidate"
 import type { QueryTable } from "./query-tables"
+import type { Hyperlink } from "./hyperlinks"
 
 /**
  * Default sizes at 100% zoom, as Excel draws a new workbook with an 11 pt body font: rows 15 pt (20 px), columns
@@ -173,6 +174,8 @@ export class Sheet {
   consolidate: ConsolidateSettings | null = null
   /** Ranges filled from text files that Refresh reads again (Data › Queries & Connections). */
   queryTables: QueryTable[] = []
+  /** Insert › Link: links over cells, oldest first. */
+  hyperlinks: Hyperlink[] = []
 
   constructor(name: string) {
     this.name = name

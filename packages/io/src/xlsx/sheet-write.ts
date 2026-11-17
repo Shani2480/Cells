@@ -31,6 +31,7 @@ import type { StylesOut } from "./styles"
 import { pxToColWidth, pxToPoints } from "./units"
 import { validationExtXml, validationsXml, withExt } from "./validation"
 import { structuredToFile } from "./table"
+import { hyperlinksXml } from "./hyperlinks"
 
 /** The shared string table being written: each distinct text once, rich text as read where it is unchanged. */
 export class SharedStrings {
@@ -106,6 +107,8 @@ export type SheetWriteContext = {
   tableParts?: string[]
   /** Links to other workbooks, written by position ([1]Prices!B2); absent when they are kept as read. */
   links?: LinkTable | null
+  /** The relationship id of each link's address (null for a place in the workbook), by index in sheet.hyperlinks. */
+  hyperlinkRels?: (string | null)[]
 }
 
 export type SheetWritten = { xml: string; dynamic: boolean }
@@ -223,6 +226,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
       : "",
     conditionalFormatting: conditionalXml(sheet.conditional, styles, ctx.source?.keptConditional ?? []),
     dataValidations: validationsXml(sheet.validations, rangeRef),
+    hyperlinks: hyperlinksXml(sheet.hyperlinks, ctx.hyperlinkRels ?? [], rangeRef),
     drawing: ctx.drawing ? `<drawing r:id="${ctx.drawing}"/>` : "",
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
     ...printElementsXml(sheet.pageSetup, ctx.source?.pageExtras),

@@ -28,6 +28,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "str
 futures-util = "0.3"
 tokio = { version = "1", features = ["sync", "macros"] }
 keyring = { version = "3", default-features = false }
+tauri-plugin-opener = "2"
 
 # Touchpad pinch on Linux: caught on the webview before WebKitGTK's page zoom (src/pinch.rs). Tauri's own versions.
 [target.'cfg(target_os = "linux")'.dependencies]

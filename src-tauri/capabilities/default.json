@@ -18,6 +18,8 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "fs:allow-read-file",
-    "fs:allow-write-file"
+    "fs:allow-write-file",
+    "opener:allow-open-url",
+    "opener:allow-open-path"
   ]
 }

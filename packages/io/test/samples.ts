@@ -532,7 +532,27 @@ export function linkedBook(): Workbook {
   return done(wb)
 }
 
+/** Links to a web page, an e-mail address, a file and places in the workbook, and a HYPERLINK formula. */
+export function hyperlinks(): Workbook {
+  const wb = new Workbook(["Links", "Data"])
+  const s = wb.sheets[0]
+  const link = wb.styles.intern({ fontColor: "#467886", underline: "single", cellStyle: "Hyperlink" })
+  const texts = ["Example site", "Write to Alex", "Q1 report", "Totals", "Price list"]
+  texts.forEach((value, row) => s.cells.set(row, 0, { value, style: link }))
+  s.cells.set(5, 0, { input: '=HYPERLINK("https://example.com/help","Help")', value: "Help", style: link })
+  wb.sheets[1].cells.set(1, 1, { value: 42 })
+  s.hyperlinks = [
+    { range: { r0: 0, c0: 0, r1: 0, c1: 0 }, address: "https://example.com/", tooltip: "Opens our site" },
+    { range: { r0: 1, c0: 0, r1: 1, c1: 0 }, address: "mailto:alex@example.com?subject=Budget" },
+    { range: { r0: 2, c0: 0, r1: 2, c1: 0 }, address: "Reports/Q1.pdf" },
+    { range: { r0: 3, c0: 0, r1: 3, c1: 0 }, location: "Data!B2" },
+    { range: { r0: 4, c0: 0, r1: 4, c1: 0 }, address: "Price List.xlsx", location: "Prices!A1" },
+  ]
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  hyperlinks,
   linkedBook,
   linkedText,
   forecast,

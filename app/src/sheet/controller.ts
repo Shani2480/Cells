@@ -81,6 +81,7 @@ import {
 import { openLink } from "@/links/link"
 import { FormatCommands, NUMBER_FORMATS } from "./format"
 import { AnnotationCommands } from "./annotations"
+import { HyperlinkCommands, type LinkTarget } from "./hyperlinks"
 import { AuditCommands } from "./audit"
 import { OutlineCommands } from "./outline"
 import { DataCommands, type FilterDialogRequest } from "./data"
@@ -198,6 +199,8 @@ export type ShellRequests = {
   chartData?(): void
   /** Table Design › Resize Table: the dialog, on the table's range. */
   resizeTable?(range: Range): void
+  /** A link to follow outside this sheet: open a workbook in Cells, or hand a web page, mail or file to the system. */
+  followLink?(target: LinkTarget): void
   /** Ctrl+1: the Format Cells dialog, on a tab. */
   formatCells(tab?: "number" | "alignment" | "font" | "border" | "fill" | "protection"): void
 }
@@ -279,6 +282,8 @@ export class SheetController {
   /** Notes and comments. */
   readonly annotations: AnnotationCommands = new AnnotationCommands(this)
   readonly data: DataCommands = new DataCommands(this)
+  /** Insert › Link and following links. */
+  readonly hyperlinks: HyperlinkCommands = new HyperlinkCommands(this)
   readonly audit: AuditCommands = new AuditCommands(this)
   readonly outline: OutlineCommands = new OutlineCommands(this)
   /** Data › Data Validation. */
@@ -807,6 +812,18 @@ export class SheetController {
     this.changed()
   }
 
+  /** Insert › Symbol: text at the caret; with no entry open, the active cell opens for editing with it at the end. */
+  insertText(text: string) {
+    if (!this.edit) this.beginEdit("edit")
+    const edit = this.edit
+    if (!edit) return
+    const before = edit.text.slice(0, edit.selStart)
+    const after = edit.text.slice(edit.selEnd)
+    const caret = before.length + text.length
+    this.edit = { ...edit, text: before + text + after, selStart: caret, selEnd: caret, point: null, pick: 0 }
+    this.changed()
+  }
+
   /** Use in Formula: a defined name at the caret (an entry starts with "=" when none is open). */
   insertName(name: string) {
     if (!this.edit) {
@@ -888,6 +905,8 @@ export class SheetController {
           patch: { wrap: true },
         })
     }
+    if (!fill || isSingleCellOn(this.sheet, this.selection))
+      ops.push(...this.hyperlinks.autoLinkOps(edit.row, edit.col, edit.text))
     this.transact(ops, { label, before, after: before })
     return true
   }
@@ -1780,6 +1799,7 @@ export class SheetController {
       if ((lower === "t" || lower === "l") && !shift) return (this.tables.openCreate(), true)
       if (lower === "f" && !shift) return (this.shell.findReplace?.("find"), true)
       if (lower === "h" && !shift) return (this.shell.findReplace?.("replace"), true)
+      if (lower === "k" && !shift) return (this.shell.openDialog?.("insertLink"), true)
       if (this.formatKey(key, shift)) return true
       if (key === "-") return (this.insertOrDelete("delete"), true)
       if (key === "+" || (key === "=" && shift)) return (this.insertOrDelete("insert"), true)

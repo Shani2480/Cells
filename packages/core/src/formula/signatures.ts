@@ -93,6 +93,7 @@ const TABLE: Record<string, string> = {
   GCD: "number1, [number2], ...|The greatest common divisor.",
   GEOMEAN: "number1, [number2], ...|The geometric mean.",
   HARMEAN: "number1, [number2], ...|The harmonic mean.",
+  HYPERLINK: "link_location, [friendly_name]|A link that opens a web page, a file or a place in the workbook.",
   HLOOKUP:
     "lookup_value, table_array, row_index_num, [range_lookup]|Looks along the top row and returns a value below.",
   HOUR: "serial_number|The hour (0-23).",

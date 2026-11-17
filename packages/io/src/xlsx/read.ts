@@ -11,6 +11,7 @@ import {
   REL_STYLES,
   REL_THEME,
   REL_TABLE,
+  REL_HYPERLINK,
   REL_THREADED,
   REL_VML,
   REL_WORKSHEET,
@@ -28,6 +29,7 @@ import {
 } from "./connections"
 import { readPrintArea, readPrintTitles, type PageSetupExtras } from "./page-setup"
 import { formulaFromFile } from "./formula"
+import { hyperlinkAddress } from "./hyperlinks"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
 import { readTable, structuredFromFile } from "./table"
@@ -262,6 +264,13 @@ export async function openXlsx(
       threaded: partText(pkg, relOfType(rels, REL_THREADED)?.partName),
       persons,
     })
+    for (const h of read.hyperlinks) {
+      if (h.relId) {
+        const target = rels.find((r) => r.id === h.relId && r.type === REL_HYPERLINK)?.target
+        if (target) h.link.address = hyperlinkAddress(target)
+      }
+      if (h.link.address || h.link.location) sheet.hyperlinks.push(h.link)
+    }
     const tables: { id: number; partName: string }[] = []
     for (const r of rels) {
       if (r.type !== REL_TABLE || !r.partName) continue
@@ -306,6 +315,7 @@ export async function openXlsx(
           r.type !== REL_COMMENTS &&
           r.type !== REL_THREADED &&
           r.type !== REL_TABLE &&
+          r.type !== REL_HYPERLINK &&
           !(drawing && r.id === read.drawing) &&
           !(r.type === REL_VML && r.id === read.legacyDrawing),
       ),

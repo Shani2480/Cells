@@ -1,4 +1,4 @@
-import { MAX_ROWS, rangeOf, type CellAddress, type Range } from "@cells/core"
+import { linkScreenTip, MAX_ROWS, rangeOf, type CellAddress, type Range } from "@cells/core"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { usePlatform } from "@/platform/context"
 import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
@@ -62,6 +62,9 @@ type Drag =
 
 export type GridContextMenu = { x: number; y: number; target: "cells" | "rows" | "cols" }
 
+/** How long the pointer rests on a link before its ScreenTip shows. */
+const LINK_TIP_MS = 600
+
 export function GridView({
   controller,
   onContextMenu,
@@ -82,6 +85,9 @@ export function GridView({
   // Fingers on the canvas (CSS px from its top-left), the long-press timer and the last tap (double tap edits).
   const touchesRef = useRef(new Map<number, Point>())
   const pressTimer = useRef<number | undefined>(undefined)
+  // A press on a linked cell: a quick release follows the link; holding it (Excel's "click and hold") only selects.
+  const linkPress = useRef<{ row: number; col: number; time: number } | null>(null)
+  const linkTipTimer = useRef<number | undefined>(undefined)
   const tapsRef = useRef(new TapTracker())
   const lastTouchRef = useRef(0)
   // A pan's speed, and the glide after a quick one (stopped by the next touch).
@@ -114,6 +120,8 @@ export function GridView({
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [cursor, setCursor] = useState("cell")
   const [resizeTip, setResizeTip] = useState<{ x: number; y: number; text: string } | null>(null)
+  // A link's ScreenTip, shown when the pointer rests on its cell.
+  const [linkTip, setLinkTip] = useState<{ x: number; y: number; row: number; col: number; text: string } | null>(null)
   // The note or comment under the pointer; leaving it hides the box after a moment, so the pointer can move into
   // a comment card.
   const [hover, setHover] = useState<{ row: number; col: number } | null>(null)
@@ -127,6 +135,10 @@ export function GridView({
     hoverTimer.current = window.setTimeout(() => setHover(null), 300)
   }, [])
   const keepHover = useCallback(() => window.clearTimeout(hoverTimer.current), [])
+  const hideLinkTip = () => {
+    window.clearTimeout(linkTipTimer.current)
+    setLinkTip((tip) => (tip ? null : tip))
+  }
   const [antsOffset, setAntsOffset] = useState(0)
   const [themeVersion, setThemeVersion] = useState(0)
   const composingRef = useRef(false)
@@ -503,6 +515,10 @@ export function GridView({
       case "cell":
         controller.pointerCell({ row: hit.row, col: hit.col }, { shift, ctrl })
         dragRef.current = { kind: "cells" }
+        linkPress.current =
+          !shift && !ctrl && controller.hyperlinks.target(hit.row, hit.col)
+            ? { row: hit.row, col: hit.col, time: Date.now() }
+            : null
         break
       case "rowHeader":
         controller.pointerRowHeader(hit.row, { shift, ctrl })
@@ -585,23 +601,38 @@ export function GridView({
       return
     }
     const hit = hitTest(controller, layout, x, y)
+    let linked = false
     if (hit.zone === "cell") {
       const merge = controller.sheet.merges.at(hit.row, hit.col)
       const cell = merge ? { row: merge.r0, col: merge.c0 } : { row: hit.row, col: hit.col }
       hoverAt(controller.sheet.annotations.get(cell.row, cell.col) ? cell : null)
-    } else hoverAt(null)
+      const link = controller.hyperlinks.target(cell.row, cell.col)
+      linked = link !== null
+      if (!link) hideLinkTip()
+      else if (!linkTip || linkTip.row !== cell.row || linkTip.col !== cell.col) {
+        window.clearTimeout(linkTipTimer.current)
+        setLinkTip(null)
+        const text = linkScreenTip(link)
+        linkTipTimer.current = window.setTimeout(() => setLinkTip({ x, y, ...cell, text }), LINK_TIP_MS)
+      }
+    } else {
+      hoverAt(null)
+      hideLinkTip()
+    }
     setCursor(
-      hit.zone === "colResize"
-        ? "col-resize"
-        : hit.zone === "rowResize"
-          ? "row-resize"
-          : hit.zone === "fillHandle"
-            ? "crosshair"
-            : hit.zone === "colHeader"
-              ? "s-resize"
-              : hit.zone === "rowHeader"
-                ? "e-resize"
-                : "cell",
+      linked
+        ? "pointer"
+        : hit.zone === "colResize"
+          ? "col-resize"
+          : hit.zone === "rowResize"
+            ? "row-resize"
+            : hit.zone === "fillHandle"
+              ? "crosshair"
+              : hit.zone === "colHeader"
+                ? "s-resize"
+                : hit.zone === "rowHeader"
+                  ? "e-resize"
+                  : "cell",
     )
   }
 
@@ -614,7 +645,18 @@ export function GridView({
     dragRef.current = null
     pointerRef.current = null
     setResizeTip(null)
+    const press = linkPress.current
+    linkPress.current = null
     if (!drag) return
+    if (drag.kind === "cells" && press && event.type === "pointerup" && Date.now() - press.time < LONG_PRESS_MS) {
+      const a = controller.selection.active
+      const single = controller.selection.ranges.length === 1 && !controller.edit
+      if (single && a.row === press.row && a.col === press.col) {
+        hideLinkTip()
+        controller.hyperlinks.follow(press.row, press.col)
+        return
+      }
+    }
     const ctrl = platform.os === "macos" ? event.metaKey : event.ctrlKey
     if (drag.kind === "fill" && controller.fillPreview) {
       controller.fillTo(controller.fillPreview, ctrl)
@@ -630,6 +672,11 @@ export function GridView({
       if (v) glide(v)
     } else if (drag.kind === "pan" && !drag.moved && !drag.pressed && event.type === "pointerup") {
       controller.pointerCell({ row: drag.row, col: drag.col }, { shift: false, ctrl: false })
+      // A tap on a link follows it (a long press opens the menu, with Edit Hyperlink).
+      if (controller.hyperlinks.follow(drag.row, drag.col)) {
+        tapsRef.current.reset()
+        return
+      }
       // A second tap on the same cell edits it, with the on-screen keyboard.
       if (tapsRef.current.tap(drag.row, drag.col, Date.now())) {
         controller.beginEdit("edit")
@@ -913,7 +960,10 @@ export function GridView({
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
-          onPointerLeave={() => hoverAt(null)}
+          onPointerLeave={() => {
+            hoverAt(null)
+            hideLinkTip()
+          }}
           onDoubleClick={onDoubleClick}
           onContextMenu={(event) => {
             event.preventDefault()
@@ -987,6 +1037,11 @@ export function GridView({
             onLeaveHover={() => hoverAt(null)}
             onDone={focusInput}
           />
+        ) : null}
+        {linkTip && !dragRef.current ? (
+          <div className="link-tip" role="tooltip" style={{ left: linkTip.x * zoom + 14, top: linkTip.y * zoom + 18 }}>
+            {linkTip.text}
+          </div>
         ) : null}
         {resizeTip ? (
           <div className="resize-tip" style={{ left: resizeTip.x * zoom + 12, top: resizeTip.y * zoom + 4 }}>

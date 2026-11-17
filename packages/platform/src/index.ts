@@ -107,6 +107,11 @@ export interface LinkPort {
 export interface OpenPort {
   /** Calls back with each batch of requests (links, or full paths), the ones from start first. Returns unsubscribe. */
   onRequest(handler: (items: string[]) => void): () => void
+  /**
+   * Opens a link's target with the system: a web address or mailto: in the browser or mail app, a file (full path)
+   * in the app the system has for it. Rejects when it can't (a browser tab can't open files).
+   */
+  external(target: string): Promise<void>
 }
 
 /**
@@ -158,6 +163,11 @@ export interface FilePort {
   /** The system's Open dialog; null when cancelled. */
   pickOpen(types: FileType[]): Promise<{ ref: FileRef; bytes: Uint8Array } | null>
   read(ref: FileRef): Promise<Uint8Array>
+  /**
+   * The system's Open dialog for any file, giving only its full path (Insert › Link's Browse for File); absent where
+   * a picked file has no lasting path (a browser, Android's content links). Null when cancelled.
+   */
+  pickPath?(title: string): Promise<string | null>
   /** The system's Save As dialog; null when cancelled. */
   pickSave(suggestedName: string, types: FileType[]): Promise<FileRef | null>
   write(ref: FileRef, bytes: Uint8Array): Promise<void>

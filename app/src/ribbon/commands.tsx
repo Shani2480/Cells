@@ -1,3 +1,4 @@
+import { linkCommands } from "./link-commands"
 import { pageLayoutCommands } from "./page-layout-commands"
 import { Calculator, CircleHelp, Eye, Scan, Snowflake, Sparkles, Table2, ZoomIn } from "lucide-react"
 import labels from "./excel-labels.json"
@@ -306,6 +307,7 @@ export function allCommands(): Command[] {
     ...tableCommands(),
     ...chartCommands(),
     ...pageLayoutCommands(),
+    ...linkCommands(),
     ...otherCommands(),
   ]
 }

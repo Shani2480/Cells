@@ -237,3 +237,20 @@ describe("links to other workbooks", () => {
     expect(again.sheets[0].cells.input(2, 0)).toBe("='Price List.xlsx'!Rate+1")
   })
 })
+
+describe("Excel's hyperlinks.xlsx", () => {
+  it("reads web, mail, file and place links, and saves them as Excel wrote them", async () => {
+    const read = await openXlsx(fixture("hyperlinks"), "hyperlinks.xlsx")
+    const links = read.workbook.sheets[0].hyperlinks
+    expect(links).toEqual([
+      { range: { r0: 0, c0: 0, r1: 0, c1: 0 }, address: "https://example.com/page?a=1&b=2", tooltip: "Go to the site" },
+      { range: { r0: 1, c0: 0, r1: 1, c1: 0 }, address: "mailto:alex@example.com?subject=Hello%20there" },
+      { range: { r0: 2, c0: 0, r1: 2, c1: 0 }, location: "Data!B2", display: "Totals" },
+      // Excel keeps a file's path relative to the workbook's folder.
+      { range: { r0: 3, c0: 0, r1: 3, c1: 0 }, address: "../Reports/Q1.pdf" },
+      { range: { r0: 0, c0: 1, r1: 1, c1: 2 }, address: "https://example.com/", display: "Block" },
+    ])
+    const again = await openXlsx(await saveXlsx(read.workbook, { source: read.source }))
+    expect(again.workbook.sheets[0].hyperlinks).toEqual(links)
+  })
+})

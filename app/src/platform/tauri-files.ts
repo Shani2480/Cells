@@ -19,7 +19,7 @@ async function readPath(path: string): Promise<Uint8Array> {
 }
 
 export function tauriFiles(): FilePort {
-  return {
+  const files: FilePort = {
     saveInPlace: true,
     remembersFiles: true,
     async pickOpen(types) {
@@ -80,4 +80,12 @@ export function tauriFiles(): FilePort {
       }
     },
   }
+  // Android's picker hands out content links that only last while Cells runs: no lasting path for a link.
+  if (!androidFiles()) {
+    files.pickPath = async (title) => {
+      const path = await open({ title, multiple: false, directory: false })
+      return typeof path === "string" ? path : null
+    }
+  }
+  return files
 }

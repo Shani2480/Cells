@@ -1,4 +1,4 @@
-import { ChevronRight, ClipboardPaste, Copy, Scissors, SquarePen } from "lucide-react"
+import { ChevronRight, ClipboardPaste, Copy, Link, Scissors, SquarePen } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 
@@ -24,6 +24,7 @@ export const menuIcons = {
   copy: <Copy size={15} strokeWidth={1.6} />,
   paste: <ClipboardPaste size={15} strokeWidth={1.6} />,
   formatCells: <SquarePen size={15} strokeWidth={1.6} />,
+  link: <Link size={15} strokeWidth={1.6} />,
 }
 
 /** A right-click menu at a point, kept inside the window. Closes at once on choice, Esc or a press elsewhere. */

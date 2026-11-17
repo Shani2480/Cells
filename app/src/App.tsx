@@ -93,6 +93,9 @@ import { TextImportWizard } from "@/file/TextImportWizard"
 import { CreateTableDialog, ResizeTableDialog } from "@/shell/TableDialogs"
 import { SelectDataDialog } from "@/shell/SelectDataDialog"
 import type { CreateTableInit } from "@/sheet/tables"
+import { LinkDialog } from "@/shell/LinkDialog"
+import { SymbolDialog } from "@/shell/SymbolDialog"
+import { FILE_LINK_WARNING, type LinkTarget } from "@/sheet/hyperlinks"
 import type { TextImport } from "@cells/io"
 
 const NOT_BUILT = "Not built yet."
@@ -132,6 +135,8 @@ type DialogState =
         | "consolidate"
         | "forecast"
         | "queryProperties"
+        | "insertLink"
+        | "symbol"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
@@ -482,9 +487,24 @@ function WorkbookWindow({
       chartData: () => setDialog({ kind: "selectData" }),
       showTab: (id) => ribbonHandle.current?.showTab(id),
       resizeTable: (range) => setDialog({ kind: "resizeTable", range }),
+      followLink: (target) => void followLink(target),
       openCellList: (pick) => window.dispatchEvent(new CustomEvent("cells:open-cell-list", { detail: { pick } })),
     }
   }, [controller])
+
+  /** A link out of the sheet: another workbook opens here (then goes to its place); the rest goes to the system. */
+  const followLink = async (target: LinkTarget) => {
+    if (target.kind === "workbook") {
+      if (!(await files.openPath(target.path))) return
+      if (target.location) files.doc.controller.hyperlinks.goTo(target.location)
+      return
+    }
+    if (target.kind !== "external") return
+    const open = () =>
+      void platform.opens.external(target.target).catch(() => controller.shell.alert("Cannot open the specified file."))
+    if (target.file) controller.shell.confirm(FILE_LINK_WARNING, open)
+    else open()
+  }
 
   const focusGrid = useCallback(() => {
     requestAnimationFrame(() =>
@@ -566,6 +586,32 @@ function WorkbookWindow({
       title: NOT_BUILT,
       onSelect: () => undefined,
     })
+    // The cell menu's links: Link › Insert Link on a plain cell; Edit, Open and Remove on a linked one (Excel 365).
+    const linkItems = (): MenuItem[] => {
+      const { row, col } = controller.selection.active
+      if (controller.hyperlinks.target(row, col)) {
+        const own = controller.hyperlinks.activeLink() !== null
+        return [
+          { kind: "item", label: "Edit Hyperlink...", disabled: !own, onSelect: () => openDialog("insertLink") },
+          { kind: "item", label: "Open Hyperlink", onSelect: () => void controller.hyperlinks.follow(row, col) },
+          {
+            kind: "item",
+            label: "Remove Hyperlink",
+            disabled: !own,
+            onSelect: () => controller.hyperlinks.remove(true),
+          },
+        ]
+      }
+      return [
+        {
+          kind: "item",
+          label: "Link",
+          icon: menuIcons.link,
+          items: [{ kind: "item", label: "Insert Link...", onSelect: () => openDialog("insertLink") }],
+          onSelect: () => openDialog("insertLink"),
+        },
+      ]
+    }
     const formatCells: MenuItem = {
       kind: "item",
       label: "Format Cells...",
@@ -664,7 +710,7 @@ function WorkbookWindow({
         },
         { kind: "item", label: "Define Name...", onSelect: () => openDialog("defineName") },
         { kind: "separator" },
-        later("Link", true),
+        ...linkItems(),
       )
     } else {
       const axis = target
@@ -750,7 +796,9 @@ function WorkbookWindow({
       kind === "advancedFilter" ||
       kind === "consolidate" ||
       kind === "forecast" ||
-      kind === "queryProperties"
+      kind === "queryProperties" ||
+      kind === "insertLink" ||
+      kind === "symbol"
     )
       setDialog({ kind })
   }
@@ -1013,6 +1061,8 @@ function WorkbookWindow({
           <NewRuleDialog controller={controller} start={dialog.start} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "defineName" ? <DefineNameDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "insertLink" ? <LinkDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "symbol" ? <SymbolDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "nameManager" ? <NameManagerDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "createNames" ? <CreateNamesDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "outlineGroup" || dialog?.kind === "outlineUngroup" ? (

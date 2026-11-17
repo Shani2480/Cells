@@ -459,4 +459,21 @@ define("TEXTSPLIT", {
   },
 })
 
+/**
+ * HYPERLINK(link_location, [friendly_name]): shows the friendly name (or the address) and makes the cell a link;
+ * the grid follows it on a click (app/src/sheet/hyperlinks.ts reads the address from the formula).
+ */
+define("HYPERLINK", {
+  min: 1,
+  max: 2,
+  params: ["scalar"],
+  errors: true,
+  call: (a) => {
+    if (isError(a[0])) return a[0]
+    if (a.length < 2) return text(a[0])
+    const shown = a[1] as Scalar
+    return shown === null ? 0 : shown
+  },
+})
+
 export { forEachScalar, numberToText, toNumber }

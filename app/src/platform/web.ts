@@ -74,7 +74,7 @@ export const webPlatform: Platform = {
   files: webFiles(),
   settings: webSettings(),
   // A browser tab is never handed links or files by the system.
-  opens: { onRequest: () => () => {} },
+  opens: { onRequest: () => () => {}, external: openInBrowser },
   links: webLinks(),
   ai: noAi,
 }
@@ -127,4 +127,12 @@ export function webSettings(): SettingsPort {
       return { intlLocale: typeof navigator === "undefined" ? undefined : navigator.language }
     },
   }
+}
+
+/** A browser tab opens web and mail addresses in a new tab; files on the disk are out of its reach. */
+export async function openInBrowser(target: string): Promise<void> {
+  if (!/^(https?|ftp|mailto):/i.test(target)) throw new Error("A browser can't open files on this computer.")
+  const opened = window.open(target, "_blank", "noopener,noreferrer")
+  // With noopener the call returns null even when it opened; a blocked pop-up can't be told apart.
+  void opened
 }

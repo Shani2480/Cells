@@ -124,9 +124,9 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
 - [x] Part 3 — Outline: Group / Ungroup rows and columns, the outline bar with its levels, Show / Hide Detail,
       Subtotals, Settings; read and written in Excel files (today kept but not shown). Also Auto Outline and
       Ctrl+8. Not yet: Settings' Automatic styles / Apply Styles (styling summary rows)
-- [ ] Part 4 — Data tools: Advanced Filter, Consolidate, What-If Analysis (Goal Seek, Scenario Manager, Data
+- [x] Part 4 — Data tools: Advanced Filter, Consolidate, What-If Analysis (Goal Seek, Scenario Manager, Data
       Table), Forecast Sheet, Refresh All and Queries & Connections for text and CSV imports, Edit Links
-- [ ] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
+- [x] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
       Symbol, Header & Footer (opens Page Setup's tab until Page Layout view exists)
 - [ ] Part 6 — Views and windows: grouped sheets (Select All Sheets, Shift/Ctrl+click tabs), Page Break Preview, Page Layout view, Custom Views, Ruler, New Window, Arrange
       All, Split, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
@@ -147,6 +147,12 @@ run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signatur
 decided when Part 8 is done.
 
 ## Later (from Phase 7)
+
+- Links: Create New Document isn't there (Cells shows one workbook per window); Browse for File is on the desktop
+  only (Android's picker gives links that don't last). A click follows a link anywhere in its cell (newer Excel
+  follows only on the text). The Symbol dialog's Font list stays "(normal text)": a cell has one font, so a symbol
+  takes the cell's. Links don't move with a cut and paste or Insert/Delete Cells (they do with whole rows and
+  columns), and a pasted cell doesn't bring its link.
 
 - The Name Box doesn't take a list of ranges (B1,B3) yet.
 - Data tables in .xls files open as their values (the BIFF TABLE record isn't read).

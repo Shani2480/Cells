@@ -302,3 +302,13 @@ describe("outlines in .xls", () => {
     expect(s.outline).toEqual({ summaryBelow: true, summaryRight: true, showSymbols: true })
   })
 })
+
+describe("hyperlinks in .xls", () => {
+  it("reads web, mail, file and place links as Excel wrote them, with ScreenTips", async () => {
+    const read = await openXls(xls("hyperlinks"), "hyperlinks.xls")
+    const twin = await openXlsx(xlsx("hyperlinks"), "hyperlinks.xlsx")
+    const plain = (links: Workbook["sheets"][number]["hyperlinks"]) => links.map(({ display: _, ...l }) => l)
+    expect(plain(read.workbook.sheets[0].hyperlinks)).toEqual(plain(twin.workbook.sheets[0].hyperlinks))
+    expect(read.warnings.join(" ")).not.toContain("hyperlinks")
+  })
+})

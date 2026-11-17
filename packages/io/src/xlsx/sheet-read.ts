@@ -33,6 +33,7 @@ import { emptyExtras, finishPageSetup, readPrintElement, readsFitToPage, type Pa
 import { formulaFromFile } from "./formula"
 import type { StylesIn } from "./styles"
 import { readValidationExt, readValidations } from "./validation"
+import { readHyperlinks, type HyperlinkRead } from "./hyperlinks"
 import { colWidthToPx, pointsToPx } from "./units"
 
 /** What a sheet's view looked like when saved (Excel keeps these per sheet). */
@@ -89,6 +90,8 @@ export type SheetRead = {
   colExtras: Map<number, string>
   /** Print settings Cells doesn't model (printer settings, even and first-page headers), as read. */
   pageExtras: PageSetupExtras
+  /** The sheet's links; those with a relationship id get their address from the sheet's relationships. */
+  hyperlinks: HyperlinkRead[]
 }
 
 /** Row and column attributes Cells writes itself; the others are kept. */
@@ -117,6 +120,7 @@ const OWN = new Set([
   "mergeCells",
   "conditionalFormatting",
   "dataValidations",
+  "hyperlinks",
   "drawing",
   "legacyDrawing",
   "printOptions",
@@ -176,6 +180,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   const keptConditional: string[] = []
   const rowExtras = new Map<number, string>()
   const colExtras = new Map<number, string>()
+  const hyperlinks: HyperlinkRead[] = []
 
   let depth = 0
   let topStart = 0
@@ -454,6 +459,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
       case "dataValidations":
         sheet.validations.unshift(...readValidations(parseFragment(source, rootTag).root))
         break
+      case "hyperlinks":
+        hyperlinks.push(...readHyperlinks(parseFragment(source, rootTag).root))
+        break
       case "printOptions":
       case "pageMargins":
       case "pageSetup":
@@ -536,7 +544,19 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   sheet.conditional = rules.sort((a, b) => a.priority - b.priority).map((r, i) => ({ ...r.entry, id: i + 1 }))
 
   finishPageSetup(sheet.pageSetup, fitToPage, sawPageSetup)
-  return { view, rootTag, kept, legacyDrawing, drawing, pageExtras, dynamic, keptConditional, rowExtras, colExtras }
+  return {
+    view,
+    rootTag,
+    kept,
+    legacyDrawing,
+    drawing,
+    pageExtras,
+    dynamic,
+    keptConditional,
+    rowExtras,
+    colExtras,
+    hyperlinks,
+  }
 }
 
 /** Text that the entry parser would turn into something else ("123", "=1", "TRUE") keeps an apostrophe. */

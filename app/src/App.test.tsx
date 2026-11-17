@@ -37,8 +37,12 @@ const platform: Platform = {
         requests.handler = null
       }
     },
+    external: async (target) => void externals.push(target),
   },
 }
+
+/** What links asked the system to open (Insert › Link). */
+const externals: string[] = []
 
 /** What the system would hand the window (cells:// links, files). */
 const requests: { handler: ((items: string[]) => void) | null } = { handler: null }

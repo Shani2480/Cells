@@ -8,6 +8,7 @@ import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
 import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
 import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
 import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tables"
+import { copyHyperlinks, shiftHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyExternalBooks, type ExternalBook } from "./links"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
@@ -81,6 +82,7 @@ export type Op =
       scenarios?: ScenarioSet
       advancedFilter?: AdvancedFilter | null
       queryTables?: QueryTable[]
+      hyperlinks?: Hyperlink[]
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -94,6 +96,8 @@ export type Op =
   | { kind: "pageSetup"; sheet: number; setup: PageSetup }
   /** Notes and comments: set or remove one cell's annotation each. */
   | { kind: "annotations"; sheet: number; writes: AnnotationWrite[] }
+  /** Insert › Link, Remove Hyperlinks: the sheet's whole list of links. */
+  | { kind: "hyperlinks"; sheet: number; links: Hyperlink[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
   /** The linked workbooks and the values read from them (update, change source, break). */
@@ -136,6 +140,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "protectWorkbook",
   "sheetProps",
   "scenarios",
+  "hyperlinks",
 ])
 
 /**
@@ -256,6 +261,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       sheet.pageSetup = copyPageSetup(op.setup)
       return {
         inverse: [{ kind: "pageSetup", sheet: op.sheet, setup: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "hyperlinks": {
+      const before = copyHyperlinks(sheet.hyperlinks)
+      sheet.hyperlinks = copyHyperlinks(op.links)
+      return {
+        inverse: [{ kind: "hyperlinks", sheet: op.sheet, links: before }],
         change: { sheet: op.sheet, structural: false, format: true },
       }
     }
@@ -394,6 +407,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     scenarios: copyScenarios(sheet.scenarios),
     advancedFilter: copyAdvancedFilter(sheet.advancedFilter),
     queryTables: copyQueryTables(sheet.queryTables),
+    hyperlinks: copyHyperlinks(sheet.hyperlinks),
   }
 }
 
@@ -417,6 +431,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   if (op.scenarios) sheet.scenarios = copyScenarios(op.scenarios)
   if (op.advancedFilter !== undefined) sheet.advancedFilter = copyAdvancedFilter(op.advancedFilter)
   if (op.queryTables) sheet.queryTables = copyQueryTables(op.queryTables)
+  if (op.hyperlinks) sheet.hyperlinks = copyHyperlinks(op.hyperlinks)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -440,7 +455,8 @@ function hasLayout(sheet: Sheet) {
     sheet.scenarios.scenarios.length > 0 ||
     sheet.scenarios.resultCells.length > 0 ||
     sheet.advancedFilter !== null ||
-    sheet.queryTables.length > 0
+    sheet.queryTables.length > 0 ||
+    sheet.hyperlinks.length > 0
   )
 }
 
@@ -551,6 +567,7 @@ function insertLines(
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, count)
   if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, count)
   if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, count)
+  if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
   if (layout) inverse.push(layout)
@@ -609,6 +626,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, -count)
   if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, -count)
   if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, -count)
+  if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
   if (layout) inverse.push(layout)
   if (removed.length) {
