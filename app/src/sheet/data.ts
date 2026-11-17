@@ -1,4 +1,8 @@
 import {
+  advancedCopyCells,
+  advancedFilterRows,
+  type AdvancedFilter,
+  type AxisEntry,
   copyTable,
   displayText,
   flashFill,
@@ -432,8 +436,67 @@ export class DataCommands {
     return this.setFilter(host, { ...f, range, columns }, "Filter")
   }
 
+  // ── Advanced Filter ────────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Data › Advanced: the list filtered by the criteria range, in place (rows that don't meet it are hidden; Data ›
+   * Clear shows them again) or copied to `to` on this sheet. Returns Excel's message when it can't, else null.
+   */
+  advancedFilter(filter: AdvancedFilter, to: Range | null): string | null {
+    if (this.c.edit) this.c.commitEdit()
+    const sheets = this.c.wb.sheets
+    const shown = advancedFilterRows(sheets, this.c.sheetIndex, filter, todaySerial())
+    const sel = this.c.selection
+    if (to) {
+      const copy = advancedCopyCells(this.c.sheet, filter.list, shown, to)
+      if (!copy) return "The extract range has a missing or invalid field name."
+      const ops: Op[] = [{ kind: "setCells", sheet: this.c.sheetIndex, cells: copy.cells }]
+      const after = { ...sel, ranges: [copy.area], active: { row: copy.area.r0, col: copy.area.c0 } }
+      this.c.transact(ops, { label: "Advanced Filter", before: sel, after })
+      return null
+    }
+    const rows: AxisEntry[] = []
+    const axis = this.c.sheet.rows
+    shown.forEach((show, i) => {
+      const index = filter.list.r0 + 1 + i
+      if (axis.isHidden(index) !== !show)
+        rows.push({ index, size: axis.hasCustomSize(index) ? axis.storedSize(index) : null, hidden: !show })
+    })
+    this.c.transact([{ kind: "advancedFilter", sheet: this.c.sheetIndex, filter, rows }], {
+      label: "Advanced Filter",
+      before: sel,
+      after: sel,
+    })
+    return null
+  }
+
+  /** The Advanced Filter in place on this sheet, if any. */
+  get advanced(): AdvancedFilter | null {
+    return this.c.sheet.advancedFilter
+  }
+
+  /** Data › Clear for an Advanced Filter: every row of the list shows again. */
+  private clearAdvanced(label: string): boolean {
+    const f = this.c.sheet.advancedFilter
+    if (!f) return false
+    const axis = this.c.sheet.rows
+    const rows: AxisEntry[] = []
+    for (let index = f.list.r0 + 1; index <= f.list.r1; index++)
+      if (axis.isHidden(index))
+        rows.push({ index, size: axis.hasCustomSize(index) ? axis.storedSize(index) : null, hidden: false })
+    const sel = this.c.selection
+    return (
+      this.c.transact([{ kind: "advancedFilter", sheet: this.c.sheetIndex, filter: null, rows }], {
+        label,
+        before: sel,
+        after: sel,
+      }) !== null
+    )
+  }
+
   /** Data › Clear: every column's filter goes (the dropdowns stay) and all rows show. */
   clearFilters(): boolean {
+    if (this.c.sheet.advancedFilter && !this.filtering) return this.clearAdvanced("Clear")
     const host = this.host()
     if (!host) return false
     const { sort: _sort, ...rest } = host.filter
@@ -442,6 +505,8 @@ export class DataCommands {
 
   /** Data › Reapply: the filters again, over the data as it is now. */
   reapply(): boolean {
+    const advanced = this.c.sheet.advancedFilter
+    if (advanced && !this.autoFilter) return this.advancedFilter(advanced, null) === null
     const host = this.host()
     if (!host) return false
     return this.setFilter(host, { ...host.filter, range: this.extended(host) }, "Reapply")
@@ -451,6 +516,11 @@ export class DataCommands {
   get filtering(): boolean {
     const f = this.autoFilter
     return Boolean(f && Object.keys(f.columns).length)
+  }
+
+  /** Whether Data › Clear has something to clear: a column filter, or an Advanced Filter in place. */
+  get clearable(): boolean {
+    return this.filtering || this.c.sheet.advancedFilter !== null
   }
 
   /** "3 of 10 records found": the filter's data rows shown, and all of them. Null when nothing is filtered. */

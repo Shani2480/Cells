@@ -146,6 +146,13 @@ an account, a pen layer or a desktop capture Cells doesn't have; View Code and M
 run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signature Line and Object (OLE) are
 decided when Part 8 is done.
 
+## Later (from Phase 7)
+
+- The Name Box doesn't take a list of ranges (B1,B3) yet.
+- Data tables in .xls files open as their values (the BIFF TABLE record isn't read).
+- An Advanced Filter in place isn't saved as one (its hidden rows are): after reopening, Clear and Reapply don't
+  know it (Excel keeps it in the _FilterDatabase and Criteria names).
+
 ## Later (from Phase 4)
 
 - Page Layout view and Page Break Preview (dragging page breaks).

@@ -2681,3 +2681,12 @@ html.is-phone .clipboard-item-delete {
   gap: 8px;
   align-items: center;
 }
+
+/* ── Data › Sort & Filter › Advanced (shell/AdvancedFilterDialog.tsx) ────────────────────────────────────── */
+.advanced-filter-fields {
+  margin-top: 12px;
+}
+
+.advanced-unique {
+  margin-top: 10px;
+}

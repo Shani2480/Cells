@@ -43,6 +43,7 @@ import { WatchWindow } from "@/shell/WatchWindow"
 import { GroupDialog, OutlineSettingsDialog, SubtotalDialog } from "@/shell/OutlineDialogs"
 import { DataTableDialog, GoalSeekDialog } from "@/shell/WhatIfDialogs"
 import { ScenarioManagerDialog } from "@/shell/ScenarioDialogs"
+import { AdvancedFilterDialog } from "@/shell/AdvancedFilterDialog"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
 import { FormulaBar } from "@/shell/FormulaBar"
 import { DefineNameDialog } from "@/shell/DefineNameDialog"
@@ -122,6 +123,7 @@ type DialogState =
         | "goalSeek"
         | "dataTable"
         | "scenarioManager"
+        | "advancedFilter"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
@@ -736,7 +738,8 @@ function WorkbookWindow({
       kind === "subtotal" ||
       kind === "goalSeek" ||
       kind === "dataTable" ||
-      kind === "scenarioManager"
+      kind === "scenarioManager" ||
+      kind === "advancedFilter"
     )
       setDialog({ kind })
   }
@@ -983,6 +986,9 @@ function WorkbookWindow({
         {dialog?.kind === "subtotal" ? <SubtotalDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "goalSeek" ? <GoalSeekDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "dataTable" ? <DataTableDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "advancedFilter" ? (
+          <AdvancedFilterDialog controller={controller} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "scenarioManager" ? (
           <ScenarioManagerDialog controller={controller} onClose={closeDialog} />
         ) : null}

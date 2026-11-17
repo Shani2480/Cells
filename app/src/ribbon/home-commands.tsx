@@ -1079,7 +1079,7 @@ export function homeCommands(): Command[] {
       description: "Clear the filter and sort state for the current range of data.",
       keytip: "C",
       run: (env) => env.c.data.clearFilters(),
-      enabled: (env) => env.c.data.filtering,
+      enabled: (env) => env.c.data.clearable,
     },
     {
       id: "FilterReapply",
@@ -1087,7 +1087,7 @@ export function homeCommands(): Command[] {
       description: "Reapply the filter and sort in the current range.",
       keytip: "Y",
       run: (env) => env.c.data.reapply(),
-      enabled: (env) => env.c.data.autoFilter !== null,
+      enabled: (env) => env.c.data.autoFilter !== null || env.c.data.advanced !== null,
     },
     {
       id: "SelectMenuExcel",

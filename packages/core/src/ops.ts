@@ -5,6 +5,7 @@ import type { AnnotationWrite } from "./annotations"
 import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
 import { copyValidations, shiftValidations, type ValidationEntry } from "./validation"
 import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
+import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
 import { copyPageSetup, shiftPageSetup, type PageSetup } from "./page-setup"
@@ -75,6 +76,7 @@ export type Op =
       annotations?: AnnotationWrite[]
       autoFilter?: AutoFilter | null
       scenarios?: ScenarioSet
+      advancedFilter?: AdvancedFilter | null
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -95,6 +97,8 @@ export type Op =
    * so the row entries come from the filter, worked out where today's date is known).
    */
   | { kind: "autoFilter"; sheet: number; filter: AutoFilter | null; rows?: AxisEntry[] }
+  /** Data › Advanced in place: the filter and the rows it shows and hides. */
+  | { kind: "advancedFilter"; sheet: number; filter: AdvancedFilter | null; rows?: AxisEntry[] }
   /** Protect Sheet (with the options) or Unprotect Sheet (null). */
   | { kind: "protect"; sheet: number; protection: SheetProtection | null }
   /** Protect Workbook (Structure) or Unprotect Workbook (null). */
@@ -259,6 +263,16 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
         change: rows?.change.structural ? rows.change : { sheet: op.sheet, structural: false, format: true },
       }
     }
+    case "advancedFilter": {
+      const before = copyAdvancedFilter(sheet.advancedFilter)
+      sheet.advancedFilter = copyAdvancedFilter(op.filter)
+      const rows = op.rows?.length ? setAxis(sheet, op.sheet, "rows", op.rows) : null
+      const undoRows = rows ? (rows.inverse[0] as Extract<Op, { kind: "axis" }>).entries : undefined
+      return {
+        inverse: [{ kind: "advancedFilter", sheet: op.sheet, filter: before, ...(undoRows ? { rows: undoRows } : {}) }],
+        change: rows?.change.structural ? rows.change : { sheet: op.sheet, structural: false, format: true },
+      }
+    }
     case "outlineLevels": {
       const axis = axisOf(sheet, op.axis)
       const before: [number, number][] = op.levels.map(([i]) => [i, axis.level(i)])
@@ -344,6 +358,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     autoFilter: copyAutoFilter(sheet.autoFilter),
     scenarios: copyScenarios(sheet.scenarios),
+    advancedFilter: copyAdvancedFilter(sheet.advancedFilter),
   }
 }
 
@@ -365,6 +380,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   }
   if (op.autoFilter !== undefined) sheet.autoFilter = copyAutoFilter(op.autoFilter)
   if (op.scenarios) sheet.scenarios = copyScenarios(op.scenarios)
+  if (op.advancedFilter !== undefined) sheet.advancedFilter = copyAdvancedFilter(op.advancedFilter)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -386,7 +402,8 @@ function hasLayout(sheet: Sheet) {
     sheet.annotations.size > 0 ||
     sheet.autoFilter !== null ||
     sheet.scenarios.scenarios.length > 0 ||
-    sheet.scenarios.resultCells.length > 0
+    sheet.scenarios.resultCells.length > 0 ||
+    sheet.advancedFilter !== null
   )
 }
 
@@ -495,6 +512,7 @@ function insertLines(
   sheet.pageSetup = shiftPageSetup(sheet.pageSetup, axis, at, count)
   sheet.annotations.shift(axis, at, count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, count)
+  if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
   if (layout) inverse.push(layout)
@@ -551,6 +569,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   sheet.pageSetup = shiftPageSetup(sheet.pageSetup, axis, at, -count)
   sheet.annotations.shift(axis, at, -count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, -count)
+  if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
   if (layout) inverse.push(layout)
   if (removed.length) {
