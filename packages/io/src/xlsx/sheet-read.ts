@@ -34,6 +34,7 @@ import { formulaFromFile } from "./formula"
 import type { StylesIn } from "./styles"
 import { readValidationExt, readValidations } from "./validation"
 import { readHyperlinks, type HyperlinkRead } from "./hyperlinks"
+import { readCustomSheetViews, type CustomSheetViewRead } from "./custom-views"
 import { colWidthToPx, pointsToPx } from "./units"
 
 /** What a sheet's view looked like when saved (Excel keeps these per sheet). */
@@ -100,6 +101,8 @@ export type SheetRead = {
   pageExtras: PageSetupExtras
   /** The sheet's links; those with a relationship id get their address from the sheet's relationships. */
   hyperlinks: HyperlinkRead[]
+  /** The sheet's part of each custom view (View › Custom Views), by the view's id. */
+  customViews: CustomSheetViewRead[]
 }
 
 /** Row and column attributes Cells writes itself; the others are kept. */
@@ -189,6 +192,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   const rowExtras = new Map<number, string>()
   const colExtras = new Map<number, string>()
   const hyperlinks: HyperlinkRead[] = []
+  const customViews: CustomSheetViewRead[] = []
 
   let depth = 0
   let topStart = 0
@@ -419,6 +423,10 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
           sheet.outline.summaryRight = !falsy(at(outlinePr, "summaryRight"))
         }
       }
+      if (local === "customSheetViews") {
+        customViews.push(...readCustomSheetViews(parseFragment(source, rootTag).root, warnings))
+        return
+      }
       if (local === "dataConsolidate") {
         const settings = readConsolidate(parseFragment(source, rootTag).root)
         // References to other workbooks (r:id) stay as read.
@@ -564,6 +572,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
     rowExtras,
     colExtras,
     hyperlinks,
+    customViews,
   }
 }
 
@@ -586,6 +595,11 @@ export const TWIPS_PER_PIXEL = 15
 function readView(root: XNode, warnings: string[]): SheetView {
   const v = kid(root, "sheetView")
   if (!v) return { ...DEFAULT_VIEW }
+  return readViewNode(v, warnings)
+}
+
+/** One sheetView (or a custom view's customSheetView, whose pane and selection are the same). */
+export function readViewNode(v: XNode, warnings: string[]): SheetView {
   const cell = (text: string | undefined) => {
     const r = text ? decodeRef(text) : null
     return r ?? { row: 0, col: 0 }

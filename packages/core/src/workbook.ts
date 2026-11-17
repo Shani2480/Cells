@@ -1,6 +1,7 @@
 import type { ExternalBook } from "./links"
 import { CalcEngine, cellOfKey, type CalcMode } from "./calc/engine"
 import type { Range } from "./address"
+import type { CustomView } from "./custom-views"
 import { applyOp, type Change, type Op } from "./ops"
 import type { CellValue } from "./values"
 import { Sheet } from "./sheet"
@@ -108,6 +109,8 @@ export class Workbook<Meta = unknown> {
   readonly structure: { protection: WorkbookProtection | null } = { protection: null }
   /** Other workbooks that formulas link to (Data › Workbook Links), with the values last read from them. */
   readonly links: { list: ExternalBook[] } = { list: [] }
+  /** View › Custom Views (kept out of undo, as Excel does). */
+  customViews: CustomView[] = []
   undoLimit: number
   private readonly undoStack: UndoEntry<Meta>[] = []
   private readonly redoStack: UndoEntry<Meta>[] = []

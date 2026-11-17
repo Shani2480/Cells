@@ -109,6 +109,8 @@ export type SheetWriteContext = {
   links?: LinkTable | null
   /** The relationship id of each link's address (null for a place in the workbook), by index in sheet.hyperlinks. */
   hyperlinkRels?: (string | null)[]
+  /** View › Custom Views: the sheet's customSheetViews ("" for none). */
+  customSheetViews?: string
 }
 
 export type SheetWritten = { xml: string; dynamic: boolean }
@@ -227,6 +229,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     conditionalFormatting: conditionalXml(sheet.conditional, styles, ctx.source?.keptConditional ?? []),
     dataValidations: validationsXml(sheet.validations, rangeRef),
     hyperlinks: hyperlinksXml(sheet.hyperlinks, ctx.hyperlinkRels ?? [], rangeRef),
+    customSheetViews: ctx.customSheetViews ?? "",
     drawing: ctx.drawing ? `<drawing r:id="${ctx.drawing}"/>` : "",
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
     ...printElementsXml(sheet.pageSetup, ctx.source?.pageExtras),

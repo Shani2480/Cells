@@ -90,6 +90,7 @@ import { FindCommands } from "./find"
 import { NameCommands } from "./names"
 import { ConditionalCommands } from "./conditional"
 import { GROUP_MESSAGE, SheetGroup } from "./group"
+import { CustomViewCommands } from "./custom-views"
 import { SHEET_MESSAGES, SheetCommands } from "./sheets"
 
 /**
@@ -305,6 +306,10 @@ export class SheetController {
   readonly conditional: ConditionalCommands = new ConditionalCommands(this)
   /** Sheet tabs: add, delete, rename, move, copy, colour, hide. */
   readonly sheets: SheetCommands = new SheetCommands(this)
+  /** A change that isn't an undo step but still needs saving (the open document counts it). */
+  unsavedChange: () => void = () => this.changed()
+  /** View › Custom Views. */
+  readonly customViews: CustomViewCommands = new CustomViewCommands(this)
   /** Grouped sheets: edits on the active sheet repeat on each of them. */
   readonly group: SheetGroup = new SheetGroup(this)
   /** Notes and comments. */

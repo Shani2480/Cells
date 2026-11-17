@@ -1,3 +1,4 @@
+import { customSheetViewsXml, customViewNamesXml, customWorkbookViewsXml, viewNamePrefix } from "./custom-views"
 import { hyperlinkTarget } from "./hyperlinks"
 import { columnName, quoteSheet, type Range, type Sheet, type Workbook } from "@cells/core"
 import {
@@ -315,6 +316,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       tableParts,
       links,
       hyperlinkRels,
+      customSheetViews: customSheetViewsXml(wb, sheet),
     })
     dynamic ||= written.dynamic
     put(partName, CT_WORKSHEET, written.xml)
@@ -393,6 +395,10 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         }
       : {}),
     definedNames: namesXml,
+    customWorkbookViews: customWorkbookViewsXml(
+      wb,
+      wb.sheets.map((_, i) => i + 1),
+    ),
     workbookProtection: protectionXml(wb),
     bookViews: bookViewsXml(source, active),
     calcPr: `<calcPr${attrText({ calcId: 191029, calcMode: wb.calc.mode === "manual" ? "manual" : undefined })}/>`,
@@ -516,7 +522,13 @@ function definedNamesXml(wb: Workbook, source: XlsxSource | null, links: LinkTab
   wb.sheets.forEach((sheet, index) => {
     for (const q of sheet.queryTables) items.push(queryTableNameXml(sheet.name, index, q))
   })
+  // Custom views' hidden rows, columns, print areas and titles.
+  items.push(...customViewNamesXml(wb))
+  const viewPrefixes = wb.customViews.map((v) => viewNamePrefix(v.guid))
   for (const k of source?.keptNames ?? []) {
+    // A deleted custom view's other names (its filter) go with it.
+    const keptName = /\bname="([^"]*)"/.exec(k.xml)?.[1] ?? ""
+    if (/^Z_[0-9A-F_]+_\.wvu\./i.test(keptName) && !viewPrefixes.some((p) => keptName.startsWith(p))) continue
     if (!k.sheet) {
       items.push(k.xml)
       continue

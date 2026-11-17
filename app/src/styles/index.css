@@ -1060,6 +1060,28 @@ html.is-browser .app-window-frame {
   text-underline-offset: 2px;
 }
 
+/* View › Custom Views: the list with its buttons beside it. */
+.custom-views {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.custom-views-list {
+  height: 160px;
+}
+
+.custom-views-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 18px;
+}
+
+.dialog-actions:empty {
+  display: none;
+}
+
 .dialog-list {
   height: 120px;
   overflow: auto;

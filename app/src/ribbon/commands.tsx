@@ -164,6 +164,14 @@ function otherCommands(): Command[] {
       pressed: (env) => env.c.view === "normal",
     },
     {
+      id: "ViewCustomViews",
+      label: "Custom Views",
+      description:
+        "Save the current display and print settings as a custom view that you can quickly apply in the future.",
+      keytip: "C",
+      run: (env) => env.dialog("customViews"),
+    },
+    {
       id: "ViewPageBreakPreviewView",
       label: "Page Break Preview",
       description:

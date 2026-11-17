@@ -27,3 +27,16 @@ describe("an Excel 97-2003 workbook (.xls)", () => {
     expect(classifyOpenError(error, broken, "Old.xls").kind).toBe("damaged")
   })
 })
+
+describe("unsaved changes", () => {
+  it("adding a custom view makes the workbook unsaved (it isn't an undo step)", async () => {
+    const bytes = new Uint8Array(
+      readFileSync(join(__dirname, "../../../packages/io/test/fixtures/excel/custom-views.xlsx")),
+    )
+    const doc = await openDocument(bytes, { name: "Views.xlsx", path: "/home/alex/Views.xlsx" }, undefined, false)
+    expect(doc.dirty).toBe(false)
+    doc.controller.customViews.add("Mine", true, true)
+    expect(doc.dirty).toBe(true)
+    doc.close()
+  })
+})

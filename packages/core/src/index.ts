@@ -1,4 +1,5 @@
 export * from "./address"
+export * from "./custom-views"
 export * from "./axis"
 export * from "./cell-store"
 export * from "./clipboard"

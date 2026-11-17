@@ -254,3 +254,49 @@ describe("Excel's hyperlinks.xlsx", () => {
     expect(again.workbook.sheets[0].hyperlinks).toEqual(links)
   })
 })
+
+describe("Excel's custom-views.xlsx (View › Custom Views)", () => {
+  it("reads each view: what it includes, each sheet's zoom and selection, hidden rows and columns, print settings", async () => {
+    const read = await openXlsx(fixture("custom-views"), "custom-views.xlsx")
+    const wb = read.workbook
+    const [noPrint, short, all] = wb.customViews
+    expect(wb.customViews.map((v) => v.name)).toEqual(["No print", "Short", "All rows"])
+    expect([noPrint.printSettings, noPrint.hiddenRowsCols]).toEqual([false, false])
+    const data = wb.sheets[0]
+    expect(all.activeSheet).toBe(data)
+    const s = short.sheets.get(data)!
+    expect(s.zoom).toBe(0.85)
+    expect(s.active).toEqual({ row: 11, col: 0 })
+    expect(s.hiddenRows).toEqual([[4, 8]])
+    expect(s.hiddenCols).toEqual([[1, 1]])
+    expect(s.pageSetup?.orientation).toBe("landscape")
+    expect(all.sheets.get(data)!.hiddenRows).toEqual([])
+    expect(all.sheets.get(data)!.active).toEqual({ row: 4, col: 2 })
+    // The view's names are modelled, not kept as read.
+    expect(read.source.keptNames.some((n) => n.xml.includes(".wvu."))).toBe(false)
+  })
+
+  it("saves them as Excel does, and reads its own file back the same", async () => {
+    const read = await openXlsx(fixture("custom-views"), "custom-views.xlsx")
+    const bytes = await saveXlsx(read.workbook, { source: read.source, views: read.views })
+    const zip = new Map((await readZip(bytes)).map((e) => [e.normalizedName, e.data]))
+    const text = (name: string) => new TextDecoder().decode(zip.get(name)!)
+    expect(text("xl/workbook.xml")).toContain(
+      '<customWorkbookView name="Short" guid="{F947688B-2F8F-43AC-AF3E-986133E91938}"',
+    )
+    expect(text("xl/workbook.xml")).toContain(
+      '<definedName name="Z_F947688B_2F8F_43AC_AF3E_986133E91938_.wvu.Rows" localSheetId="0" hidden="1">Data!$5:$9</definedName>',
+    )
+    expect(text("xl/worksheets/sheet1.xml")).toMatch(
+      /<customSheetView guid="\{F947688B[^"]*\}" scale="85"[^>]*hiddenRows="1"/,
+    )
+    const again = await openXlsx(bytes, "again.xlsx")
+    const strip = (wb: typeof read.workbook) =>
+      wb.customViews.map((v) => ({
+        ...v,
+        activeSheet: wb.sheets.indexOf(v.activeSheet!),
+        sheets: [...v.sheets.values()],
+      }))
+    expect(strip(again.workbook)).toEqual(strip(read.workbook))
+  })
+})

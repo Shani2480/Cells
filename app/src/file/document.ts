@@ -104,6 +104,11 @@ export class WorkbookDocument {
         this.controller.changed()
       }
     })
+    // Changes outside undo (View › Custom Views) count as unsaved too, as in Excel.
+    controller.unsavedChange = () => {
+      this.edits++
+      this.controller.changed()
+    }
   }
 
   get title() {

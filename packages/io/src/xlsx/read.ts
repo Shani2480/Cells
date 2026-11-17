@@ -1,3 +1,4 @@
+import { readCustomViews, type CustomSheetViewRead } from "./custom-views"
 import { tableAt, Workbook, type DefinedName, type Sheet, type WorkbookProtection } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
@@ -219,6 +220,7 @@ export async function openXlsx(
   }
 
   const views: SheetView[] = []
+  const customSheetViews = new Map<Sheet, CustomSheetViewRead[]>()
   const sheetSources = new WeakMap<Sheet, SheetSource>()
   let dynamic = false
   // Progress: by the size of the sheet parts, which hold nearly all of a big file.
@@ -253,6 +255,7 @@ export async function openXlsx(
       progress: options.progress ? (done) => options.progress!(0.1 + 0.85 * (start + share * done)) : undefined,
     })
     dynamic ||= read.dynamic
+    if (read.customViews.length) customSheetViews.set(sheet, read.customViews)
     const rels = relationshipsFor(pkg, rel.partName)
     const vmlRel = rels.find((r) => r.id === read.legacyDrawing)
     const vml = partText(pkg, vmlRel?.partName)
@@ -413,6 +416,23 @@ export async function openXlsx(
     if (s) s.rels = s.rels.filter((r) => r.id !== l.relId)
   }
   const keptConnections = [...connections.values()].filter((c) => !modelled.has(c.id))
+
+  // View › Custom Views: the views, each sheet's part, and the hidden names that hold their rows, columns and print
+  // area (written anew from the views; other names of a view, such as its filter, stay as read).
+  const viewName = (sheet: Sheet, name: string): string | null => {
+    const k = keptNames.findIndex((n) => n.sheet === sheet && at(parseTree(n.xml).root, "name") === name)
+    if (k < 0) return null
+    const text = parseTree(keptNames[k].xml).root.text
+    keptNames.splice(k, 1)
+    return text
+  }
+  wb.customViews = readCustomViews(
+    kid(root, "customWorkbookViews"),
+    wb.sheets,
+    sheetNodes.map((n) => Number(at(n, "sheetId") ?? 0)),
+    customSheetViews,
+    viewName,
+  )
 
   const prot = kid(root, "workbookProtection")
   if (prot && (at(prot, "lockStructure") === "1" || at(prot, "lockStructure") === "true")) {

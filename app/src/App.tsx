@@ -78,6 +78,7 @@ import { QuickAccess, TellMe } from "@/shell/QuickAccess"
 import { loadQat, saveQat } from "@/ribbon/qat-commands"
 import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
+import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
 import { loadDemo } from "./demo"
 import { FileCommands, type SaveChoice } from "@/file/commands"
 import { newDocument, type FileProblem, type WorkbookDocument } from "@/file/document"
@@ -115,6 +116,7 @@ type DialogState =
         | "unhideSheet"
         | "zoom"
         | "fillAcross"
+        | "customViews"
         | "cfManage"
         | "protectSheet"
         | "unprotectSheet"
@@ -768,7 +770,13 @@ function WorkbookWindow({
       controller.showFormulaBar = !controller.showFormulaBar
       controller.changed()
     } else if (kind === "formatCells") controller.shell.formatCells(arg as never)
-    else if (kind === "moveCopySheet" || kind === "unhideSheet" || kind === "zoom" || kind === "fillAcross")
+    else if (
+      kind === "moveCopySheet" ||
+      kind === "unhideSheet" ||
+      kind === "zoom" ||
+      kind === "fillAcross" ||
+      kind === "customViews"
+    )
       setDialog({ kind })
     else if (kind === "zoomToSelection") zoomToSelection()
     else if (kind === "cf" && isQuickKind(arg)) setDialog({ kind: "cfQuick", quick: arg })
@@ -1218,6 +1226,7 @@ function WorkbookWindow({
             }}
           />
         ) : null}
+        {dialog?.kind === "customViews" ? <CustomViewsDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "fillAcross" ? (
           <FillAcrossDialog onFill={(what) => controller.group.fillAcross(what)} onClose={closeDialog} />
         ) : null}
