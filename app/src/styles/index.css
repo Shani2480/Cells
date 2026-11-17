@@ -3728,3 +3728,130 @@ html.is-phone .forecast-options {
   font-size: 12px;
   opacity: 0.75;
 }
+
+/* View › Arrange All and View Side by Side: the workbook's windows as panels in the sheet area. */
+.win-area {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  gap: 6px;
+  padding: 6px;
+  background: var(--app-workspace);
+}
+
+.win-area.is-cascade {
+  position: relative;
+  display: block;
+}
+
+.win-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-ribbon-border);
+  border-radius: 6px;
+  background: var(--grid-bg);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.win-panel.is-active {
+  border-color: var(--app-theme-primary);
+  box-shadow:
+    0 0 0 1px var(--app-theme-primary),
+    0 4px 14px rgb(0 0 0 / 0.12);
+}
+
+/* Cascade: each window 28px further right and down, all the same size, the active one on top. */
+.is-cascade > .win-panel {
+  position: absolute;
+  top: calc(6px + var(--win-step) * 28px);
+  left: calc(6px + var(--win-step) * 28px);
+  width: calc(100% - 12px - (var(--win-count) - 1) * 28px);
+  height: calc(100% - 12px - (var(--win-count) - 1) * 28px);
+}
+
+.win-title {
+  display: flex;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 0 10px;
+  border-bottom: 1px solid var(--app-ribbon-border);
+  background: var(--app-ribbon-card);
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+.win-panel.is-active > .win-title {
+  background: var(--app-theme-light);
+  color: var(--app-ribbon-text);
+}
+
+.win-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.win-sheet {
+  overflow: hidden;
+  flex: 1;
+  color: var(--app-ribbon-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.win-button {
+  display: inline-flex;
+  width: 24px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+
+.win-button:hover {
+  background: var(--app-hover);
+}
+
+.win-button.is-close:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+.win-body {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+/* View › Switch Windows: the workbook's windows, the active one ticked. */
+.win-switch {
+  min-width: 200px;
+}
+
+.win-switch-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.win-switch-check {
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+}

@@ -1,6 +1,7 @@
 import { linkCommands } from "./link-commands"
 import { pageLayoutCommands } from "./page-layout-commands"
 import { themeCommands } from "./theme-commands"
+import { windowCommands } from "./window-commands"
 import { Calculator, CircleHelp, Columns2, Eye, Scan, Snowflake, Sparkles, Table2, ZoomIn } from "lucide-react"
 import labels from "./excel-labels.json"
 import { conditionalCommands } from "./cf-commands"
@@ -364,6 +365,7 @@ export function allCommands(): Command[] {
     ...objectCommands(),
     ...pageLayoutCommands(),
     ...themeCommands(),
+    ...windowCommands(),
     ...linkCommands(),
     ...otherCommands(),
   ]

@@ -128,7 +128,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
       Table), Forecast Sheet, Refresh All and Queries & Connections for text and CSV imports, Edit Links
 - [x] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
       Symbol, Header & Footer (opens Page Setup's tab until Page Layout view exists)
-- [ ] Part 6 — Views and windows: New Window, Arrange
+- [x] Part 6 — Views and windows: New Window, Arrange
       All, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
   - [x] Grouped sheets: Shift/Ctrl+click tabs, Select All Sheets / Ungroup Sheets, Ctrl+Shift+PgDn/PgUp, edits
         repeated on each sheet as one undo step, Delete and Hide on the group, [Group] in the title, one-sheet
@@ -141,6 +141,10 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         Header/Footer), blank pages after the data, rulers in in/cm, no frozen panes or split in this view
   - [x] Custom Views: Add (print settings, hidden rows and columns), Show, Delete; read from and written to Excel files
         (customWorkbookViews, customSheetViews, Z_<guid>_.wvu names), checked in Excel 365
+  - [x] Windows (decided 2026-11-17: windows are panels inside the Cells window, not OS windows): New Window (a
+        second view of the workbook: its own sheet, selection, scroll and zoom; "Book1:2" titles), Arrange All
+        (Tiled, Horizontal, Vertical, Cascade), Hide / Unhide, View Side by Side with Synchronous Scrolling and
+        Reset Window Position, Switch Windows
 - [x] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
   - [x] Spelling (F7): sheet or selection, Ignore Once/All, Add to Dictionary (shared with Inkspire), Change/Change
@@ -159,6 +163,8 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Sheet Background (tiled behind the cells, screen only; dimmed in dark mode; xlsx `<picture>`)
   - [x] Themes: Themes, Colors and Fonts galleries, Browse for Themes, writing the theme part; cells, cell styles,
         table styles, charts and shapes follow the theme
+- [ ] Part 8b — More objects (decided 2026-11-17: build them): Equations, SmartArt, 3D Models, Signature Line,
+      Object (OLE: embedded files shown as icons or pictures, opened in their own app; Excel's kept)
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
@@ -169,7 +175,7 @@ Staying out, with the reason in the code: Power Query's online sources, subscrip
 (Relationships, Manage Data Model) need Microsoft's engine and services; co-authoring, Hide Ink and Screenshot need
 an account, a pen layer or a desktop capture Cells doesn't have; View Code and Macros need VBA, which Cells doesn't
 run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signature Line and Object (OLE) are
-decided when Part 8 is done.
+built in Part 8b.
 
 ## Later (from Phase 7)
 
@@ -187,6 +193,9 @@ decided when Part 8 is done.
   Customize Colors and Customize Fonts (custom sets); Save Current Theme; Reset to Theme from Template. Conditional
   formats and colours in charts read from a file keep their colours (Excel's follow the theme). .xls files keep their
   colours as read (BIFF8 has no theme references).
+- Windows: only the active window's view is saved (Excel writes a workbookView per window and reopens them all);
+  the sheet tabs and status bar follow the active window instead of each panel having its own; Cascade's panels
+  can't be dragged or resized; Hide is greyed out for the last visible window (Cells shows one workbook at a time).
 - Sheet Background: .xls files open without theirs (the BIFF BITMAP record isn't read).
 
 - Check Accessibility: contrast ignores conditional formats, table styles and number-format colours; Excel's

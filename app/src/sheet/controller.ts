@@ -436,7 +436,16 @@ export class SheetController {
   constructor(wb: Workbook<Selection> = new Workbook<Selection>()) {
     this.wb = wb
     this.shown = wb.sheets[0]
-    wb.subscribe(() => this.changed())
+    this.stopListening = wb.subscribe(() => this.changed())
+  }
+
+  private readonly stopListening: () => void
+
+  /** A window closed (View › New Window's copies): stops following the workbook. */
+  dispose() {
+    this.stopListening()
+    this.listeners.clear()
+    this.scrollListeners.clear()
   }
 
   get sheet(): Sheet {

@@ -13,6 +13,7 @@ import {
 } from "@cells/io"
 import type { FileRef, FileType } from "@cells/platform"
 import { SheetController } from "@/sheet/controller"
+import { DocumentWindows } from "./windows"
 import { startCalculation, type WorkerCalculator } from "@/engine-host/host"
 
 export const PACKAGE_EXTENSIONS = ["xlsx", "xlsm", "xltx", "xltm"]
@@ -80,10 +81,12 @@ export class WorkbookDocument {
    */
   embeddedFor: string | null = null
   readonly warnings: string[]
+  /** View › New Window's windows; `controller` is the active one. */
+  readonly windows: DocumentWindows
   private readonly unsubscribe: () => void
 
   constructor(
-    readonly controller: SheetController,
+    main: SheetController,
     o: {
       ref?: FileRef | null
       fileName?: string
@@ -98,21 +101,36 @@ export class WorkbookDocument {
     this.source = o.source ?? null
     this.text = o.text ?? null
     this.warnings = o.warnings ?? []
-    this.unsubscribe = controller.wb.subscribe((_changes, ops) => {
+    this.unsubscribe = main.wb.subscribe((_changes, ops) => {
       if (ops.length) {
         this.edits++
         this.controller.changed()
       }
     })
     // Changes outside undo (View › Custom Views) count as unsaved too, as in Excel.
-    controller.unsavedChange = () => {
-      this.edits++
-      this.controller.changed()
+    const adopt = (c: SheetController) => {
+      c.unsavedChange = () => {
+        this.edits++
+        c.changed()
+      }
+      c.printFile = main.printFile
     }
+    adopt(main)
+    this.windows = new DocumentWindows(main, adopt)
+  }
+
+  /** The active window's controller (the workbook's only one unless View › New Window made more). */
+  get controller(): SheetController {
+    return this.windows.active
   }
 
   get title() {
     return this.embeddedFor ? `Chart in ${this.embeddedFor}` : titleOf(this.fileName)
+  }
+
+  /** The title bar's name: "Budget", or "Budget:2" for the second of the workbook's windows. */
+  get windowTitle() {
+    return this.windows.title(this.title)
   }
 
   /** Changed since it was opened or last saved (a new, untouched workbook isn't). */
@@ -151,6 +169,7 @@ export class WorkbookDocument {
 
   close() {
     this.unsubscribe()
+    this.windows.dispose()
     this.calc?.stop()
   }
 }

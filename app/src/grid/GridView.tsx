@@ -76,9 +76,12 @@ const LINK_TIP_MS = 600
 export function GridView({
   controller,
   onContextMenu,
+  active: isActiveWindow = true,
 }: {
   controller: SheetController
   onContextMenu: (menu: GridContextMenu) => void
+  /** False for a window that isn't the active one (Arrange All): it draws, but leaves the keyboard focus alone. */
+  active?: boolean
 }) {
   const version = useSyncExternalStore(controller.subscribe, controller.getVersion)
   // Scrolling has its own notice: only the grid and its layers move, the rest of the window doesn't re-render.
@@ -274,8 +277,8 @@ export function GridView({
   // Keep keyboard focus on the hidden input whenever no other control has it.
   const focusInput = useCallback(() => {
     const input = inputRef.current
-    if (input && document.activeElement !== input) input.focus({ preventScroll: true })
-  }, [])
+    if (isActiveWindow && input && document.activeElement !== input) input.focus({ preventScroll: true })
+  }, [isActiveWindow])
 
   useEffect(() => {
     focusInput()

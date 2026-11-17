@@ -12,6 +12,8 @@ import {
   type ReactNode,
 } from "react"
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
+import { WindowsArea } from "@/shell/WindowsArea"
+import { sheetEditor } from "@/ribbon/controls"
 import { GridView, type GridContextMenu } from "@/grid/GridView"
 import { usePlatform } from "@/platform/context"
 import type { SettingsPort } from "@cells/platform"
@@ -95,6 +97,7 @@ import { loadQat, saveQat } from "@/ribbon/qat-commands"
 import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
+import { ArrangeWindowsDialog, CompareSideBySideDialog, UnhideWindowDialog } from "@/shell/WindowDialogs"
 import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
 import { AltTextDialog } from "@/shell/AltTextDialog"
 import { AllowEditRangesDialog, UnlockRangeDialog } from "@/shell/EditRangesDialogs"
@@ -138,6 +141,9 @@ type DialogState =
         | "zoom"
         | "fillAcross"
         | "customViews"
+        | "arrangeWindows"
+        | "unhideWindow"
+        | "compareSideBySide"
         | "statistics"
         | "spelling"
         | "icons"
@@ -442,9 +448,12 @@ function WorkbookWindow({
   files: FileCommands
   recentFiles: RecentFile[]
 }) {
+  // View › New Window: the ribbon, formula bar, tabs and status bar follow the active window.
+  const windowsVersion = useSyncExternalStore(doc.windows.subscribe, doc.windows.getVersion)
   const controller = doc.controller
   // &F and &Z in the header and footer Page Layout shows.
-  controller.printFile = { fileName: doc.fileName, folder: folderOf(doc.ref?.path) }
+  const printFile = { fileName: doc.fileName, folder: folderOf(doc.ref?.path) }
+  for (const w of doc.windows.all) w.printFile = printFile
   const platform = usePlatform()
   const [dialog, setDialog] = useState<DialogState>(null)
   const openDialogRef = useRef<(name: string) => void>(() => undefined)
@@ -493,7 +502,7 @@ function WorkbookWindow({
   }, [shell])
 
   useEffect(() => {
-    controller.shell = {
+    const shell: SheetController["shell"] = {
       documentPath: () => files.doc.ref?.path ?? null,
       goTo: () => setDialog({ kind: "goto" }),
       insertDelete: ({ kind }) => setDialog({ kind }),
@@ -524,7 +533,8 @@ function WorkbookWindow({
       followLink: (target) => void followLink(target),
       openCellList: (pick) => window.dispatchEvent(new CustomEvent("cells:open-cell-list", { detail: { pick } })),
     }
-  }, [controller])
+    for (const w of doc.windows.all) w.shell = shell
+  }, [controller, doc, windowsVersion])
 
   /** A link out of the sheet: another workbook opens here (then goes to its place); the rest goes to the system. */
   const followLink = async (target: LinkTarget) => {
@@ -541,9 +551,7 @@ function WorkbookWindow({
   }
 
   const focusGrid = useCallback(() => {
-    requestAnimationFrame(() =>
-      document.querySelector<HTMLTextAreaElement>(".cell-editor")?.focus({ preventScroll: true }),
-    )
+    requestAnimationFrame(() => sheetEditor()?.focus({ preventScroll: true }))
   }, [])
 
   const closeDialog = useCallback(() => {
@@ -806,6 +814,9 @@ function WorkbookWindow({
       kind === "zoom" ||
       kind === "fillAcross" ||
       kind === "customViews" ||
+      kind === "arrangeWindows" ||
+      kind === "unhideWindow" ||
+      kind === "compareSideBySide" ||
       kind === "statistics" ||
       kind === "spelling" ||
       kind === "icons" ||
@@ -892,6 +903,12 @@ function WorkbookWindow({
         event.preventDefault()
         event.stopPropagation()
         setBackstage("print")
+      } else if (event.key === "F6" && primary && !event.altKey && !document.querySelector('[aria-modal="true"]')) {
+        // Ctrl+F6 / Ctrl+Shift+F6: the workbook's next or previous window (View › New Window).
+        if (files.doc.windows.visible.length < 2) return
+        event.preventDefault()
+        event.stopPropagation()
+        files.doc.windows.cycle(event.shiftKey ? -1 : 1)
       }
     }
     window.addEventListener("keydown", onKey)
@@ -946,7 +963,13 @@ function WorkbookWindow({
   const clipboardPane = (
     <ClipboardPane controller={controller} onPaste={(text, html) => controller.paste(text, html)} onDone={focusGrid} />
   )
-  const grid = <GridView controller={controller} onContextMenu={setMenu} />
+  const grid = (
+    <WindowsArea
+      windows={doc.windows}
+      baseTitle={doc.title}
+      grid={(c, active) => <GridView key={doc.windows.key(c)} controller={c} active={active} onContextMenu={setMenu} />}
+    />
+  )
   const drawings = controller.objects.drawings()
   const ribbonTabs = controller.charts.active()
     ? TABS_IN_CHART
@@ -969,7 +992,7 @@ function WorkbookWindow({
             env={env}
             registry={registry}
             tabs={paletteTabs}
-            title={controller.group.active ? `${doc.title} [Group]` : doc.title}
+            title={controller.group.active ? `${doc.windowTitle} [Group]` : doc.windowTitle}
             formulaBar={formulaBar}
             onFile={() => setBackstage("home")}
             onFocusGrid={focusGrid}
@@ -980,7 +1003,7 @@ function WorkbookWindow({
           <>
             <TitleBar
               controller={controller}
-              title={`${doc.title}${controller.group.active ? " [Group]" : ""} - Cells`}
+              title={`${doc.windowTitle}${controller.group.active ? " [Group]" : ""} - Cells`}
               qat={<QuickAccess registry={registry} env={env} ids={qat} onChange={setQat} onDone={focusGrid} />}
               search={
                 <TellMe
@@ -1311,6 +1334,15 @@ function WorkbookWindow({
           <WorkbookStatisticsDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "customViews" ? <CustomViewsDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "arrangeWindows" ? (
+          <ArrangeWindowsDialog windows={doc.windows} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "unhideWindow" ? (
+          <UnhideWindowDialog windows={doc.windows} baseTitle={doc.title} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "compareSideBySide" ? (
+          <CompareSideBySideDialog windows={doc.windows} baseTitle={doc.title} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "fillAcross" ? (
           <FillAcrossDialog onFill={(what) => controller.group.fillAcross(what)} onClose={closeDialog} />
         ) : null}

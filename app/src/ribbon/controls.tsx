@@ -347,9 +347,17 @@ export function FieldControl({ id }: { id: string }) {
   )
 }
 
+/** The active window's hidden editor textarea (with Arrange All, each window's grid has one). */
+export function sheetEditor(): HTMLTextAreaElement | null {
+  return (
+    document.querySelector<HTMLTextAreaElement>(".win-panel.is-active .cell-editor") ??
+    document.querySelector<HTMLTextAreaElement>(".cell-editor")
+  )
+}
+
 /** Puts the keyboard back on the sheet (its hidden editor textarea). */
 export function focusSheet() {
-  requestAnimationFrame(() => document.querySelector<HTMLElement>(".cell-editor")?.focus({ preventScroll: true }))
+  requestAnimationFrame(() => sheetEditor()?.focus({ preventScroll: true }))
 }
 
 export function GroupLauncher({ id, groupLabel }: { id: string; groupLabel: string }) {
