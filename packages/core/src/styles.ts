@@ -1,3 +1,5 @@
+import { themeColorHex, type FontScheme, type Theme, type ThemeColorRef } from "./theme"
+
 /**
  * Cell formats, interned: a cell, row or column stores a style id, the workbook keeps one record per distinct format.
  * Id 0 is the default (General, no direct formatting): a cell with style 0 shows its row's format, else its
@@ -22,8 +24,11 @@ export type BorderStyle =
   | "slantDashDot"
   | "double"
 
-/** A border line; no colour means Automatic (the window text colour, black). */
-export type Border = { style: BorderStyle; color?: string }
+/**
+ * A border line; no colour means Automatic (the window text colour, black). `theme`: the colour is the theme's (and
+ * `color` its look under the current theme).
+ */
+export type Border = { style: BorderStyle; color?: string; theme?: ThemeColorRef }
 
 export type HAlign = "general" | "left" | "center" | "right" | "fill" | "justify" | "centerContinuous" | "distributed"
 export type VAlign = "top" | "center" | "bottom" | "justify" | "distributed"
@@ -42,9 +47,15 @@ export type CellStyle = {
   vertAlign?: "superscript" | "subscript"
   /** "#rrggbb"; absent is Automatic. */
   fontColor?: string
+  /** The font colour is this theme colour (`fontColor` holds how it looks with the workbook's theme). */
+  fontThemeColor?: ThemeColorRef
+  /** The font is the theme's headings or body font (`fontName` holds the current theme's). */
+  fontScheme?: FontScheme
   // Fill
   /** Solid fill, "#rrggbb"; absent is No Fill. */
   fill?: string
+  /** The fill is this theme colour (`fill` holds how it looks with the workbook's theme). */
+  fillThemeColor?: ThemeColorRef
   // Alignment
   hAlign?: HAlign
   /** Absent is bottom, Excel's default. */
@@ -107,6 +118,9 @@ export class StyleTable {
     // A field the patch leaves undefined is not touched; null removes it.
     const merged: Record<string, unknown> = { ...this.get(base) }
     for (const [key, value] of Object.entries(patch)) if (value !== undefined) merged[key] = value
+    // A colour or font set on its own is no longer the theme's.
+    for (const [field, link] of THEME_LINKS)
+      if (patch[field] !== undefined && patch[link] === undefined) delete merged[link]
     for (const key of Object.keys(merged)) {
       if (merged[key] === undefined || merged[key] === null) {
         delete merged[key]
@@ -126,6 +140,28 @@ export class StyleTable {
     return id
   }
 
+  /**
+   * Page Layout › Themes: every format that uses a theme colour or font takes the look of `theme` (ids stay the same,
+   * so cells keep their formats).
+   */
+  retheme(theme: Theme) {
+    let changed = false
+    for (let id = 2; id < this.styles.length; id++) {
+      const next = themed(this.styles[id], theme)
+      if (next) {
+        this.styles[id] = Object.freeze(next)
+        changed = true
+      }
+    }
+    if (!changed) return
+    this.index.clear()
+    this.styles.forEach((style, id) => {
+      const key = keyOf(style)
+      if (id !== 1 && !this.index.has(key)) this.index.set(key, id)
+    })
+    this.patched.clear()
+  }
+
   /** Whether the id stands for Excel's default format (0, or 1 set on purpose). */
   isDefault(id: number) {
     return id === DEFAULT_STYLE_ID || id === EXPLICIT_DEFAULT_ID
@@ -134,6 +170,33 @@ export class StyleTable {
   get size() {
     return this.styles.length
   }
+}
+
+/** Fields that a theme reference goes with: setting the field alone drops the reference. */
+const THEME_LINKS: [StyleKey, StyleKey][] = [
+  ["fontColor", "fontThemeColor"],
+  ["fill", "fillThemeColor"],
+  ["fontName", "fontScheme"],
+]
+
+const BORDER_KEYS = ["borderTop", "borderBottom", "borderLeft", "borderRight", "borderDiagonal"] as const
+
+/** A format with its theme colours and fonts as `theme` shows them; null when nothing changes. */
+export function themed(style: CellStyle, theme: Theme): CellStyle | null {
+  let out: CellStyle | null = null
+  const set = <K extends StyleKey>(key: K, value: CellStyle[K]) => {
+    if (style[key] === value) return
+    out ??= { ...style }
+    out[key] = value
+  }
+  if (style.fontThemeColor) set("fontColor", themeColorHex(style.fontThemeColor, theme))
+  if (style.fillThemeColor) set("fill", themeColorHex(style.fillThemeColor, theme))
+  if (style.fontScheme) set("fontName", theme.fonts[style.fontScheme])
+  for (const key of BORDER_KEYS) {
+    const b = style[key]
+    if (b?.theme && b.color !== themeColorHex(b.theme, theme)) set(key, { ...b, color: themeColorHex(b.theme, theme) })
+  }
+  return out
 }
 
 /** A stable text key for a patch, for caching. */
@@ -161,7 +224,10 @@ export const CLEAR_ALL: StylePatch = {
   strike: null,
   vertAlign: null,
   fontColor: null,
+  fontThemeColor: null,
+  fontScheme: null,
   fill: null,
+  fillThemeColor: null,
   hAlign: null,
   vAlign: null,
   indent: null,

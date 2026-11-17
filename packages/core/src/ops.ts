@@ -23,6 +23,7 @@ import { moveMapper, rewriteFormula, shiftMapper, type RefMapper } from "./formu
 import type { OutlineSettings, Sheet } from "./sheet"
 import { applySheetOp, type SheetOp } from "./sheet-ops"
 import { StyleTable, type StylePatch } from "./styles"
+import { copyTheme, type Theme } from "./theme"
 
 /** One cell's new content; `data: undefined` clears it. */
 export type CellWrite = { row: number; col: number; data: CellData | undefined }
@@ -125,6 +126,8 @@ export type Op =
   | { kind: "protect"; sheet: number; protection: SheetProtection | null }
   /** Protect Workbook (Structure) or Unprotect Workbook (null). */
   | { kind: "protectWorkbook"; protection: WorkbookProtection | null }
+  /** Page Layout › Themes: the workbook's theme; formats with theme colours and fonts follow it. */
+  | { kind: "theme"; theme: Theme }
   /** Outline levels alone ([index, level] pairs), leaving sizes and visibility: Subtotal's grouping. */
   | { kind: "outlineLevels"; sheet: number; axis: AxisName; levels: [number, number][] }
   /** Data › Outline › Settings (and Ctrl+8's outline symbols). */
@@ -146,6 +149,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "annotations",
   "protect",
   "protectWorkbook",
+  "theme",
   "sheetProps",
   "scenarios",
   "hyperlinks",
@@ -186,6 +190,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       box.list = copyExternalBooks(op.links)
       // Every formula that reads a linked workbook calculates again.
       return { inverse: [{ kind: "externalLinks", links: before }], change: { sheet: 0, structural: true } }
+    }
+    case "theme": {
+      const box = (sheets as SheetList).look
+      if (!box) throw new Error("No theme")
+      const before = copyTheme(box.theme)
+      box.theme = copyTheme(op.theme)
+      styles.retheme(box.theme)
+      return { inverse: [{ kind: "theme", theme: before }], change: { sheet: 0, structural: false, format: true } }
     }
     case "protectWorkbook": {
       const box = (sheets as SheetList).structure

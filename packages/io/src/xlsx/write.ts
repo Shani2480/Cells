@@ -22,6 +22,7 @@ import {
   CT_SHARED_STRINGS,
   CT_STYLES,
   CT_TABLE,
+  CT_THEME,
   CT_THREADED,
   CT_VML,
   CT_WORKSHEET,
@@ -38,12 +39,14 @@ import {
   REL_STYLES,
   REL_TABLE,
   REL_HYPERLINK,
+  REL_THEME,
   REL_THREADED,
   REL_VML,
   REL_WORKSHEET,
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
 import { putPicture, REL_IMAGE, writeDrawing } from "./drawing"
+import { patchThemeXml, themeChanged, themeXml } from "./theme"
 import {
   CT_EXTERNAL_LINK,
   externalLinkXml,
@@ -218,7 +221,24 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     wbRels.filter((r) => !dropped.includes(r)),
   )
 
-  const styles = new StylesOut(source?.styles ?? null, source?.reuse ?? new Map())
+  // Page Layout › Themes: the file's theme part with the workbook's colours and fonts, or a new one; the theme's
+  // fonts go into the font records that use them.
+  const newTheme = themeChanged(wb.theme, source?.theme)
+  const styles = new StylesOut(
+    source?.styles ?? null,
+    source?.reuse ?? new Map(),
+    newTheme ? wb.theme.fonts : undefined,
+  )
+  if (newTheme) {
+    const rel = rels(main).find((r) => r.type === REL_THEME && r.partName)
+    const old = rel?.partName ? parts.get(partKey(rel.partName)) : undefined
+    if (rel?.partName && old) put(rel.partName, CT_THEME, patchThemeXml(new TextDecoder().decode(old.data), wb.theme))
+    else {
+      const name = freeName((n) => `/xl/theme/theme${n}.xml`)
+      put(name, CT_THEME, themeXml(wb.theme))
+      addRel(main, REL_THEME, name)
+    }
+  }
   const strings = new SharedStrings(source?.rich)
   const spills = new Map<number, Map<string, Range>>()
   for (const a of wb.calc.spillAreas()) {
@@ -422,6 +442,9 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     const kept: Kept[] = doc.root.children
       .filter((c) => !(c.local in generated))
       .map((c) => ({ local: c.local, xml: raw(doc, c) }))
+    // A theme of its own: Excel reads defaultThemeVersion as "Office's theme" and would show that instead.
+    if (newTheme)
+      for (const k of kept) if (k.local === "workbookPr") k.xml = k.xml.replace(/\s+defaultThemeVersion="[^"]*"/, "")
     const open = doc.source.slice(doc.root.start, doc.root.tagEnd).replace(/\/?>$/, "")
     wbXml = `${open}>${assemble(WORKBOOK_ORDER, kept, generated)}</${doc.root.name}>`
   } else {
@@ -429,7 +452,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       `<workbook xmlns="${NS_MAIN}" xmlns:r="${NS_R}">` +
       assemble(
         WORKBOOK_ORDER,
-        [{ local: "workbookPr", xml: `<workbookPr defaultThemeVersion="202300"/>` }],
+        [{ local: "workbookPr", xml: newTheme ? `<workbookPr/>` : `<workbookPr defaultThemeVersion="202300"/>` }],
         generated,
       ) +
       `</workbook>`

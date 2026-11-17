@@ -1,4 +1,14 @@
-import type { Border, BorderStyle, CellStyle, CFStyle, HAlign, Underline, VAlign } from "@cells/core"
+import type {
+  Border,
+  BorderStyle,
+  CellStyle,
+  CFStyle,
+  FontScheme,
+  HAlign,
+  ThemeColorRef,
+  Underline,
+  VAlign,
+} from "@cells/core"
 import { escapeXml } from "@cells/ooxml"
 import { argb, DEFAULT_THEME_COLORS, resolveColor, type ColorAttrs, type ThemeColors } from "./colors"
 import { BUILTIN_CELL_STYLES, BUILTIN_NUMBER_FORMATS, INDEXED_COLORS, NS_MAIN } from "./constants"
@@ -22,8 +32,25 @@ const flag = (v: string | undefined) => v === "1" || v === "true"
 
 type FontFields = Pick<
   CellStyle,
-  "fontName" | "fontSize" | "bold" | "italic" | "underline" | "strike" | "vertAlign" | "fontColor"
+  | "fontName"
+  | "fontSize"
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strike"
+  | "vertAlign"
+  | "fontColor"
+  | "fontThemeColor"
+  | "fontScheme"
 >
+
+/** A theme colour's reference (`theme`, `tint` attributes), when the colour is one. */
+function themeRef(n: XNode | undefined): ThemeColorRef | undefined {
+  const theme = at(n, "theme")
+  if (theme === undefined || !/^\d+$/.test(theme) || Number(theme) > 11) return undefined
+  const tint = Number(at(n, "tint") ?? 0)
+  return tint ? { theme: Number(theme), tint } : { theme: Number(theme) }
+}
 
 /** styles.xml as read: Cells formats for each cell format (xf) and differential format (dxf), plus the source. */
 export class StylesIn {
@@ -85,7 +112,11 @@ export class StylesIn {
     if (!n) return out
     const name = at(kid(n, "name"), "val")
     const size = at(kid(n, "sz"), "val")
-    if (name && (!relative || name !== this.defaultFont.name)) out.fontName = name
+    if (name && (!relative || name !== this.defaultFont.name)) {
+      out.fontName = name
+      const scheme = at(kid(n, "scheme"), "val")
+      if (scheme === "major" || scheme === "minor") out.fontScheme = scheme as FontScheme
+    }
     if (size && (!relative || Number(size) !== this.defaultFont.size)) out.fontSize = Number(size)
     if (on(kid(n, "b"))) out.bold = true
     if (on(kid(n, "i"))) out.italic = true
@@ -95,7 +126,11 @@ export class StylesIn {
     const va = at(kid(n, "vertAlign"), "val")
     if (va === "superscript" || va === "subscript") out.vertAlign = va
     const color = this.color(kid(n, "color"))
-    if (color && (!relative || color !== this.defaultFont.color)) out.fontColor = color
+    if (color && (!relative || color !== this.defaultFont.color)) {
+      out.fontColor = color
+      const ref = themeRef(kid(n, "color"))
+      if (ref) out.fontThemeColor = ref
+    }
     return out
   }
 
@@ -107,7 +142,9 @@ export class StylesIn {
       const style = at(s, "style")
       if (!style || !BORDER_STYLES.has(style)) return undefined
       const color = this.color(kid(s, "color"))
-      return color ? { style: style as BorderStyle, color } : { style: style as BorderStyle }
+      if (!color) return { style: style as BorderStyle }
+      const ref = themeRef(kid(s, "color"))
+      return ref ? { style: style as BorderStyle, color, theme: ref } : { style: style as BorderStyle, color }
     }
     const sides = [
       ["borderLeft", side("left") ?? side("start")],
@@ -148,8 +185,13 @@ export class StylesIn {
       const fmt = this.numberFormat(Number(at(xf, "numFmtId") ?? 0))
       if (fmt && fmt !== "General") style.numberFormat = fmt
       Object.assign(style, this.font(this.fonts[Number(at(xf, "fontId") ?? 0)], true))
-      const fill = this.fill(this.fills[Number(at(xf, "fillId") ?? 0)], false)
-      if (fill) style.fill = fill
+      const fillNode = this.fills[Number(at(xf, "fillId") ?? 0)]
+      const fill = this.fill(fillNode, false)
+      if (fill) {
+        style.fill = fill
+        const ref = themeRef(kid(kid(fillNode, "patternFill"), "fgColor"))
+        if (ref) style.fillThemeColor = ref
+      }
       Object.assign(style, this.border(this.borders[Number(at(xf, "borderId") ?? 0)]))
       const a = kid(xf, "alignment")
       if (a) {
@@ -232,7 +274,19 @@ class Section {
   }
 }
 
-const colorXml = (tag: string, hex: string | undefined) => (hex ? `<${tag} rgb="${argb(hex)}"/>` : "")
+const colorXml = (tag: string, hex: string | undefined, ref?: ThemeColorRef) =>
+  ref
+    ? `<${tag} theme="${ref.theme}"${ref.tint ? ` tint="${ref.tint}"` : ""}/>`
+    : hex
+      ? `<${tag} rgb="${argb(hex)}"/>`
+      : ""
+
+/** A font record with its theme font's name: `<scheme val="minor"/>` fonts take `fonts.minor`, major ones `fonts.major`. */
+function withThemeFont(xml: string, fonts: { major: string; minor: string }): string {
+  const scheme = /<scheme val="(major|minor)"\/>/.exec(xml)?.[1] as FontScheme | undefined
+  if (!scheme) return xml
+  return xml.replace(/(<name val=")[^"]*(")/, `$1${escapeXml(fonts[scheme])}$2`)
+}
 
 /**
  * Builds styles.xml for a save. Formats that came from the file keep their own xf (so theme colours, patterns and
@@ -253,9 +307,11 @@ export class StylesOut {
   private readonly font: { name: string; size: number }
 
   /** `reuse`: Cells style id → the source's xf index, for formats read from the file and not changed since. */
+  /** `themeFonts`: the workbook theme's fonts, which theme fonts (and the default font) take. */
   constructor(
     private readonly source: StylesIn | null,
     private readonly reuse: ReadonlyMap<number, number> = new Map(),
+    themeFonts?: { major: string; minor: string },
   ) {
     const doc = source?.doc
     const items = (section: string, item: string) =>
@@ -266,8 +322,15 @@ export class StylesOut {
         this.nextNumFmt = Math.max(this.nextNumFmt, id + 1)
       }
     }
-    this.font = source ? { name: source.defaultFont.name, size: source.defaultFont.size } : DEFAULT_FONT
-    this.fonts = new Section(items("fonts", "font"))
+    this.font = source ? { name: source.defaultFont.name, size: source.defaultFont.size } : { ...DEFAULT_FONT }
+    const fontItems = items("fonts", "font")
+    if (themeFonts) {
+      // The default font follows the theme when it is the theme's body font (as Excel's Normal style does).
+      const first = fontItems[0]
+      if (!first || /<scheme val="minor"\/>/.test(first)) this.font.name = themeFonts.minor
+      for (let i = 0; i < fontItems.length; i++) fontItems[i] = withThemeFont(fontItems[i], themeFonts)
+    }
+    this.fonts = new Section(fontItems)
     this.fills = new Section(items("fills", "fill"))
     this.borders = new Section(items("borders", "border"))
     this.cellStyleXfs = new Section(items("cellStyleXfs", "xf"))
@@ -312,10 +375,11 @@ export class StylesOut {
     if (s.underline) x += s.underline === "single" ? "<u/>" : `<u val="${s.underline}"/>`
     if (s.vertAlign) x += `<vertAlign val="${s.vertAlign}"/>`
     if (!differential) x += `<sz val="${s.fontSize ?? this.font.size}"/>`
-    x += s.fontColor ? colorXml("color", s.fontColor) : differential ? "" : `<color theme="1"/>`
+    x += s.fontColor ? colorXml("color", s.fontColor, s.fontThemeColor) : differential ? "" : `<color theme="1"/>`
     if (!differential) {
       x += `<name val="${escapeXml(s.fontName ?? this.font.name)}"/><family val="2"/>`
-      if (!s.fontName || s.fontName === this.font.name) x += `<scheme val="minor"/>`
+      const scheme = s.fontScheme ?? (!s.fontName || s.fontName === this.font.name ? "minor" : undefined)
+      if (scheme) x += `<scheme val="${scheme}"/>`
     }
     return `<font>${x}</font>`
   }
@@ -323,7 +387,7 @@ export class StylesOut {
   private borderXml(s: Partial<CellStyle>): string {
     const side = (tag: string, b: Border | undefined) =>
       b
-        ? `<${tag} style="${b.style}">${b.color ? colorXml("color", b.color) : `<color indexed="64"/>`}</${tag}>`
+        ? `<${tag} style="${b.style}">${b.color ? colorXml("color", b.color, b.theme) : `<color indexed="64"/>`}</${tag}>`
         : `<${tag}/>`
     return (
       `<border${attrText({ diagonalUp: s.diagonalUp, diagonalDown: s.diagonalDown })}>` +
@@ -363,7 +427,7 @@ export class StylesOut {
     const fontId = this.fonts.add(this.fontXml(style, false))
     const fillId = style.fill
       ? this.fills.add(
-          `<fill><patternFill patternType="solid">${colorXml("fgColor", style.fill)}<bgColor indexed="64"/></patternFill></fill>`,
+          `<fill><patternFill patternType="solid">${colorXml("fgColor", style.fill, style.fillThemeColor)}<bgColor indexed="64"/></patternFill></fill>`,
         )
       : 0
     const borderId = this.borders.add(this.borderXml(style))

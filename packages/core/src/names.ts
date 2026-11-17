@@ -1,3 +1,4 @@
+import type { Theme } from "./theme"
 import type { ExternalBook } from "./links"
 import type { WorkbookProtection } from "./protection"
 import { MAX_COLS, parseCell, parseRange } from "./address"
@@ -23,6 +24,8 @@ export type SheetList = Sheet[] & {
   structure?: { protection: WorkbookProtection | null }
   /** Linked workbooks (Data › Workbook Links). */
   links?: { list: ExternalBook[] }
+  /** Page Layout › Themes. */
+  look?: { theme: Theme }
 }
 
 export class NameTable {

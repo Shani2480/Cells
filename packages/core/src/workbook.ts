@@ -112,8 +112,16 @@ export class Workbook<Meta = unknown> {
   readonly links: { list: ExternalBook[] } = { list: [] }
   /** View › Custom Views (kept out of undo, as Excel does). */
   customViews: CustomView[] = []
-  /** Page Layout › Themes: the colours and fonts theme colours in shapes follow. */
-  theme: Theme = copyTheme(OFFICE_THEME)
+  /** Page Layout › Themes, in a box so operations can change it. */
+  readonly look: { theme: Theme } = { theme: copyTheme(OFFICE_THEME) }
+  /** The colours and fonts that theme colours and fonts in cells, shapes and charts follow. */
+  get theme(): Theme {
+    return this.look.theme
+  }
+  /** Sets the theme as read from a file (cell formats already show it; use the "theme" op to change it). */
+  set theme(theme: Theme) {
+    this.look.theme = theme
+  }
   undoLimit: number
   private readonly undoStack: UndoEntry<Meta>[] = []
   private readonly redoStack: UndoEntry<Meta>[] = []
@@ -129,6 +137,7 @@ export class Workbook<Meta = unknown> {
     ;(this.sheets as SheetList).names = this.names
     ;(this.sheets as SheetList).structure = this.structure
     ;(this.sheets as SheetList).links = this.links
+    ;(this.sheets as SheetList).look = this.look
     this.undoLimit = undoLimit
     this.calc = new CalcEngine(this)
     this.calculator = new LocalCalculator(this.calc)

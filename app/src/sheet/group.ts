@@ -36,6 +36,7 @@ const WORKBOOK: ReadonlySet<Op["kind"]> = new Set([
   "names",
   "externalLinks",
   "protectWorkbook",
+  "theme",
 ])
 
 /** What Cells says when a one-sheet feature is used on a group (Excel greys these commands out). */

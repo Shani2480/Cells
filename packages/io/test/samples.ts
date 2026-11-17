@@ -561,7 +561,50 @@ function background(): Workbook {
   return done(wb)
 }
 
+/** Page Layout › Themes: cells in theme colours and fonts, then the workbook given Office's Facet theme. */
+function themed(): Workbook {
+  const wb = new Workbook(["Themed"])
+  const s = wb.sheets[0]
+  const id = (style: Parameters<typeof wb.styles.intern>[0]) => wb.styles.intern(style)
+  s.cells.set(0, 0, { value: "Title", style: id({ fontName: "Aptos Display", fontScheme: "major", fontSize: 18 }) })
+  s.cells.set(1, 0, { value: "Accent 1", style: id({ fill: "#156082", fillThemeColor: { theme: 4 } }) })
+  s.cells.set(2, 0, {
+    value: "Lighter",
+    style: id({ fill: "#44B3E1", fillThemeColor: { theme: 4, tint: 0.39997558519241921 } }),
+  })
+  s.cells.set(3, 0, { value: "Dark 2", style: id({ fontColor: "#0E2841", fontThemeColor: { theme: 3 } }) })
+  s.cells.set(4, 0, { value: "Plain", style: id({ fill: "#FF0000" }) })
+  wb.transact(
+    [
+      {
+        kind: "theme",
+        theme: {
+          name: "Facet",
+          colors: {
+            dk1: "000000",
+            lt1: "FFFFFF",
+            dk2: "2C3C43",
+            lt2: "EBEBEB",
+            accent1: "90C226",
+            accent2: "54A021",
+            accent3: "E6B91E",
+            accent4: "E76618",
+            accent5: "C42F1A",
+            accent6: "918655",
+            hlink: "99CA3C",
+            folHlink: "B9D181",
+          },
+          fonts: { major: "Trebuchet MS", minor: "Trebuchet MS" },
+        },
+      },
+    ],
+    { label: "Theme" },
+  )
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  themed,
   background,
   hyperlinks,
   linkedBook,
