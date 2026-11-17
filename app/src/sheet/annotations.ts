@@ -248,13 +248,17 @@ export class AnnotationCommands {
   }
 
   /** Removing the selection's notes and/or comments (Clear All, Clear Notes, Clear Comments); null if none. */
-  removalOp(kinds: Annotation["kind"][] = ["note", "comment"]): Extract<Op, { kind: "annotations" }> | null {
+  removalOp(
+    kinds: Annotation["kind"][] = ["note", "comment"],
+    sheetIndex = this.c.sheetIndex,
+  ): Extract<Op, { kind: "annotations" }> | null {
     const writes: AnnotationWrite[] = []
+    const sheet = this.c.wb.sheets[sheetIndex]
     for (const r of this.c.selection.ranges)
-      for (const a of this.c.sheet.annotations.inRange(r))
+      for (const a of sheet.annotations.inRange(r))
         if (kinds.includes(a.value.kind) && !writes.some((w) => w.row === a.row && w.col === a.col))
           writes.push({ row: a.row, col: a.col, value: null })
-    return writes.length ? { kind: "annotations", sheet: this.c.sheetIndex, writes } : null
+    return writes.length ? { kind: "annotations", sheet: sheetIndex, writes } : null
   }
 
   /** Home › Find & Select › Notes: selects every cell with a note (or comment), as Excel's Go To Special does. */

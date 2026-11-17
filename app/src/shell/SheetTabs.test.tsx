@@ -25,6 +25,21 @@ describe("sheet tab bar", () => {
     expect(c.sheet.name).toBe("Sheet1")
   })
 
+  it("Shift+click groups tabs; the tab menu then offers Ungroup Sheets", () => {
+    const { c, tab } = setup()
+    act(() => {
+      c.sheets.insert(1)
+      c.sheets.insert(2)
+      c.activate(0)
+    })
+    fireEvent.pointerDown(tab("Sheet3"), { button: 0, pointerId: 1, shiftKey: true })
+    expect(c.group.indexes()).toEqual([0, 1, 2])
+    expect(tab("Sheet2").hasAttribute("data-grouped")).toBe(true)
+    fireEvent.contextMenu(tab("Sheet2"), { clientX: 40, clientY: 500 })
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ungroup Sheets" }))
+    expect(c.group.active).toBe(false)
+  })
+
   it("double-click renames in place: Enter keeps the name, Esc puts the old one back, bad names are refused", () => {
     const { c, tab, alerts } = setup()
     act(() => c.sheets.insert(1))
@@ -46,9 +61,18 @@ describe("sheet tab bar", () => {
   it("the tab menu has Excel's items; what isn't built is disabled", () => {
     const { dialogs, tab } = setup()
     fireEvent.contextMenu(tab("Sheet1"), { clientX: 40, clientY: 500 })
-    for (const label of ["Insert...", "Delete", "Rename", "Move or Copy...", "Protect Sheet...", "Tab Color", "Hide"])
+    for (const label of [
+      "Insert...",
+      "Delete",
+      "Rename",
+      "Move or Copy...",
+      "Protect Sheet...",
+      "Tab Color",
+      "Hide",
+      "Select All Sheets",
+    ])
       expect((screen.getByRole("menuitem", { name: label }) as HTMLButtonElement).disabled).toBe(false)
-    for (const label of ["View Code", "Select All Sheets", "Unhide..."])
+    for (const label of ["View Code", "Unhide..."])
       expect((screen.getByRole("menuitem", { name: label }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(screen.getByRole("menuitem", { name: "Move or Copy..." }))
     expect(dialogs).toEqual(["moveCopySheet"])

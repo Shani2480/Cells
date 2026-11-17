@@ -135,6 +135,15 @@ Phase 3, added at the end:
 - [ ] The first-run setup and File › Options next to Excel's (the setup has no Excel counterpart; Options was built
       from memory of Excel 365's General and Advanced pages, with only the settings Cells has).
 
+## Against Excel (Phase 7, views and windows)
+
+- [ ] Grouped sheets: which commands Excel greys out while sheets are grouped (Cells' list is in
+      `app/src/ribbon/registry.ts`, from memory), and the message wording for a refused one (Cells' own).
+- [ ] Grouped sheets: whether Excel's Merge, Clear All and inserted rows on a group match Cells' (each sheet's own
+      cells are cleared and merged); the look of grouped tabs in dark mode.
+- [ ] Fill Across Worksheets on whole rows and columns (Cells copies the used part of the cells; row and column
+      formats aren't copied).
+
 ## Installers (Phase 6)
 
 - [ ] The release workflow's first run: every job green, the Windows `.exe` and macOS `.dmg` install and start (they

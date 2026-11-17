@@ -1220,6 +1220,18 @@ html.is-browser .app-window-frame {
   display: none;
 }
 
+/* Grouped sheets besides the active one: a light tab like the active one, in plain weight (Excel). */
+.sheet-tab[data-grouped] {
+  margin-top: -1px;
+  background: var(--grid-bg);
+  color: var(--app-theme-primary);
+}
+
+.sheet-tab[data-grouped]::before,
+.sheet-tab[data-grouped] + .sheet-tab::before {
+  display: none;
+}
+
 /* The active tab's underline: the theme colour, or the tab's own colour. */
 .sheet-tab[aria-selected="true"]::after {
   position: absolute;

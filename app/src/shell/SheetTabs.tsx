@@ -64,18 +64,26 @@ export function SheetTabs({
   }
 
   const tabMenu = (index: number, x: number, y: number) => {
-    controller.activate(index)
+    // A right-click inside the group keeps it (the menu then acts on every grouped sheet).
+    if (!controller.group.has(index)) controller.activate(index)
+    const grouped = controller.group.active
     // Review › Protect Workbook greys out what changes the structure (Excel).
     const locked = commands.isWorkbookProtected()
     const items: MenuItem[] = [
       { kind: "item", label: "Insert...", disabled: locked, onSelect: () => commands.insert(index) },
       { kind: "item", label: "Delete", disabled: locked, onSelect: () => commands.remove(index) },
-      { kind: "item", label: "Rename", disabled: locked, onSelect: () => commands.beginRename(index) },
-      { kind: "item", label: "Move or Copy...", disabled: locked, onSelect: () => onDialog("moveCopySheet") },
+      { kind: "item", label: "Rename", disabled: locked || grouped, onSelect: () => commands.beginRename(index) },
+      {
+        kind: "item",
+        label: "Move or Copy...",
+        disabled: locked || grouped,
+        onSelect: () => onDialog("moveCopySheet"),
+      },
       { kind: "item", label: "View Code", disabled: true, title: NOT_BUILT, onSelect: () => undefined },
       {
         kind: "item",
         label: commands.isProtected(index) ? "Unprotect Sheet..." : "Protect Sheet...",
+        disabled: grouped,
         onSelect: () => {
           controller.activate(index)
           if (!commands.isProtected(index)) onDialog("protectSheet")
@@ -93,7 +101,9 @@ export function SheetTabs({
         onSelect: () => onDialog("unhideSheet"),
       },
       { kind: "separator" },
-      { kind: "item", label: "Select All Sheets", disabled: true, title: NOT_BUILT, onSelect: () => undefined },
+      grouped
+        ? { kind: "item", label: "Ungroup Sheets", onSelect: () => controller.group.clear() }
+        : { kind: "item", label: "Select All Sheets", onSelect: () => controller.group.selectAll() },
     ]
     setMenu({ x, y, items })
   }
@@ -121,7 +131,13 @@ export function SheetTabs({
 
   const onPointerDown = (event: React.PointerEvent, index: number) => {
     if (event.button !== 0 || commands.renaming === index) return
-    controller.activate(index)
+    const ctrl = event.ctrlKey || event.metaKey
+    // Shift+click and Ctrl+click group sheets (no drag then).
+    if (event.shiftKey || ctrl) {
+      controller.group.click(index, { ctrl, shift: event.shiftKey })
+      return
+    }
+    controller.group.click(index, { ctrl: false, shift: false })
     const d: Drag = { index, startX: event.clientX, moved: false, before: null, copy: false }
     dragRef.current = d
     ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
@@ -200,6 +216,7 @@ export function SheetTabs({
               aria-selected={index === active}
               tabIndex={index === active ? 0 : -1}
               className="sheet-tab"
+              data-grouped={index !== active && controller.group.has(index) ? "" : undefined}
               style={sheet.tabColor ? ({ "--tab-color": sheet.tabColor } as React.CSSProperties) : undefined}
               data-colored={sheet.tabColor ? (isDark(sheet.tabColor) ? "dark" : "light") : undefined}
               onPointerDown={(e) => onPointerDown(e, index)}

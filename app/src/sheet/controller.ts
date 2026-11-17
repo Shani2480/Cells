@@ -89,6 +89,7 @@ import { ValidationCommands, type AlertAnswer, type ValidationAlert, type Valida
 import { FindCommands } from "./find"
 import { NameCommands } from "./names"
 import { ConditionalCommands } from "./conditional"
+import { GROUP_MESSAGE, SheetGroup } from "./group"
 import { SHEET_MESSAGES, SheetCommands } from "./sheets"
 
 /**
@@ -279,6 +280,8 @@ export class SheetController {
   readonly conditional: ConditionalCommands = new ConditionalCommands(this)
   /** Sheet tabs: add, delete, rename, move, copy, colour, hide. */
   readonly sheets: SheetCommands = new SheetCommands(this)
+  /** Grouped sheets: edits on the active sheet repeat on each of them. */
+  readonly group: SheetGroup = new SheetGroup(this)
   /** Notes and comments. */
   readonly annotations: AnnotationCommands = new AnnotationCommands(this)
   readonly data: DataCommands = new DataCommands(this)
@@ -341,8 +344,18 @@ export class SheetController {
    * Records a change for undo, with the sheet it happened on: undo and redo show that sheet again. `sheetAfter` is
    * the sheet shown after the change, when the change itself moves to another one (adding or deleting a sheet).
    */
-  transact(ops: Op[], o: { label: string; before: Selection; after?: Selection; sheetAfter?: number }) {
+  transact(
+    ops: Op[],
+    o: { label: string; before: Selection; after?: Selection; sheetAfter?: number; perSheet?: true },
+  ) {
     const at = this.sheetIndex
+    // With grouped sheets the edit repeats on each (`perSheet`: the ops were already worked out for each sheet).
+    const grouped = o.perSheet ? ops : this.group.expand(ops)
+    if (!grouped) {
+      this.shell.alert(GROUP_MESSAGE)
+      return null
+    }
+    ops = grouped
     if (this.refuses(ops)) return null
     const entry = this.wb.transact(ops, {
       label: o.label,
@@ -422,6 +435,9 @@ export class SheetController {
     if (this.edit) this.commitEdit()
     this.annotations.editing = null
     this.annotations.open = null
+    // A sheet outside the group ungroups (Excel); one in it becomes the group's active sheet.
+    if (this.group.keeps(index)) this.group.keepWhileActivating(index)
+    else if (index !== this.sheetIndex || target !== this.shown) this.group.clear(false)
     this.sheetIndex = index
     if (this.shown === target) {
       this.changed()
@@ -481,6 +497,9 @@ export class SheetController {
     // Make the target load its view: activate() reads the stored view only when the shown sheet changes.
     this.shown = null as unknown as Sheet
     this.activate(Math.min(Math.max(0, active), this.wb.sheets.length - 1))
+    // Sheets saved as selected besides the active one open grouped (Excel keeps the group in the file).
+    const selected = views.flatMap((v, i) => (v?.selected ? [i] : []))
+    if (selected.length > 1 && selected.includes(this.sheetIndex)) this.group.set(selected)
   }
 
   /** Each sheet's view, for saving. */
@@ -498,7 +517,7 @@ export class SheetController {
             showHeadings: this.showHeadings,
           }
         : this.views.get(sheet)
-      if (!v) return { ...DEFAULT_FILE_VIEW, selected: i === this.sheetIndex }
+      if (!v) return { ...DEFAULT_FILE_VIEW, selected: this.group.has(i) }
       return {
         freeze: v.freeze,
         zoom: v.zoom,
@@ -507,7 +526,7 @@ export class SheetController {
         topLeft: { row: sheet.rows.indexAt(v.scrollY), col: sheet.cols.indexAt(v.scrollX) },
         active: v.selection.active,
         selection: [...v.selection.ranges],
-        selected: i === this.sheetIndex,
+        selected: this.group.has(i),
       }
     })
   }
@@ -1121,10 +1140,10 @@ export class SheetController {
 
   /** Delete: clears contents, keeps formats. */
   clearContents() {
-    const op = clearContentsOp(this.sheetIndex, this.sheet, this.selection.ranges)
-    if (op) {
-      this.transact([op], { label: "Clear", before: this.selection, after: this.selection })
-    }
+    const ranges = this.selection.ranges
+    const ops = this.group.each((index, sheet) => clearContentsOp(index, sheet, ranges))
+    if (ops.length)
+      this.transact(ops, { label: "Clear", before: this.selection, after: this.selection, perSheet: true })
   }
 
   undo() {
@@ -1721,7 +1740,8 @@ export class SheetController {
       case "PageDown":
       case "PageUp":
         if (primary) {
-          if (!shift && !alt) this.sheets.step(key === "PageDown" ? 1 : -1)
+          if (shift && !alt) this.group.extend(key === "PageDown" ? 1 : -1)
+          else if (!alt) this.sheets.step(key === "PageDown" ? 1 : -1)
           return true
         }
         this.page(key === "PageDown" ? 1 : -1, alt, shift)

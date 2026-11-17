@@ -975,7 +975,13 @@ export function homeCommands(): Command[] {
     { id: "FillRight", label: "Right", shortcut: "Ctrl+R", run: (env) => env.c.fillFromEdge("right") },
     { id: "FillUp", label: "Up" },
     { id: "FillLeft", label: "Left" },
-    { id: "FillAcrossWorksheets", label: "Across Worksheets..." },
+    {
+      id: "FillAcrossWorksheets",
+      label: "Across Worksheets...",
+      description: "Copy the selected cells to the same place on the other grouped sheets.",
+      run: (env) => env.dialog("fillAcross"),
+      enabled: (env) => env.c.group.active,
+    },
     { id: "FillSeries", label: "Series..." },
     { id: "FillJustify", label: "Justify" },
     {

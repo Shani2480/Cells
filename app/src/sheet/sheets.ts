@@ -120,23 +120,32 @@ export class SheetCommands {
     return sheets.length > 1 && (sheets[index].hidden || this.visible().length > 1)
   }
 
-  /** Deletes a sheet, asking first when it holds anything (Excel). References to it become #REF!. */
+  /**
+   * Deletes a sheet (every grouped sheet, when `index` is in the group), asking first when one holds anything
+   * (Excel). References to them become #REF!.
+   */
   remove(index = this.c.sheetIndex) {
     const sheet = this.c.wb.sheets[index]
     if (!sheet) return
-    if (!this.canRemove(index)) {
+    const targets = this.c.group.active && this.c.group.has(index) ? this.c.group.indexes() : [index]
+    const sheets = this.c.wb.sheets
+    const visibleLeft = this.visible().filter((i) => !targets.includes(i)).length
+    if (sheets.length <= targets.length || (visibleLeft === 0 && targets.some((i) => !sheets[i].hidden))) {
       this.c.shell.alert(SHEET_MESSAGES.lastVisible)
       return
     }
     const go = () => {
-      // The sheet after it takes its place; the last one hands over to the one before.
-      const left = this.c.wb.sheets.filter((_, i) => i !== index)
-      let next = index < left.length ? index : left.length - 1
+      // The sheet after the first deleted one takes its place; at the end, the one before.
+      const left = this.c.wb.sheets.filter((_, i) => !targets.includes(i))
+      const first = Math.min(...targets)
+      let next = first < left.length ? first : left.length - 1
       while (left[next]?.hidden && next < left.length - 1) next++
       while (left[next]?.hidden && next > 0) next--
-      this.run([{ kind: "removeSheet", sheet: index }], "Delete Sheet", next)
+      this.c.group.clear(false)
+      const ops: Op[] = [...targets].sort((a, b) => b - a).map((i) => ({ kind: "removeSheet", sheet: i }))
+      this.run(ops, "Delete Sheet", next)
     }
-    const empty = !sheet.cells.usedBounds() && !sheet.merges.size
+    const empty = targets.every((i) => !sheets[i].cells.usedBounds() && !sheets[i].merges.size)
     if (empty) go()
     else this.c.shell.confirm(SHEET_MESSAGES.deleteData, go)
   }
@@ -226,20 +235,21 @@ export class SheetCommands {
     this.run([{ kind: "sheetProps", sheet: index, tabColor: color }], "Tab Color", this.c.sheetIndex)
   }
 
+  /** Hides a sheet (every grouped sheet, when `index` is in the group). */
   hide(index = this.c.sheetIndex) {
     const sheet = this.c.wb.sheets[index]
     if (!sheet || sheet.hidden) return
-    if (this.visible().length <= 1) {
+    const targets = this.c.group.active && this.c.group.has(index) ? this.c.group.indexes() : [index]
+    const visible = this.visible().filter((i) => !targets.includes(i))
+    if (!visible.length) {
       this.c.shell.alert(SHEET_MESSAGES.lastVisible)
       return
     }
-    const ops: Op[] = [{ kind: "sheetProps", sheet: index, hidden: true }]
+    const ops: Op[] = targets.map((i) => ({ kind: "sheetProps", sheet: i, hidden: true }))
     // Hiding the sheet shown moves to the next one (the one before when it was the last).
     let next = this.c.sheetIndex
-    if (index === next) {
-      const visible = this.visible().filter((i) => i !== index)
-      next = visible.find((i) => i > index) ?? visible[visible.length - 1]
-    }
+    if (targets.includes(next)) next = visible.find((i) => i > index) ?? visible[visible.length - 1]
+    this.c.group.clear(false)
     this.run(ops, "Hide Sheet", next)
   }
 

@@ -61,6 +61,49 @@ export type Command = {
   check?: true
 }
 
+/** Commands Excel greys out while sheets are grouped: features that belong to one sheet. */
+const ONE_SHEET_PREFIXES = [
+  "Table",
+  "FormatAsTable",
+  "Chart",
+  "ConditionalFormatting",
+  "CF",
+  "DataValidation",
+  "Sort",
+  "Filter",
+  "AdvancedFilter",
+  "Review",
+  "InsertNewComment",
+  "InsertLink",
+  "WhatIf",
+  "Scenario",
+  "GoalSeek",
+  "DataTable",
+  "Forecast",
+  "Consolidate",
+  "OutlineSubtotals",
+  "RemoveDuplicates",
+  "ConvertTextToTable",
+  "QuickCode",
+  "SheetRename",
+  "SheetMoveOrCopy",
+  "SheetProtect",
+  "ClearComments",
+  "ClearNotes",
+  "ClearHyperlinks",
+  "RemoveHyperlinks",
+  "GetPowerQuery",
+  "RefreshAll",
+  "AI",
+]
+
+/** Ids that match a prefix above but work on a group (Home › Delete's id starts with "Table"). */
+const GROUP_OK = new Set(["TableDeleteRowsAndColumnsMenu"])
+
+export function oneSheetOnly(id: string): boolean {
+  return !GROUP_OK.has(id) && ONE_SHEET_PREFIXES.some((p) => id.startsWith(p))
+}
+
 /** Commands that exist in Excel but not yet here: shown disabled, with this note in the tooltip. */
 export const NOT_BUILT = "Not built yet."
 
@@ -91,6 +134,7 @@ export class CommandRegistry {
   isEnabled(id: string, env: RibbonEnv): boolean {
     const command = this.get(id)
     if (!command || !this.isBuilt(id)) return false
+    if (env.c.group?.active && oneSheetOnly(id)) return false
     return command.enabled ? command.enabled(env) : true
   }
 }

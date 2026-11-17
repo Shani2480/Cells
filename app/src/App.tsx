@@ -77,6 +77,7 @@ import { ZoomDialog } from "@/shell/ZoomDialog"
 import { QuickAccess, TellMe } from "@/shell/QuickAccess"
 import { loadQat, saveQat } from "@/ribbon/qat-commands"
 import { TitleBar } from "@/shell/TitleBar"
+import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { loadDemo } from "./demo"
 import { FileCommands, type SaveChoice } from "@/file/commands"
 import { newDocument, type FileProblem, type WorkbookDocument } from "@/file/document"
@@ -113,6 +114,7 @@ type DialogState =
         | "moveCopySheet"
         | "unhideSheet"
         | "zoom"
+        | "fillAcross"
         | "cfManage"
         | "protectSheet"
         | "unprotectSheet"
@@ -766,7 +768,8 @@ function WorkbookWindow({
       controller.showFormulaBar = !controller.showFormulaBar
       controller.changed()
     } else if (kind === "formatCells") controller.shell.formatCells(arg as never)
-    else if (kind === "moveCopySheet" || kind === "unhideSheet" || kind === "zoom") setDialog({ kind })
+    else if (kind === "moveCopySheet" || kind === "unhideSheet" || kind === "zoom" || kind === "fillAcross")
+      setDialog({ kind })
     else if (kind === "zoomToSelection") zoomToSelection()
     else if (kind === "cf" && isQuickKind(arg)) setDialog({ kind: "cfQuick", quick: arg })
     else if (kind === "cfNew") setDialog({ kind: "cfNew", start: arg ?? "contains" })
@@ -911,7 +914,7 @@ function WorkbookWindow({
             env={env}
             registry={registry}
             tabs={paletteTabs}
-            title={doc.title}
+            title={controller.group.active ? `${doc.title} [Group]` : doc.title}
             formulaBar={formulaBar}
             onFile={() => setBackstage("home")}
             onFocusGrid={focusGrid}
@@ -922,7 +925,7 @@ function WorkbookWindow({
           <>
             <TitleBar
               controller={controller}
-              title={`${doc.title} - Cells`}
+              title={`${doc.title}${controller.group.active ? " [Group]" : ""} - Cells`}
               qat={<QuickAccess registry={registry} env={env} ids={qat} onChange={setQat} onDone={focusGrid} />}
               search={
                 <TellMe
@@ -1214,6 +1217,9 @@ function WorkbookWindow({
               focusGrid()
             }}
           />
+        ) : null}
+        {dialog?.kind === "fillAcross" ? (
+          <FillAcrossDialog onFill={(what) => controller.group.fillAcross(what)} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "zoom" ? (
           <ZoomDialog

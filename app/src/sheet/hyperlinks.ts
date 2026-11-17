@@ -135,10 +135,10 @@ export class HyperlinkCommands {
   }
 
   /** The op that removes the links in `ranges` (Clear All uses it too); null when there are none. */
-  removalOp(ranges: readonly Range[] = this.c.selection.ranges): Op | null {
-    const links = this.c.sheet.hyperlinks
+  removalOp(ranges: readonly Range[] = this.c.selection.ranges, sheetIndex = this.c.sheetIndex): Op | null {
+    const links = this.c.wb.sheets[sheetIndex].hyperlinks
     if (!hyperlinksIn(links, ranges).length) return null
-    return { kind: "hyperlinks", sheet: this.c.sheetIndex, links: withHyperlink(copyHyperlinks(links), ranges, null) }
+    return { kind: "hyperlinks", sheet: sheetIndex, links: withHyperlink(copyHyperlinks(links), ranges, null) }
   }
 
   /**

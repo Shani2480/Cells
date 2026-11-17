@@ -64,10 +64,10 @@ export class FormatCommands {
     this.run([{ kind: "format", sheet: this.c.sheetIndex, ranges: [...this.c.selection.ranges], patch }], label)
   }
 
-  private run(ops: Op[], label: string) {
+  private run(ops: Op[], label: string, perSheet?: true) {
     if (!ops.length || this.c.edit) return
     const sel = this.c.selection
-    this.c.transact(ops, { label, before: sel, after: sel })
+    this.c.transact(ops, { label, before: sel, after: sel, ...(perSheet ? { perSheet } : {}) })
   }
 
   // ── Font ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -170,19 +170,22 @@ export class FormatCommands {
     // Merge & Center on a merged selection unmerges (the button is a toggle).
     if (kind === "center" && this.isMerged()) return this.unmerge()
     const go = () => {
-      const sheet = this.c.sheetIndex
-      const ops: Op[] = []
-      for (const area of areas) {
-        const rest = [
-          { ...area, r0: area.r0, r1: area.r0, c0: area.c0 + 1 },
-          { ...area, r0: area.r0 + 1 },
-        ].filter((r) => r.r0 <= r.r1 && r.c0 <= r.c1)
-        const clear = clearContentsOp(sheet, this.c.sheet, rest)
-        if (clear) ops.push(clear)
-      }
-      ops.push({ kind: "merge", sheet, ranges: areas })
-      if (kind === "center") ops.push({ kind: "format", sheet, ranges: areas, patch: { hAlign: "center" } })
-      this.run(ops, kind === "center" ? "Merge & Center" : "Merge Cells")
+      // On grouped sheets each sheet's own cells are cleared and merged.
+      const ops = this.c.group.each((sheet, data) => {
+        const out: Op[] = []
+        for (const area of areas) {
+          const rest = [
+            { ...area, r0: area.r0, r1: area.r0, c0: area.c0 + 1 },
+            { ...area, r0: area.r0 + 1 },
+          ].filter((r) => r.r0 <= r.r1 && r.c0 <= r.c1)
+          const clear = clearContentsOp(sheet, data, rest)
+          if (clear) out.push(clear)
+        }
+        out.push({ kind: "merge", sheet, ranges: areas })
+        if (kind === "center") out.push({ kind: "format", sheet, ranges: areas, patch: { hAlign: "center" } })
+        return out
+      })
+      this.run(ops, kind === "center" ? "Merge & Center" : "Merge Cells", true)
       this.c.setSelection(this.c.selection, null)
     }
     if (this.mergeLosesData(kind === "across"))
@@ -235,18 +238,22 @@ export class FormatCommands {
     this.run(ops, "Clear Formats")
   }
 
+  /** Clear All: contents, formats, notes, comments and links (on each grouped sheet, from its own cells). */
   clearAll() {
-    const sheet = this.c.sheetIndex
-    const ops: Op[] = []
-    const clear = clearContentsOp(sheet, this.c.sheet, this.c.selection.ranges)
-    if (clear) ops.push(clear)
-    ops.push({ kind: "format", sheet, ranges: [...this.c.selection.ranges], patch: CLEAR_ALL })
-    if (this.isMerged()) ops.push({ kind: "unmerge", sheet, ranges: [...this.c.selection.ranges] })
-    const notes = this.c.annotations.removalOp()
-    if (notes) ops.push(notes)
-    const links = this.c.hyperlinks.removalOp()
-    if (links) ops.push(links)
-    this.run(ops, "Clear")
+    const ranges = [...this.c.selection.ranges]
+    const ops = this.c.group.each((sheet, data) => {
+      const out: Op[] = []
+      const clear = clearContentsOp(sheet, data, ranges)
+      if (clear) out.push(clear)
+      out.push({ kind: "format", sheet, ranges, patch: CLEAR_ALL })
+      if (ranges.some((r) => data.merges.overlapping(r).length > 0)) out.push({ kind: "unmerge", sheet, ranges })
+      const notes = this.c.annotations.removalOp(undefined, sheet)
+      if (notes) out.push(notes)
+      const links = this.c.hyperlinks.removalOp(ranges, sheet)
+      if (links) out.push(links)
+      return out
+    })
+    this.run(ops, "Clear", true)
   }
 
   // ── Format Painter ─────────────────────────────────────────────────────────────────────────────────────────
