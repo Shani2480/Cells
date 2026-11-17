@@ -39,6 +39,8 @@ import {
   EQUATION,
   HELP,
   MODEL3D_FORMAT,
+  SMARTART_DESIGN,
+  SMARTART_FORMAT,
   PICTURE_FORMAT,
   SHAPE_FORMAT,
   TABLE_DESIGN,
@@ -62,7 +64,9 @@ import { CommentsPane } from "@/shell/CommentsPane"
 import { AccessibilityPane } from "@/shell/AccessibilityPane"
 import { SpellingDialog } from "@/shell/SpellingDialog"
 import { SelectionPane } from "@/shell/SelectionPane"
+import { SmartArtTextPane } from "@/shell/SmartArtTextPane"
 // The icon set is large: it loads the first time Insert › Icons opens.
+const SmartArtDialog = lazy(() => import("@/shell/SmartArtDialog").then((m) => ({ default: m.SmartArtDialog })))
 const IconsDialog = lazy(() => import("@/shell/IconsDialog").then((m) => ({ default: m.IconsDialog })))
 import { ThesaurusPane } from "@/shell/ThesaurusPane"
 import { QueriesPane } from "@/shell/QueriesPane"
@@ -140,6 +144,7 @@ const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
 const TABS_IN_EQUATION = [...TABS, SHAPE_FORMAT, EQUATION]
 const TABS_IN_PICTURE = [...TABS, PICTURE_FORMAT]
 const TABS_IN_MODEL3D = [...TABS, MODEL3D_FORMAT]
+const TABS_IN_SMARTART = [...TABS, SMARTART_DESIGN, SMARTART_FORMAT]
 
 type DialogState =
   | { kind: "goto" }
@@ -161,6 +166,7 @@ type DialogState =
         | "statistics"
         | "spelling"
         | "icons"
+        | "smartArt"
         | "allowEditRanges"
         | "cfManage"
         | "protectSheet"
@@ -850,6 +856,7 @@ function WorkbookWindow({
       kind === "statistics" ||
       kind === "spelling" ||
       kind === "icons" ||
+      kind === "smartArt" ||
       kind === "allowEditRanges"
     )
       setDialog({ kind })
@@ -1003,19 +1010,26 @@ function WorkbookWindow({
     />
   )
   const drawings = controller.objects.drawings()
+  const smartArt = controller.objects.smartArt()
+  const smartArtPane =
+    smartArt && controller.objects.textPaneOpen ? (
+      <SmartArtTextPane key={smartArt.id} controller={controller} onDone={focusGrid} />
+    ) : null
   const ribbonTabs = controller.charts.active()
     ? TABS_IN_CHART
-    : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
-      ? TABS_IN_MODEL3D
-      : drawings.length && drawings.every((o) => o.kind === "picture")
-        ? TABS_IN_PICTURE
-        : drawings.length
-          ? drawings.length === 1 && isEquation(drawings[0])
-            ? TABS_IN_EQUATION
-            : TABS_IN_SHAPE
-          : controller.tables.active()
-            ? TABS_IN_TABLE
-            : TABS
+    : smartArt
+      ? TABS_IN_SMARTART
+      : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
+        ? TABS_IN_MODEL3D
+        : drawings.length && drawings.every((o) => o.kind === "picture")
+          ? TABS_IN_PICTURE
+          : drawings.length
+            ? drawings.length === 1 && isEquation(drawings[0])
+              ? TABS_IN_EQUATION
+              : TABS_IN_SHAPE
+            : controller.tables.active()
+              ? TABS_IN_TABLE
+              : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 
@@ -1101,6 +1115,7 @@ function WorkbookWindow({
               {controller.accessibilityOpen ? accessibilityPane : null}
               {controller.thesaurusOpen ? <ThesaurusPane controller={controller} onDone={focusGrid} /> : null}
               {controller.objects.paneOpen ? <SelectionPane controller={controller} onDone={focusGrid} /> : null}
+              {smartArtPane}
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
               {controller.data.linksOpen ? linksPane : null}
@@ -1116,6 +1131,7 @@ function WorkbookWindow({
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}
         {shell === "phone" && controller.accessibilityOpen ? accessibilityPane : null}
+        {shell === "phone" ? smartArtPane : null}
         {shell === "phone" && controller.objects.paneOpen ? (
           <SelectionPane controller={controller} onDone={focusGrid} />
         ) : null}
@@ -1364,6 +1380,11 @@ function WorkbookWindow({
           />
         ) : null}
         {dialog?.kind === "spelling" ? <SpellingDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "smartArt" ? (
+          <Suspense fallback={null}>
+            <SmartArtDialog controller={controller} onClose={closeDialog} onInserted={() => setDialog(null)} />
+          </Suspense>
+        ) : null}
         {dialog?.kind === "icons" ? (
           <Suspense fallback={null}>
             <IconsDialog controller={controller} onClose={closeDialog} />

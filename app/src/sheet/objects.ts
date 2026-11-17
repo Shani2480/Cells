@@ -20,7 +20,16 @@ import {
   type EmbeddedFile,
   type Model3D,
   normalRotation,
+  copySmartArtNodes,
+  smartArtLayout,
+  smartArtParts,
+  SMARTART_LAYOUTS,
+  type SmartArt,
+  type SmartArtEdit,
+  type SmartArtNode,
+  type SmartArtPath,
 } from "@cells/core"
+import { layoutSmartArt } from "@/drawing/smartart"
 import { renderModel } from "@/drawing/model3d"
 import { textSize } from "@/drawing/render"
 import { anchorOf, chartBox, type ChartBox } from "./charts"
@@ -53,6 +62,10 @@ export class ObjectCommands {
   caret: { id: number; fromEnd: number } | null = null
   /** Home › Find & Select › Selection Pane. */
   paneOpen = false
+  /** SmartArt › Text Pane: open beside the selected SmartArt. */
+  textPaneOpen = false
+  /** The SmartArt point being typed in (the Text Pane's line), what Add Shape, Promote and Demote act on. */
+  smartArtPoint: SmartArtPath | null = null
 
   constructor(private readonly c: SheetController) {}
 
@@ -304,6 +317,116 @@ export class ObjectCommands {
     return out
   }
 
+  /**
+   * Insert › SmartArt: a layout with Office's empty points to type in (its own number of them), in the middle of the
+   * window at Office's size, the Text Pane open.
+   */
+  insertSmartArt(layout: string, colors?: string): SheetGroup {
+    const id = this.nextId()
+    const def = smartArtLayout(layout) ?? SMARTART_LAYOUTS[0]!
+    const size = { w: 480, h: 320 }
+    const smartArt: SmartArt = {
+      layout: def.id,
+      nodes: Array.from({ length: def.starts }, () => ({ text: "", children: [] })),
+      ...(colors ? { colors } : {}),
+    }
+    smartArt.parts = smartArtParts(smartArt)
+    const group: SheetGroup = {
+      kind: "group",
+      id,
+      name: `Diagram ${id}`,
+      anchor: anchorOf(this.c.sheet, this.middle(size.w, size.h)),
+      child: size,
+      items: layoutSmartArt(smartArt, size, this.c.wb.theme),
+      smartArt,
+    }
+    this.put(group, "Insert SmartArt")
+    this.textPaneOpen = true
+    this.smartArtPoint = [0]
+    this.c.shell.showTab?.("TabSmartArtDesign")
+    return group
+  }
+
+  /** The selected SmartArt, if one is selected alone. */
+  smartArt(): (SheetGroup & { smartArt: SmartArt }) | null {
+    const d = this.drawings()
+    const g = d.length === 1 && d[0]!.kind === "group" ? (d[0] as SheetGroup) : null
+    return g?.smartArt ? (g as SheetGroup & { smartArt: SmartArt }) : null
+  }
+
+  /**
+   * A SmartArt changed (its text, layout or colours): laid out again in its frame and its parts written anew (an
+   * Office layout Cells doesn't know keeps its definition; Office lays it out again when it opens the file).
+   */
+  setSmartArt(id: number, change: Partial<Pick<SmartArt, "nodes" | "layout" | "colors">>, label: string): boolean {
+    this.smartArtPreview = null
+    return this.update(
+      label,
+      (o) => {
+        if (isChart(o) || o.kind !== "group" || !o.smartArt) return
+        const next: SmartArt = { ...o.smartArt, ...change }
+        if (change.nodes) next.nodes = copySmartArtNodes(change.nodes)
+        next.parts = smartArtParts(next)
+        o.smartArt = next
+        const box = this.box(o)
+        o.child = { w: box.w, h: box.h }
+        o.items = layoutSmartArt(next, o.child, this.c.wb.theme)
+      },
+      [id],
+    )
+  }
+
+  /**
+   * SmartArt Design › Create Graphic (Add Shape, Promote, Demote, Move Up/Down) and the Text Pane's keys: the tree
+   * changed by `edit` from the current point, as one undo step; the changed point becomes the current one.
+   */
+  editSmartArt(edit: (nodes: SmartArtNode[], path: SmartArtPath | null) => SmartArtEdit, label: string): boolean {
+    const sa = this.smartArt()
+    if (!sa) return false
+    const done = edit(sa.smartArt.nodes, this.smartArtPoint)
+    if (!done) return false
+    this.smartArtPreview = null
+    this.smartArtPoint = done.path.length ? done.path : null
+    return this.setSmartArt(sa.id, { nodes: done.nodes }, label)
+  }
+
+  /** Typing in the Text Pane: the SmartArt's shapes with the text so far (null: none), not yet a step to undo. */
+  smartArtPreview: { id: number; items: SheetGroup["items"] } | null = null
+
+  previewSmartArt(id: number, nodes: SmartArtNode[] | null) {
+    const o = this.find(id)
+    this.smartArtPreview =
+      nodes && o && !isChart(o) && o.kind === "group" && o.smartArt
+        ? { id, items: layoutSmartArt({ ...o.smartArt, nodes }, o.child, this.c.wb.theme) }
+        : null
+    this.c.changed()
+  }
+
+  /** SmartArt Design › Convert to Shapes: the SmartArt's shapes as a plain group. */
+  convertToShapes(id: number): boolean {
+    return this.update(
+      "Convert to Shapes",
+      (o) => {
+        if (isChart(o) || o.kind !== "group") return
+        delete o.smartArt
+        delete o.source
+        const base = this.nextId()
+        o.items.forEach((item, i) => {
+          if (!isChart(item)) {
+            item.id = base + i
+            item.name = item.name || objectName(item, item.id)
+          }
+        })
+      },
+      [id],
+    )
+  }
+
+  setTextPane(open = !this.textPaneOpen) {
+    this.textPaneOpen = open
+    this.c.changed()
+  }
+
   /** The selected 3D model, if one is selected alone. */
   model(): (SheetPicture & { model3d: Model3D }) | null {
     const p = this.picture()
@@ -437,6 +560,11 @@ export class ObjectCommands {
         if (!box) return
         const was = this.box(o)
         o.anchor = anchorOf(this.c.sheet, box)
+        // Cells' own SmartArt is laid out again in its new frame (Office's keep their shapes, scaled).
+        if (!isChart(o) && o.kind === "group" && o.smartArt && smartArtLayout(o.smartArt.layout)) {
+          o.child = { w: box.w, h: box.h }
+          o.items = layoutSmartArt(o.smartArt, o.child, this.c.wb.theme)
+        }
         // A 3D model grows with its frame (its view square scaled), and is drawn again for it.
         if (!isChart(o) && o.kind === "picture" && o.model3d && (box.w !== was.w || box.h !== was.h)) {
           o.model3d = { ...o.model3d, viewport: o.model3d.viewport * Math.min(box.w / was.w, box.h / was.h) }

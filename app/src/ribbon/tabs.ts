@@ -555,6 +555,49 @@ export const SHAPE_FORMAT: Tab = {
   ],
 }
 
+/** SmartArt Design, while a SmartArt is selected (Excel's, without its styles gallery: Cells draws Office's flat style). */
+export const SMARTART_DESIGN: Tab = {
+  id: "TabSmartArtDesign",
+  label: "SmartArt Design",
+  keytip: "JS",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupSmartArtCreateGraphic",
+      label: "Create Graphic",
+      columns: [
+        L("SmartArtAddShape", "Add Shape"),
+        smalls(S("SmartArtPromote"), S("SmartArtDemote"), S("SmartArtTextPane")),
+        smalls(S("SmartArtMoveUp"), S("SmartArtMoveDown")),
+      ],
+    },
+    { id: "GroupSmartArtLayouts", label: "Layouts", columns: [L("SmartArtChangeLayoutGallery", "Change Layout")] },
+    {
+      id: "GroupSmartArtStyles",
+      label: "SmartArt Styles",
+      columns: [L("SmartArtChangeColorsGallery", "Change Colors")],
+    },
+    {
+      id: "GroupSmartArtReset",
+      label: "Reset",
+      columns: [L("SmartArtResetGraphic", "Reset Graphic"), L("SmartArtConvertToShapes", "Convert")],
+    },
+  ],
+}
+
+/** Format, while a SmartArt is selected: its frame's place, order and size. */
+export const SMARTART_FORMAT: Tab = {
+  id: "TabSmartArtFormat",
+  label: "Format",
+  keytip: "JO",
+  contextual: true,
+  groups: [
+    { id: "GroupSmartArtAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
+    ARRANGE,
+    SIZE,
+  ],
+}
+
 /** Picture Format, while a picture or an icon is selected. */
 export const PICTURE_FORMAT: Tab = {
   id: "TabPictureToolsFormat",

@@ -582,7 +582,10 @@ function TextEditor({
 function picture(controller: SheetController, o: SheetObject, box: ChartBox, theme: Theme): string {
   try {
     if (isChart(o)) return renderChart(controller.charts.liveSpec(o as SheetChart), box.w, box.h)
-    return objectDocument(o as DrawingObject, box.w, box.h, theme, canvasMeasure)
+    // A SmartArt being typed in (the Text Pane) shows the text so far.
+    const typing = controller.objects.smartArtPreview
+    const shown = typing && typing.id === o.id && o.kind === "group" ? { ...o, items: typing.items } : o
+    return objectDocument(shown as DrawingObject, box.w, box.h, theme, canvasMeasure)
   } catch {
     // An object the renderer can't draw shows as an empty frame rather than taking the sheet down.
     return ""

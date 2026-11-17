@@ -5,6 +5,7 @@ import { insertObjectCommands } from "./insert-object-commands"
 import { windowCommands } from "./window-commands"
 import { equationCommands } from "./equation-commands"
 import { model3dCommands } from "./model3d-commands"
+import { smartArtCommands } from "./smartart-commands"
 import { Calculator, CircleHelp, Columns2, Eye, Scan, Snowflake, Sparkles, Table2, ZoomIn } from "lucide-react"
 import labels from "./excel-labels.json"
 import { conditionalCommands } from "./cf-commands"
@@ -372,6 +373,7 @@ export function allCommands(): Command[] {
     ...insertObjectCommands(),
     ...equationCommands(),
     ...model3dCommands(),
+    ...smartArtCommands(),
     ...linkCommands(),
     ...otherCommands(),
   ]

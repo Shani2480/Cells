@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import { copyObject, type SheetGroup, type SheetShape } from "@cells/core"
+import { copyObject, smartArtParts, Workbook, type SheetGroup, type SheetShape, type SmartArt } from "@cells/core"
 import { readZip } from "@cells/ooxml"
 import { openXlsx, saveXlsx } from "../src"
 
@@ -64,5 +64,39 @@ describe("SmartArt in xlsx", () => {
     // And it opens again as SmartArt.
     const again = await openXlsx(await saveXlsx(opened.workbook, { source: opened.source }), "again.xlsx")
     expect(again.workbook.sheets[0]!.objects.filter((o) => "kind" in o && o.kind === "group")).toHaveLength(2)
+  })
+})
+
+describe("SmartArt made in Cells", () => {
+  it("is written with Cells' layout and colours and no drawing, and opens with its text", async () => {
+    const wb = new Workbook()
+    const smartArt: SmartArt = {
+      layout: "urn:cells.app/smartart/layout/process",
+      nodes: [
+        { text: "Plan", children: [{ text: "Scope", children: [] }] },
+        { text: "Build", children: [] },
+        { text: "", children: [] },
+      ],
+      colors: "urn:cells.app/smartart/colors/accent2",
+    }
+    smartArt.parts = smartArtParts(smartArt)
+    wb.sheets[0]!.objects.push({
+      kind: "group",
+      id: 1,
+      name: "Diagram 1",
+      anchor: { from: { row: 1, col: 1, x: 0, y: 0 }, to: { row: 15, col: 8, x: 0, y: 0 } },
+      child: { w: 480, h: 320 },
+      items: [],
+      smartArt,
+    })
+    const bytes = await saveXlsx(wb)
+    const { zip, text } = await parts(bytes)
+    expect(zip.some((e) => /diagrams\/drawing/.test(e.normalizedName))).toBe(false)
+    expect(text("diagrams/layout1.xml")).toContain('uniqueId="urn:cells.app/smartart/layout/process"')
+    expect(text("diagrams/colors1.xml")).toContain('uniqueId="urn:cells.app/smartart/colors/accent2"')
+    const again = (await openXlsx(bytes, "made.xlsx")).workbook.sheets[0]!.objects[0] as SheetGroup
+    expect(again.smartArt!.layout).toBe("urn:cells.app/smartart/layout/process")
+    expect(again.smartArt!.colors).toBe("urn:cells.app/smartart/colors/accent2")
+    expect(again.smartArt!.nodes).toEqual(smartArt.nodes)
   })
 })

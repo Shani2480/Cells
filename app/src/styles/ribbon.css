@@ -3350,3 +3350,199 @@
   width: 64px;
   height: 52px;
 }
+
+/* Insert › SmartArt */
+.smartart-chooser {
+  display: grid;
+  min-height: 340px;
+  grid-template-columns: 120px 1fr 224px;
+  border: 1px solid var(--app-divider);
+}
+
+.smartart-kinds {
+  margin: 0;
+  padding: 4px 0;
+  border-right: 1px solid var(--app-divider);
+  list-style: none;
+}
+
+.smartart-kind {
+  width: 100%;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.smartart-kind:hover,
+.smartart-layout:hover {
+  background: var(--app-hover);
+}
+
+.smartart-kind.is-selected {
+  background: var(--app-pressed);
+}
+
+.smartart-layouts {
+  display: grid;
+  align-content: start;
+  padding: 8px;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, 96px);
+  overflow-y: auto;
+}
+
+.smartart-layout {
+  display: grid;
+  height: 76px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.smartart-layout.is-selected {
+  border-color: var(--app-field-focus);
+  background: var(--app-pressed);
+}
+
+.smartart-about {
+  padding: 12px;
+  border-left: 1px solid var(--app-divider);
+  background: var(--app-panel, transparent);
+}
+
+.smartart-about-picture {
+  display: grid;
+  height: 160px;
+  place-items: center;
+  border: 1px solid var(--app-divider);
+  background: #fff;
+}
+
+.smartart-about h3 {
+  margin: 12px 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.smartart-about p {
+  margin: 0;
+  color: var(--app-muted, inherit);
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .smartart-chooser {
+    grid-template-columns: 1fr;
+  }
+
+  .smartart-kinds {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--app-divider);
+  }
+
+  .smartart-about {
+    border-top: 1px solid var(--app-divider);
+    border-left: 0;
+  }
+}
+
+/* SmartArt › Text Pane */
+.smartart-lines {
+  flex: 1;
+  margin: 0;
+  padding: 8px 8px 8px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.smartart-lines li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.smartart-bullet {
+  color: var(--app-muted, inherit);
+}
+
+.smartart-line {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.smartart-line:hover {
+  border-color: var(--app-divider);
+}
+
+.smartart-line:focus {
+  border-color: var(--app-field-focus);
+  outline: none;
+}
+
+.smartart-pane-name {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--app-divider);
+  color: var(--app-muted, inherit);
+  font-size: 12px;
+}
+
+@media (pointer: coarse) {
+  .smartart-line {
+    min-height: 40px;
+  }
+}
+
+/* SmartArt Design › Change Layout, Change Colors */
+.smartart-gallery {
+  display: grid;
+  padding: 6px;
+  gap: 4px;
+  grid-template-columns: repeat(3, 96px);
+}
+
+.smartart-colors {
+  display: grid;
+  padding: 6px;
+  gap: 4px;
+  grid-template-columns: repeat(4, auto);
+}
+
+.smartart-color {
+  display: flex;
+  padding: 6px;
+  gap: 3px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.smartart-color span {
+  width: 14px;
+  height: 18px;
+  border-radius: 2px;
+}
+
+.smartart-color:hover {
+  background: var(--app-hover);
+}
+
+.smartart-color.is-selected {
+  border-color: var(--app-field-focus);
+  background: var(--app-pressed);
+}

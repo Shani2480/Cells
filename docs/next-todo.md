@@ -178,8 +178,18 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         Size); xlsx `am3d:model3d` in mc:AlternateContent with its picture fallback, checked in Excel (no repair,
         Shape.Type 30, same rotation). Later: Pan & Zoom (Excel keeps the pan in a part of `am3d` not worked out yet),
         Stock 3D Models (online), animated models, models in groups (written as their picture)
-  - [ ] SmartArt: Insert › SmartArt (the most used layouts of each category), Text Pane, SmartArt Design and Format
-        tabs; xlsx diagram parts (data, layout, style, colours, drawing) read and written
+  - [x] SmartArt: Excel's SmartArt shown as Office drew it (its cached drawing) and kept whole while unchanged;
+        Insert › SmartArt (Choose a SmartArt Graphic) with Cells' own layout definitions written in Office's diagram
+        layout language and checked in Excel (Basic Block List, Basic Process, Basic Cycle, Grid Matrix: the same places
+        and sizes in Cells as in Excel), Cells' colour definitions (Colorful, Accent 1–6) and Office's Simple Fill;
+        Text Pane (Enter, Tab / Shift+Tab, Backspace, arrows; typing drawn live, one undo step a line); SmartArt
+        Design (Add Shape After/Before, Promote, Demote, Move Up/Down, Text Pane, Change Layout, Change Colors, Reset
+        Graphic, Convert to Shapes) and Format (Alt Text, Arrange, Size). Written without a cached drawing, so Excel
+        lays it out when it opens it. Later: more layouts (pyramid: Excel falls back on Cells' `pyra` definition, so
+        it needs more work; Venn: Excel lays out one with a negative spacing only for three circles; hierarchies),
+        SmartArt Styles (3D and effects), Excel's text kept as formatted when only some points change (now the data is
+        written anew), Office layouts Cells doesn't have drawn as they are (now as the nearest of Cells' own after an
+        edit; Excel lays them out properly again)
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled

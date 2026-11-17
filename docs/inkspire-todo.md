@@ -49,3 +49,8 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       `model3d` relationship, a picture fallback). Cells' pieces: the view and its XML (`@cells/core` `model3d.ts`,
       `@cells/io` `xlsx/model3d.ts`: the frame needs `wp:inline`/`wp:anchor` instead of `xdr`), and the renderer and
       file import (`app/src/drawing/model3d.ts`, three.js; to move into a package before sharing).
+- [ ] I13. **SmartArt from Cells.** Word keeps SmartArt in the same four diagram parts (and Office's drawing). Cells'
+      pieces: the layouts and colours written in Office's layout language, the data part from the text tree and the
+      tree editing (`@cells/core` `smartart.ts`), the parts read and written (`@cells/io` `xlsx/smartart.ts`: the frame
+      needs `wp:inline`/`wp:anchor` instead of `xdr`), the layout engine that draws them as Excel does
+      (`app/src/drawing/smartart.ts`, to move into a package before sharing), and the dialog and Text Pane.
