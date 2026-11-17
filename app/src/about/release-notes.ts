@@ -9,6 +9,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     version: "0.7.0",
     date: "2026-11-16",
     notes: [
+      "Workbook Statistics (Review tab): how many cells with data, formulas, tables, charts, comments and notes the sheet and the whole workbook have, and where the sheet ends.",
       "Page Layout view (View tab, or the middle button by the zoom): the sheet as printed pages, with their margins, the header and footer, and blank pages after your data to type into. You can edit cells right on the pages; click the header or footer to change it. Rulers above and beside the pages measure in inches or centimetres (View › Ruler turns them off).",
       "Custom Views (View tab): save how the workbook looks under a name (each sheet's selection, scroll, zoom, frozen panes, gridlines and headings, and if you like its hidden rows and columns and print settings) and switch back to it later with Show. Custom views are saved in Excel files and work in Excel too, and the ones made in Excel open in Cells.",
       "Page Break Preview (View tab, or the buttons beside the zoom in the status bar): see the sheet as it will print, page by page, with what doesn't print greyed out, each page outlined in blue and numbered across. Automatic page breaks are dashed and the ones you set are solid. Drag a blue line to move a page break (drag it off the pages to remove it), or the outer edge to change what prints. The preview has its own zoom (60% to start), and Normal gets its zoom back. Excel files keep the view and both zooms.",

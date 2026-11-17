@@ -1068,6 +1068,35 @@ html.is-browser .app-window-frame {
   text-underline-offset: 2px;
 }
 
+/* Review › Workbook Statistics: labels left, counts right, a heading per part. */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.stats dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats dt:not(.stats-head) {
+  padding-left: 12px;
+}
+
+.stats-head {
+  font-weight: 600;
+  padding-top: 6px;
+  border-bottom: 1px solid var(--app-divider);
+  grid-column: 1 / -1;
+}
+
+.stats-head + dd {
+  display: none;
+}
+
 /* View › Custom Views: the list with its buttons beside it. */
 .custom-views {
   display: grid;

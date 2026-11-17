@@ -79,6 +79,7 @@ import { loadQat, saveQat } from "@/ribbon/qat-commands"
 import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
+import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
 import { loadDemo } from "./demo"
 import { FileCommands, type SaveChoice } from "@/file/commands"
 import { newDocument, type FileProblem, type WorkbookDocument } from "@/file/document"
@@ -117,6 +118,7 @@ type DialogState =
         | "zoom"
         | "fillAcross"
         | "customViews"
+        | "statistics"
         | "cfManage"
         | "protectSheet"
         | "unprotectSheet"
@@ -777,7 +779,8 @@ function WorkbookWindow({
       kind === "unhideSheet" ||
       kind === "zoom" ||
       kind === "fillAcross" ||
-      kind === "customViews"
+      kind === "customViews" ||
+      kind === "statistics"
     )
       setDialog({ kind })
     else if (kind === "zoomToSelection") zoomToSelection()
@@ -1227,6 +1230,9 @@ function WorkbookWindow({
               focusGrid()
             }}
           />
+        ) : null}
+        {dialog?.kind === "statistics" ? (
+          <WorkbookStatisticsDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "customViews" ? <CustomViewsDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "fillAcross" ? (

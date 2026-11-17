@@ -103,6 +103,13 @@ export function reviewCommands(): Command[] {
       enabled: (env) => env.c.wb.sheets.some((s) => s.annotations.all().some((a) => a.value.kind === "note")),
     },
     {
+      id: "StatusWorkbookStatistics",
+      label: "Workbook Statistics",
+      description:
+        "See the number of cells with data, formulas, tables, charts, comments and notes in this sheet and the workbook.",
+      run: (env) => env.dialog("statistics"),
+    },
+    {
       // Excel's control id for Review › Protect Workbook; pressed while the structure is protected.
       id: "ReviewRestrictEditing",
       label: "Protect Workbook...",

@@ -143,6 +143,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         (customWorkbookViews, customSheetViews, Z_<guid>_.wvu names), checked in Excel 365
 - [ ] Part 7 — Review: Spelling and Thesaurus with local dictionaries (Hunspell word lists, nothing online),
       Workbook Statistics, Check Accessibility, Allow Edit Ranges
+  - [x] Workbook Statistics (sheet and workbook counts; pictures and other objects join the list with Part 8)
 - [ ] Part 8 — Objects: Text Box, Shapes, Pictures, Icons, WordArt; Bring Forward / Send Backward, Align, Group,
       Rotate, Selection Pane; Sheet Background; Themes, theme colours, fonts and effects
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
