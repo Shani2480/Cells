@@ -508,7 +508,7 @@ export function readObject(
   return null
 }
 
-function childXfrm(node: XNode): ChildBox {
+export function childXfrm(node: XNode): ChildBox {
   const pr = node.local === "grpSp" ? kid(node, "grpSpPr") : node.local === "graphicFrame" ? node : kid(node, "spPr")
   return xfrmBox(kid(pr, "xfrm"))
 }

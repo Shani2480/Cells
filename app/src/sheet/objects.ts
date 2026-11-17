@@ -702,7 +702,7 @@ export class ObjectCommands {
   /** Ungroup: the group's objects back on the sheet where they show, selected. */
   ungroup() {
     const groups = this.list.filter(
-      (o) => this.selected.includes(o.id) && !isChart(o) && o.kind === "group",
+      (o) => this.selected.includes(o.id) && !isChart(o) && o.kind === "group" && !o.smartArt,
     ) as SheetGroup[]
     if (!groups.length) return
     const next: SheetObject[] = []

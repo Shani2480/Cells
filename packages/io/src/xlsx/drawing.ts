@@ -29,6 +29,7 @@ import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
 import { objectKey, objectWithMathXml, readObject } from "./shapes"
 import { isEmbeddedObject } from "./ole-objects"
 import { CT_GLB, model3dNode, readModel3d, REL_MODEL3D } from "./model3d"
+import { CT_DGM, readSmartArt, REL_DGM, smartArtFrameXml, smartArtRelIds } from "./smartart"
 
 export const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 
@@ -159,6 +160,20 @@ export function readDrawing(
           ...(Object.keys(embeds).length ? { rels: embeds } : {}),
         }
         sheet.objects.push(object)
+        continue
+      }
+    }
+    // SmartArt: shown as Office drew it, its parts kept.
+    const frame = kid(anchor, "graphicFrame")
+    const relIds = placed ? smartArtRelIds(frame) : undefined
+    if (placed && relIds) {
+      const size = boxOf(sheet, placed.anchor)
+      const group = readSmartArt(relIds, frame!, size, rels, text, { nextId, image, doc }, isDecorative)
+      if (group) {
+        group.anchor = placed.anchor
+        if (placed.placement) group.placement = placed.placement
+        group.source = { xml: raw(doc, frame!), key: objectKey(group), part: partName }
+        sheet.objects.push(group)
         continue
       }
     }
@@ -304,7 +319,18 @@ export function writeDrawing(
         !rawUsed.has(object.source.xml) &&
         object.source.key === objectKey(object)
       if (same) rawUsed.add(object.source!.xml)
-      const xml = same ? object.source!.xml : objectWithMathXml(object, box, writer)
+      const parts = object.kind === "group" ? object.smartArt?.parts : undefined
+      const xml = same
+        ? object.source!.xml
+        : parts
+          ? smartArtFrameXml(parts, cNvPrXml(object, ++shapeId), {
+              part: (kind, body) => {
+                const name = out.freeName((n) => `/xl/diagrams/${kind}${n}.xml`)
+                out.put(name, CT_DGM[kind], body.replace(/^<\?xml[^>]*\?>\s*/, ""))
+                return out.addRel(partName, REL_DGM[kind], name)
+              },
+            })
+          : objectWithMathXml(object, box, writer)
       anchors.push(placedXml(object.anchor, object.placement, xml))
       continue
     }
@@ -331,6 +357,14 @@ export function writeDrawing(
   const name = /^<([^\s>/]+)/.exec(open)![1]
   out.put(partName, CT_DRAWING, `${open}>${source?.kept.join("") ?? ""}${anchors.join("")}</${name}>`)
   return out.addRel(sheetPart, REL_DRAWING, partName)
+}
+
+/** An object's name and description for a frame Cells writes. */
+function cNvPrXml(o: DrawingObject, id: number): string {
+  const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")
+  const descr = o.altText ? ` descr="${esc(o.altText)}"` : ""
+  const hidden = o.hidden ? ` hidden="1"` : ""
+  return `<xdr:cNvPr id="${id}" name="${esc(o.name)}"${descr}${hidden}/>`
 }
 
 /** The drawing objects Cells reads (inside an anchor). */

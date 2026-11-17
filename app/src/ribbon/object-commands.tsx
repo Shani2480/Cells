@@ -523,7 +523,8 @@ export function objectCommands(): Command[] {
       id: "ObjectsUngroup",
       label: "Ungroup",
       run: (env) => env.c.objects.ungroup(),
-      enabled: (env) => env.c.objects.drawings().some((o) => o.kind === "group"),
+      // SmartArt comes apart only by Convert to Shapes.
+      enabled: (env) => env.c.objects.drawings().some((o) => o.kind === "group" && !o.smartArt),
     },
     {
       id: "ObjectRotateGallery",

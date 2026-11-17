@@ -211,7 +211,35 @@ export type SheetGroup = ObjectBase & {
   /** The group's own size the children's boxes are in. */
   child: { w: number; h: number }
   items: GroupItem[]
+  /** A SmartArt graphic: the group is its shapes as laid out, this its text and layout. */
+  smartArt?: SmartArt
 }
+
+/**
+ * Insert › SmartArt: a layout of text (lists, processes, cycles, hierarchies…). The text is a tree, as the Text Pane
+ * shows it; the shapes are laid out from it.
+ */
+export type SmartArt = {
+  /** The layout's id ("urn:microsoft.com/office/officeart/2005/8/layout/process1"). */
+  layout: string
+  /** The text: each point, with the points under it. */
+  nodes: SmartArtNode[]
+  /** Its colours and style (SmartArt Design › Change Colors, SmartArt Styles), by their ids. */
+  colors?: string
+  quickStyle?: string
+  /**
+   * The SmartArt's parts as the file had them (data, layout definition, quick style, colours and Office's drawing of
+   * it), written back while it's unchanged.
+   */
+  parts?: SmartArtParts
+}
+
+export type SmartArtNode = { text: string; children: SmartArtNode[] }
+export type SmartArtParts = { data: string; layout: string; quickStyle: string; colors: string; drawing?: string }
+
+/** A copy of a SmartArt's text tree. */
+export const copySmartArtNodes = (nodes: SmartArtNode[]): SmartArtNode[] =>
+  nodes.map((n) => ({ text: n.text, children: copySmartArtNodes(n.children) }))
 
 export type DrawingObject = SheetShape | SheetPicture | SheetGroup
 export type GroupItem = DrawingObject | SheetChart
@@ -255,6 +283,7 @@ export function copyObject<T extends SheetObject>(o: T): T {
     const g = o as SheetGroup
     out.child = { ...g.child }
     out.items = g.items.map(copyObject)
+    if (g.smartArt) out.smartArt = { ...g.smartArt, nodes: copySmartArtNodes(g.smartArt.nodes) }
   }
   return out as T
 }
