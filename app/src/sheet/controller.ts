@@ -346,6 +346,14 @@ export class SheetController {
 
   /** A change that isn't an undo step but still needs saving (the open document counts it). */
   unsavedChange: () => void = () => this.changed()
+  /** Review › Check Accessibility: the Accessibility pane is open. */
+  accessibilityOpen = false
+
+  setAccessibilityPane(open = !this.accessibilityOpen) {
+    this.accessibilityOpen = open
+    this.changed()
+  }
+
   /** Review › Allow Edit Ranges. */
   readonly editRanges: EditRangeCommands = new EditRangeCommands(this)
   /** View › Custom Views. */

@@ -203,6 +203,20 @@ export class ChartCommands {
     this.replace(chart, next, "Move Chart")
   }
 
+  /** Alt Text: what a screen reader says for a chart, or that it's only decoration (one undo step). */
+  setAltText(id: number, text: string, decorative: boolean) {
+    const chart = this.c.sheet.charts.find((x) => x.id === id)
+    if (!chart) return
+    const next = copyChart(chart)
+    const t = text.trim()
+    if (t) next.altText = t
+    else delete next.altText
+    if (decorative) next.decorative = true
+    else delete next.decorative
+    if (next.altText === chart.altText && next.decorative === chart.decorative) return
+    this.replace(chart, next, "Alt Text")
+  }
+
   delete() {
     const chart = this.active()
     if (!chart) return

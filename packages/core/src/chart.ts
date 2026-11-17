@@ -30,6 +30,10 @@ export type SheetChart = {
   /** The chart spec (see @cells/chart's ChartSpec): the series' values in it are refreshed from `refs`. */
   spec: Record<string, unknown>
   refs: ChartRefs | null
+  /** Alt Text: what a screen reader says for the chart. */
+  altText?: string
+  /** Alt Text › Mark as decorative: a screen reader skips the chart. */
+  decorative?: boolean
 }
 
 const corner = (c: ChartCorner): ChartCorner => ({ ...c })

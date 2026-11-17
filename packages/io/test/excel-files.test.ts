@@ -319,3 +319,18 @@ describe("Excel's edit-ranges.xlsx (Review › Allow Edit Ranges)", () => {
     expect(again.workbook.sheets[0].editRanges).toEqual(read.workbook.sheets[0].editRanges)
   })
 })
+
+describe("Excel's alt-text.xlsx (charts' Alt Text)", () => {
+  it("reads a chart's description and Mark as decorative, and writes them back", async () => {
+    const read = await openXlsx(fixture("alt-text"), "alt-text.xlsx")
+    const [described, decorative] = read.workbook.sheets[0].charts
+    expect(described.altText).toBe("Sales by month, rising")
+    expect(described.decorative).toBeUndefined()
+    expect(decorative.decorative).toBe(true)
+    const again = await openXlsx(await saveXlsx(read.workbook, { source: read.source, views: read.views }), "x.xlsx")
+    expect(again.workbook.sheets[0].charts.map((c) => [c.altText, c.decorative])).toEqual([
+      ["Sales by month, rising", undefined],
+      [undefined, true],
+    ])
+  })
+})

@@ -444,6 +444,18 @@ export function chartCommands(): Command[] {
       run: (env) => env.c.shell.chartData?.(),
     },
     {
+      // Excel has it on the chart's Format tab (Accessibility); Cells shows it on Chart Design until Format is built.
+      id: "ObjectAlternativeText",
+      label: "Alt Text",
+      description: "Describe the chart for people who use a screen reader, or mark it as decorative.",
+      keytip: "AT",
+      enabled: (env) => inChart(env),
+      run: (env) => {
+        const chart = env.c.charts.active()
+        if (chart) env.c.shell.openDialog?.(`altText:${chart.id}`)
+      },
+    },
+    {
       id: "ChartChangeType",
       label: "Change Chart Type",
       description: "Change to a different type of chart.",

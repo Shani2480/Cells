@@ -38,6 +38,7 @@ import { FormatCellsDialog, type FormatTab } from "@/shell/format-cells/FormatCe
 import { TooltipProvider } from "@/ui/tooltip"
 import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
+import { AccessibilityPane } from "@/shell/AccessibilityPane"
 import { QueriesPane } from "@/shell/QueriesPane"
 import { WorkbookLinksPane } from "@/shell/WorkbookLinksPane"
 import { QueryPropertiesDialog } from "@/shell/QueryPropertiesDialog"
@@ -80,6 +81,7 @@ import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
 import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
+import { AltTextDialog } from "@/shell/AltTextDialog"
 import { AllowEditRangesDialog, UnlockRangeDialog } from "@/shell/EditRangesDialogs"
 import { loadDemo } from "./demo"
 import { FileCommands, type SaveChoice } from "@/file/commands"
@@ -154,6 +156,7 @@ type DialogState =
   | { kind: "dataValidation"; init: ValidationDialogInit }
   | { kind: "createTable"; init: CreateTableInit }
   | { kind: "selectData" }
+  | { kind: "altText"; chartId: number }
   | { kind: "pageSetup"; tab: PageSetupTab }
   | { kind: "resizeTable"; range: Range }
   | { kind: "textToColumns"; range: Range; texts: string[] }
@@ -795,6 +798,7 @@ function WorkbookWindow({
     else if (kind === "ai" && (arg === "formula" || arg === "explain" || arg === "chart" || arg === "summary"))
       setDialog({ kind: "ai", tool: arg })
     else if (kind === "options") setDialog({ kind: "options", page: arg === "ai" ? "ai" : undefined })
+    else if (kind === "altText" && arg) setDialog({ kind: "altText", chartId: Number(arg) })
     else if (kind === "pageSetup") setDialog({ kind: "pageSetup", tab: (arg as PageSetupTab) ?? "page" })
     else if (
       kind === "protectSheet" ||
@@ -906,6 +910,9 @@ function WorkbookWindow({
       onInsertFunction={() => openDialog("insertFunction")}
     />
   ) : null
+  const accessibilityPane = (
+    <AccessibilityPane controller={controller} onDone={focusGrid} onDialog={(name) => openDialog(name)} />
+  )
   const linksPane = <WorkbookLinksPane controller={controller} files={files} onDone={focusGrid} />
   const queriesPane = (
     <QueriesPane
@@ -1002,6 +1009,7 @@ function WorkbookWindow({
               {controller.clipboardPaneOpen ? clipboardPane : null}
               <main className="sheet-area">{grid}</main>
               {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
+              {controller.accessibilityOpen ? accessibilityPane : null}
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
               {controller.data.linksOpen ? linksPane : null}
@@ -1016,6 +1024,7 @@ function WorkbookWindow({
         {shell === "phone" && controller.audit.watchOpen ? (
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}
+        {shell === "phone" && controller.accessibilityOpen ? accessibilityPane : null}
         {shell === "phone" && controller.annotations.paneOpen ? (
           <CommentsPane controller={controller} onDone={focusGrid} />
         ) : null}
@@ -1164,6 +1173,9 @@ function WorkbookWindow({
               focusGrid()
             }}
           />
+        ) : null}
+        {dialog?.kind === "altText" ? (
+          <AltTextDialog controller={controller} chartId={dialog.chartId} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "selectData" ? <SelectDataDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "pageSetup" ? (

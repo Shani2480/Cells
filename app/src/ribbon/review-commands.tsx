@@ -103,6 +103,14 @@ export function reviewCommands(): Command[] {
       enabled: (env) => env.c.wb.sheets.some((s) => s.annotations.all().some((a) => a.value.kind === "note")),
     },
     {
+      id: "MenuAccessibility",
+      label: "Check Accessibility",
+      description:
+        "Make sure your workbook is easy to read and use for people with disabilities: missing alt text, hard-to-read colours, merged cells and more.",
+      run: (env) => env.c.setAccessibilityPane(),
+      pressed: (env) => env.c.accessibilityOpen,
+    },
+    {
       id: "ReviewAllowUsersToEditRangesCoauth",
       label: "Allow Edit Ranges",
       description:

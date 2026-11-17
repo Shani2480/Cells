@@ -10,7 +10,7 @@ import {
 import { readChartData, type ChartCorner, type Sheet, type SheetChart, type Workbook } from "@cells/core"
 import type { OpcRelationship } from "../opc"
 import { NS_R } from "./constants"
-import { at, kid, parseTree, raw, startTag, type XNode } from "./dom"
+import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
 
 /**
  * A sheet's drawing part: the charts on it, which Cells reads and writes, and everything else (pictures, shapes,
@@ -103,6 +103,9 @@ export function readDrawing(
       spec: (refs ? keepLook(spec) : spec) as unknown as Record<string, unknown>,
       refs: refs ? { categories: refs.categories, series: refs.series.map((s) => ({ ...s })) } : null,
     }
+    const descr = at(nv, "descr")
+    if (descr) chart.altText = descr
+    if (isDecorative(nv)) chart.decorative = true
     sheet.charts.push(chart)
     source.chartRels.add(rid!)
     source.charts.set(chart.id, { partName: rel.partName, print: print(chart), cache: cacheOf(spec) })
@@ -181,16 +184,35 @@ export function writeDrawing(
   return out.addRel(sheetPart, REL_DRAWING, partName)
 }
 
+/** Office's "Mark as decorative" extension on a drawing object's cNvPr. */
+const DECORATIVE_EXT = "{C183D7F6-B498-43B3-948B-1728B52AA6E4}"
+const NS_ADEC = "http://schemas.microsoft.com/office/drawing/2017/decorative"
+
+function isDecorative(nv: XNode | undefined): boolean {
+  for (const ext of kids(kid(nv, "extLst"), "ext")) {
+    if (at(ext, "uri")?.toUpperCase() !== DECORATIVE_EXT) continue
+    const v = at(kid(ext, "decorative"), "val")
+    return v === "1" || v === "true"
+  }
+  return false
+}
+
 function anchorXml(chart: SheetChart, id: number, rid: string): string {
   const at = (c: ChartCorner) =>
     `<xdr:col>${c.col}</xdr:col><xdr:colOff>${Math.round(c.x * EMU)}</xdr:colOff>` +
     `<xdr:row>${c.row}</xdr:row><xdr:rowOff>${Math.round(c.y * EMU)}</xdr:rowOff>`
-  const name = chart.name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;")
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;").replace(/\n/g, "&#10;")
+  const name = esc(chart.name)
+  const descr = chart.altText ? ` descr="${esc(chart.altText)}"` : ""
+  const nv = chart.decorative
+    ? `<xdr:cNvPr id="${id}" name="${name}"${descr}><a:extLst><a:ext uri="${DECORATIVE_EXT}"><adec:decorative xmlns:adec="${NS_ADEC}" val="1"/></a:ext></a:extLst></xdr:cNvPr>`
+    : `<xdr:cNvPr id="${id}" name="${name}"${descr}/>`
   // Prefixes declared on the anchor, so it reads the same under a kept root that names them otherwise.
   return (
     `<xdr:twoCellAnchor xmlns:xdr="${NS_XDR}" xmlns:a="${NS_A}">` +
     `<xdr:from>${at(chart.anchor.from)}</xdr:from><xdr:to>${at(chart.anchor.to)}</xdr:to>` +
-    `<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${id}" name="${name}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>` +
+    `<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr>${nv}<xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>` +
     `<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>` +
     `<a:graphic><a:graphicData uri="${NS_C}"><c:chart xmlns:c="${NS_C}" xmlns:r="${NS_R}" r:id="${rid}"/></a:graphicData></a:graphic>` +
     `</xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`

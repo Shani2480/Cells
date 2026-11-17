@@ -131,6 +131,7 @@ const PICTURES: Record<string, LucideIcon> = {
   // Review
   Spelling: L.SpellCheck,
   Thesaurus: L.BookA,
+  ObjectAlternativeText: L.MessageSquareText,
   StatusWorkbookStatistics: L.ChartNoAxesColumn,
   MenuAccessibility: L.Accessibility,
   ReviewNewComment: L.MessageSquarePlus,

@@ -475,6 +475,7 @@ export const CHART_DESIGN: Tab = {
     { id: "GroupChartData", label: "Data", columns: [L("ChartSwitchRowColumn"), L("ChartSelectData")] },
     { id: "GroupChartType", label: "Type", columns: [L("ChartChangeType")] },
     { id: "GroupChartLocation", label: "Location", columns: [L("ChartMove")] },
+    { id: "GroupChartAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
   ],
 }
 

@@ -1,6 +1,7 @@
 import { cellName, formatGeneral, formatValue, selectionStats } from "@cells/core"
-import { useMemo, useSyncExternalStore } from "react"
-import { FileText, Minus, Plus, Rows3, Table2 } from "lucide-react"
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
+import { CircleCheck, FileText, Minus, Plus, Rows3, Table2, TriangleAlert } from "lucide-react"
+import { checkAccessibility } from "@/sheet/accessibility"
 import { MAX_ZOOM, MIN_ZOOM, type SheetController, type SheetViewMode } from "@/sheet/controller"
 
 const MODE_LABEL = { ready: "Ready", enter: "Enter", edit: "Edit", point: "Point" } as const
@@ -60,6 +61,7 @@ export function StatusBar({ controller, onZoomDialog }: { controller: SheetContr
       {controller.endMode ? <span>End Mode</span> : null}
       {circular ? <span>{circular}</span> : null}
       {calc.mode === "manual" && calc.pending ? <span>Calculate</span> : null}
+      <StatusAccessibility controller={controller} version={version} />
       <span className="status-bar-spacer" />
       {stats && stats.count >= 2 ? (
         <div className="status-bar-figures">
@@ -71,6 +73,34 @@ export function StatusBar({ controller, onZoomDialog }: { controller: SheetContr
       <StatusViews controller={controller} />
       <StatusZoom controller={controller} onZoomDialog={onZoomDialog} />
     </footer>
+  )
+}
+
+/**
+ * Excel's "Accessibility: Good to go" or "Investigate" (checked a moment after changes stop, so typing stays quick);
+ * a click opens the Accessibility pane.
+ */
+function StatusAccessibility({ controller, version }: { controller: SheetController; version: number }) {
+  const [issues, setIssues] = useState<number | null>(null)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIssues(checkAccessibility(controller.wb).length), 600)
+    return () => window.clearTimeout(timer)
+  }, [controller, version])
+  if (issues === null) return null
+  return (
+    <button
+      type="button"
+      className="status-a11y"
+      title="Check Accessibility"
+      onClick={() => controller.setAccessibilityPane(true)}
+    >
+      {issues ? (
+        <TriangleAlert size={13} strokeWidth={1.75} aria-hidden="true" />
+      ) : (
+        <CircleCheck size={13} strokeWidth={1.75} aria-hidden="true" />
+      )}
+      <span>Accessibility: {issues ? "Investigate" : "Good to go"}</span>
+    </button>
   )
 }
 

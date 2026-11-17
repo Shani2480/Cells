@@ -1068,6 +1068,136 @@ html.is-browser .app-window-frame {
   text-underline-offset: 2px;
 }
 
+/* Review › Check Accessibility: the pane's result tree and the status bar's indicator. */
+.a11y-list {
+  padding: 6px 4px;
+}
+
+.a11y-title {
+  margin: 4px 8px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.a11y-clear {
+  display: flex;
+  gap: 8px;
+  margin: 4px 8px;
+  color: var(--app-muted, inherit);
+}
+
+.a11y-clear svg {
+  flex: none;
+  color: #107c41;
+}
+
+.a11y-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.a11y-row:hover {
+  background: var(--app-hover);
+}
+
+.a11y-severity {
+  font-weight: 600;
+}
+
+.a11y-icon.is-error {
+  color: #c42b1c;
+}
+
+.a11y-icon.is-warning {
+  color: #9d5d00;
+}
+
+.a11y-kind {
+  padding-left: 14px;
+}
+
+.a11y-item {
+  padding-left: 20px;
+}
+
+.a11y-item-head {
+  justify-content: space-between;
+}
+
+.a11y-item.is-picked > .a11y-item-head {
+  background: var(--app-selected, var(--app-hover));
+}
+
+.a11y-item-sheet {
+  color: var(--app-muted, inherit);
+  opacity: 0.75;
+  font-size: 12px;
+}
+
+.a11y-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px 8px;
+}
+
+.a11y-info {
+  flex: none;
+  max-height: 40%;
+  overflow-y: auto;
+  padding: 10px 14px;
+  border-top: 1px solid var(--app-divider);
+}
+
+.a11y-info h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.a11y-info h4 {
+  margin: 8px 0 2px;
+  font-size: 12px;
+}
+
+.a11y-info p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.status-a11y {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-a11y:hover {
+  background: var(--app-hover);
+}
+
+/* Alt Text: a few lines of description. */
+.alt-text-field {
+  resize: vertical;
+  min-height: 72px;
+  font: inherit;
+}
+
 /* Review › Allow Edit Ranges: a two-column list with its buttons beside it. */
 .edit-ranges {
   display: grid;
