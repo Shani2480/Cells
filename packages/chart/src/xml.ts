@@ -87,10 +87,12 @@ function stringCache(ref: string, values: string[]) {
   )
 }
 
-function numberCache(ref: string, values: number[], format = "General") {
+/** A series' cached numbers; empty cells (`blanks`) have no point, as Excel writes them. */
+function numberCache(ref: string, values: number[], format = "General", blanks: readonly number[] = []) {
+  const skip = new Set(blanks)
   return (
     `<c:numRef><c:f>${ref}</c:f><c:numCache><c:formatCode>${escapeXmlText(format)}</c:formatCode><c:ptCount val="${values.length}"/>` +
-    values.map((value, index) => `<c:pt idx="${index}"><c:v>${value}</c:v></c:pt>`).join("") +
+    values.map((value, index) => (skip.has(index) ? "" : `<c:pt idx="${index}"><c:v>${value}</c:v></c:pt>`)).join("") +
     `</c:numCache></c:numRef>`
   )
 }
@@ -175,6 +177,11 @@ function seriesXml(spec: ChartSpec, index: number, group: Group, rows: number) {
     spec.categories.map((_, row) => serie.values[row] ?? 0),
   )
   const categories = visible(spec, spec.categories)
+  const empty = new Set(serie.blanks ?? [])
+  const blanks = visible(
+    spec,
+    spec.categories.map((_, row) => empty.has(row)),
+  ).flatMap((blank, i) => (blank ? [i] : []))
   const range = `$${letter}$2:$${letter}$${rows + 1}`
   const lined = group === "line" || group === "scatter" || (group === "radar" && !spec.filled)
   const own = spec.format[`series:${index}`]
@@ -243,13 +250,13 @@ function seriesXml(spec: ChartSpec, index: number, group: Group, rows: number) {
         ? `<c:xVal>${numberCache(categoriesRef, numbers)}</c:xVal>`
         : `<c:xVal>${stringCache(categoriesRef, categories)}</c:xVal>`
     return (
-      `<c:ser>${head}${marker}${trend}${bars}${x}<c:yVal>${numberCache(valuesRef, values, format)}</c:yVal>` +
+      `<c:ser>${head}${marker}${trend}${bars}${x}<c:yVal>${numberCache(valuesRef, values, format, blanks)}</c:yVal>` +
       `<c:smooth val="${spec.smooth ? 1 : 0}"/></c:ser>`
     )
   }
   const data =
     (categoriesRef ? `<c:cat>${stringCache(categoriesRef, categories)}</c:cat>` : "") +
-    `<c:val>${numberCache(valuesRef, values, format)}</c:val>`
+    `<c:val>${numberCache(valuesRef, values, format, blanks)}</c:val>`
   switch (group) {
     case "bar":
       return `<c:ser>${head}<c:invertIfNegative val="0"/>${points}${trend}${bars}${data}</c:ser>`

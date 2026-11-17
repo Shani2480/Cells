@@ -154,6 +154,10 @@ decided when Part 8 is done.
   know it (Excel keeps it in the _FilterDatabase and Criteria names).
 - Consolidate works with ranges in this workbook only (Excel's Browse... for other workbooks isn't there); settings
   that name another workbook are kept in the file as they were read.
+- FORECAST.ETS and its family give results close to Excel's, not equal: the season length and perfect patterns match
+  Excel, but on noisy data the fitted smoothing factors differ (forecasts within about 0.5%, confidence widths
+  within about 10%, from a check of 8 patterns against Excel 16). Excel doesn't publish its fitting.
+- Forecast Sheet's chart is a plain line or column chart; Excel draws the confidence bounds thinner.
 
 ## Later (from Phase 4)
 

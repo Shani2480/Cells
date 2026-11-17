@@ -8,6 +8,7 @@ import "./datetime"
 import "./lookup"
 import "./financial"
 import "./aggregate"
+import "./forecast"
 
 export { FUNCTIONS, isVolatile } from "./registry"
 export { compileCriteria, wildcardPattern } from "./criteria"

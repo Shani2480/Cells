@@ -2726,3 +2726,97 @@ html.is-phone .clipboard-item-delete {
   align-items: flex-end;
   gap: 12px;
 }
+
+/* ── Data › Forecast › Forecast Sheet (shell/ForecastDialog.tsx) ─────────────────────────────────────────── */
+.forecast-types {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.forecast-type {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-ribbon-text);
+}
+
+.forecast-type:hover {
+  background: var(--app-hover);
+}
+
+.forecast-type.is-selected {
+  border-color: var(--app-theme-primary);
+  background: var(--app-theme-light);
+}
+
+.forecast-preview {
+  display: grid;
+  place-items: center;
+  height: 250px;
+  border: 1px solid var(--app-field-border);
+  background: var(--grid-bg);
+  overflow: hidden;
+}
+
+.forecast-preview svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.forecast-end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.forecast-end .dialog-field {
+  width: 160px;
+}
+
+.forecast-options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  padding: 2px 0;
+}
+
+.forecast-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.forecast-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.forecast-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.forecast-small {
+  width: 80px;
+}
+
+html.is-phone .forecast-options {
+  grid-template-columns: 1fr;
+}

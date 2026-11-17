@@ -40,7 +40,7 @@ export function readChartRefs(xml: string): ChartXmlRefs | null {
 /** A chart's data read from its ranges (see @cells/core's readChartData). */
 export type SheetChartData = {
   categories: string[] | null
-  series: { name: string | null; values: number[]; texts: string[] }[]
+  series: { name: string | null; values: number[]; texts: string[]; blanks?: number[] }[]
 }
 
 /** A chart's spec with the categories and series read from the sheet now; its look stays its own. */
@@ -48,12 +48,16 @@ export function withSheetData(look: Partial<ChartSpec>, data: SheetChartData): C
   const spec = normalizeChartSpec(look)
   const length = Math.max(0, ...data.series.map((s) => s.values.length))
   spec.categories = data.categories ?? Array.from({ length }, (_, i) => String(i + 1))
-  spec.series = data.series.map((s, i) => ({
-    ...spec.series[i],
-    name: s.name ?? `Series${i + 1}`,
-    values: s.values,
-    ...(s.texts.some(Boolean) ? { texts: s.texts } : {}),
-  }))
+  spec.series = data.series.map((s, i) => {
+    const { blanks: _old, ...own } = spec.series[i] ?? { name: "", values: [] }
+    return {
+      ...own,
+      name: s.name ?? `Series${i + 1}`,
+      values: s.values,
+      ...(s.texts.some(Boolean) ? { texts: s.texts } : {}),
+      ...(s.blanks?.length ? { blanks: s.blanks } : {}),
+    }
+  })
   if (!spec.series.length) spec.series = [{ name: "Series1", values: [] }]
   return spec
 }

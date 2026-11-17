@@ -45,6 +45,7 @@ import { DataTableDialog, GoalSeekDialog } from "@/shell/WhatIfDialogs"
 import { ScenarioManagerDialog } from "@/shell/ScenarioDialogs"
 import { AdvancedFilterDialog } from "@/shell/AdvancedFilterDialog"
 import { ConsolidateDialog } from "@/shell/ConsolidateDialog"
+import { ForecastDialog } from "@/shell/ForecastDialog"
 import { ContextMenu, menuIcons, type MenuItem } from "@/shell/ContextMenu"
 import { FormulaBar } from "@/shell/FormulaBar"
 import { DefineNameDialog } from "@/shell/DefineNameDialog"
@@ -126,6 +127,7 @@ type DialogState =
         | "scenarioManager"
         | "advancedFilter"
         | "consolidate"
+        | "forecast"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
@@ -742,7 +744,8 @@ function WorkbookWindow({
       kind === "dataTable" ||
       kind === "scenarioManager" ||
       kind === "advancedFilter" ||
-      kind === "consolidate"
+      kind === "consolidate" ||
+      kind === "forecast"
     )
       setDialog({ kind })
   }
@@ -993,6 +996,7 @@ function WorkbookWindow({
           <AdvancedFilterDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "consolidate" ? <ConsolidateDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "forecast" ? <ForecastDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "scenarioManager" ? (
           <ScenarioManagerDialog controller={controller} onClose={closeDialog} />
         ) : null}

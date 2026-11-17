@@ -1,7 +1,7 @@
 import { parseRange, selectRange } from "@cells/core"
 import { describe, expect, it } from "vitest"
 import { SheetController } from "@/sheet/controller"
-import { fittedRowHeight } from "./autofit"
+import { autofitColumnWidth, fittedRowHeight } from "./autofit"
 
 /** 7 px per character at 11 pt, scaled with the font size. */
 const measure = (text: string, font?: string) => {
@@ -57,5 +57,15 @@ describe("rows fit their content", () => {
     type("A5", "a\nb\nc")
     expect(c.sheet.rows.size(4)).toBe(30)
     select("A5")
+  })
+})
+
+describe("columns fit their content", () => {
+  it("measures dates as the cells show them, not as their serial numbers", () => {
+    const { c, type } = setup()
+    type("A1", "12/31/2024")
+    // "12/31/2024" is 10 characters; its serial number 45657 would be 5.
+    const width = autofitColumnWidth(c, 0, measure)!
+    expect(width).toBeGreaterThanOrEqual(70)
   })
 })

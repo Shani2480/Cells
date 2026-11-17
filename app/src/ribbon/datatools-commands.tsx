@@ -18,5 +18,13 @@ export function dataToolCommands(): Command[] {
       keytip: "N",
       run: (env) => env.dialog("consolidate"),
     },
+    {
+      id: "ForecastInsert",
+      label: "Forecast Sheet",
+      description:
+        "Create a new sheet that predicts where your data over time is going, with a table of forecasts and a chart.",
+      keytip: "FC",
+      run: (env) => env.dialog("forecast"),
+    },
   ]
 }

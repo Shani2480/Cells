@@ -159,7 +159,8 @@ function categoryTexts(
 
 export type ChartData = {
   categories: string[] | null
-  series: { name: string | null; values: number[]; texts: string[] }[]
+  /** `blanks`: the points whose cells are empty, which a line chart leaves as gaps (Excel's default). */
+  series: { name: string | null; values: number[]; texts: string[]; blanks?: number[] }[]
 }
 
 /**
@@ -176,7 +177,7 @@ export function readChartData(sheets: readonly Sheet[], styles: StyleTable, refs
   const series = refs.series.map((s) => {
     const cells = refCells(sheets, s.values) ?? []
     const name = refCells(sheets, s.name)
-    return {
+    const out: ChartData["series"][number] = {
       name: name ? name.map(shown).join(" ") : null,
       values: cells.map((c) => {
         const v = c.sheet.cells.get(c.row, c.col)?.value
@@ -187,6 +188,8 @@ export function readChartData(sheets: readonly Sheet[], styles: StyleTable, refs
         return typeof v === "string" ? v : ""
       }),
     }
+    const blanks = cells.flatMap((c, i) => (c.sheet.cells.get(c.row, c.col)?.value === undefined ? [i] : []))
+    return blanks.length ? { ...out, blanks } : out
   })
   return { categories, series }
 }

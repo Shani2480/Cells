@@ -57,6 +57,8 @@ export type ChartSeries = {
   tick?: boolean
   /** The values typed as text, by category ("" where a number was): a Filled Map colours each different text. */
   texts?: string[]
+  /** Points whose cells are empty (indexes into the categories): a line leaves a gap there, a column none. */
+  blanks?: number[]
 }
 
 /**
@@ -1391,6 +1393,15 @@ function visibleValues(spec: ChartSpec, values: number[]) {
     .map((index) => values[index] ?? 0)
 }
 
+/** Which visible points of a series are empty cells. */
+function visibleBlanks(spec: ChartSpec, serie: ChartSeries): boolean[] {
+  const blanks = new Set(serie.blanks ?? [])
+  return spec.categories
+    .map((_, index) => index)
+    .filter((index) => !spec.hiddenCategories.includes(index))
+    .map((index) => blanks.has(index))
+}
+
 type Serie = ChartSeries & { index: number }
 
 function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name: string; color: string }[]) {
@@ -1405,6 +1416,7 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
   const stackedKind = horizontal ? "column" : spec.type
   const stacking = spec.grouping !== "clustered" && !scatter
   const values = new Map(series.map((serie) => [serie.index, visibleValues(spec, serie.values)]))
+  const empty = new Map(series.map((serie) => [serie.index, visibleBlanks(spec, serie)]))
   // Stacked series sit on the ones before them; 100% stacked ones are shares of each category's total.
   const stacked = new Map<number, { from: number[]; to: number[] }>()
   if (stacking) {
@@ -1432,7 +1444,11 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
   const rangeOf = (list: Serie[]) => {
     const numbers = list.flatMap((serie) => {
       const stack = stacked.get(serie.index)
-      return stack ? [...stack.from, ...stack.to] : values.get(serie.index)!
+      if (stack) return [...stack.from, ...stack.to]
+      const gaps = empty.get(serie.index)!
+      return kindOf(serie) === "area"
+        ? values.get(serie.index)!
+        : values.get(serie.index)!.filter((_, column) => !gaps[column])
     })
     return numbers.length ? [Math.min(...numbers), Math.max(...numbers)] : [0, 1]
   }
@@ -1726,7 +1742,8 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
       const shapes: string[] = []
       const back = threeD === "deep" ? series.indexOf(serie) : 0
       const shift = { x: back * row.x, y: -back * row.y }
-      const points = own.map((value, column) => {
+      const gaps = empty.get(serie.index)!
+      const all = own.map((value, column) => {
         const top = stack ? stack.to[column]! : value
         const base = stack ? stack.from[column]! : Math.max(current.min, Math.min(current.max, 0))
         return {
@@ -1735,8 +1752,11 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
           at: (scatter ? toX(xNumbers[column]!) : slot(column)) + shift.x,
           top: toValue(top, current) + shift.y,
           base: toValue(base, current) + shift.y,
+          blank: !stack && !scatter && kind !== "area" && gaps[column] === true,
         }
       })
+      // Empty cells: no bar, marker or label, and a break in the line (Excel's "Show empty cells as Gaps").
+      const points = all.filter((point) => !point.blank)
       if (kind === "column") {
         const place = stacking || threeD === "deep" ? 0 : bars.indexOf(serie)
         const offset = -((barCount - 1) * (1 - overlap) * barWidth + barWidth) / 2 + place * (1 - overlap) * barWidth
@@ -1807,11 +1827,22 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
             shapes.push(`<polygon points="${[...front, ...under].join(" ")}" ${facePaint(paint, color, -0.3)}/>`)
           }
         } else if (joined && points.length > 1) {
-          const coords = points.map((point) => [point.at, point.top] as [number, number])
-          const path = spec.smooth ? smoothPath(coords) : `M${coords.map(([x, y]) => `${n(x)} ${n(y)}`).join(" L")}`
-          shapes.push(
-            `<path d="${path}" fill="none" stroke="${line.stroke}" stroke-width="${line.width}" stroke-linejoin="round" stroke-linecap="round"/>`,
-          )
+          const runs: [number, number][][] = [[]]
+          for (const point of all) {
+            if (point.blank) {
+              if (runs[runs.length - 1]!.length) runs.push([])
+            } else runs[runs.length - 1]!.push([point.at, point.top])
+          }
+          const path = runs
+            .filter((run) => run.length > 1)
+            .map((coords) =>
+              spec.smooth ? smoothPath(coords) : `M${coords.map(([x, y]) => `${n(x)} ${n(y)}`).join(" L")}`,
+            )
+            .join(" ")
+          if (path)
+            shapes.push(
+              `<path d="${path}" fill="none" stroke="${line.stroke}" stroke-width="${line.width}" stroke-linejoin="round" stroke-linecap="round"/>`,
+            )
         }
         if (!threeD && (spec.markers || (scatter && !spec.lines))) {
           for (const point of points) {

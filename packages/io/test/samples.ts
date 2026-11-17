@@ -409,7 +409,30 @@ export function consolidated(): Workbook {
   return done(wb)
 }
 
+/** Forecast Sheet's formulas over a seasonal history (the forecast sheet's table and chart are built in the app). */
+export function forecast(): Workbook {
+  const wb = new Workbook(["Forecast"])
+  const s = wb.sheets[0]
+  const season = [5, -3, 8, -10]
+  s.cells.set(0, 0, { value: "Month" })
+  s.cells.set(0, 1, { value: "Sales" })
+  for (let i = 0; i < 24; i++) {
+    s.cells.set(i + 1, 0, { value: i + 1 })
+    if (i !== 10) s.cells.set(i + 1, 1, { value: 100 + 2 * i + season[i % 4]! })
+  }
+  for (let i = 0; i < 4; i++) {
+    const r = 26 + i
+    s.cells.set(r - 1, 0, { value: 25 + i })
+    s.cells.set(r - 1, 2, { input: `=FORECAST.ETS(A${r},$B$2:$B$25,$A$2:$A$25,1,1)`, value: 0 })
+    s.cells.set(r - 1, 3, { input: `=FORECAST.ETS.CONFINT(A${r},$B$2:$B$25,$A$2:$A$25,0.95,1,1)`, value: 0 })
+  }
+  s.cells.set(0, 5, { input: "=FORECAST.ETS.SEASONALITY($B$2:$B$25,$A$2:$A$25)", value: 0 })
+  s.cells.set(1, 5, { input: "=FORECAST.ETS.STAT($B$2:$B$25,$A$2:$A$25,8)", value: 0 })
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  forecast,
   consolidated,
   whatIf,
   budget,

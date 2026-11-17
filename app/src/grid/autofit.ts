@@ -1,4 +1,4 @@
-import { DEFAULT_ROW_HEIGHT, formatValue, MAX_COLS, MAX_ROWS } from "@cells/core"
+import { DEFAULT_ROW_HEIGHT, formatValue, formatWithCode, MAX_COLS, MAX_ROWS } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
 import { lookOf, shownText, type Measure } from "./cell-look"
 import { wrapLines } from "./draw-cells"
@@ -44,8 +44,13 @@ export function autofitColumnWidth(
     { r0: rows.r0, r1: rows.r1, c0: col, c1: col },
     (_row, _col, data) => {
       const style = controller.wb.styles.get(data.style ?? 0)
-      // General numbers as a cell shows them: up to 11 characters (0.05, not 0.05000000000000000277).
-      const text = formatValue(data.value, style.numberFormat, 11) ?? ""
+      // Numbers as the cell shows them: with their format (dates as dates, as the grid draws them), or General up to
+      // 11 characters (0.05, not 0.05000000000000000277).
+      const code = style.numberFormat
+      const text =
+        typeof data.value === "number" && code && code !== "General"
+          ? formatWithCode(data.value, code, { cell: true }).text
+          : (formatValue(data.value, code, 11) ?? "")
       for (const line of text.split("\n")) widest = Math.max(widest, measure(line))
     },
     true,

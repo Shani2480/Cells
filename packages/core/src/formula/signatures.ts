@@ -79,6 +79,14 @@ const TABLE: Record<string, string> = {
   "FLOOR.MATH": "number, [significance], [mode]|Rounds down to a multiple; mode picks the direction for negatives.",
   "FLOOR.PRECISE": "number, [significance]|Rounds down to a multiple, whatever the signs.",
   FORECAST: "x, known_y's, known_x's|A value on the linear trend.",
+  "FORECAST.ETS":
+    "target_date, values, timeline, [seasonality], [data_completion], [aggregation]|A future value from exponential smoothing.",
+  "FORECAST.ETS.CONFINT":
+    "target_date, values, timeline, [confidence_level], [seasonality], [data_completion], [aggregation]|The confidence interval of a FORECAST.ETS value.",
+  "FORECAST.ETS.SEASONALITY":
+    "values, timeline, [data_completion], [aggregation]|The length of the repeating pattern in a series.",
+  "FORECAST.ETS.STAT":
+    "values, timeline, statistic_type, [seasonality], [data_completion], [aggregation]|A statistic of the exponential smoothing forecast.",
   "FORECAST.LINEAR": "x, known_y's, known_x's|A value on the linear trend.",
   FORMULATEXT: "reference|The formula of a cell as text.",
   FV: "rate, nper, pmt, [pv], [type]|The future value of an investment.",
