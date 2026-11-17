@@ -11,6 +11,7 @@ import {
   tableAt,
   tableCellLook,
   tableOverlaps,
+  slicerColumnOps,
   uniqueColumnNames,
   unstructureOps,
   type CellStyle,
@@ -78,10 +79,14 @@ export class TableCommands {
       const texts = t.columns.map((_, i) => headerText(sheet.cells.get(r.r0, r.c0 + i)?.value))
       for (const w of mine) texts[w.col - r.c0] = headerText(w.data?.value)
       const names = uniqueColumnNames(texts)
+      const renames: { from: string; to: string }[] = []
       names.forEach((name, i) => {
         const from = t.columns[i].name
-        if (name !== from) out.push(...renameTableOps(this.c.wb.sheets, t, t.name, { from, to: name }))
+        if (name === from) return
+        out.push(...renameTableOps(this.c.wb.sheets, t, t.name, { from, to: name }))
+        renames.push({ from, to: name })
       })
+      out.push(...slicerColumnOps(this.c.wb.sheets, t.id, renames))
     }
     return out
   }

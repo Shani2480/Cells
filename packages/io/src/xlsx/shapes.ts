@@ -594,6 +594,8 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
       `<xdr:spPr>${xfrmXml(o, box)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${o.line ? lineXml(o.line) : ""}</xdr:spPr></xdr:pic>`
     )
   }
+  // A slicer is written by the drawing (its frame needs the sheet's box); it never sits in a group.
+  if (o.kind === "slicer") return ""
   const items = o.items
     .filter((i): i is DrawingObject => "kind" in i)
     .map((i) => objectXml(i, i.box ?? { x: 0, y: 0, w: o.child.w, h: o.child.h }, { ...w, modelRel: undefined }))

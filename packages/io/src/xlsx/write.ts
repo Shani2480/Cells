@@ -1,8 +1,18 @@
+import { withExt } from "./validation"
 import { isEmbeddedObject, oleObjectsXml, oleObjectXml, oleShapeXml, writeEmbedding } from "./ole-objects"
 import { lastShapeId, pictureVml, signatureShapeXml, withPictures } from "./vml"
 import { customSheetViewsXml, customViewNamesXml, customWorkbookViewsXml, viewNamePrefix } from "./custom-views"
 import { hyperlinkTarget } from "./hyperlinks"
-import { columnName, quoteSheet, type Range, type Sheet, type Workbook } from "@cells/core"
+import {
+  columnName,
+  isChart,
+  quoteSheet,
+  slicerTarget,
+  type Range,
+  type Sheet,
+  type SheetSlicer,
+  type Workbook,
+} from "@cells/core"
 import {
   allowsMacros,
   mainContentTypeFor,
@@ -70,6 +80,19 @@ import { printNamesXml } from "./page-setup"
 import { formulaToFile } from "./formula"
 import type { XlsxSource } from "./read"
 import { DEFAULT_VIEW, type SheetView } from "./sheet-read"
+import {
+  CT_SLICER,
+  CT_SLICER_CACHE,
+  REL_SLICER,
+  REL_SLICER_CACHE,
+  slicerCacheName,
+  slicerCacheXml,
+  slicerPartXml,
+  URI_WB_PIVOT_SLICER_CACHES,
+  URI_WB_SLICER_CACHES,
+  withoutExts,
+  workbookSlicersExt,
+} from "./slicers"
 import { rangeRef, SharedStrings, writeSheet } from "./sheet-write"
 import { structuredToFile, tableXml } from "./table"
 import { StylesOut } from "./styles"
@@ -193,6 +216,9 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       CHARTSHEET_REL.test(r.type) ||
       (VBA_REL.test(r.type) && !allowsMacros(fileName)),
   )
+  // Table slicers: their caches are written anew (a file with PivotTable slicers keeps them all as read).
+  const ownSlicers = source?.slicersModelled !== false
+  if (ownSlicers) for (const r of wbRels) if (r.type === REL_SLICER_CACHE && !dropped.includes(r)) dropped.push(r)
   // Links to other workbooks: Cells writes them anew, unless the file had links of other kinds (kept as read).
   const ownLinks = source?.linksModelled !== false
   if (ownLinks) for (const r of wbRels) if (r.type === REL_EXTERNAL_LINK && !dropped.includes(r)) dropped.push(r)
@@ -258,6 +284,41 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   const textLinks = wb.sheets.flatMap((s) => s.queryTables)
   const conns = connectionsXml(source?.keptConnections ?? [], textLinks)
   const usedQueryTables = new Set<string>()
+
+  // One slicer cache per table column with slicers; its name is the file's when it can stay.
+  type Cache = { name: string; tableId: number; column: string; columnId: number; slicer: SheetSlicer }
+  const caches = new Map<string, Cache>()
+  const cacheOf = new Map<SheetSlicer, Cache>()
+  if (ownSlicers) {
+    // The file's slicers parts are written anew.
+    for (const p of [...parts.values()]) if (p.contentType === CT_SLICER) remove(p.name)
+    const taken = new Set(wb.names.all().map((n) => n.name.toUpperCase()))
+    for (const sheet of wb.sheets)
+      for (const o of sheet.objects) {
+        if (isChart(o) || o.kind !== "slicer") continue
+        const target = slicerTarget(wb.sheets, o)
+        if (!target) continue
+        const index = target.col - target.table.range.c0
+        const key = `${target.table.id}:${index}`
+        let cache = caches.get(key)
+        if (!cache) {
+          const name =
+            o.cache && !taken.has(o.cache.toUpperCase())
+              ? o.cache
+              : slicerCacheName(target.table.columns[index].name, taken)
+          taken.add(name.toUpperCase())
+          cache = {
+            name,
+            tableId: target.table.id,
+            column: target.table.columns[index].name,
+            columnId: index + 1,
+            slicer: o,
+          }
+          caches.set(key, cache)
+        }
+        cacheOf.set(o, cache)
+      }
+  }
 
   wb.sheets.forEach((sheet, i) => {
     const s = source?.sheets.get(sheet)
@@ -365,6 +426,19 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
           }),
         )
       : null
+    // The sheet's table slicers, in their own part.
+    let slicers: { relId: string | null } | undefined
+    if (ownSlicers) {
+      const list = sheet.objects.flatMap((o) =>
+        !isChart(o) && o.kind === "slicer" && cacheOf.has(o) ? [{ slicer: o, cache: cacheOf.get(o)!.name }] : [],
+      )
+      slicers = { relId: null }
+      if (list.length) {
+        const part = freeName((n) => `/xl/slicers/slicer${n}.xml`)
+        put(part, CT_SLICER, slicerPartXml(list))
+        slicers.relId = addRel(partName, REL_SLICER, part)
+      }
+    }
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active || (views[i]?.selected ?? false) }
     const written = writeSheet({
       sheet,
@@ -383,6 +457,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       hyperlinkRels,
       picture,
       customSheetViews: customSheetViewsXml(wb, sheet),
+      slicers,
     })
     dynamic ||= written.dynamic
     put(partName, CT_WORKSHEET, written.xml)
@@ -391,6 +466,13 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       `<sheet${attrText({ name: sheet.name, sheetId: i + 1, state: sheet.hidden ? (s?.state === "veryHidden" ? "veryHidden" : "hidden") : undefined })} r:id="${rid}"/>`,
     )
   })
+
+  const cacheRels: string[] = []
+  for (const cache of caches.values()) {
+    const part = freeName((n) => `/xl/slicerCaches/slicerCache${n}.xml`)
+    put(part, CT_SLICER_CACHE, slicerCacheXml(cache))
+    cacheRels.push(addRel(main, REL_SLICER_CACHE, part))
+  }
 
   // Tables that are gone (converted to a range, or their sheet deleted) leave with their parts.
   for (const p of [...parts.values()])
@@ -422,7 +504,12 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   }
 
   // ── workbook.xml ──
-  const namesXml = definedNamesXml(wb, source, links)
+  const namesXml = definedNamesXml(
+    wb,
+    source,
+    links,
+    [...caches.values()].map((c) => c.name),
+  )
   const references: string[] = []
   if (links)
     links.books.forEach((book) => {
@@ -475,6 +562,13 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     const kept: Kept[] = doc.root.children
       .filter((c) => !(c.local in generated))
       .map((c) => ({ local: c.local, xml: raw(doc, c) }))
+    if (ownSlicers) {
+      const ext = kept.find((k) => k.local === "extLst")
+      const rest = ext ? withoutExts(ext.xml, [URI_WB_SLICER_CACHES, URI_WB_PIVOT_SLICER_CACHES]) : ""
+      const xml = cacheRels.length ? withExt(rest || undefined, workbookSlicersExt(cacheRels)) : rest
+      if (ext) ext.xml = xml
+      else if (xml) kept.push({ local: "extLst", xml })
+    }
     // A theme of its own: Excel reads defaultThemeVersion as "Office's theme" and would show that instead.
     if (newTheme)
       for (const k of kept) if (k.local === "workbookPr") k.xml = k.xml.replace(/\s+defaultThemeVersion="[^"]*"/, "")
@@ -485,7 +579,10 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       `<workbook xmlns="${NS_MAIN}" xmlns:r="${NS_R}">` +
       assemble(
         WORKBOOK_ORDER,
-        [{ local: "workbookPr", xml: newTheme ? `<workbookPr/>` : `<workbookPr defaultThemeVersion="202300"/>` }],
+        [
+          { local: "workbookPr", xml: newTheme ? `<workbookPr/>` : `<workbookPr defaultThemeVersion="202300"/>` },
+          ...(cacheRels.length ? [{ local: "extLst", xml: withExt(undefined, workbookSlicersExt(cacheRels)) }] : []),
+        ],
         generated,
       ) +
       `</workbook>`
@@ -568,8 +665,15 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   return writePackage(pkg)
 }
 
-function definedNamesXml(wb: Workbook, source: XlsxSource | null, links: LinkTable | null): string {
+function definedNamesXml(
+  wb: Workbook,
+  source: XlsxSource | null,
+  links: LinkTable | null,
+  slicerCaches: readonly string[] = [],
+): string {
   const items: string[] = []
+  // Each slicer cache has a name of its own, #N/A.
+  for (const name of slicerCaches) items.push(`<definedName name="${name}">#N/A</definedName>`)
   for (const n of wb.names.all()) {
     const ref = links ? links.toFile("=" + n.ref) : "=" + n.ref
     items.push(

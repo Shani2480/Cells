@@ -1,3 +1,4 @@
+import { sheetSlicersExt, URI_SHEET_PIVOT_SLICERS, URI_SHEET_SLICERS, withoutExts } from "./slicers"
 import { sparklineExtXml } from "./sparklines"
 import { editRangesXml } from "./edit-ranges"
 import {
@@ -117,6 +118,8 @@ export type SheetWriteContext = {
   picture?: string | null
   /** View › Custom Views: the sheet's customSheetViews ("" for none). */
   customSheetViews?: string
+  /** Table slicers are written anew: the sheet's slicers part (its relationship id), or null when it has none. */
+  slicers?: { relId: string | null }
 }
 
 export type SheetWritten = { xml: string; dynamic: boolean }
@@ -264,7 +267,14 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
   // The outline bar's depth, which Excel reads to size it.
   const format = kept.find((k) => k.local === "sheetFormatPr")
   if (format) format.xml = withOutlineLevels(format.xml, sheet.rows.maxLevel, sheet.cols.maxLevel)
-  const validationExt = validationExtXml(sheet.validations, rangeRef) + sparklineExtXml(sheet.sparklines)
+  if (ctx.slicers) {
+    const extLst = kept.find((k) => k.local === "extLst")
+    if (extLst) extLst.xml = withoutExts(extLst.xml, [URI_SHEET_SLICERS, URI_SHEET_PIVOT_SLICERS])
+  }
+  const validationExt =
+    validationExtXml(sheet.validations, rangeRef) +
+    sparklineExtXml(sheet.sparklines) +
+    (ctx.slicers?.relId ? sheetSlicersExt(ctx.slicers.relId) : "")
   if (validationExt) {
     const extLst = kept.find((k) => k.local === "extLst")
     if (extLst) extLst.xml = withExt(extLst.xml, validationExt)

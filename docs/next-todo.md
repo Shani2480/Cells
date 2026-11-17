@@ -199,6 +199,15 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Sparklines step 2: Insert › Sparklines (Create Sparklines), the Sparkline tab (Edit Data, Type, Show, Style,
         colours, Axis, Group / Ungroup, Clear). Not yet: the cell menu's Sparklines ›, copying and filling cells with
         sparklines, picking ranges on the sheet while the dialog is open
+  - [x] Slicers step 1: table slicers from Excel files shown and used (core slicers.ts: items, filter, Excel's 14
+        styles from the theme; x15 slicer caches, slicers parts and sle:slicer frames written anew; click, Ctrl+click,
+        Shift+click, Multi-Select, Clear Filter, wheel scrolling; follow a renamed header). Checked against Excel's
+        pictures of all 14 styles and opened in Excel 365. A file with PivotTable slicers keeps all slicers as read.
+  - [ ] Slicers step 2: Insert › Slicer and Table Design › Insert Slicer (Insert Slicers dialog), the Slicer tab
+        (caption, Slicer Settings, Report Connections greyed, style gallery, columns, button and slicer size,
+        arrange), the Format Slicer pane; copying a sheet links its slicers to the copied table
+  - [ ] Quick Analysis (Ctrl+Q)
+  - Timelines go with Part 10 (Excel only links them to PivotTables)
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
       GitHub issue the person reviews), Show Training

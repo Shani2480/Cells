@@ -1038,19 +1038,21 @@ function WorkbookWindow({
       ? TABS_IN_SMARTART
       : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
         ? TABS_IN_MODEL3D
-        : drawings.length && drawings.every((o) => o.kind === "picture")
-          ? TABS_IN_PICTURE
-          : drawings.length
-            ? drawings.length === 1 && isEquation(drawings[0])
-              ? TABS_IN_EQUATION
-              : TABS_IN_SHAPE
-            : controller.sparklines.active()
-              ? controller.tables.active()
-                ? TABS_IN_TABLE_SPARKLINE
-                : TABS_IN_SPARKLINE
-              : controller.tables.active()
-                ? TABS_IN_TABLE
-                : TABS
+        : drawings.length && drawings.every((o) => o.kind === "slicer")
+          ? TABS
+          : drawings.length && drawings.every((o) => o.kind === "picture")
+            ? TABS_IN_PICTURE
+            : drawings.length
+              ? drawings.length === 1 && isEquation(drawings[0])
+                ? TABS_IN_EQUATION
+                : TABS_IN_SHAPE
+              : controller.sparklines.active()
+                ? controller.tables.active()
+                  ? TABS_IN_TABLE_SPARKLINE
+                  : TABS_IN_SPARKLINE
+                : controller.tables.active()
+                  ? TABS_IN_TABLE
+                  : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 

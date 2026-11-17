@@ -241,7 +241,42 @@ export type SmartArtParts = { data: string; layout: string; quickStyle: string; 
 export const copySmartArtNodes = (nodes: SmartArtNode[]): SmartArtNode[] =>
   nodes.map((n) => ({ text: n.text, children: copySmartArtNodes(n.children) }))
 
-export type DrawingObject = SheetShape | SheetPicture | SheetGroup
+/**
+ * Insert › Slicer (for a table): buttons for the values of one table column; picking them filters the table. What is
+ * picked lives in the table's own filter, as in Excel.
+ */
+export type SheetSlicer = ObjectBase & {
+  kind: "slicer"
+  /** The table it filters (its id) and the column (its name). */
+  table: number
+  column: string
+  caption: string
+  /** Display header (the caption and the Multi-Select and Clear Filter buttons). */
+  header: boolean
+  /** A built-in style ("SlicerStyleLight1"). */
+  style: string
+  /** Buttons across. */
+  columns: number
+  /** Each button's height (px at 100%). */
+  buttonHeight: number
+  sort: "ascending" | "descending"
+  /** Slicer Settings › Use Custom Lists when sorting. */
+  customLists: boolean
+  /** Items with no data: shown last (Excel's default), shown in place, or not told apart ("none"). */
+  crossFilter: "showItemsWithDataAtTop" | "showItemsWithNoData" | "none"
+  /** Slicer Settings › Hide items with no data. */
+  hideNoData?: boolean
+  /** Disable resizing and moving. */
+  locked?: boolean
+  /** The first button shown (the slicer scrolled down). */
+  startItem?: number
+  /** Excel's names for the slicer's cache ("Slicer_Region") and ids, kept when saved. */
+  cache?: string
+  uid?: string
+  cacheUid?: string
+}
+
+export type DrawingObject = SheetShape | SheetPicture | SheetGroup | SheetSlicer
 export type GroupItem = DrawingObject | SheetChart
 /** Everything in a sheet's drawing, in order. */
 export type SheetObject = DrawingObject | SheetChart
@@ -271,6 +306,8 @@ export function copyObject<T extends SheetObject>(o: T): T {
           glow: s.wordArt.effects.glow && { ...s.wordArt.effects.glow },
         },
       }
+  } else if (out.kind === "slicer") {
+    // Nothing nested.
   } else if (out.kind === "picture") {
     const p = o as SheetPicture
     if (p.crop) out.crop = { ...p.crop }
@@ -387,9 +424,10 @@ export function copiedSheetObjects(
 
 /** Excel's names for new objects: "Rectangle 3", "TextBox 1"… numbered by the id, as Excel does. */
 export function objectName(
-  o: { kind: DrawingObject["kind"]; geometry?: string; textBox?: boolean; icon?: boolean },
+  o: { kind: DrawingObject["kind"]; geometry?: string; textBox?: boolean; icon?: boolean; caption?: string },
   id: number,
 ): string {
+  if (o.kind === "slicer") return `${o.caption ?? "Slicer"} ${id}`
   if (o.kind === "picture") return `${o.icon ? "Graphic" : "Picture"} ${id}`
   if (o.kind === "group") return `Group ${id}`
   if (o.textBox) return `TextBox ${id}`

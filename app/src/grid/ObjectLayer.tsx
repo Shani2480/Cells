@@ -2,7 +2,10 @@ import { renderChart } from "@cells/chart"
 import {
   isChart,
   plainText,
+  slicerLayout,
+  slicerTarget,
   type DrawingObject,
+  type SheetSlicer,
   type Model3D,
   type SheetChart,
   type SheetObject,
@@ -185,6 +188,8 @@ export function ObjectLayer({
     const out = new Map<number, { svg: string; box: ChartBox }>()
     for (const o of sheet.objects) {
       if (!isChart(o) && o.hidden) continue
+      // A slicer whose table (or column) is gone isn't shown; undo brings it back with the table.
+      if (!isChart(o) && o.kind === "slicer" && !slicerTarget(controller.wb.sheets, o)) continue
       const box = chartBox(sheet, o.anchor)
       out.set(o.id, { svg: picture(controller, o, box, theme), box })
     }
@@ -281,6 +286,51 @@ export function ObjectLayer({
     }
     capture(event)
   }
+  /**
+   * A press on a slicer: its buttons pick (Ctrl turns one on or off, Shift picks a run), the header's buttons clear
+   * the filter or turn Multi-Select on; anywhere else moves it like any object. True when the slicer took it.
+   */
+  const slicerPress = (event: React.PointerEvent, o: SheetSlicer, box: ChartBox): boolean => {
+    if (event.button !== 0 || event.altKey) return false
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+    const x = (event.clientX - rect.left) / zoom
+    const y = (event.clientY - rect.top) / zoom
+    const view = controller.slicers.view(o)
+    const at = slicerLayout(o, box.w, box.h, view.items.length)
+    const inside = (b: { x: number; y: number; w: number; h: number } | null) =>
+      !!b && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h
+    const button = at.buttons.findIndex(inside)
+    if (inside(at.clear)) controller.slicers.clear(o)
+    else if (inside(at.multi)) controller.slicers.toggleMulti(o)
+    else if (button >= 0) {
+      const how = event.shiftKey ? "range" : event.ctrlKey || event.metaKey ? "toggle" : "only"
+      controller.slicers.pick(o, view.items[at.first + button].key, how)
+    } else return false
+    event.stopPropagation()
+    event.preventDefault()
+    if (!(objects.selected.length === 1 && objects.selected[0] === o.id)) objects.select(o.id)
+    return true
+  }
+
+  // The wheel over a slicer with more buttons than fit scrolls them (and not the sheet).
+  useEffect(() => {
+    const el = layer.current
+    if (!el) return
+    const onWheel = (event: WheelEvent) => {
+      const frame = (event.target as HTMLElement).closest<HTMLElement>("[data-object]")
+      const o = frame ? objects.find(Number(frame.dataset.object)) : null
+      if (!o || isChart(o) || o.kind !== "slicer") return
+      const box = chartBox(controller.sheet, o.anchor)
+      const at = slicerLayout(o, box.w, box.h, controller.slicers.view(o).items.length)
+      if (!at.scroll) return
+      event.preventDefault()
+      event.stopPropagation()
+      controller.slicers.scroll(o, Math.sign(event.deltaY), at.scroll.shown, at.scroll.total)
+    }
+    el.addEventListener("wheel", onWheel, { passive: false })
+    return () => el.removeEventListener("wheel", onWheel)
+  })
+
   // A 3D model keeps its proportions as it's sized (its picture is of the model, not stretched).
   const isModel = (id: number) => {
     const o = objects.find(id)
@@ -359,13 +409,16 @@ export function ObjectLayer({
         return (
           <div
             key={o.id}
-            className={`object-frame${isChart(o) ? " is-chart chart-frame" : ""}${selected ? " is-selected" : ""}`}
+            className={`object-frame${isChart(o) ? " is-chart chart-frame" : ""}${!isChart(o) && o.kind === "slicer" ? " is-slicer" : ""}${selected ? " is-selected" : ""}`}
             style={{ ...toScreen(o, p.box), transform: rotation ? `rotate(${rotation}deg)` : undefined }}
             role="img"
             aria-label={o.name}
             data-object={o.id}
             data-chart={isChart(o) ? o.id : undefined}
-            onPointerDown={(event) => begin(event, o, "move")}
+            onPointerDown={(event) => {
+              if (!isChart(o) && o.kind === "slicer" && slicerPress(event, o, p.box)) return
+              begin(event, o, "move")
+            }}
             onPointerMove={move}
             onPointerUp={end}
             onPointerCancel={() => {
@@ -373,7 +426,7 @@ export function ObjectLayer({
               setDrag(null)
             }}
             onDoubleClick={(event) => {
-              if (isChart(o)) return
+              if (isChart(o) || o.kind === "slicer") return
               event.stopPropagation()
               // A signature line opens its setup (signing needs a digital ID, which Cells doesn't have).
               if (o.kind === "picture" && o.signature) controller.shell.openDialog?.(`signatureSetup:${o.id}`)
@@ -425,7 +478,7 @@ export function ObjectLayer({
                 <Rotate3d size={22} strokeWidth={1.75} aria-hidden />
               </span>
             ) : null}
-            {single && !editing && !isChart(o) && !(o.kind === "picture" && o.model3d) ? (
+            {single && !editing && !isChart(o) && o.kind !== "slicer" && !(o.kind === "picture" && o.model3d) ? (
               <span
                 className="object-rotate"
                 title="Rotate"

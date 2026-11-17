@@ -263,7 +263,7 @@ export function objectCommands(): Command[] {
       menu: [
         colorMenu("No Outline", (env, color) =>
           env.c.objects.update("Shape Outline", (o) => {
-            if (isChart(o) || o.kind === "group") return
+            if (isChart(o) || o.kind === "group" || o.kind === "slicer") return
             const line = o.kind === "shape" ? o.line : (o.line ?? { color: null, width: 0.75 })
             o.line = { ...line, color, width: line.width || 0.75 }
           }),
@@ -280,7 +280,7 @@ export function objectCommands(): Command[] {
       label: `${w} pt`,
       run: (env) =>
         env.c.objects.update("Outline Weight", (o) => {
-          if (isChart(o) || o.kind === "group") return
+          if (isChart(o) || o.kind === "group" || o.kind === "slicer") return
           const line = o.kind === "shape" ? o.line : (o.line ?? { color: { theme: "dk1" }, width: w })
           o.line = { ...line, width: w, color: line.color ?? { theme: "dk1" } }
         }),

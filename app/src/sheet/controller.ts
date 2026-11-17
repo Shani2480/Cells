@@ -1,3 +1,4 @@
+import { SlicerCommands } from "./slicers"
 import { SparklineCommands, type SparklineDialogInit } from "./sparklines"
 import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
@@ -393,6 +394,7 @@ export class SheetController {
   readonly hyperlinks: HyperlinkCommands = new HyperlinkCommands(this)
   /** Insert › Sparklines and the Sparkline tab. */
   readonly sparklines: SparklineCommands = new SparklineCommands(this)
+  readonly slicers: SlicerCommands = new SlicerCommands(this)
   readonly audit: AuditCommands = new AuditCommands(this)
   readonly outline: OutlineCommands = new OutlineCommands(this)
   /** Data › Data Validation. */

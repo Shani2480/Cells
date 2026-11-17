@@ -460,12 +460,14 @@ export class DataCommands {
    * The ops that set a filter and show and hide its rows (null: the filter goes and every row it hid shows). `host`
    * is the filter being changed (null: a new sheet AutoFilter).
    */
-  filterOps(host: FilterHost | null, filter: AutoFilter | null): Op[] {
-    const sheet = this.c.sheet
+  filterOps(host: FilterHost | null, filter: AutoFilter | null, at = this.c.sheetIndex): Op[] {
+    const sheet = this.c.wb.sheets[at]
     const old = host?.filter ?? null
     const shown = filter ?? (old ? { range: old.range, columns: {} } : null)
-    const rows = shown ? filterRowEntries(sheet, this.c.wb.styles, shown, todaySerial(), this.look) : []
-    const index = this.c.sheetIndex
+    // The conditional formats' look is the active sheet's (Filter by Color and Icon there).
+    const look = at === this.c.sheetIndex ? this.look : undefined
+    const rows = shown ? filterRowEntries(sheet, this.c.wb.styles, shown, todaySerial(), look) : []
+    const index = at
     if (host?.table) {
       const table = host.table
       const tables = sheet.tables.map((t) => (t === table ? { ...copyTable(t), autoFilter: filter } : t))

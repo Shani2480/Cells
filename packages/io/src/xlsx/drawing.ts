@@ -10,9 +10,11 @@ import {
 import {
   dataUrl,
   dataUrlBytes,
+  DEFAULT_SLICER_STYLE,
   isChart,
   PICTURE_TYPES,
   readChartData,
+  slicerTarget,
   type ChartAnchor,
   type ChartCorner,
   type DrawingObject,
@@ -20,6 +22,7 @@ import {
   type SheetChart,
   type SheetObject,
   type SheetPicture,
+  type SheetSlicer,
   type SignatureSetup,
   type Workbook,
 } from "@cells/core"
@@ -29,6 +32,7 @@ import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
 import { objectKey, objectWithMathXml, readObject } from "./shapes"
 import { isEmbeddedObject } from "./ole-objects"
 import { CT_GLB, model3dNode, readModel3d, REL_MODEL3D } from "./model3d"
+import { slicerFrameName, slicerFrameXml, type SlicerRead } from "./slicers"
 import { CT_DGM, readSmartArt, REL_DGM, smartArtFrameXml, smartArtRelIds } from "./smartart"
 
 export const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
@@ -98,6 +102,8 @@ export function readDrawing(
   warnings: string[],
   bytes: (partName: string | null | undefined) => { data: Uint8Array; contentType: string } | undefined = () =>
     undefined,
+  /** The sheet's table slicers by name (absent: slicers are kept as read). */
+  slicers?: ReadonlyMap<string, SlicerRead>,
 ): DrawingSource {
   const doc = parseTree(xml)
   const source: DrawingSource = {
@@ -127,6 +133,41 @@ export function readDrawing(
   let unread = 0
   for (const anchor of doc.root.children) {
     const placed = anchorOf(sheet, anchor)
+    // A table slicer: its settings come from the sheet's slicers part (its table and column from its cache).
+    const slicerName = slicers && placed ? slicerFrameName(anchor) : null
+    const def = slicerName !== null ? slicers?.get(slicerName) : undefined
+    if (def && placed) {
+      const nv = kid(
+        kid(kid(kids(kid(anchor, "AlternateContent"), "Choice")[0], "graphicFrame"), "nvGraphicFramePr"),
+        "cNvPr",
+      )
+      const slicer: SheetSlicer = {
+        kind: "slicer",
+        id: nextId(),
+        name: def.name,
+        anchor: placed.anchor,
+        table: -1,
+        column: "",
+        caption: def.caption,
+        header: def.header,
+        style: def.style ?? DEFAULT_SLICER_STYLE,
+        columns: def.columns,
+        buttonHeight: def.buttonHeight,
+        sort: "ascending",
+        customLists: true,
+        crossFilter: "showItemsWithDataAtTop",
+        cache: def.cache,
+      }
+      if (placed.placement) slicer.placement = placed.placement
+      if (def.startItem) slicer.startItem = def.startItem
+      if (def.locked) slicer.locked = true
+      if (def.uid) slicer.uid = def.uid
+      const descr = at(nv, "descr")
+      if (descr) slicer.altText = descr
+      if (at(nv, "hidden") === "1" || at(nv, "hidden") === "true") slicer.hidden = true
+      sheet.objects.push(slicer)
+      continue
+    }
     // Excel 2010's form of a shape holding an equation: the Choice (Office Math), with a fallback for older readers.
     const alternate = kid(anchor, "AlternateContent")
     const choice = kids(alternate, "Choice").find((c) => /\ba14\b/.test(at(c, "Requires") ?? ""))
@@ -263,7 +304,13 @@ export function writeDrawing(
 ): string | null {
   const used = new Set<number>()
   // Signature lines and embedded objects go in the VML drawing (vml.ts, ole-objects.ts), not this one.
-  const drawn = sheet.objects.filter((o) => !isSignatureLine(o) && !isEmbeddedObject(o))
+  // A slicer whose table or column is gone goes with it, as in Excel.
+  const drawn = sheet.objects.filter(
+    (o) =>
+      !isSignatureLine(o) &&
+      !isEmbeddedObject(o) &&
+      (isChart(o) || o.kind !== "slicer" || slicerTarget(wb.sheets, o) !== null),
+  )
   if (!drawn.length && !source?.kept.length) {
     if (source) {
       for (const c of source.charts.values()) out.removeTree(c.partName)
@@ -320,6 +367,10 @@ export function writeDrawing(
         object.source.key === objectKey(object)
       if (same) rawUsed.add(object.source!.xml)
       const parts = object.kind === "group" ? object.smartArt?.parts : undefined
+      if (object.kind === "slicer") {
+        anchors.push(placedXml(object.anchor, object.placement, slicerFrameXml(object, ++shapeId, box)))
+        continue
+      }
       const xml = same
         ? object.source!.xml
         : parts

@@ -7,6 +7,7 @@ import {
   type Sheet,
   type Theme,
   type WorkbookProtection,
+  isChart,
   objectName,
 } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
@@ -42,6 +43,7 @@ import {
 import { readPrintArea, readPrintTitles, type PageSetupExtras } from "./page-setup"
 import { formulaFromFile } from "./formula"
 import { hyperlinkAddress } from "./hyperlinks"
+import { readSlicerCache, readSlicerPart, REL_SLICER, REL_SLICER_CACHE, type SlicerCacheRead } from "./slicers"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
 import { readTable, structuredFromFile } from "./table"
@@ -83,6 +85,8 @@ export type XlsxSource = {
   keptConnections: ConnectionIn[]
   /** The file's links to other workbooks are in wb.links (false: some are of other kinds, kept as read). */
   linksModelled: boolean
+  /** The file's slicers are table slicers Cells reads and writes anew (false: kept as read). */
+  slicersModelled?: boolean
   /** The theme as read, so a save rewrites the theme part only when it changed. */
   theme?: Theme
 }
@@ -217,6 +221,19 @@ export async function openXlsx(
     return id
   }
 
+  // Table slicers: their caches (table and column); a file with PivotTable slicers keeps all slicers as read.
+  const cacheRels = wbRels.filter((r) => r.type === REL_SLICER_CACHE && r.partName)
+  const slicerCaches = new Map<string, SlicerCacheRead>()
+  let slicersModelled = true
+  for (const r of cacheRels) {
+    const c = readSlicerCache(partText(pkg, r.partName) ?? "")
+    if (c) slicerCaches.set(c.name, c)
+    else slicersModelled = false
+  }
+  /** Each table's column ids (slicer caches name a column by its id). */
+  const tableColumnIds = new Map<number, number[]>()
+  const slicerSheets = new Map<Sheet, number>()
+
   const views: SheetView[] = []
   const customSheetViews = new Map<Sheet, CustomSheetViewRead[]>()
   const sheetSources = new WeakMap<Sheet, SheetSource>()
@@ -280,19 +297,35 @@ export async function openXlsx(
     const tables: { id: number; partName: string }[] = []
     for (const r of rels) {
       if (r.type !== REL_TABLE || !r.partName) continue
-      const table = readTable(partText(pkg, r.partName) ?? "", styles, warnings)
+      const tableXml = partText(pkg, r.partName) ?? ""
+      const table = readTable(tableXml, styles, warnings)
       if (!table) {
         warnings.push(`A table on ${sheet.name} couldn't be read; it was left out.`)
         continue
       }
       sheet.tables.push(table)
       tables.push({ id: table.id, partName: r.partName })
+      if (cacheRels.length)
+        tableColumnIds.set(
+          table.id,
+          [...tableXml.matchAll(/<(?:\w+:)?tableColumn\b[^>]*?\bid="(\d+)"/g)].map((m) => Number(m[1])),
+        )
     }
     for (const r of rels) {
       if (r.type !== REL_QUERY_TABLE || !r.partName) continue
       const q = readQueryTable(partText(pkg, r.partName) ?? null)
       if (q && connections.get(q.connectionId)?.text) linked.push({ sheet, relId: r.id, ...q })
     }
+    const slicerDefs =
+      slicersModelled && cacheRels.length
+        ? new Map(
+            rels
+              .filter((r) => r.type === REL_SLICER && r.partName)
+              .flatMap((r) => readSlicerPart(partText(pkg, r.partName) ?? ""))
+              .map((d) => [d.name, d] as const),
+          )
+        : undefined
+    if (slicerDefs?.size) slicerSheets.set(sheet, i)
     const drawingRel = rels.find((r) => r.id === read.drawing && r.type === REL_DRAWING)
     const drawingXml = partText(pkg, drawingRel?.partName)
     const drawing =
@@ -309,6 +342,7 @@ export async function openXlsx(
               const part = name ? findPart(pkg, name) : undefined
               return part ? { data: part.data, contentType: part.contentType } : undefined
             },
+            slicerDefs,
           )
         : undefined
     // Signature lines (Insert › Signature Line) live in the notes' VML drawing.
@@ -379,6 +413,7 @@ export async function openXlsx(
           r.type !== REL_THREADED &&
           r.type !== REL_TABLE &&
           r.type !== REL_HYPERLINK &&
+          !(slicerDefs && r.type === REL_SLICER) &&
           !(drawing && r.id === read.drawing) &&
           !(picturePart && r.id === read.picture) &&
           r.type !== REL_OLE_OBJECT &&
@@ -392,6 +427,35 @@ export async function openXlsx(
     })
     views.push(read.view)
     before += sizes[i]
+  }
+
+  // Each slicer's table and column, from its cache; one whose table or column is gone is left out.
+  for (const sheet of slicerSheets.keys()) {
+    const lost: number[] = []
+    for (const o of sheet.objects) {
+      if (isChart(o) || o.kind !== "slicer") continue
+      const cache = slicerCaches.get(o.cache ?? "")
+      const table = cache && wb.sheets.flatMap((s) => s.tables).find((t) => t.id === cache.tableId)
+      const index = cache && table ? (tableColumnIds.get(table.id) ?? []).indexOf(cache.columnId) : -1
+      const column = table?.columns[index]
+      if (!cache || !table || !column) {
+        lost.push(o.id)
+        continue
+      }
+      Object.assign(o, {
+        table: table.id,
+        column: column.name,
+        sort: cache.sort,
+        customLists: cache.customLists,
+        crossFilter: cache.crossFilter,
+      })
+      if (cache.hideNoData) o.hideNoData = true
+      if (cache.uid) o.cacheUid = cache.uid
+    }
+    if (lost.length) {
+      sheet.objects = sheet.objects.filter((o) => !lost.includes(o.id))
+      warnings.push(`A slicer on ${sheet.name} couldn't be read; it was left out.`)
+    }
   }
 
   // Structured references as Excel shows them ([@Qty], no table name inside the table), now that the tables are known.
@@ -436,6 +500,8 @@ export async function openXlsx(
     const hidden = at(n, "hidden") === "1" || at(n, "hidden") === "true"
     // The filter's hidden name is written anew from each sheet's AutoFilter.
     if (name === "_xlnm._FilterDatabase") continue
+    // A slicer cache's name (#N/A) is written anew with its cache.
+    if (slicersModelled && slicerCaches.has(name)) continue
     // The print area and titles belong to the sheet's page setup (written anew from it).
     const sheetOf = at(n, "localSheetId") !== undefined ? wb.sheets[Number(at(n, "localSheetId"))] : undefined
     if (sheetOf && name === "_xlnm.Print_Area") {
@@ -541,6 +607,7 @@ export async function openXlsx(
       dynamic,
       keptConnections,
       linksModelled,
+      slicersModelled,
       theme: themeXml ? copyTheme(wb.theme) : undefined,
     },
     warnings: [...new Set(warnings)],

@@ -2757,6 +2757,10 @@
   pointer-events: auto;
   touch-action: none;
 }
+/* A slicer's buttons are clicked, not dragged (its header and edges still move it). */
+.object-frame.is-slicer {
+  cursor: default;
+}
 
 .object-frame.is-chart {
   cursor: default;
