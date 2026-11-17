@@ -3181,3 +3181,109 @@
 .selection-eye:hover {
   background: var(--app-hover);
 }
+
+/* ── Insert › Equation and the Equation tab ── */
+
+.math-picture {
+  display: block;
+  overflow: visible;
+}
+
+.math-icon {
+  display: grid;
+  place-items: center;
+  color: var(--app-ribbon-text);
+}
+
+.math-icon.is-16 {
+  width: 16px;
+  height: 16px;
+}
+
+.math-icon.is-32 {
+  width: 32px;
+  height: 32px;
+}
+
+.math-icon.is-16 .math-picture,
+.math-icon.is-32 .math-picture {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.equation-gallery {
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.equation-gallery-heading {
+  padding: 4px 10px;
+  background: var(--app-hover);
+  color: var(--app-ribbon-text);
+  font-weight: 600;
+}
+
+.equation-gallery-item,
+.equation-structure,
+.equation-symbol {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  cursor: pointer;
+}
+
+.equation-gallery-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 6px;
+  padding: 6px 8px 10px;
+}
+
+.equation-gallery-name {
+  align-self: flex-start;
+  font-weight: 600;
+}
+
+.equation-symbols {
+  display: grid;
+  grid-template-columns: repeat(10, 28px);
+  gap: 1px;
+  padding: 6px;
+}
+
+.equation-symbol {
+  height: 28px;
+  font: 16px/1 "Cambria Math", "STIX Two Math", "DejaVu Math TeX Gyre", serif;
+}
+
+.equation-structures {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 4px;
+  padding: 8px;
+}
+
+.equation-structure {
+  display: grid;
+  place-items: center;
+  height: 64px;
+}
+
+.equation-gallery-item:hover,
+.equation-structure:hover,
+.equation-symbol:hover {
+  border-color: var(--app-field-focus);
+  background: var(--app-hover);
+}
+
+.math-icon.is-linear {
+  font: italic 9px/1 "Cambria Math", "STIX Two Math", "DejaVu Math TeX Gyre", serif;
+  letter-spacing: -0.02em;
+}

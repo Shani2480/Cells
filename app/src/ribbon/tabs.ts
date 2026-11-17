@@ -493,6 +493,40 @@ const ARRANGE: Group = {
 
 const SIZE: Group = { id: "GroupSize", label: "Size", columns: [smalls(F("ShapeHeight"), F("ShapeWidth"))] }
 
+/** Equation, while an equation is selected (beside Shape Format, as in Excel). */
+export const EQUATION: Tab = {
+  id: "TabEquationToolsDesign",
+  label: "Equation",
+  keytip: "JE",
+  contextual: true,
+  groups: [
+    { id: "GroupEquationTools", label: "Tools", columns: [L("InsertBuildingBlocksEquationsGallery", "Equation")] },
+    {
+      id: "GroupEquationConversions",
+      label: "Conversions",
+      columns: [smalls(S("EquationProfessional"), S("EquationLinearFormat"))],
+    },
+    { id: "GroupEquationSymbols", label: "Symbols", columns: [L("EquationSymbolsGallery", "Symbols")] },
+    {
+      id: "GroupEquationStructures",
+      label: "Structures",
+      columns: [
+        L("EquationFractionGallery", "Fraction"),
+        L("EquationScriptGallery", "Script"),
+        L("EquationRadicalGallery", "Radical"),
+        L("EquationIntegralGallery", "Integral"),
+        L("EquationLargeOperatorGallery", "Large Operator"),
+        L("EquationBracketGallery", "Bracket"),
+        L("EquationFunctionGallery", "Function"),
+        L("EquationAccentGallery", "Accent"),
+        L("EquationLimitLogGallery", "Limit and Log"),
+        L("EquationOperatorGallery", "Operator"),
+        L("EquationMatrixGallery", "Matrix"),
+      ],
+    },
+  ],
+}
+
 /** Shape Format, while a shape, text box or WordArt is selected. */
 export const SHAPE_FORMAT: Tab = {
   id: "TabDrawingToolsFormat",

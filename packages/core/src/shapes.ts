@@ -1,4 +1,6 @@
 import { copiedSheetCharts, copyChart, nextChartId, type ChartAnchor, type SheetChart } from "./chart"
+import { parseLinear, toLinear } from "./math/linear"
+import type { MathList } from "./math/model"
 import type { Sheet } from "./sheet"
 
 /**
@@ -57,7 +59,15 @@ export type TextRun = {
   color?: ShapeColor
 }
 
-export type TextParagraph = { align?: "l" | "ctr" | "r" | "just"; runs: TextRun[] }
+export type TextParagraph = {
+  align?: "l" | "ctr" | "r" | "just"
+  runs: TextRun[]
+  /**
+   * Insert › Equation: the paragraph is an equation (Office's math paragraph), its lines as math trees. `runs` then
+   * holds one run without text for the equation's look (size, colour).
+   */
+  math?: MathList[]
+}
 
 /** Text in a shape or text box: paragraphs, where it sits, and its insets (pixels). */
 export type ShapeText = {
@@ -245,14 +255,37 @@ export function copyText(t: ShapeText): ShapeText {
     paragraphs: t.paragraphs.map((p) => ({
       ...p,
       runs: p.runs.map((r) => ({ ...r, color: r.color && copyColor(r.color) })),
+      ...(p.math ? { math: JSON.parse(JSON.stringify(p.math)) as MathList[] } : {}),
     })),
   }
 }
 
 /** The text of a shape as plain lines (for the Selection Pane, Find, accessibility and copying). */
 export function plainText(text: ShapeText | undefined): string {
-  return text ? text.paragraphs.map((p) => p.runs.map((r) => r.text).join("")).join("\n") : ""
+  if (!text) return ""
+  // An equation as its linear text (Office's Linear format), a line each.
+  return text.paragraphs
+    .map((p) => (p.math ? p.math.map(toLinear).join("\n") : p.runs.map((r) => r.text).join("")))
+    .join("\n")
 }
+
+/** An equation's text from its linear form: a line per equation line, in the equation's look. */
+export function equationFromLinear(value: string, like?: ShapeText): ShapeText {
+  const para = like?.paragraphs.find((p) => p.math)
+  const look = para?.runs[0] ?? { text: "" }
+  const lines = value.split("\n").filter((l) => l.trim())
+  if (!lines.length) lines.push("")
+  return {
+    ...(like ? copyText(like) : {}),
+    paragraphs: [
+      { ...(para?.align ? { align: para.align } : {}), runs: [{ ...look, text: "" }], math: lines.map(parseLinear) },
+    ],
+  }
+}
+
+/** Insert › Equation: a shape whose text is an equation. */
+export const isEquation = (o: SheetObject | undefined | null): o is SheetShape =>
+  !!o && !isChart(o) && o.kind === "shape" && !!o.text?.paragraphs.some((p) => p.math)
 
 /** Text as one paragraph per line, every run in the first run's format (typing into a shape). */
 export function textFromPlain(value: string, like?: ShapeText): ShapeText {

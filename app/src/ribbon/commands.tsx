@@ -3,6 +3,7 @@ import { pageLayoutCommands } from "./page-layout-commands"
 import { themeCommands } from "./theme-commands"
 import { insertObjectCommands } from "./insert-object-commands"
 import { windowCommands } from "./window-commands"
+import { equationCommands } from "./equation-commands"
 import { Calculator, CircleHelp, Columns2, Eye, Scan, Snowflake, Sparkles, Table2, ZoomIn } from "lucide-react"
 import labels from "./excel-labels.json"
 import { conditionalCommands } from "./cf-commands"
@@ -16,7 +17,7 @@ import { pictureFor } from "./pictures"
 import { qatCommands } from "./qat-commands"
 import { reviewCommands } from "./review-commands"
 import { CommandRegistry, type Command, type RibbonEnv } from "./registry"
-import { CHART_DESIGN, PICTURE_FORMAT, SHAPE_FORMAT, TABLE_DESIGN, TABS, controlIds } from "./tabs"
+import { CHART_DESIGN, EQUATION, PICTURE_FORMAT, SHAPE_FORMAT, TABLE_DESIGN, TABS, controlIds } from "./tabs"
 import { chartCommands } from "./chart-commands"
 import { objectCommands } from "./object-commands"
 import { tableCommands } from "./table-commands"
@@ -368,6 +369,7 @@ export function allCommands(): Command[] {
     ...themeCommands(),
     ...windowCommands(),
     ...insertObjectCommands(),
+    ...equationCommands(),
     ...linkCommands(),
     ...otherCommands(),
   ]
@@ -375,7 +377,7 @@ export function allCommands(): Command[] {
 
 export function buildRegistry(): CommandRegistry {
   const registry = new CommandRegistry().add(...allCommands())
-  for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN, SHAPE_FORMAT, PICTURE_FORMAT]) {
+  for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN, SHAPE_FORMAT, PICTURE_FORMAT, EQUATION]) {
     for (const id of controlIds(tab)) {
       if (!registry.get(id)) registry.add({ id, label: LABELS[id] ?? excelLabel(id) ?? id })
     }

@@ -22,6 +22,7 @@ import {
   LargeButton,
   RibbonLabel,
   SmallButton,
+  focusAfterCommand,
   focusSheet,
 } from "./controls"
 import { fitGroups, type GroupWidths, type Level } from "./fit"
@@ -138,7 +139,7 @@ export function Ribbon({
   const afterRun = useCallback(() => {
     setPeek(false)
     setKt(null)
-    focusSheet()
+    focusAfterCommand()
   }, [])
 
   const keytips = useMemo(() => (kt?.stage === "tab" ? keytipsFor(tab, registry, kt.typed) : null), [kt, tab, registry])

@@ -1,5 +1,6 @@
 import { embedSvg } from "./embed"
 import { signatureSvg } from "./signature"
+import { layoutEquation, type MathBox } from "./math"
 import {
   colorCss,
   isChart,
@@ -101,7 +102,14 @@ function markers(id: string, l: ShapeLine, theme: Theme): { defs: string; attrs:
 
 // ── Text ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-type Line = { runs: { run: TextRun; text: string; w: number }[]; w: number; h: number; align: string }
+type Line = {
+  runs: { run: TextRun; text: string; w: number }[]
+  w: number
+  h: number
+  align: string
+  /** An equation's line (Insert › Equation), drawn in the paragraph's colour. */
+  math?: { box: MathBox; color?: ShapeColor }
+}
 
 const runFont = (r: TextRun, theme: Theme) =>
   `${r.italic ? "italic " : ""}${r.bold ? "700 " : ""}${n((r.size ?? 11) * PT)}px "${r.font ?? theme.fonts.minor}", "Aptos", "Calibri", sans-serif`
@@ -110,6 +118,30 @@ const runFont = (r: TextRun, theme: Theme) =>
 export function layoutText(text: ShapeText, width: number, theme: Theme, measure: Measure): Line[] {
   const lines: Line[] = []
   for (const p of text.paragraphs) {
+    if (p.math) {
+      const look = p.runs[0]
+      const px = (look?.size ?? 11) * PT
+      if (p.math.every((l) => !l.length)) {
+        // A new, empty equation: Office's prompt, in grey.
+        const prompt: TextRun = {
+          ...look,
+          text: "Type equation here.",
+          color: { theme: "dk1", lumMod: 0.5, lumOff: 0.5 },
+        }
+        const w = measure(prompt.text, runFont(prompt, theme))
+        lines.push({ runs: [{ run: prompt, text: prompt.text, w }], w, h: px * 1.2, align: "ctr" })
+        continue
+      }
+      for (const box of layoutEquation(p.math, px, "currentColor", measure))
+        lines.push({
+          runs: [],
+          w: box.w,
+          h: box.a + box.d + px * 0.3,
+          align: p.align ?? "ctr",
+          math: { box, color: look?.color },
+        })
+      continue
+    }
     const align = p.align ?? "l"
     const size = Math.max(...p.runs.map((r) => r.size ?? 11), p.runs.length ? 0 : 11)
     const lineH = size * PT * 1.2
@@ -136,6 +168,15 @@ export function layoutText(text: ShapeText, width: number, theme: Theme, measure
   return lines
 }
 
+/** The box an equation's text needs (its insets included), to fit the shape to it as Office does. */
+export function textSize(text: ShapeText, theme: Theme, measure: Measure = canvasMeasure): { w: number; h: number } {
+  const ins = text.insets ?? { l: 9.6, t: 4.8, r: 9.6, b: 4.8 }
+  const lines = layoutText({ ...text, wrap: false }, Infinity, theme, measure)
+  const w = Math.max(24, ...lines.map((l) => l.w))
+  const h = lines.reduce((sum, l) => sum + l.h, 0)
+  return { w: Math.ceil(w + ins.l + ins.r + 2), h: Math.ceil(h + ins.t + ins.b) }
+}
+
 function textSvg(
   text: ShapeText,
   box: { x: number; y: number; w: number; h: number },
@@ -153,7 +194,7 @@ function textSvg(
     h: Math.max(1, box.h - ins.t - ins.b),
   }
   const lines = layoutText(text, vertical ? inner.h : inner.w, theme, measure)
-  if (!lines.some((l) => l.runs.some((r) => r.text.trim()))) return ""
+  if (!lines.some((l) => l.math || l.runs.some((r) => r.text.trim()))) return ""
   const total = lines.reduce((s, l) => s + l.h, 0)
   const room = vertical ? inner.w : inner.h
   let y = text.anchor === "ctr" ? (room - total) / 2 : text.anchor === "b" ? room - total : 0
@@ -163,6 +204,15 @@ function textSvg(
   for (const line of lines) {
     const x0 = line.align === "ctr" ? (width - line.w) / 2 : line.align === "r" ? width - line.w : 0
     let x = x0
+    if (line.math) {
+      const { box, color } = line.math
+      const hex = colorCss(color ?? defaultColor ?? { theme: "dk1" }, theme).hex
+      out.push(
+        `<g transform="translate(${n(x0)} ${n(y + (line.h - box.a - box.d) / 2 + box.a)})" color="${hex}">${box.svg}</g>`,
+      )
+      y += line.h
+      continue
+    }
     const base = y + line.h * 0.8
     const spans = line.runs.map((r) => {
       const color = r.run.color ?? defaultColor ?? { theme: "dk1" as const }
@@ -173,7 +223,7 @@ function textSvg(
       x += r.w
       return span
     })
-    out.push(spans.join(""))
+    out.push(`<text>${spans.join("")}</text>`)
     y += line.h
   }
   const rotate =
@@ -183,7 +233,7 @@ function textSvg(
         ? ` transform="translate(${n(inner.x)} ${n(inner.y + inner.h)}) rotate(-90)"`
         : ` transform="translate(${n(inner.x)} ${n(inner.y)})"`
   const filter = effects?.shadow ? ` filter="url(#text-shadow)"` : ""
-  return `<g${rotate}${filter} xml:space="preserve">${out.map((l) => `<text>${l}</text>`).join("")}</g>`
+  return `<g${rotate}${filter} xml:space="preserve">${out.join("")}</g>`
 }
 
 // ── Objects ──────────────────────────────────────────────────────────────────────────────────────────────────

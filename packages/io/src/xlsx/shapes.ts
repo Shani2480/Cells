@@ -15,7 +15,9 @@ import type {
   ThemeSlot,
 } from "@cells/core"
 import { NS_R } from "./constants"
-import { at, kid, kids, type XNode } from "./dom"
+import { at, kid, kids, type XDoc, type XNode } from "./dom"
+import { mathFallbackText, mathLook, mathParaXml, NS_A14, readMath } from "./omml"
+import type { MathList } from "@cells/core"
 
 /**
  * DrawingML shapes, pictures and groups in a sheet's drawing (xdr:sp, xdr:cxnSp, xdr:pic, xdr:grpSp): read into
@@ -186,7 +188,7 @@ function readRun(rPr: XNode | undefined, text: string, fontColor?: ShapeColor): 
   return run
 }
 
-function readText(body: XNode | undefined, fontColor?: ShapeColor): ShapeText | undefined {
+function readText(body: XNode | undefined, fontColor?: ShapeColor, doc?: XDoc): ShapeText | undefined {
   if (!body) return undefined
   const pr = kid(body, "bodyPr")
   const text: ShapeText = { paragraphs: [] }
@@ -205,6 +207,30 @@ function readText(body: XNode | undefined, fontColor?: ShapeColor): ShapeText | 
     const algn = at(kid(p, "pPr"), "algn")
     if (algn === "l" || algn === "ctr" || algn === "r" || algn === "just") para.align = algn
     const endPr = kid(p, "endParaRPr")
+    // An equation (Insert › Equation): Office Math in the paragraph.
+    const math = doc && p.children.find((c) => c.local === "m" && c.uri === NS_A14)
+    const mathPara = math?.children.find((c) => c.local === "oMathPara" || c.local === "oMath")
+    if (doc && mathPara) {
+      para.math = readMath(doc, mathPara)
+      // Text beside an equation in one paragraph: kept as the equation's normal (upright) text, as Office Math holds
+      // text, so none of it is lost.
+      const texts = p.children.filter((c) => c.local === "r" || c.local === "fld")
+      if (texts.length) {
+        const line: MathList = []
+        for (const c of p.children) {
+          if (c === math) line.push(...para.math.flat())
+          else if (c.local === "r" || c.local === "fld") line.push({ t: "r", text: kid(c, "t")?.text ?? "", sty: "p" })
+        }
+        para.math = [line]
+      }
+      // The equation's look: its size and colour (math italic and Cambria Math are the equation's own).
+      const look: TextRun = { ...mathLook(mathPara, (rPr) => readRun(rPr, "", fontColor)), text: "" }
+      delete look.italic
+      delete look.font
+      para.runs = [look]
+      text.paragraphs.push(para)
+      continue
+    }
     for (const r of p.children) {
       if (r.local === "r" || r.local === "fld")
         para.runs.push(readRun(kid(r, "rPr"), kid(r, "t")?.text ?? "", fontColor))
@@ -238,7 +264,7 @@ function runXml(r: TextRun): string {
   return inner ? `<a:rPr${attrs}>${inner}</a:rPr>` : `<a:rPr${attrs}/>`
 }
 
-export function textXml(t: ShapeText | undefined, wordArt?: SheetShape["wordArt"]): string {
+export function textXml(t: ShapeText | undefined, wordArt?: SheetShape["wordArt"], mathAsText = false): string {
   const ins = t?.insets
   const body =
     `<a:bodyPr vertOverflow="clip" horzOverflow="clip"` +
@@ -252,6 +278,19 @@ export function textXml(t: ShapeText | undefined, wordArt?: SheetShape["wordArt"
     `</a:bodyPr><a:lstStyle/>`
   const paras = (t?.paragraphs.length ? t.paragraphs : [{ runs: [] }]).map((p) => {
     const ppr = p.align ? `<a:pPr algn="${p.align}"/>` : ""
+    if (p.math) {
+      const look = p.runs[0]
+      const end = runXml({ ...look, text: "" })
+        .replace("<a:rPr", "<a:endParaRPr")
+        .replace("</a:rPr>", "</a:endParaRPr>")
+      if (mathAsText) {
+        const lines = mathFallbackText(p.math).map(
+          (text) => `<a:r>${runXml({ ...look, text })}<a:t>${esc(text)}</a:t></a:r>`,
+        )
+        return `<a:p>${ppr}${lines.join("<a:br/>")}${end}</a:p>`
+      }
+      return `<a:p>${ppr || "<a:pPr/>"}${mathParaXml(p.math, look, runXml)}${end}</a:p>`
+    }
     const effects = wordArt ? wordArtRunXml(wordArt) : ""
     const runs = p.runs
       .filter((r) => r.text)
@@ -293,6 +332,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 /** What reading a drawing object needs from around it. */
 export type ObjectReader = {
   nextId(): number
+  /** The drawing as read (an equation keeps the math elements Cells doesn't model as they came). */
+  doc?: XDoc
   /** A picture's data URL from its relationship id (undefined: missing). */
   image(rid: string): string | undefined
 }
@@ -380,7 +421,7 @@ export function readObject(
     if (Object.keys(adjust).length) shape.adjust = adjust
     if (textBox) shape.textBox = true
     if (connector) shape.connector = true
-    const text = readText(body, style.font)
+    const text = readText(body, style.font, r.doc)
     if (text && (text.paragraphs.some((p) => p.runs.some((x) => x.text)) || !connector)) shape.text = text
     const pr = kid(body, "bodyPr")
     const rPr = kid(kid(kid(body, "p"), "r"), "rPr")
@@ -476,6 +517,8 @@ const ZERO_ANCHOR = () => ({ from: { row: 0, col: 0, x: 0, y: 0 }, to: { row: 0,
 /** Writing objects: ids for the drawing, and a picture's relationship (an existing one when it's the same picture). */
 export type ObjectWriter = {
   nextId(): number
+  /** Equations as their linear text (the fallback for readers without Office Math). */
+  mathAsText?: boolean
   imageRel(src: string, was?: string): string
   decorativeXml(o: DrawingObject, id: number): string
 }
@@ -522,7 +565,7 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
     const txBox = o.textBox ? ` txBox="1"` : ""
     return (
       `<xdr:sp macro="" textlink="">${nv("nvSpPr", `<xdr:cNvSpPr${txBox}/>`)}${spPr}` +
-      textXml(o.text, o.wordArt) +
+      textXml(o.text, o.wordArt, w.mathAsText) +
       `</xdr:sp>`
     )
   }
@@ -551,6 +594,31 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
 }
 
 export { NS_A }
+
+const NS_MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+/**
+ * An object holding an equation goes in Excel 2010's form, with a fallback showing the equation as linear text
+ * (the same shape ids in both, as Excel writes them).
+ */
+export function objectWithMathXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): string {
+  const ids: number[] = []
+  const choice = objectXml(o, box, {
+    ...w,
+    nextId: () => {
+      const id = w.nextId()
+      ids.push(id)
+      return id
+    },
+  })
+  if (!choice.includes("<a14:m>")) return choice
+  let i = 0
+  const fallback = objectXml(o, box, { ...w, nextId: () => ids[i++]!, mathAsText: true })
+  return (
+    `<mc:AlternateContent xmlns:mc="${NS_MC}"><mc:Choice xmlns:a14="${NS_A14}" Requires="a14">${choice}</mc:Choice>` +
+    `<mc:Fallback>${fallback}</mc:Fallback></mc:AlternateContent>`
+  )
+}
 
 /** An object as Cells knows it, to tell whether it changed since it was read (pictures by a sample of their data). */
 export function objectKey(o: DrawingObject): string {

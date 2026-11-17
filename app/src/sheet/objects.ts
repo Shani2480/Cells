@@ -3,6 +3,8 @@ import {
   copyObject,
   defaultShape,
   defaultTextBox,
+  equationFromLinear,
+  isEquation,
   isChart,
   nextObjectId,
   objectName,
@@ -17,6 +19,7 @@ import {
   type SignatureSetup,
   type EmbeddedFile,
 } from "@cells/core"
+import { textSize } from "@/drawing/render"
 import { anchorOf, chartBox, type ChartBox } from "./charts"
 import type { SheetController } from "./controller"
 
@@ -38,6 +41,13 @@ export class ObjectCommands {
   pending: { geometry: string; textBox?: boolean } | null = null
   /** The object whose text is being typed (a text box right after it's drawn, or a double-click). */
   editing: number | null = null
+  /** The open text editor's way to type at its caret, and to close (set while one is open). */
+  textInserter: ((text: string) => void) | null = null
+  finishText: (() => void) | null = null
+  /** Where the caret was when a shape's editor closed (counted from the end of its text). */
+  lastCaret: { id: number; fromEnd: number } | null = null
+  /** Where the next editor of that shape puts the caret (absent: all its text selected). */
+  caret: { id: number; fromEnd: number } | null = null
   /** Home › Find & Select › Selection Pane. */
   paneOpen = false
 
@@ -279,6 +289,44 @@ export class ObjectCommands {
     )
   }
 
+  /**
+   * Insert › Equation: an equation in a text box of its own in the middle of the window, typed in its linear form
+   * (`linear` empty: a new equation to type).
+   */
+  insertEquation(linear = ""): SheetShape {
+    const id = this.nextId()
+    const shape: SheetShape = {
+      kind: "shape",
+      id,
+      name: objectName({ kind: "shape", textBox: true }, id),
+      anchor: anchorOf(this.c.sheet, this.middle(160, 30)),
+      geometry: "rect",
+      textBox: true,
+      // As Excel makes them: a white box without an outline (so it reads on a dark sheet too).
+      fill: { kind: "solid", color: { theme: "lt1" } },
+      line: { color: null, width: 0 },
+      text: { ...equationFromLinear(linear), anchor: "t", wrap: false, autoFit: true },
+    }
+    shape.text!.paragraphs[0]!.runs = [{ text: "", color: { theme: "dk1" } }]
+    this.fit(shape, true)
+    this.put(shape, "Insert Equation")
+    if (!linear) {
+      this.editing = id
+      this.c.changed()
+    }
+    return shape
+  }
+
+  /** Sizes an equation's box to the equation, keeping its top left (or its middle, for a new one). */
+  private fit(shape: SheetShape, centre = false) {
+    if (!shape.text) return
+    const size = textSize(shape.text, this.c.wb.theme)
+    const box = chartBox(this.c.sheet, shape.anchor)
+    const x = centre ? box.x + (box.w - size.w) / 2 : box.x
+    const y = centre ? box.y + (box.h - size.h) / 2 : box.y
+    shape.anchor = anchorOf(this.c.sheet, { x: Math.max(0, x), y: Math.max(0, y), w: size.w, h: size.h })
+  }
+
   /** Insert › WordArt › a style: "Your text here" in the middle of the window, selected for typing. */
   insertWordArt(look: Pick<SheetShape, "wordArt"> & { color?: SheetShape["fill"] }): SheetShape {
     const id = this.nextId()
@@ -383,7 +431,34 @@ export class ObjectCommands {
     const o = this.find(id)
     if (!o || isChart(o) || o.kind !== "shape") return this.c.changed()
     if (plainText(o.text) === value) return this.c.changed()
+    if (isEquation(o)) {
+      // An equation typed in its linear form builds up, and its box fits it (Office's equations grow as you type).
+      this.update(
+        "Typing",
+        (x) => {
+          const shape = x as SheetShape
+          shape.text = equationFromLinear(value, shape.text)
+          this.fit(shape)
+        },
+        [id],
+      )
+      return
+    }
     this.update("Typing", (x) => ((x as SheetShape).text = textFromPlain(value, (x as SheetShape).text)), [id])
+  }
+
+  /** The Equation tab's symbols and structures: typed at the caret of the equation's editor, which stays open. */
+  insertIntoEquation(id: number, linear: string) {
+    if (this.editing === id && this.textInserter) return this.textInserter(linear)
+    const o = this.find(id)
+    if (!isEquation(o)) return
+    const text = plainText(o.text)
+    const fromEnd = this.lastCaret?.id === id ? Math.min(this.lastCaret.fromEnd, text.length) : 0
+    const pos = text.length - fromEnd
+    this.setText(id, text.slice(0, pos) + linear + text.slice(pos))
+    // Typing goes on just after what went in, as in Office.
+    this.caret = { id, fromEnd }
+    this.startText(id)
   }
 
   // ── Delete ──

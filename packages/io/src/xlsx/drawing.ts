@@ -26,7 +26,7 @@ import {
 import type { OpcRelationship } from "../opc"
 import { NS_R } from "./constants"
 import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
-import { objectKey, objectXml, readObject } from "./shapes"
+import { objectKey, objectWithMathXml, readObject } from "./shapes"
 import { isEmbeddedObject } from "./ole-objects"
 
 export const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
@@ -116,9 +116,13 @@ export function readDrawing(
   let unread = 0
   for (const anchor of doc.root.children) {
     const placed = anchorOf(sheet, anchor)
-    const content = anchor.children.find((c) => OBJECTS.has(c.local))
+    // Excel 2010's form of a shape holding an equation: the Choice (Office Math), with a fallback for older readers.
+    const alternate = kid(anchor, "AlternateContent")
+    const choice = kids(alternate, "Choice").find((c) => /\ba14\b/.test(at(c, "Requires") ?? ""))
+    const mathShape = choice?.children.find((c) => OBJECTS.has(c.local) && c.local !== "graphicFrame")
+    const content = mathShape ?? anchor.children.find((c) => OBJECTS.has(c.local))
     if (placed && content && content.local !== "graphicFrame") {
-      const object = readObject(content, { nextId, image }, isDecorative)
+      const object = readObject(content, { nextId, image, doc }, isDecorative)
       if (object) {
         object.anchor = placed.anchor
         if (placed.placement) object.placement = placed.placement
@@ -131,7 +135,7 @@ export function readDrawing(
           .find(Boolean)
         if (svg) embeds.svg = svg
         object.source = {
-          xml: raw(doc, content),
+          xml: raw(doc, mathShape ? alternate! : content),
           key: objectKey(object),
           part: partName,
           ...(Object.keys(embeds).length ? { rels: embeds } : {}),
@@ -271,7 +275,7 @@ export function writeDrawing(
         !rawUsed.has(object.source.xml) &&
         object.source.key === objectKey(object)
       if (same) rawUsed.add(object.source!.xml)
-      const xml = same ? object.source!.xml : objectXml(object, box, writer)
+      const xml = same ? object.source!.xml : objectWithMathXml(object, box, writer)
       anchors.push(placedXml(object.anchor, object.placement, xml))
       continue
     }

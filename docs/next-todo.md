@@ -169,7 +169,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         sign date), drawn like Office's; VML in xlsx (`o:signatureline`), Excel's kept
   - [x] Object: Insert › Text › Object › Create from File (as an icon); opens in its own app on double-click;
         xlsx `oleObjects` + VML + embeddings (a file in an OLE package; Office files as they are)
-  - [ ] Equations: Insert › Equation (Alt+=) and its gallery; linear (UnicodeMath) and professional display; the
+  - [x] Equations: Insert › Equation and its gallery; linear (UnicodeMath) and professional display; the
         Equation tab's structures and symbols; OMML in xlsx text boxes with Excel's text fallback
   - [ ] 3D Models: Insert › 3D Models from a file (.glb, .gltf, .obj, .stl); drawn with WebGL, turned with the 3D
         handle; 3D Model tab (Views, Pan & Zoom, Reset); xlsx `am3d:model3d` with its picture fallback
@@ -203,6 +203,11 @@ built in Part 8b.
   Customize Colors and Customize Fonts (custom sets); Save Current Theme; Reset to Theme from Template. Conditional
   formats and colours in charts read from a file keep their colours (Excel's follow the theme). .xls files keep their
   colours as read (BIFF8 has no theme references).
+- Equations: typing happens in the linear form (Office's Linear view) and builds up when the editor closes; Office
+  edits built up in place, with the caret inside the structure. Not built: Ink Equation, Unicode/LaTeX conversion,
+  Normal Text, the equation's own font size and alignment buttons, Alt+= (it's AutoSum in Excel anyway). Text beside
+  an equation in one paragraph becomes the equation's normal text. Display-size ∫ and ∑ come from the font: bundle a
+  math font (STIX Two Math) if Linux/Android ones look small.
 - Object: Link to file (an oleLink in an externalLink part, numbered with the workbook links); Create New (needs the
   other app's object server); objects shown as their content rather than an icon (Excel's picture is an EMF, which
   Cells can't draw: such objects show as icons); an Office document's own name isn't kept by Excel, so it comes back

@@ -360,6 +360,14 @@ export function focusSheet() {
   requestAnimationFrame(() => sheetEditor()?.focus({ preventScroll: true }))
 }
 
+/** After a ribbon command: the keyboard back where typing was (a shape's text being typed, else the sheet). */
+export function focusAfterCommand() {
+  requestAnimationFrame(() => {
+    const shapeText = document.querySelector<HTMLTextAreaElement>(".object-text-editor")
+    ;(shapeText ?? sheetEditor())?.focus({ preventScroll: true })
+  })
+}
+
 export function GroupLauncher({ id, groupLabel }: { id: string; groupLabel: string }) {
   const c = useCommand(id)
   return (

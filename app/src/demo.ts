@@ -1,4 +1,4 @@
-import { parseInput, parseRange, type CFEntry, type CellWrite, type Op, type StylePatch } from "@cells/core"
+import { BUILTIN_EQUATIONS, parseInput, parseRange, type CFEntry, type CellWrite, type Op, type StylePatch } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
 import { embedDocument, OBJECT_ICON_SIZE } from "@/drawing/embed"
 import { SIGNATURE_SIZE, signatureDocument } from "@/drawing/signature"
@@ -10,6 +10,7 @@ import { SIGNATURE_SIZE, signatureDocument } from "@/drawing/signature"
 export function loadDemo(controller: SheetController, name: string | null) {
   if (!name) return
   if (name === "formats") return formatsDemo(controller)
+  if (name === "equations") return equationsDemo(controller)
   if (name === "objects") {
     formatsDemo(controller)
     return objectsDemo(controller)
@@ -333,4 +334,30 @@ function objectsDemo(c: SheetController) {
     c.objects.insertObject(embed, svg(embedDocument(embed, iw, ih, c.wb.theme)), OBJECT_ICON_SIZE)
   })
   at(0, 0)
+}
+
+/** Insert › Equation: Office's built-in equations and one of each structure, in two columns. */
+function equationsDemo(c: SheetController) {
+  const extra = [
+    "A=(■(a&b@c&d)), det⁡A=ad−bc",
+    "f(x)={■(x^2&x≥0@−x&x<0)┤",
+    "∫_0^∞▒e^(−x^2) dx=√π/2",
+    "lim┬(n→∞)⁡〖(1+1/n)^n〗=e",
+    "v⃗=⟨v_1,v_2,v_3 ⟩, ‖v⃗‖=√(v_1^2+v_2^2+v_3^2)",
+    "∑_(k=1)^n▒k=(n(n+1))/2",
+    "x̂, ỹ, ż, ä, x̅",
+    "⌊x⌋+⌈y⌉=√(3&x^3+1)",
+  ]
+  const all = [...BUILTIN_EQUATIONS.map((e) => e.linear), ...extra]
+  const top = [0, 0]
+  all.forEach((linear, i) => {
+    const shape = c.objects.insertEquation(linear)
+    const box = c.objects.box(shape)
+    const col = i % 2
+    const x = 20 + col * 430
+    const y = top[col]! + 16
+    top[col] = y + box.h
+    c.objects.place(new Map([[shape.id, { x, y, w: box.w, h: box.h }]]))
+  })
+  c.objects.select(null)
 }

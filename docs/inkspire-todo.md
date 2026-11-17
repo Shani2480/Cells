@@ -40,3 +40,8 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       `document/docx/chart-xml.ts`, `chartex-xml.ts` with `@cells/chart`; - calculate the Spreadsheet block (`editor/sheet-block.ts`) with `calculateGrid` and formula fields
       (`editor/formula.ts`) with `calculateFormula`, showing Word's `!Syntax Error` / `!Zero Divide`.
       Ribbon components and tokens stay separate (why: `docs/shared-packages.md`).
+- [ ] I11. **Equations from Cells.** Cells has an Office Math engine in its shared packages: the linear format
+      (UnicodeMath) parser and printer and the math tree (`@cells/core` `math/`), an OMML reader and writer
+      (`@cells/io` `xlsx/omml.ts`, DrawingML run properties; Word's `w:rPr` needs a variant), and an SVG layout
+      (`app/src/drawing/math.ts`, to move into a package before sharing). Word's `m:oMathPara`/`m:oMath` in paragraphs
+      could use them for display and editing.

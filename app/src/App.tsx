@@ -1,5 +1,5 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
-import { isChart, parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
+import { isChart, isEquation, parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
 import {
   lazy,
   Suspense,
@@ -34,7 +34,7 @@ import { PhoneShell } from "@/phone/PhoneShell"
 import { installBackHandler, syncSystemBars } from "@/platform/android-files"
 import { useShellKind } from "@/phone/shell-choice"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
-import { CHART_DESIGN, HELP, PICTURE_FORMAT, SHAPE_FORMAT, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
+import { CHART_DESIGN, EQUATION, HELP, PICTURE_FORMAT, SHAPE_FORMAT, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
 import { whatsNewOnStart } from "@/about/release-notes"
@@ -128,6 +128,7 @@ const NOT_BUILT = "Not built yet."
 const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
 const TABS_IN_CHART = [...TABS, CHART_DESIGN]
 const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
+const TABS_IN_EQUATION = [...TABS, SHAPE_FORMAT, EQUATION]
 const TABS_IN_PICTURE = [...TABS, PICTURE_FORMAT]
 
 type DialogState =
@@ -997,7 +998,9 @@ function WorkbookWindow({
     : drawings.length && drawings.every((o) => o.kind === "picture")
       ? TABS_IN_PICTURE
       : drawings.length
-        ? TABS_IN_SHAPE
+        ? drawings.length === 1 && isEquation(drawings[0])
+          ? TABS_IN_EQUATION
+          : TABS_IN_SHAPE
         : controller.tables.active()
           ? TABS_IN_TABLE
           : TABS

@@ -27,7 +27,9 @@ describe("Insert › Signature Line", () => {
     const { unmount } = render(<SignatureSetupDialog controller={c} onClose={() => closed++} />)
     fireEvent.change(screen.getByLabelText(/Suggested signer \(for example/), { target: { value: "Sam Sample" } })
     fireEvent.change(screen.getByLabelText(/title/), { target: { value: "Director" } })
-    expect((screen.getByLabelText(/Instructions to the signer/) as HTMLTextAreaElement).value).toMatch(/^Before signing/)
+    expect((screen.getByLabelText(/Instructions to the signer/) as HTMLTextAreaElement).value).toMatch(
+      /^Before signing/,
+    )
     fireEvent.click(screen.getByRole("button", { name: "OK" }))
     await waitFor(() => expect(closed).toBe(1))
     unmount()

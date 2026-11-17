@@ -297,6 +297,8 @@ export function ObjectLayer({
             </div>
             {editing ? (
               <TextEditor
+                id={o.id}
+                objects={objects}
                 value={plainText(o.text)}
                 onDone={(value) => {
                   objects.setText(o.id, value)
@@ -396,22 +398,65 @@ function turned(dx: number, dy: number, degrees: number): [number, number] {
   return [dx * Math.cos(r) - dy * Math.sin(r), dx * Math.sin(r) + dy * Math.cos(r)]
 }
 
-/** Typing into a shape: its text, kept when focus leaves or with Escape (Excel keeps what was typed). */
-function TextEditor({ value, onDone }: { value: string; onDone: (value: string) => void }) {
+/**
+ * Typing into a shape: its text, kept when focus leaves or with Escape (Excel keeps what was typed). An equation is
+ * typed in its linear form; the Equation tab types at the caret while the editor is open.
+ */
+function TextEditor({
+  id,
+  objects,
+  value,
+  onDone,
+}: {
+  id: number
+  objects: SheetController["objects"]
+  value: string
+  onDone: (value: string) => void
+}) {
   const [text, setText] = useState(value)
   const done = useRef(false)
+  const area = useRef<HTMLTextAreaElement>(null)
   const finish = (v: string) => {
     if (done.current) return
     done.current = true
+    const el = area.current
+    objects.lastCaret = el ? { id, fromEnd: el.value.length - el.selectionEnd } : null
+    objects.caret = null
     onDone(v)
   }
+  const latest = useRef(finish)
+  latest.current = finish
+  useEffect(() => {
+    objects.textInserter = (insert) => {
+      const el = area.current
+      if (!el) return
+      el.focus()
+      el.setRangeText(insert, el.selectionStart, el.selectionEnd, "end")
+      setText(el.value)
+    }
+    objects.finishText = () => latest.current(area.current?.value ?? "")
+    // All the text selected, or the caret back where it was after the Equation tab put something in.
+    const el = area.current
+    if (el) {
+      el.focus()
+      // (Applied again on a second run of this effect: React runs effects twice while developing.)
+      const caret = objects.caret
+      if (caret?.id === id) {
+        const at = Math.max(0, el.value.length - caret.fromEnd)
+        el.setSelectionRange(at, at)
+      } else el.select()
+    }
+    return () => {
+      objects.textInserter = null
+      objects.finishText = null
+    }
+  }, [objects, id])
   return (
     <textarea
+      ref={area}
       className="object-text-editor"
       aria-label="Shape text"
       value={text}
-      autoFocus
-      onFocus={(e) => e.currentTarget.select()}
       onPointerDown={(e) => e.stopPropagation()}
       onChange={(e) => setText(e.target.value)}
       onBlur={() => finish(text)}
