@@ -194,6 +194,10 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Filter and sort by icon: Filter/Sort by Color › by Cell Icon, the cell menu's icon commands, Sort On
         Conditional Formatting Icon; Filter and Sort by Color see conditional formats' colours; iconFilter in xlsx
         (checked against a file Excel 365 made)
+  - [x] Sparklines step 1: shown and kept (core sparklines.ts, x14 sparklineGroups in xlsx, drawn in cells; checked
+        against Excel's picture of the same file and opened in Excel 365)
+  - [ ] Sparklines step 2: Insert › Sparklines (Create Sparklines), the Sparkline tab (Edit Data, Type, Show, Style,
+        colours, Axis, Group / Ungroup, Clear)
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
       GitHub issue the person reviews), Show Training

@@ -10,6 +10,7 @@ import {
   tableStyleDef,
 } from "@cells/core"
 import { drawIcon } from "./cf-icons"
+import { drawSparkline, sparkAt, sparkItems, type SparkItem } from "./sparklines"
 import type { SheetController } from "@/sheet/controller"
 import {
   darkVariant,
@@ -114,6 +115,8 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   }
   const bars: { rect: Rect; bar: NonNullable<CFResult["bar"]> }[] = []
   const icons: { rect: Rect; icon: NonNullable<CFResult["icon"]> }[] = []
+  const sparkMap = sheet.sparklines.length ? sparkItems(controller.wb.sheets, sheet, controller.wb.version) : null
+  const sparks: { rect: Rect; item: SparkItem }[] = []
   p.save()
   p.beginPath()
   p.rect(clip.x0, clip.y0, clip.x1 - clip.x0, clip.y1 - clip.y0)
@@ -231,6 +234,8 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
       if (hasBorder(look)) bordered.push({ rect, look, edges: { top: true, bottom: true, left: true, right: true } })
       if (cf?.bar) bars.push({ rect, bar: cf.bar })
       if (cf?.icon) icons.push({ rect, icon: cf.icon })
+      const spark = sparkMap && sparkAt(sparkMap, row.index, col.index)
+      if (spark) sparks.push({ rect, item: spark })
       if (!isEditing(row.index, col.index) && !cf?.hideValue) addText(row.index, col.index, look, rect)
     }
     // Text that starts left of the view (or right of it, when right-aligned) may run into it.
@@ -284,6 +289,8 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
     if (hasBorder(edgeLook))
       bordered.push({ rect, look: edgeLook, edges: { top: true, bottom: true, left: true, right: true } })
     if (!isEditing(m.r0, m.c0)) addText(m.r0, m.c0, look, rect, false)
+    const spark = sparkMap && sparkAt(sparkMap, m.r0, m.c0)
+    if (spark) sparks.push({ rect, item: spark })
   }
 
   // Gridlines (unless switched off in View), not inside merged areas or under text running across.
@@ -337,6 +344,8 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
     const size = Math.max(6, Math.min(16, rect.h - 4))
     drawIcon(p, icon.set, icon.index, rect.x + 2, rect.y + rect.h - size - 2, size)
   }
+
+  for (const { rect, item } of sparks) drawSparkline(p, rect, item, controller.wb.theme, paint)
 
   for (const t of texts) drawText(p, t, measure)
 

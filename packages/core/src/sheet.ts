@@ -1,4 +1,5 @@
 import type { EditRange } from "./edit-ranges"
+import type { SparklineGroup } from "./sparklines"
 import type { SheetChart } from "./chart"
 import { isChart, type SheetObject } from "./shapes"
 import { defaultPageSetup, type PageSetup } from "./page-setup"
@@ -207,6 +208,8 @@ export class Sheet {
   hyperlinks: Hyperlink[] = []
   /** Review › Allow Edit Ranges. */
   editRanges: EditRange[] = []
+  /** Insert › Sparklines: the groups of in-cell charts. */
+  sparklines: SparklineGroup[] = []
   /** Edit ranges unlocked with their password this session (lower-case titles; not saved, not undone). */
   readonly unlockedEditRanges = new Set<string>()
 

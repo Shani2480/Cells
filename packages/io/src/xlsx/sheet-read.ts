@@ -1,3 +1,4 @@
+import { readSparklineExt } from "./sparklines"
 import {
   CONSOLIDATE_FUNCTIONS,
   copyFormula,
@@ -449,6 +450,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         const ext = readValidationExt(dropConditionalExt(source), rootTag)
         sheet.validations.push(...ext.entries)
         source = ext.rest
+        const sparks = readSparklineExt(source, rootTag)
+        sheet.sparklines.push(...sparks.groups)
+        source = sparks.rest
       }
       if (source) kept.push({ local, xml: source })
       return

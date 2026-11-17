@@ -1,3 +1,4 @@
+import { sparklineExtXml } from "./sparklines"
 import { editRangesXml } from "./edit-ranges"
 import {
   tableAt,
@@ -263,7 +264,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
   // The outline bar's depth, which Excel reads to size it.
   const format = kept.find((k) => k.local === "sheetFormatPr")
   if (format) format.xml = withOutlineLevels(format.xml, sheet.rows.maxLevel, sheet.cols.maxLevel)
-  const validationExt = validationExtXml(sheet.validations, rangeRef)
+  const validationExt = validationExtXml(sheet.validations, rangeRef) + sparklineExtXml(sheet.sparklines)
   if (validationExt) {
     const extLst = kept.find((k) => k.local === "extLst")
     if (extLst) extLst.xml = withExt(extLst.xml, validationExt)

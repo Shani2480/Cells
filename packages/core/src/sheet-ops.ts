@@ -1,5 +1,6 @@
 import { copyHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyEditRanges, type EditRange } from "./edit-ranges"
+import { copySparklineGroups, rewriteSparklineRefs, type SparklineGroup } from "./sparklines"
 import type { Range } from "./address"
 import { copyPageSetup, type PageSetup } from "./page-setup"
 import type { AnnotationWrite } from "./annotations"
@@ -51,6 +52,7 @@ export type SheetSnapshot = {
   queryTables?: QueryTable[]
   hyperlinks?: Hyperlink[]
   editRanges?: EditRange[]
+  sparklines?: SparklineGroup[]
   tabColor?: string
   background?: string
   hidden: boolean
@@ -88,6 +90,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     queryTables: copyQueryTables(sheet.queryTables),
     hyperlinks: copyHyperlinks(sheet.hyperlinks),
     editRanges: copyEditRanges(sheet.editRanges),
+    sparklines: copySparklineGroups(sheet.sparklines),
     tabColor: sheet.tabColor,
     background: sheet.background,
     hidden: sheet.hidden,
@@ -126,6 +129,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.queryTables = copyQueryTables(s.queryTables ?? [])
   sheet.hyperlinks = copyHyperlinks(s.hyperlinks ?? [])
   sheet.editRanges = copyEditRanges(s.editRanges ?? [])
+  sheet.sparklines = copySparklineGroups(s.sparklines ?? [])
   sheet.tabColor = s.tabColor
   sheet.background = s.background
   sheet.hidden = s.hidden
@@ -152,6 +156,11 @@ function renameRefs(sheets: Sheet[], from: string, to: string | null): Op[] {
       for (const chart of sheet.charts)
         if (rewriteChartRefs(chart, (ref) => renameSheetRefs(ref, from, to))) changed = true
       if (changed) undo.push({ kind: "charts", sheet: index, charts: before })
+    }
+    if (sheet.sparklines.length) {
+      const before = copySparklineGroups(sheet.sparklines)
+      if (rewriteSparklineRefs(sheet.sparklines, (ref) => renameSheetRefs(ref, from, to)))
+        undo.push({ kind: "sparklines", sheet: index, groups: before })
     }
   })
   const names = rewriteNames(sheets as SheetList, (ref) => renameSheetRefs(ref, from, to))

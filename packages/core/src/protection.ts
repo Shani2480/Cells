@@ -242,6 +242,7 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
     case "conditional":
     case "validations":
     case "tables":
+    case "sparklines":
       return true
     default:
       return false

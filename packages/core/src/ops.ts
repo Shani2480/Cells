@@ -10,6 +10,7 @@ import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
 import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tables"
 import { copyHyperlinks, shiftHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyEditRanges, shiftEditRanges, type EditRange } from "./edit-ranges"
+import { copySparklineGroups, rewriteSparklineRefs, shiftSparklines, type SparklineGroup } from "./sparklines"
 import { copyExternalBooks, type ExternalBook } from "./links"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
@@ -88,6 +89,7 @@ export type Op =
       queryTables?: QueryTable[]
       hyperlinks?: Hyperlink[]
       editRanges?: EditRange[]
+      sparklines?: SparklineGroup[]
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -107,6 +109,8 @@ export type Op =
   | { kind: "hyperlinks"; sheet: number; links: Hyperlink[] }
   /** Review › Allow Edit Ranges: the sheet's whole list. */
   | { kind: "editRanges"; sheet: number; ranges: EditRange[] }
+  /** Insert › Sparklines and the Sparkline tab: the sheet's whole list of sparkline groups. */
+  | { kind: "sparklines"; sheet: number; groups: SparklineGroup[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
   /** The linked workbooks and the values read from them (update, change source, break). */
@@ -154,6 +158,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "scenarios",
   "hyperlinks",
   "editRanges",
+  "sparklines",
 ])
 
 /**
@@ -298,6 +303,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       sheet.editRanges = copyEditRanges(op.ranges)
       return {
         inverse: [{ kind: "editRanges", sheet: op.sheet, ranges: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "sparklines": {
+      const before = copySparklineGroups(sheet.sparklines)
+      sheet.sparklines = copySparklineGroups(op.groups)
+      return {
+        inverse: [{ kind: "sparklines", sheet: op.sheet, groups: before }],
         change: { sheet: op.sheet, structural: false, format: true },
       }
     }
@@ -446,6 +459,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     queryTables: copyQueryTables(sheet.queryTables),
     hyperlinks: copyHyperlinks(sheet.hyperlinks),
     editRanges: copyEditRanges(sheet.editRanges),
+    sparklines: copySparklineGroups(sheet.sparklines),
   }
 }
 
@@ -472,6 +486,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   if (op.queryTables) sheet.queryTables = copyQueryTables(op.queryTables)
   if (op.hyperlinks) sheet.hyperlinks = copyHyperlinks(op.hyperlinks)
   if (op.editRanges) sheet.editRanges = copyEditRanges(op.editRanges)
+  if (op.sparklines) sheet.sparklines = copySparklineGroups(op.sparklines)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -497,7 +512,8 @@ function hasLayout(sheet: Sheet) {
     sheet.advancedFilter !== null ||
     sheet.queryTables.length > 0 ||
     sheet.hyperlinks.length > 0 ||
-    sheet.editRanges.length > 0
+    sheet.editRanges.length > 0 ||
+    sheet.sparklines.length > 0
   )
 }
 
@@ -534,6 +550,13 @@ function rewriteReferences(sheets: readonly Sheet[], target: number, map: RefMap
     for (const chart of sheet.charts)
       if (rewriteChartRefs(chart, (ref) => rewriteFormula(ref, sheet.name, targetName, map))) changed = true
     if (changed) undo.push({ kind: "charts", sheet: index, charts: before })
+  })
+  // So do sparklines' data and date ranges.
+  sheets.forEach((sheet, index) => {
+    if (!sheet.sparklines.length) return
+    const before = copySparklineGroups(sheet.sparklines)
+    if (rewriteSparklineRefs(sheet.sparklines, (ref) => rewriteFormula(ref, sheet.name, targetName, map)))
+      undo.push({ kind: "sparklines", sheet: index, groups: before })
   })
   const host = sheets[0]?.name ?? targetName
   const names = rewriteNames(sheets as SheetList, (ref) => rewriteFormula(ref, host, targetName, map))
@@ -610,6 +633,7 @@ function insertLines(
   if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, count)
   if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, count)
   if (sheet.editRanges.length) sheet.editRanges = shiftEditRanges(sheet.editRanges, axis, at, count)
+  if (sheet.sparklines.length) sheet.sparklines = shiftSparklines(sheet.sparklines, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
   if (layout) inverse.push(layout)
@@ -670,6 +694,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, -count)
   if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, -count)
   if (sheet.editRanges.length) sheet.editRanges = shiftEditRanges(sheet.editRanges, axis, at, -count)
+  if (sheet.sparklines.length) sheet.sparklines = shiftSparklines(sheet.sparklines, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
   if (layout) inverse.push(layout)
   if (removed.length) {
