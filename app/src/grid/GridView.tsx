@@ -165,10 +165,12 @@ export function GridView({
           controller.setLineSize("rows", [row], fittedRowHeight(controller, row, measure), true)
     }
     controller.rowFit = (row) => fittedRowHeight(controller, row, measure)
+    controller.columnFit = (col, rows) => autofitColumnWidth(controller, col, measure, rows)
     return () => {
       controller.shownText = null
       controller.autofit = null
       controller.rowFit = null
+      controller.columnFit = null
     }
   }, [controller, measure])
 

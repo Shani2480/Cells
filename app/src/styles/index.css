@@ -2599,3 +2599,85 @@ html.is-phone .clipboard-item-delete {
   margin-top: 8px;
   font-size: 13px;
 }
+
+/* ── Data › What-If Analysis › Scenario Manager (shell/ScenarioDialogs.tsx) ────────────────────────────────── */
+.scenario-manager {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.scenario-list-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.scenario-list {
+  height: 150px;
+}
+
+.scenario-empty {
+  margin: 8px;
+}
+
+.scenario-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 20px;
+}
+
+.scenario-buttons .dialog-btn {
+  min-width: 92px;
+}
+
+.scenario-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  margin-top: 12px;
+  align-items: baseline;
+}
+
+.scenario-detail {
+  min-height: 18px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.scenario-comment {
+  max-height: 54px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.scenario-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scenario-comment-field {
+  height: auto;
+  min-height: 56px;
+  padding-top: 4px;
+  resize: vertical;
+  font: 13px var(--font-ui);
+}
+
+.scenario-values {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.scenario-value-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}

@@ -9,6 +9,7 @@ import type { ValidationEntry } from "./validation"
 import type { Table } from "./table/table"
 import type { AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
+import { emptyScenarios, type ScenarioSet } from "./scenarios"
 
 /**
  * Default sizes at 100% zoom, as Excel draws a new workbook with an 11 pt body font: rows 15 pt (20 px), columns
@@ -162,6 +163,7 @@ export class Sheet {
   autoFilter: AutoFilter | null = null
   /** Data › Outline › Settings, and whether the outline bar shows (Ctrl+8). */
   outline: OutlineSettings = { summaryBelow: true, summaryRight: true, showSymbols: true }
+  scenarios: ScenarioSet = emptyScenarios()
 
   constructor(name: string) {
     this.name = name

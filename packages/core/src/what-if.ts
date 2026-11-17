@@ -1,6 +1,6 @@
 import type { CellValue } from "./values"
 import type { CellWrite, Op } from "./ops"
-import type { Range } from "./address"
+import { columnName, type Range } from "./address"
 import type { Sheet } from "./sheet"
 import { Workbook } from "./workbook"
 
@@ -224,4 +224,103 @@ export function dataTableOp(
       cells.push({ row: r, col: c, data: { input, value: 0, ...(style ? { style } : {}) } })
     }
   return { kind: "setCells", sheet: sheetIndex, cells }
+}
+
+// ── Scenario Summary ────────────────────────────────────────────────────────────────────────────────────────────
+
+export type ScenarioSummary = {
+  /** Scenario names, in order (the columns after Current Values). */
+  names: string[]
+  /** One row per changing cell: its reference and its value now and in each scenario. */
+  changing: { ref: string; current: CellValue | undefined; values: (CellValue | undefined)[] }[]
+  /** One row per result cell: its reference and its value now and with each scenario shown. */
+  results: { ref: string; current: CellValue | undefined; values: (CellValue | undefined)[] }[]
+}
+
+/**
+ * Scenario Manager › Summary: the changing cells of every scenario and the result cells' values with each scenario
+ * shown, worked out in a private copy so the sheet stays as it is.
+ */
+export function scenarioSummary(wb: Workbook<unknown>, sheetIndex: number, resultCells: Range[]): ScenarioSummary {
+  const sheet = wb.sheets[sheetIndex]
+  const scenarios = sheet.scenarios.scenarios.filter((s) => !s.hidden)
+  const key = (row: number, col: number) => `${row},${col}`
+  const changingCells: { row: number; col: number }[] = []
+  const seen = new Set<string>()
+  for (const s of scenarios)
+    for (const c of s.cells)
+      if (!seen.has(key(c.row, c.col))) {
+        seen.add(key(c.row, c.col))
+        changingCells.push({ row: c.row, col: c.col })
+      }
+  const results: { row: number; col: number }[] = []
+  for (const r of resultCells)
+    for (let row = r.r0; row <= r.r1; row++) for (let col = r.c0; col <= r.c1; col++) results.push({ row, col })
+  const abs = (row: number, col: number) => `$${columnName(col)}$${row + 1}`
+  const resultValues: (CellValue | undefined)[][] = results.map(() => [])
+  for (const s of scenarios) {
+    const copy = calcCopy(wb)
+    const cells: CellWrite[] = s.cells.map((c) => ({ row: c.row, col: c.col, data: { value: c.value } }))
+    copy.transact([{ kind: "setCells", sheet: sheetIndex, cells }], { label: "Trial", history: false })
+    copy.calculate(true)
+    results.forEach((r, i) => resultValues[i].push(copy.sheets[sheetIndex].cells.value(r.row, r.col)))
+  }
+  return {
+    names: scenarios.map((s) => s.name),
+    changing: changingCells.map(({ row, col }) => ({
+      ref: abs(row, col),
+      current: sheet.cells.value(row, col),
+      values: scenarios.map((s) => s.cells.find((c) => c.row === row && c.col === col)?.value),
+    })),
+    results: results.map(({ row, col }, i) => ({
+      ref: abs(row, col),
+      current: sheet.cells.value(row, col),
+      values: resultValues[i],
+    })),
+  }
+}
+
+/** The summary laid out as Excel's Scenario Summary sheet: B2 the title, the table from row 3, notes under it. */
+export function scenarioSummaryCells(summary: ScenarioSummary): {
+  cells: CellWrite[]
+  /** Rows to show in bold (the headings) and the area of the table, for formats. */
+  headings: Range[]
+  table: Range
+} {
+  const cells: CellWrite[] = []
+  const put = (row: number, col: number, value: CellValue | undefined) => {
+    if (value !== undefined) cells.push({ row, col, data: { value } })
+  }
+  const lastCol = 3 + summary.names.length
+  put(1, 1, "Scenario Summary")
+  put(1, 3, "Current Values:")
+  summary.names.forEach((n, i) => put(1, 4 + i, n))
+  let row = 2
+  put(row++, 1, "Changing Cells:")
+  for (const c of summary.changing) {
+    put(row, 2, c.ref)
+    put(row, 3, c.current)
+    c.values.forEach((v, i) => put(row, 4 + i, v))
+    row++
+  }
+  const resultsRow = row
+  if (summary.results.length) {
+    put(row++, 1, "Result Cells:")
+    for (const c of summary.results) {
+      put(row, 2, c.ref)
+      put(row, 3, c.current)
+      c.values.forEach((v, i) => put(row, 4 + i, v))
+      row++
+    }
+  }
+  const table = { r0: 1, c0: 1, r1: row - 1, c1: lastCol }
+  put(row++, 1, "Notes:  Current Values column represents values of changing cells at")
+  put(row++, 1, "time Scenario Summary Report was created.  Changing cells for each")
+  put(row++, 1, "scenario are highlighted in gray.")
+  const headings = [
+    { r0: 1, c0: 1, r1: 1, c1: lastCol },
+    { r0: 2, c0: 1, r1: 2, c1: 1 },
+  ]
+  if (summary.results.length) headings.push({ r0: resultsRow, c0: 1, r1: resultsRow, c1: 1 })
+  return { cells, headings, table }
 }

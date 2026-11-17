@@ -37,13 +37,15 @@ export function autofitColumnWidth(
   controller: SheetController,
   col: number,
   measure: (text: string) => number,
+  rows: { r0: number; r1: number } = { r0: 0, r1: MAX_ROWS - 1 },
 ): number | null {
   let widest = 0
   controller.sheet.cells.forEach(
-    { r0: 0, r1: MAX_ROWS - 1, c0: col, c1: col },
+    { r0: rows.r0, r1: rows.r1, c0: col, c1: col },
     (_row, _col, data) => {
       const style = controller.wb.styles.get(data.style ?? 0)
-      const text = formatValue(data.value, style.numberFormat, 30) ?? ""
+      // General numbers as a cell shows them: up to 11 characters (0.05, not 0.05000000000000000277).
+      const text = formatValue(data.value, style.numberFormat, 11) ?? ""
       for (const line of text.split("\n")) widest = Math.max(widest, measure(line))
     },
     true,

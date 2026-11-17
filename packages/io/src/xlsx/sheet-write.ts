@@ -5,10 +5,12 @@ import {
   MAX_COLS,
   MAX_ROWS,
   type CellData,
+  type CellValue,
   type CFEntry,
   type CFRule,
   type CFThreshold,
   type Range,
+  type Scenario,
   type Sheet,
   type StyleTable,
 } from "@cells/core"
@@ -206,6 +208,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     cols: colsXml(sheet, xf, ctx.source?.colExtras),
     sheetData: rowParts.length ? `<sheetData>${rowParts.join("")}</sheetData>` : `<sheetData/>`,
     sheetProtection: protectionXml(sheet),
+    scenarios: scenariosXml(sheet),
     autoFilter: sheet.autoFilter ? autoFilterXml(sheet.autoFilter, styles, rangeRef) : "",
     mergeCells: sheet.merges.size
       ? `<mergeCells count="${sheet.merges.size}">${sheet.merges.all.map((m) => `<mergeCell ref="${rangeRef(m)}"/>`).join("")}</mergeCells>`
@@ -540,4 +543,35 @@ function dataTableXml(formula: string, ref: string): string {
     return `<f t="dataTable" ref="${ref}" dt2D="1" dtr="1"${attr("r1", rowIn, "del1")}${attr("r2", colIn, "del2")}/>`
   if (rowIn.trim()) return `<f t="dataTable" ref="${ref}" dt2D="0" dtr="1"${attr("r1", rowIn, "del1")}/>`
   return `<f t="dataTable" ref="${ref}" dt2D="0" dtr="0"${attr("r1", colIn, "del1")}/>`
+}
+
+/** Scenario Manager's scenarios, as Excel writes them. */
+function scenariosXml(sheet: Sheet): string {
+  const set = sheet.scenarios
+  if (!set.scenarios.length) return ""
+  const attrs =
+    (set.current !== null ? ` current="${set.current}"` : "") +
+    (set.show !== null ? ` show="${set.show}"` : "") +
+    (set.resultCells.length ? ` sqref="${set.resultCells.map(rangeRef).join(" ")}"` : "")
+  const one = (s: Scenario) => {
+    const cells = s.cells
+      .map(
+        (c) =>
+          `<inputCells r="${rangeRef({ r0: c.row, c0: c.col, r1: c.row, c1: c.col })}" val="${escapeXml(scenarioText(c.value))}"/>`,
+      )
+      .join("")
+    return (
+      `<scenario name="${escapeXml(s.name)}"${s.locked ? ` locked="1"` : ""}${s.hidden ? ` hidden="1"` : ""}` +
+      ` count="${s.cells.length}"${s.user ? ` user="${escapeXml(s.user)}"` : ""}` +
+      `${s.comment ? ` comment="${escapeXml(s.comment)}"` : ""}>${cells}</scenario>`
+    )
+  }
+  return `<scenarios${attrs}>${set.scenarios.map(one).join("")}</scenarios>`
+}
+
+function scenarioText(v: CellValue): string {
+  if (typeof v === "number") return numberText(v)
+  if (typeof v === "boolean") return v ? "TRUE" : "FALSE"
+  if (isError(v)) return v.error
+  return v
 }

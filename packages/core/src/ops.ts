@@ -4,6 +4,7 @@ import type { CellData } from "./cell-store"
 import type { AnnotationWrite } from "./annotations"
 import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
 import { copyValidations, shiftValidations, type ValidationEntry } from "./validation"
+import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
 import { copyPageSetup, shiftPageSetup, type PageSetup } from "./page-setup"
@@ -73,6 +74,7 @@ export type Op =
       pageSetup?: PageSetup
       annotations?: AnnotationWrite[]
       autoFilter?: AutoFilter | null
+      scenarios?: ScenarioSet
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -101,6 +103,8 @@ export type Op =
   | { kind: "outlineLevels"; sheet: number; axis: AxisName; levels: [number, number][] }
   /** Data › Outline › Settings (and Ctrl+8's outline symbols). */
   | { kind: "outlineSettings"; sheet: number; settings: OutlineSettings }
+  /** Data › What-If Analysis › Scenario Manager: the sheet's scenarios. */
+  | { kind: "scenarios"; sheet: number; scenarios: ScenarioSet }
   /** Sheets: add, delete, rename, move, tab colour and hiding (see sheet-ops). */
   | SheetOp
 
@@ -117,6 +121,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "protect",
   "protectWorkbook",
   "sheetProps",
+  "scenarios",
 ])
 
 /**
@@ -263,6 +268,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
         change: { sheet: op.sheet, structural: false, format: true },
       }
     }
+    case "scenarios": {
+      const before = copyScenarios(sheet.scenarios)
+      sheet.scenarios = copyScenarios(op.scenarios)
+      return {
+        inverse: [{ kind: "scenarios", sheet: op.sheet, scenarios: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
     case "outlineSettings": {
       const before = { ...sheet.outline }
       sheet.outline = { ...op.settings }
@@ -330,6 +343,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     pageSetup: copyPageSetup(sheet.pageSetup),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     autoFilter: copyAutoFilter(sheet.autoFilter),
+    scenarios: copyScenarios(sheet.scenarios),
   }
 }
 
@@ -350,6 +364,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
     for (const a of op.annotations) sheet.annotations.set(a.row, a.col, a.value)
   }
   if (op.autoFilter !== undefined) sheet.autoFilter = copyAutoFilter(op.autoFilter)
+  if (op.scenarios) sheet.scenarios = copyScenarios(op.scenarios)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -369,7 +384,9 @@ function hasLayout(sheet: Sheet) {
     sheet.pageSetup.rowBreaks.length > 0 ||
     sheet.pageSetup.colBreaks.length > 0 ||
     sheet.annotations.size > 0 ||
-    sheet.autoFilter !== null
+    sheet.autoFilter !== null ||
+    sheet.scenarios.scenarios.length > 0 ||
+    sheet.scenarios.resultCells.length > 0
   )
 }
 
@@ -472,6 +489,7 @@ function insertLines(
   shiftMerges(sheet, axis, at, count)
   shiftConditional(sheet, axis, at, count)
   shiftValidations(sheet, axis, at, count)
+  shiftScenarios(sheet, axis, at, count)
   shiftTables(sheet, axis, at, count)
   shiftCharts(sheet.charts, axis, at, count)
   sheet.pageSetup = shiftPageSetup(sheet.pageSetup, axis, at, count)
@@ -527,6 +545,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   shiftMerges(sheet, axis, at, -count)
   shiftConditional(sheet, axis, at, -count)
   shiftValidations(sheet, axis, at, -count)
+  shiftScenarios(sheet, axis, at, -count)
   shiftTables(sheet, axis, at, -count)
   shiftCharts(sheet.charts, axis, at, -count)
   sheet.pageSetup = shiftPageSetup(sheet.pageSetup, axis, at, -count)

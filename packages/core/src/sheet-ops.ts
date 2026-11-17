@@ -8,6 +8,7 @@ import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
 import { rewriteNames, type SheetList } from "./names"
 import { copyAutoFilter, type AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
+import { copyScenarios, type ScenarioSet } from "./scenarios"
 import type { OutlineSettings } from "./sheet"
 import { renameSheetRefs } from "./formula/adjust"
 import type { Applied, AxisEntry, CellWrite, Op } from "./ops"
@@ -37,6 +38,7 @@ export type SheetSnapshot = {
   protection?: SheetProtection | null
   autoFilter?: AutoFilter | null
   outline?: OutlineSettings
+  scenarios?: ScenarioSet
   tabColor?: string
   hidden: boolean
 }
@@ -67,6 +69,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     protection: sheet.protection ? { ...sheet.protection } : null,
     autoFilter: copyAutoFilter(sheet.autoFilter),
     outline: { ...sheet.outline },
+    scenarios: copyScenarios(sheet.scenarios),
     tabColor: sheet.tabColor,
     hidden: sheet.hidden,
   }
@@ -97,6 +100,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.protection = s.protection ? { ...s.protection } : null
   sheet.autoFilter = copyAutoFilter(s.autoFilter ?? null)
   if (s.outline) sheet.outline = { ...s.outline }
+  if (s.scenarios) sheet.scenarios = copyScenarios(s.scenarios)
   sheet.tabColor = s.tabColor
   sheet.hidden = s.hidden
   return sheet

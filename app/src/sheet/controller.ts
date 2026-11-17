@@ -299,6 +299,8 @@ export class SheetController {
   autofit: ((axis: "rows" | "cols") => void) | null = null
   /** The grid's row fitter (it can measure text): the height a row's content needs, null for the default. */
   rowFit: ((row: number) => number | null) | null = null
+  /** The grid's column fitter: the width a column's content needs (within `rows` when given), null for the default. */
+  columnFit: ((col: number, rows?: { r0: number; r1: number }) => number | null) | null = null
   /** Styles conditional formatting draws with (kept apart from the workbook's own table). */
   readonly cfStyles = new StyleTable()
   private cf: {

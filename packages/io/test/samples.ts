@@ -360,6 +360,24 @@ export function whatIf(): Workbook {
     put(i + 1, 6, m)
     for (let c = 0; c < 3; c++) put(i + 1, 7 + c, "=TABLE(B3,B2)")
   })
+  // Scenario Manager: two sets of rate and amount.
+  const scenario = (name: string, rate: number, amount: number) => ({
+    name,
+    comment: "Created by Alex on 1/1/2026",
+    user: "Alex",
+    locked: true,
+    hidden: false,
+    cells: [
+      { row: 0, col: 1, value: rate },
+      { row: 2, col: 1, value: amount },
+    ],
+  })
+  s.scenarios = {
+    scenarios: [scenario("Low", 0.03, 8000), scenario("High", 0.07, 15000)],
+    current: 0,
+    show: 0,
+    resultCells: [{ r0: 3, c0: 1, r1: 3, c1: 1 }],
+  }
   return done(wb)
 }
 

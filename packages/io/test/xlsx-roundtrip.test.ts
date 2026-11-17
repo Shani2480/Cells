@@ -155,3 +155,38 @@ describe("What-If data tables", () => {
     expect(s.cells.value(5, 1)).toBe(10)
   })
 })
+
+describe("Scenarios", () => {
+  it("are written as <scenarios> and read back", async () => {
+    const { Workbook } = await import("@cells/core")
+    const wb = new Workbook(["Sheet1"])
+    wb.sheets[0].cells.set(0, 0, { value: 1 })
+    wb.sheets[0].scenarios = {
+      scenarios: [
+        {
+          name: "Best & <high>",
+          comment: "Created by Alex on 17/11/2026",
+          user: "Alex",
+          locked: true,
+          hidden: false,
+          cells: [
+            { row: 0, col: 0, value: 20 },
+            { row: 1, col: 0, value: "text" },
+          ],
+        },
+        { name: "Hidden", comment: "", user: "", locked: false, hidden: true, cells: [{ row: 0, col: 0, value: 5 }] },
+      ],
+      current: 0,
+      show: 1,
+      resultCells: [{ r0: 2, c0: 0, r1: 3, c1: 0 }],
+    }
+    const bytes = await saveXlsx(wb)
+    const entries = await readZip(bytes)
+    const sheet = new TextDecoder().decode(entries.find((e) => e.normalizedName === "xl/worksheets/sheet1.xml")!.data)
+    expect(sheet).toContain(
+      `<scenarios current="0" show="1" sqref="A3:A4"><scenario name="Best &amp; &lt;high&gt;" locked="1" count="2" user="Alex" comment="Created by Alex on 17/11/2026"><inputCells r="A1" val="20"/><inputCells r="A2" val="text"/></scenario>`,
+    )
+    const back = (await openXlsx(bytes)).workbook
+    expect(back.sheets[0].scenarios).toEqual(wb.sheets[0].scenarios)
+  })
+})

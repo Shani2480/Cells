@@ -6,6 +6,7 @@ import {
   ICON_SETS,
   MAX_COLS,
   MAX_ROWS,
+  parseCell,
   parseRange,
   type CellData,
   type CellValue,
@@ -18,6 +19,7 @@ import {
   type PasswordHash,
   type Range,
   type Sheet,
+  type ScenarioSet,
   type SheetProtection,
   type TimePeriod,
 } from "@cells/core"
@@ -108,6 +110,7 @@ const OWN = new Set([
   "cols",
   "sheetData",
   "sheetProtection",
+  "scenarios",
   "autoFilter",
   "mergeCells",
   "conditionalFormatting",
@@ -428,6 +431,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         break
       case "sheetProtection":
         sheet.protection = readProtection(parseFragment(source, rootTag).root)
+        break
+      case "scenarios":
+        sheet.scenarios = readScenarios(parseFragment(source, rootTag).root)
         break
       case "autoFilter":
         sheet.autoFilter = readAutoFilter(parseFragment(source, rootTag).root, ctx.styles, warnings)
@@ -776,4 +782,33 @@ export function dataTableFormula(f: {
   const r2 = on(f.del2) ? "#REF!" : (f.r2 ?? "")
   if (on(f.dt2D)) return `=TABLE(${r1},${r2})`
   return on(f.dtr) ? `=TABLE(${r1},)` : `=TABLE(,${r1})`
+}
+
+/** <scenarios>: Scenario Manager's named sets of values for changing cells. */
+function readScenarios(root: XNode): ScenarioSet {
+  const scenarios = kids(root, "scenario").map((s) => ({
+    name: at(s, "name") ?? "",
+    comment: at(s, "comment") ?? "",
+    user: at(s, "user") ?? "",
+    locked: truthy(at(s, "locked")),
+    hidden: truthy(at(s, "hidden")),
+    cells: kids(s, "inputCells").flatMap((c) => {
+      const cell = parseCell(at(c, "r") ?? "")
+      if (!cell || truthy(at(c, "deleted"))) return []
+      const text = at(c, "val") ?? ""
+      const value = text !== "" && Number.isFinite(Number(text)) ? Number(text) : text
+      return [{ row: cell.row, col: cell.col, value }]
+    }),
+  }))
+  const index = (name: string) => {
+    const v = at(root, name)
+    return v !== undefined && Number(v) < scenarios.length ? Number(v) : null
+  }
+  const sqref = (at(root, "sqref") ?? "").split(/\s+/).filter(Boolean)
+  return {
+    scenarios,
+    current: index("current"),
+    show: index("show"),
+    resultCells: sqref.map((r) => parseRange(r)).filter((r): r is NonNullable<typeof r> => r !== null),
+  }
 }

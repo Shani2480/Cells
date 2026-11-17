@@ -7,7 +7,14 @@ export function whatIfCommands(): Command[] {
       id: "WhatIfAnalysisMenu",
       label: "What-If Analysis",
       description: "Try out various values for the formulas in the sheet.",
-      menu: ["GoalSeek", "DataTable"],
+      menu: ["ScenarioManager", "GoalSeek", "DataTable"],
+    },
+    {
+      id: "ScenarioManager",
+      label: "Scenario Manager...",
+      description:
+        "Create and show named sets of values for the cells your formulas use, and compare them in a summary.",
+      run: (env) => env.dialog("scenarioManager"),
     },
     {
       id: "GoalSeek",
