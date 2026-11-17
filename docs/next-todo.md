@@ -158,6 +158,10 @@ decided when Part 8 is done.
   Excel, but on noisy data the fitted smoothing factors differ (forecasts within about 0.5%, confidence widths
   within about 10%, from a check of 8 patterns against Excel 16). Excel doesn't publish its fitting.
 - Forecast Sheet's chart is a plain line or column chart; Excel draws the confidence bounds thinner.
+- Refreshing a linked text file overwrites from the range's top-left and clears what the old data covered beyond the
+  new (Excel's "Overwrite existing cells with new data, clear unused cells"). Excel's default, "Insert cells for new
+  data, delete unused cells", and filling down formulas beside the data are not built yet. Neither are Power Query
+  queries (they are kept in the file as they were read).
 
 ## Later (from Phase 4)
 

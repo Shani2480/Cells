@@ -11,6 +11,7 @@ import type { SheetProtection } from "./protection"
 import { copyScenarios, type ScenarioSet } from "./scenarios"
 import { copyAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
 import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
+import { copyQueryTables, type QueryTable } from "./query-tables"
 import type { OutlineSettings } from "./sheet"
 import { renameSheetRefs } from "./formula/adjust"
 import type { Applied, AxisEntry, CellWrite, Op } from "./ops"
@@ -43,6 +44,7 @@ export type SheetSnapshot = {
   scenarios?: ScenarioSet
   advancedFilter?: AdvancedFilter | null
   consolidate?: ConsolidateSettings | null
+  queryTables?: QueryTable[]
   tabColor?: string
   hidden: boolean
 }
@@ -76,6 +78,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     scenarios: copyScenarios(sheet.scenarios),
     advancedFilter: copyAdvancedFilter(sheet.advancedFilter),
     consolidate: copyConsolidate(sheet.consolidate),
+    queryTables: copyQueryTables(sheet.queryTables),
     tabColor: sheet.tabColor,
     hidden: sheet.hidden,
   }
@@ -109,6 +112,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   if (s.scenarios) sheet.scenarios = copyScenarios(s.scenarios)
   sheet.advancedFilter = copyAdvancedFilter(s.advancedFilter ?? null)
   sheet.consolidate = copyConsolidate(s.consolidate ?? null)
+  sheet.queryTables = copyQueryTables(s.queryTables ?? [])
   sheet.tabColor = s.tabColor
   sheet.hidden = s.hidden
   return sheet

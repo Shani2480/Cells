@@ -3,7 +3,9 @@
  * then tries UTF-8 and falls back to Windows-1252 (Excel itself reads a UTF-8 file without a mark as Windows-1252,
  * which garbles accents; Cells checks the bytes instead).
  */
-export type TextEncoding = "utf-8" | "windows-1252" | "utf-16le" | "utf-16be"
+import type { TextEncoding } from "@cells/core"
+
+export type { TextEncoding }
 
 export const TEXT_ENCODINGS: { id: TextEncoding; label: string }[] = [
   { id: "utf-8", label: "65001 : Unicode (UTF-8)" },

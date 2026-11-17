@@ -101,7 +101,7 @@ export class SheetCommands {
   }
 
   /** A new sheet after the active one holding imported cells (Data › From Text/CSV); a taken name gets " (2)". */
-  importSheet(name: string, cells: CellWrite[]) {
+  importSheet(name: string, cells: CellWrite[], extra: (sheet: number) => Op[] = () => []) {
     const names = this.names.map((n) => n.toLowerCase())
     let unique = name
     for (let n = 2; names.includes(unique.toLowerCase()); n++) {
@@ -111,6 +111,7 @@ export class SheetCommands {
     const at = this.c.sheetIndex + 1
     const ops: Op[] = [{ kind: "addSheet", sheet: at, name: unique }]
     if (cells.length) ops.push({ kind: "setCells", sheet: at, cells })
+    ops.push(...extra(at))
     this.run(ops, "Import Text", at)
   }
 
@@ -174,6 +175,16 @@ export class SheetCommands {
     snapshot.name = name
     snapshot.hidden = false
     this.renameCopiedTables(snapshot)
+    // Its text links get connections of their own (Excel: sales → sales1), linked to the same files.
+    const connections = this.c.wb.sheets.flatMap((s) => s.queryTables.map((q) => q.connection))
+    snapshot.queryTables = (snapshot.queryTables ?? []).map((q) => {
+      const taken = new Set(connections.map((c) => c.toLowerCase()))
+      let n = 1
+      while (taken.has(`${q.connection}${n}`.toLowerCase())) n++
+      const connection = `${q.connection}${n}`
+      connections.push(connection)
+      return { ...q, connection }
+    })
     snapshot.charts = copiedSheetCharts(snapshot.charts ?? [], this.c.wb.sheets, sheet, name)
     this.run([{ kind: "addSheet", sheet: before, name, snapshot }], "Copy Sheet", before)
   }

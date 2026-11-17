@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest"
 import { errorValue } from "@cells/core"
 import { openXlsx, saveXlsx } from "../src"
 import { readZip } from "@cells/ooxml"
-import { budget } from "./samples"
+import { budget, linkedText } from "./samples"
+import { connectionsXml, readConnections } from "../src/xlsx/connections"
 
 const sample = budget
 
@@ -211,5 +212,56 @@ describe("Consolidate settings", () => {
     )
     const back = (await openXlsx(bytes)).workbook
     expect(back.sheets[0].consolidate).toEqual(wb.sheets[0].consolidate)
+  })
+})
+
+describe("text links (connections and query tables)", () => {
+  const part = (entries: { normalizedName: string; data: Uint8Array }[], name: string) =>
+    new TextDecoder().decode(entries.find((e) => e.normalizedName === name)?.data)
+
+  it("are written as Excel's text connections, query tables and sheet-level names, and read back", async () => {
+    const wb = linkedText()
+    const bytes = await saveXlsx(wb)
+    const entries = await readZip(bytes)
+    const conns = part(entries, "xl/connections.xml")
+    expect(conns).toContain(
+      `<connection id="1" name="sales" description="Weekly export from the shop" type="6" refreshedVersion="8" background="1" refreshOnLoad="1" saveData="1">`,
+    )
+    expect(conns).toContain(
+      `<textPr prompt="0" codePage="65001" sourceFile="C:\\Users\\alex\\Documents\\sales.csv" tab="0" semicolon="1" delimiter="|"><textFields count="4"><textField/><textField type="skip"/><textField/><textField type="text"/></textFields></textPr>`,
+    )
+    expect(conns).toContain(
+      `<textPr prompt="0" codePage="1252" sourceFile="C:\\Users\\alex\\Documents\\codes.txt" firstRow="2" delimited="0" decimal="," thousands="." tab="0" qualifier="none"><textFields count="2"><textField type="text"/><textField type="DMY" position="4"/></textFields></textPr>`,
+    )
+    expect(part(entries, "xl/queryTables/queryTable1.xml")).toContain(`name="sales"`)
+    expect(part(entries, "xl/workbook.xml")).toContain(
+      `<definedName name="sales" localSheetId="0">'Sales Data'!$A$1:$C$3</definedName>`,
+    )
+    const back = (await openXlsx(bytes)).workbook
+    expect(back.sheets[0].queryTables).toEqual(wb.sheets[0].queryTables)
+    expect(back.sheets[1].queryTables).toEqual(wb.sheets[1].queryTables)
+    expect(back.names.all()).toEqual([])
+  })
+
+  it("a second save writes each part once, and a sheet's links go with it", async () => {
+    const first = await openXlsx(await saveXlsx(linkedText()))
+    const again = await readZip(await saveXlsx(first.workbook, { source: first.source }))
+    const names = again.map((e) => e.normalizedName)
+    expect(names.filter((n) => n.startsWith("xl/queryTables/"))).toHaveLength(2)
+    expect(names.filter((n) => n.startsWith("xl/connections"))).toEqual(["xl/connections.xml"])
+    const next = await openXlsx(await saveXlsx(first.workbook, { source: first.source }))
+    next.workbook.transact([{ kind: "removeSheet", sheet: 1 }], { label: "Delete", history: false })
+    const fewer = await readZip(await saveXlsx(next.workbook, { source: next.source }))
+    expect(fewer.filter((e) => e.normalizedName.startsWith("xl/queryTables/"))).toHaveLength(1)
+    expect(part(fewer, "xl/connections.xml")).not.toContain("codes.txt")
+  })
+
+  it("keeps connections of other kinds as they were read", () => {
+    const odbc = `<connection id="3" name="Orders" type="1" refreshedVersion="8"><dbPr connection="DSN=Shop" command="SELECT 1"/></connection>`
+    const kept = [...readConnections(`<connections xmlns="x">${odbc}</connections>`).values()]
+    expect(kept[0].text).toBeUndefined()
+    const out = connectionsXml(kept, linkedText().sheets[0].queryTables)!
+    expect(out.xml).toContain(odbc)
+    expect([...out.ids.values()]).toEqual([4])
   })
 })

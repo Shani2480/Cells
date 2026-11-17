@@ -1,5 +1,5 @@
-import type { CellWrite } from "@cells/core"
-import { decodeText, placeCells, sheetNameFor, splitText, type TextImport } from "@cells/io"
+import { allQueryTables, type Op } from "@cells/core"
+import { sheetNameFor, type TextImport } from "@cells/io"
 import type { FilePort, FileRef } from "@cells/platform"
 import {
   classifyOpenError,
@@ -16,6 +16,7 @@ import {
   type WorkbookDocument,
 } from "./document"
 import { fileNameOf } from "@/platform/android-files"
+import { newQueryTable, refreshOps, sourceName, textCells } from "@/sheet/queries"
 import { pinRecent, recentFiles, removeRecent, touchRecent, type RecentFile } from "./recent"
 import { AUTORECOVER_MS, dropRecovery, keepRecovery, recoveredFiles, type RecoveredFile } from "./recovery"
 
@@ -56,6 +57,8 @@ export class FileCommands {
   private books = 1
   private recoverTimer: ReturnType<typeof setInterval> | null = null
   private embedded: { stop: () => void } | null = null
+  /** Files picked for text links this session, by the link's source: a browser can read them again by handle. */
+  private readonly linked = new Map<string, FileRef>()
 
   constructor(
     private readonly files: FilePort,
@@ -120,6 +123,7 @@ export class FileCommands {
     old.close()
     void dropRecovery(old.id)
     this.ui.show(next)
+    void this.refreshOnOpen()
   }
 
   /** Ctrl+N: a new blank workbook (this window shows one workbook at a time). */
@@ -366,11 +370,97 @@ export class FileCommands {
     const choices = await this.ui.textImport(picked.bytes, picked.ref.name)
     if (!choices) return false
     const c = this.doc.controller
-    const rows = splitText(decodeText(picked.bytes, choices.encoding).text, choices)
-    const cells: CellWrite[] = []
-    await placeCells(c.wb.styles, rows, choices, (row, col, data) => cells.push({ row, col, data }))
-    c.sheets.importSheet(sheetNameFor(picked.ref.name), cells)
+    const data = await textCells(c.wb.styles, picked.bytes, choices)
+    // The data stays linked to its file (Data › Queries & Connections), so Refresh can read it again.
+    const table = newQueryTable(c.wb.sheets, picked.ref.name, picked.ref.path ?? picked.ref.name, choices, data)
+    this.linked.set(table.source, picked.ref)
+    c.sheets.importSheet(sheetNameFor(picked.ref.name), data.cells, (sheet) => [
+      { kind: "queryTables", sheet, tables: [table] },
+    ])
     return true
+  }
+
+  /**
+   * Refresh: reads a linked text file again into its range (one step to undo). A file that can't be read (moved, or
+   * a browser that only knows its name) is looked for with the Open dialog, as Excel's Import Text File; false when
+   * the person cancels.
+   */
+  async refreshQuery(sheet: number, name: string): Promise<boolean> {
+    const ops = await this.refreshOpsFor(sheet, name)
+    if (!ops) return false
+    this.transactRefresh(ops, "Refresh")
+    return true
+  }
+
+  /** Ctrl+Alt+F5: every linked file in the workbook, in one step to undo; how many were refreshed. */
+  async refreshAll(): Promise<number> {
+    const c = this.doc.controller
+    const ops: Op[] = []
+    let done = 0
+    for (const { sheet, table } of allQueryTables(c.wb.sheets)) {
+      const more = await this.refreshOpsFor(sheet, table.name)
+      if (!more) continue
+      ops.push(...more)
+      done++
+    }
+    if (ops.length) this.transactRefresh(ops, "Refresh All")
+    return done
+  }
+
+  /** Asks to refresh the links that are set to refresh when the file opens (Excel asks before reading files too). */
+  async refreshOnOpen(): Promise<number> {
+    const c = this.doc.controller
+    const due = allQueryTables(c.wb.sheets).filter((q) => q.table.refreshOnLoad)
+    if (!due.length) return 0
+    const names = due.map((q) => sourceName(q.table.source)).join(", ")
+    if (!(await this.ui.confirm(`This workbook refreshes its data from ${names} when it opens. Refresh it now?`)))
+      return 0
+    const ops: Op[] = []
+    for (const { sheet, table } of due) ops.push(...((await this.refreshOpsFor(sheet, table.name)) ?? []))
+    if (ops.length) this.transactRefresh(ops, "Refresh")
+    return due.length
+  }
+
+  private transactRefresh(ops: Op[], label: string) {
+    const c = this.doc.controller
+    if (c.edit) c.commitEdit()
+    c.transact(ops, { label, before: c.selection })
+  }
+
+  private async refreshOpsFor(index: number, name: string): Promise<Op[] | null> {
+    const c = this.doc.controller
+    const sheet = c.wb.sheets[index]
+    const table = sheet?.queryTables.find((q) => q.name === name)
+    if (!sheet || !table) return null
+    let bytes: Uint8Array | null = null
+    let source: string | undefined
+    const known = this.linked.get(table.source)
+    const ref =
+      known ?? (/[\\/]|^content:/.test(table.source) ? { name: fileNameOf(table.source), path: table.source } : null)
+    if (ref) {
+      try {
+        bytes = await this.files.read(ref)
+      } catch {
+        bytes = null
+      }
+    }
+    if (!bytes) {
+      let picked: { ref: FileRef; bytes: Uint8Array } | null
+      try {
+        picked = await this.files.pickOpen(TEXT_TYPES)
+      } catch (error) {
+        this.ui.problem(classifyOpenError(error, null, sourceName(table.source)))
+        return null
+      }
+      if (!picked) return null
+      bytes = picked.bytes
+      source = picked.ref.path ?? picked.ref.name
+      this.linked.set(source, picked.ref)
+    }
+    // The person may have changed the workbook while the file was read: look the table up again.
+    const now = c.wb.sheets.indexOf(sheet)
+    if (now < 0 || !sheet.queryTables.some((q) => q.name === name)) return null
+    return refreshOps(now, sheet, name, await textCells(c.wb.styles, bytes, table.options), source)
   }
 
   discardRecovered(file: RecoveredFile): Promise<void> {

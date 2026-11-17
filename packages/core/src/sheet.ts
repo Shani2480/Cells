@@ -12,6 +12,7 @@ import type { SheetProtection } from "./protection"
 import { emptyScenarios, type ScenarioSet } from "./scenarios"
 import type { AdvancedFilter } from "./advanced-filter"
 import type { ConsolidateSettings } from "./consolidate"
+import type { QueryTable } from "./query-tables"
 
 /**
  * Default sizes at 100% zoom, as Excel draws a new workbook with an 11 pt body font: rows 15 pt (20 px), columns
@@ -170,6 +171,8 @@ export class Sheet {
   advancedFilter: AdvancedFilter | null = null
   /** Data › Consolidate as last used here (saved with the sheet, as Excel does). */
   consolidate: ConsolidateSettings | null = null
+  /** Ranges filled from text files that Refresh reads again (Data › Queries & Connections). */
+  queryTables: QueryTable[] = []
 
   constructor(name: string) {
     this.name = name

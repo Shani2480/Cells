@@ -2820,3 +2820,138 @@ html.is-phone .clipboard-item-delete {
 html.is-phone .forecast-options {
   grid-template-columns: 1fr;
 }
+
+/* ── Data › Queries & Connections ── */
+.queries-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  border: 1px solid var(--app-divider);
+  border-radius: 6px;
+  background: var(--app-popover-bg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.queries-item:hover {
+  border-color: var(--app-theme-primary);
+}
+
+.queries-go {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.queries-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--app-theme-primary);
+}
+
+.queries-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.queries-text strong {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queries-meta {
+  overflow: hidden;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queries-actions {
+  display: flex;
+  flex: none;
+  padding: 4px 4px 0 0;
+}
+
+.queries-actions button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--app-ribbon-muted);
+  cursor: pointer;
+}
+
+.queries-actions button:hover:not(:disabled) {
+  background: var(--app-hover);
+  color: inherit;
+}
+
+.queries-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@keyframes queries-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.queries-spin {
+  animation: queries-spin 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queries-spin {
+    animation: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .queries-actions button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.query-props {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.query-props textarea {
+  resize: vertical;
+}
+
+.query-props-file {
+  overflow: hidden;
+  color: var(--app-ribbon-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.query-props-problem {
+  color: var(--app-error, #c42b1c);
+}

@@ -184,3 +184,14 @@ describe("tables", () => {
     expect(names.some((n) => n.startsWith("xl/tables/"))).toBe(false)
   })
 })
+
+describe("text links", () => {
+  it("reads Excel's connections and query tables as Cells wrote them, and keeps them on a save", async () => {
+    const read = await openXlsx(fixture("linkedText"), "linkedText.xlsx")
+    const original = samples.linkedText()
+    expect(read.workbook.sheets.map((s) => s.queryTables)).toEqual(original.sheets.map((s) => s.queryTables))
+    expect(read.source.keptConnections).toEqual([])
+    const again = await openXlsx(await saveXlsx(read.workbook, { source: read.source }))
+    expect(again.workbook.sheets.map((s) => s.queryTables)).toEqual(original.sheets.map((s) => s.queryTables))
+  })
+})

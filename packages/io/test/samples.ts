@@ -431,7 +431,70 @@ export function forecast(): Workbook {
   return done(wb)
 }
 
+/** Data from text files that stays linked to them (Data › From Text/CSV): a delimited and a fixed-width import. */
+export function linkedText(): Workbook {
+  const wb = new Workbook(["Sales Data", "Codes"])
+  const [sales, codes] = wb.sheets
+  const rows = [
+    ["Item", "Qty", "Code"],
+    ["Pens", 4, "007"],
+    ["Ink", 2, "012"],
+  ]
+  const text = wb.styles.intern({ numberFormat: "@" })
+  rows.forEach((row, r) =>
+    row.forEach((value, c) => sales.cells.set(r, c, { value, ...(c === 2 && r > 0 ? { style: text } : {}) })),
+  )
+  sales.queryTables = [
+    {
+      name: "sales",
+      connection: "sales",
+      description: "Weekly export from the shop",
+      range: { r0: 0, c0: 0, r1: 2, c1: 2 },
+      source: "C:\\Users\\alex\\Documents\\sales.csv",
+      options: {
+        encoding: "utf-8",
+        kind: "delimited",
+        delimiters: [";", "|"],
+        qualifier: '"',
+        consecutive: false,
+        breaks: [],
+        startRow: 1,
+        columns: ["general", "skip", "general", "text"],
+        decimal: ".",
+        thousands: ",",
+      },
+      refreshOnLoad: true,
+    },
+  ]
+  codes.cells.set(0, 0, { value: "A1" })
+  codes.cells.set(0, 1, { value: 25 })
+  codes.queryTables = [
+    {
+      name: "codes",
+      connection: "Product codes",
+      description: "",
+      range: { r0: 0, c0: 0, r1: 0, c1: 1 },
+      source: "C:\\Users\\alex\\Documents\\codes.txt",
+      options: {
+        encoding: "windows-1252",
+        kind: "fixed",
+        delimiters: [],
+        qualifier: null,
+        consecutive: false,
+        breaks: [4],
+        startRow: 2,
+        columns: ["text", "DMY"],
+        decimal: ",",
+        thousands: ".",
+      },
+      refreshOnLoad: false,
+    },
+  ]
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  linkedText,
   forecast,
   consolidated,
   whatIf,

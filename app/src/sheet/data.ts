@@ -27,6 +27,8 @@ import {
   type SortOptions,
 } from "@cells/core"
 import type { TextImport } from "@cells/io"
+import type { QueryTable } from "@cells/core"
+import { queryTableAt, queryTableOps } from "./queries"
 import { todaySerial, type SheetController } from "./controller"
 import {
   columnTexts,
@@ -78,6 +80,34 @@ export type FilterHost = { filter: AutoFilter; table: Table | null }
  */
 export class DataCommands {
   constructor(private readonly c: SheetController) {}
+
+  /** Data › Queries & Connections: the pane of linked text files beside the sheet. */
+  queriesOpen = false
+  /** The link Connection Properties shows (its sheet and name). */
+  queryTarget: { sheet: number; name: string } | null = null
+
+  toggleQueries(open = !this.queriesOpen) {
+    this.queriesOpen = open
+    this.c.changed()
+  }
+
+  /** The linked range holding the active cell, for Data › Properties and Refresh (Alt+F5). */
+  activeQuery(): { sheet: number; name: string } | null {
+    const { row, col } = this.c.selection.active
+    const q = queryTableAt(this.c.sheet, row, col)
+    return q ? { sheet: this.c.sheetIndex, name: q.name } : null
+  }
+
+  /** Keeps a link's settings, or removes the link (`null`; the data stays). One step to undo. */
+  setQueryTable(sheet: number, name: string, next: QueryTable | null) {
+    const target = this.c.wb.sheets[sheet]
+    if (!target) return
+    if (this.c.edit) this.c.commitEdit()
+    this.c.transact(queryTableOps(sheet, target, name, next), {
+      label: next ? "Connection Properties" : "Delete Connection",
+      before: this.c.selection,
+    })
+  }
 
   /** The current region for one cell; the selection itself for more than one. */
   sortRange(): Range {

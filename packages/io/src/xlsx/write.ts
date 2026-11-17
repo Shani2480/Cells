@@ -41,6 +41,15 @@ import {
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
 import { writeDrawing } from "./drawing"
+import {
+  connectionsXml,
+  CT_CONNECTIONS,
+  CT_QUERY_TABLE,
+  queryTableNameXml,
+  queryTableXml,
+  REL_CONNECTIONS,
+  REL_QUERY_TABLE,
+} from "./connections"
 import { printNamesXml } from "./page-setup"
 import { formulaToFile } from "./formula"
 import type { XlsxSource } from "./read"
@@ -84,6 +93,7 @@ const OWN_WORKBOOK_RELS = new Set([
   REL_CALC_CHAIN,
   REL_METADATA,
   REL_PERSON,
+  REL_CONNECTIONS,
 ])
 const RICH_VALUE_REL = /richvalue|richstyles|rdarray|rdsupportingpropertybag/i
 const VBA_REL = /\/vbaProject$/i
@@ -202,6 +212,10 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   let dynamic = false
   const sheetEntries: string[] = []
   const usedTables = new Set<string>()
+  // Connections: the kept ones and one per text link; each link's query table goes with its sheet.
+  const links = wb.sheets.flatMap((s) => s.queryTables)
+  const conns = connectionsXml(source?.keptConnections ?? [], links)
+  const usedQueryTables = new Set<string>()
 
   wb.sheets.forEach((sheet, i) => {
     const s = source?.sheets.get(sheet)
@@ -246,6 +260,13 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       put(part, CT_TABLE, tableXml(t, styles, rangeRef, toFile))
       tableParts.push(addRel(partName, REL_TABLE, part))
     }
+    for (const r of own) if (r.type === REL_QUERY_TABLE && r.partName) usedQueryTables.add(partKey(r.partName))
+    for (const q of sheet.queryTables) {
+      const part = freeName((n) => `/xl/queryTables/queryTable${n}.xml`)
+      usedQueryTables.add(partKey(part))
+      put(part, CT_QUERY_TABLE, queryTableXml(q, conns!.ids.get(q)!))
+      addRel(partName, REL_QUERY_TABLE, part)
+    }
     const drawing = writeDrawing(wb, sheet, partName, s?.drawing, {
       put,
       removeTree,
@@ -278,6 +299,14 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   // Tables that are gone (converted to a range, or their sheet deleted) leave with their parts.
   for (const p of [...parts.values()])
     if (p.contentType === CT_TABLE && !usedTables.has(partKey(p.name))) remove(p.name)
+  // So do query tables that Cells wrote anew or whose sheet is gone.
+  for (const p of [...parts.values()])
+    if (p.contentType === CT_QUERY_TABLE && !usedQueryTables.has(partKey(p.name))) remove(p.name)
+  if (conns) {
+    const name = freeName((n) => (n === 1 ? "/xl/connections.xml" : `/xl/connections${n}.xml`))
+    put(name, CT_CONNECTIONS, conns.xml)
+    addRel(main, REL_CONNECTIONS, name)
+  }
 
   put(stylesName, CT_STYLES, styles.xml())
   addRel(main, REL_STYLES, stylesName)
@@ -416,8 +445,11 @@ function definedNamesXml(wb: Workbook, source: XlsxSource | null): string {
       `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">${escapeXmlText(ref)}</definedName>`,
     )
   })
-  // Each sheet's print area and titles.
+  // Each sheet's print area and titles, and the names that place its text links.
   wb.sheets.forEach((sheet, index) => items.push(...printNamesXml(sheet.name, index, sheet.pageSetup)))
+  wb.sheets.forEach((sheet, index) => {
+    for (const q of sheet.queryTables) items.push(queryTableNameXml(sheet.name, index, q))
+  })
   for (const k of source?.keptNames ?? []) {
     if (!k.sheet) {
       items.push(k.xml)

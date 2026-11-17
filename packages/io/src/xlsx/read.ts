@@ -17,6 +17,14 @@ import {
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from "./dom"
 import { readDrawing, REL_DRAWING, type DrawingSource } from "./drawing"
+import {
+  queryTableFrom,
+  readConnections,
+  readQueryTable,
+  REL_CONNECTIONS,
+  REL_QUERY_TABLE,
+  type ConnectionIn,
+} from "./connections"
 import { readPrintArea, readPrintTitles, type PageSetupExtras } from "./page-setup"
 import { formulaFromFile } from "./formula"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
@@ -56,6 +64,8 @@ export type XlsxSource = {
   sheets: WeakMap<Sheet, SheetSource>
   /** The workbook had dynamic-array formulas (needs metadata.xml on save). */
   dynamic: boolean
+  /** Connections Cells doesn't model (databases, the web, Power Query), written back as read. */
+  keptConnections: ConnectionIn[]
 }
 
 export type XlsxRead = {
@@ -180,6 +190,9 @@ export async function openXlsx(
   const sstXml = partText(pkg, relOfType(wbRels, REL_SHARED_STRINGS)?.partName)
   const strings = sstXml ? readSharedStrings(sstXml, rich) : []
   const personsXml = partText(pkg, relOfType(wbRels, REL_PERSON)?.partName)
+  const connections = readConnections(partText(pkg, relOfType(wbRels, REL_CONNECTIONS)?.partName) ?? null)
+  /** Query tables found on sheets, placed once the defined names are read. */
+  const linked: { sheet: Sheet; relId: string; name: string; connectionId: number }[] = []
   const persons = personsXml ? readPersons(personsXml) : new Map<string, string>()
 
   if (at(kid(root, "workbookPr"), "date1904") === "1" || at(kid(root, "workbookPr"), "date1904") === "true")
@@ -256,6 +269,11 @@ export async function openXlsx(
       }
       sheet.tables.push(table)
       tables.push({ id: table.id, partName: r.partName })
+    }
+    for (const r of rels) {
+      if (r.type !== REL_QUERY_TABLE || !r.partName) continue
+      const q = readQueryTable(partText(pkg, r.partName) ?? null)
+      if (q && connections.get(q.connectionId)?.text) linked.push({ sheet, relId: r.id, ...q })
     }
     const drawingRel = rels.find((r) => r.id === read.drawing && r.type === REL_DRAWING)
     const drawingXml = partText(pkg, drawingRel?.partName)
@@ -348,6 +366,22 @@ export async function openXlsx(
   }
   wb.names.replace(names)
 
+  // Text links: each query table placed by its sheet-level name; Cells writes those three parts anew.
+  const modelled = new Set<number>()
+  for (const l of linked) {
+    const k = keptNames.findIndex((n) => n.sheet === l.sheet && at(parseTree(n.xml).root, "name") === l.name)
+    if (k < 0) continue
+    const area = readPrintArea(parseTree(keptNames[k].xml).root.text)
+    const q = area?.length === 1 ? queryTableFrom(l.name, connections.get(l.connectionId)!, area[0]) : null
+    if (!q) continue
+    l.sheet.queryTables.push(q)
+    keptNames.splice(k, 1)
+    modelled.add(l.connectionId)
+    const s = sheetSources.get(l.sheet)
+    if (s) s.rels = s.rels.filter((r) => r.id !== l.relId)
+  }
+  const keptConnections = [...connections.values()].filter((c) => !modelled.has(c.id))
+
   const prot = kid(root, "workbookProtection")
   if (prot && (at(prot, "lockStructure") === "1" || at(prot, "lockStructure") === "true")) {
     const p: WorkbookProtection = {}
@@ -380,7 +414,7 @@ export async function openXlsx(
     workbook: wb,
     views,
     activeSheet,
-    source: { pkg, workbook: wbDoc, styles, reuse, rich, keptNames, sheets: sheetSources, dynamic },
+    source: { pkg, workbook: wbDoc, styles, reuse, rich, keptNames, sheets: sheetSources, dynamic, keptConnections },
     warnings: [...new Set(warnings)],
   }
 }

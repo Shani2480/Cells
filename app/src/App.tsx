@@ -38,6 +38,8 @@ import { FormatCellsDialog, type FormatTab } from "@/shell/format-cells/FormatCe
 import { TooltipProvider } from "@/ui/tooltip"
 import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
+import { QueriesPane } from "@/shell/QueriesPane"
+import { QueryPropertiesDialog } from "@/shell/QueryPropertiesDialog"
 import { CreateNamesDialog, ErrorCheckingDialog, EvaluateFormulaDialog, NameManagerDialog } from "@/shell/AuditDialogs"
 import { WatchWindow } from "@/shell/WatchWindow"
 import { GroupDialog, OutlineSettingsDialog, SubtotalDialog } from "@/shell/OutlineDialogs"
@@ -128,6 +130,7 @@ type DialogState =
         | "advancedFilter"
         | "consolidate"
         | "forecast"
+        | "queryProperties"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "sort"; range: Range }
@@ -745,7 +748,8 @@ function WorkbookWindow({
       kind === "scenarioManager" ||
       kind === "advancedFilter" ||
       kind === "consolidate" ||
-      kind === "forecast"
+      kind === "forecast" ||
+      kind === "queryProperties"
     )
       setDialog({ kind })
   }
@@ -769,6 +773,20 @@ function WorkbookWindow({
       if (event.key === "F1" && primary) {
         event.preventDefault()
         ribbonHandle.current?.toggleCollapsed()
+      } else if (
+        event.key === "F5" &&
+        event.altKey &&
+        !event.shiftKey &&
+        !document.querySelector('[aria-modal="true"]')
+      ) {
+        // Ctrl+Alt+F5: Refresh All; Alt+F5: Refresh the linked data at the active cell.
+        event.preventDefault()
+        event.stopPropagation()
+        if (primary) void files.refreshAll()
+        else {
+          const q = files.doc.controller.data.activeQuery()
+          if (q) void files.refreshQuery(q.sheet, q.name)
+        }
       } else if (
         primary &&
         !event.altKey &&
@@ -818,6 +836,14 @@ function WorkbookWindow({
       onInsertFunction={() => openDialog("insertFunction")}
     />
   ) : null
+  const queriesPane = (
+    <QueriesPane
+      controller={controller}
+      files={files}
+      onProperties={() => openDialog("queryProperties")}
+      onDone={focusGrid}
+    />
+  )
   const clipboardPane = (
     <ClipboardPane controller={controller} onPaste={(text, html) => controller.paste(text, html)} onDone={focusGrid} />
   )
@@ -906,12 +932,14 @@ function WorkbookWindow({
               <main className="sheet-area">{grid}</main>
               {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
+              {controller.data.queriesOpen ? queriesPane : null}
             </div>
             <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
             <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
           </>
         )}
         {shell === "phone" && controller.clipboardPaneOpen ? clipboardPane : null}
+        {shell === "phone" && controller.data.queriesOpen ? queriesPane : null}
         {shell === "phone" && controller.audit.watchOpen ? (
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}
@@ -996,6 +1024,9 @@ function WorkbookWindow({
           <AdvancedFilterDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "consolidate" ? <ConsolidateDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "queryProperties" ? (
+          <QueryPropertiesDialog controller={controller} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "forecast" ? <ForecastDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "scenarioManager" ? (
           <ScenarioManagerDialog controller={controller} onClose={closeDialog} />

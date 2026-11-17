@@ -258,6 +258,63 @@ describe("FileCommands", () => {
   })
 })
 
+describe("Queries & Connections (linked text files)", () => {
+  beforeEach(() => localStorage.clear())
+  const csv = (text: string) => new TextEncoder().encode(text)
+
+  async function imported() {
+    const t = setup("cancel", { delimiters: [","] })
+    t.files.disk.set("/home/alex/sales.csv", csv("Item,Qty\nPens,4\nInk,2\nPaper,9\n"))
+    t.files.nextOpen = "/home/alex/sales.csv"
+    await t.commands.importText()
+    return { ...t, c: t.commands.doc.controller }
+  }
+
+  it("an import stays linked to its file, with names from the file", async () => {
+    const { c } = await imported()
+    expect(c.sheet.queryTables).toMatchObject([
+      { name: "sales", connection: "sales", source: "/home/alex/sales.csv", range: { r0: 0, c0: 0, r1: 3, c1: 1 } },
+    ])
+  })
+
+  it("Refresh reads the file again: new data in, old data beyond it cleared, one step to undo", async () => {
+    const { files, commands, c } = await imported()
+    files.disk.set("/home/alex/sales.csv", csv("Item,Qty,Price\nPens,5,1.5\n"))
+    c.sheet.cells.set(10, 5, { value: "mine" })
+    expect(await commands.refreshQuery(c.sheetIndex, "sales")).toBe(true)
+    expect(c.sheet.cells.get(1, 1)?.value).toBe(5)
+    expect(c.sheet.cells.get(1, 2)?.value).toBe(1.5)
+    expect(c.sheet.cells.get(2, 0)).toBeUndefined()
+    expect(c.sheet.cells.get(10, 5)?.value).toBe("mine")
+    expect(c.sheet.queryTables[0].range).toEqual({ r0: 0, c0: 0, r1: 1, c1: 2 })
+    c.undo()
+    expect(c.sheet.cells.get(3, 0)?.value).toBe("Paper")
+    expect(c.sheet.queryTables[0].range).toEqual({ r0: 0, c0: 0, r1: 3, c1: 1 })
+  })
+
+  it("a file that moved is looked for with the Open dialog, and the link follows it", async () => {
+    const { files, commands, c } = await imported()
+    files.disk.delete("/home/alex/sales.csv")
+    expect(await commands.refreshQuery(c.sheetIndex, "sales")).toBe(false) // Open cancelled
+    files.disk.set("/home/alex/new/sales.csv", csv("Item\nCards\n"))
+    files.nextOpen = "/home/alex/new/sales.csv"
+    expect(await commands.refreshAll()).toBe(1)
+    expect(c.sheet.cells.get(1, 0)?.value).toBe("Cards")
+    expect(c.sheet.queryTables[0].source).toBe("/home/alex/new/sales.csv")
+  })
+
+  it("the link moves with inserted rows; Delete keeps the data", async () => {
+    const { c } = await imported()
+    c.transact([{ kind: "insertRows", sheet: c.sheetIndex, at: 0, count: 2 }], { label: "Insert", before: c.selection })
+    expect(c.sheet.queryTables[0].range).toEqual({ r0: 2, c0: 0, r1: 5, c1: 1 })
+    c.data.setQueryTable(c.sheetIndex, "sales", null)
+    expect(c.sheet.queryTables).toEqual([])
+    expect(c.sheet.cells.get(3, 0)?.value).toBe("Pens")
+    c.undo()
+    expect(c.sheet.queryTables).toHaveLength(1)
+  })
+})
+
 describe("Edit Data (a chart's workbook from Inkspire)", () => {
   const path = "/home/alex/.cache/inkspire/edit/Report-Chart 1.xlsx"
 

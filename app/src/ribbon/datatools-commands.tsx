@@ -1,4 +1,4 @@
-import type { Command } from "./registry"
+import type { Command, RibbonEnv } from "./registry"
 
 /** Data › Sort & Filter › Advanced, and the Data Tools that come with Part 4. */
 export function dataToolCommands(): Command[] {
@@ -26,5 +26,69 @@ export function dataToolCommands(): Command[] {
       keytip: "FC",
       run: (env) => env.dialog("forecast"),
     },
+    {
+      id: "RefreshAllMenu",
+      label: "Refresh All",
+      description: "Get the latest data by reading every linked text file in the workbook again.",
+      shortcut: "Ctrl+Alt+F5",
+      keytip: "RA",
+      run: (env) => void env.files?.refreshAll(),
+      enabled: (env) => Boolean(env.files) && hasLinks(env),
+      menu: ["RefreshAll", "RefreshData", "-", "ConnectionProperties"],
+    },
+    {
+      id: "RefreshAll",
+      label: "Refresh All",
+      description: "Get the latest data by reading every linked text file in the workbook again.",
+      shortcut: "Ctrl+Alt+F5",
+      keytip: "A",
+      run: (env) => void env.files?.refreshAll(),
+      enabled: (env) => Boolean(env.files) && hasLinks(env),
+    },
+    {
+      id: "RefreshData",
+      label: "Refresh",
+      description: "Get the latest data from the file linked to the selected cells.",
+      shortcut: "Alt+F5",
+      keytip: "R",
+      run: (env) => {
+        const q = env.c.data.activeQuery()
+        if (q) void env.files?.refreshQuery(q.sheet, q.name)
+      },
+      enabled: (env) => Boolean(env.files) && env.c.data.activeQuery() !== null,
+    },
+    {
+      id: "ConnectionProperties",
+      label: "Connection Properties...",
+      description: "Name the connection, describe it, and choose whether it refreshes when the workbook opens.",
+      keytip: "O",
+      run: (env) => openProperties(env),
+      enabled: (env) => env.c.data.activeQuery() !== null,
+    },
+    {
+      id: "ShowQueriesAndConnections",
+      label: "Queries & Connections",
+      description: "Show the workbook's links to text files, where their data is, and refresh or change them.",
+      keytip: "O",
+      run: (env) => env.c.data.toggleQueries(),
+      pressed: (env) => env.c.data.queriesOpen,
+    },
+    {
+      id: "DataRangeProperties",
+      label: "Properties",
+      description: "Change how the linked data in the selected cells refreshes, and its names.",
+      keytip: "P",
+      run: (env) => openProperties(env),
+      enabled: (env) => env.c.data.activeQuery() !== null,
+    },
   ]
+}
+
+const hasLinks = (env: RibbonEnv) => env.c.wb.sheets.some((s) => s.queryTables.length > 0)
+
+function openProperties(env: RibbonEnv) {
+  const q = env.c.data.activeQuery()
+  if (!q) return
+  env.c.data.queryTarget = q
+  env.dialog("queryProperties")
 }

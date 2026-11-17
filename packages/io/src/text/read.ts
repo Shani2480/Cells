@@ -16,29 +16,11 @@ import { DEFAULT_VIEW, type SheetView } from "../xlsx/sheet-read"
 import { decodeText, type TextEncoding } from "./encoding"
 import { CSV, detectDelimiter, parseDelimited, splitFixed, textLines } from "./split"
 
-/** A column's format in the Text Import Wizard: General, Text, a date order, or "Do not import column (skip)". */
-export type ColumnFormat = "general" | "text" | "skip" | "MDY" | "DMY" | "YMD" | "MYD" | "DYM" | "YDM"
+/** The Text Import Wizard's choices and column formats live in core, with the query tables that keep them. */
+export type { ColumnFormat, TextImport } from "@cells/core"
+import type { ColumnFormat, TextImport } from "@cells/core"
 
 export const DATE_ORDERS = ["MDY", "DMY", "YMD", "MYD", "DYM", "YDM"] as const
-
-/** How a text file is read: the Text Import Wizard's choices (plain data, so it can go to the worker). */
-export type TextImport = {
-  /** Detected when absent. */
-  encoding?: TextEncoding
-  kind: "delimited" | "fixed"
-  delimiters: string[]
-  qualifier: string | null
-  consecutive: boolean
-  /** Fixed width: where each column starts (character positions, ascending). */
-  breaks: number[]
-  /** The first row imported, from 1. */
-  startRow: number
-  /** Per column; columns past the end are General. */
-  columns: ColumnFormat[]
-  /** Advanced: the decimal and thousands separators numbers use. */
-  decimal: string
-  thousands: string
-}
 
 export type TextRead = {
   workbook: Workbook

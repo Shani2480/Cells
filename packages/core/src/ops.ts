@@ -7,6 +7,7 @@ import { copyValidations, shiftValidations, type ValidationEntry } from "./valid
 import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
 import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
 import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
+import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tables"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
 import { copyPageSetup, shiftPageSetup, type PageSetup } from "./page-setup"
@@ -78,6 +79,7 @@ export type Op =
       autoFilter?: AutoFilter | null
       scenarios?: ScenarioSet
       advancedFilter?: AdvancedFilter | null
+      queryTables?: QueryTable[]
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -100,6 +102,8 @@ export type Op =
   | { kind: "autoFilter"; sheet: number; filter: AutoFilter | null; rows?: AxisEntry[] }
   /** Data › Advanced in place: the filter and the rows it shows and hides. */
   | { kind: "advancedFilter"; sheet: number; filter: AdvancedFilter | null; rows?: AxisEntry[] }
+  /** The sheet's ranges linked to text files (import, refresh, rename, delete). */
+  | { kind: "queryTables"; sheet: number; tables: QueryTable[] }
   /** Data › Consolidate: what the dialog last used on the sheet. */
   | { kind: "consolidateSettings"; sheet: number; settings: ConsolidateSettings | null }
   /** Protect Sheet (with the options) or Unprotect Sheet (null). */
@@ -276,6 +280,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
         change: rows?.change.structural ? rows.change : { sheet: op.sheet, structural: false, format: true },
       }
     }
+    case "queryTables": {
+      const before = copyQueryTables(sheet.queryTables)
+      sheet.queryTables = copyQueryTables(op.tables)
+      return {
+        inverse: [{ kind: "queryTables", sheet: op.sheet, tables: before }],
+        change: { sheet: op.sheet, structural: false },
+      }
+    }
     case "consolidateSettings": {
       const before = copyConsolidate(sheet.consolidate)
       sheet.consolidate = copyConsolidate(op.settings)
@@ -370,6 +382,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     autoFilter: copyAutoFilter(sheet.autoFilter),
     scenarios: copyScenarios(sheet.scenarios),
     advancedFilter: copyAdvancedFilter(sheet.advancedFilter),
+    queryTables: copyQueryTables(sheet.queryTables),
   }
 }
 
@@ -392,6 +405,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   if (op.autoFilter !== undefined) sheet.autoFilter = copyAutoFilter(op.autoFilter)
   if (op.scenarios) sheet.scenarios = copyScenarios(op.scenarios)
   if (op.advancedFilter !== undefined) sheet.advancedFilter = copyAdvancedFilter(op.advancedFilter)
+  if (op.queryTables) sheet.queryTables = copyQueryTables(op.queryTables)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -414,7 +428,8 @@ function hasLayout(sheet: Sheet) {
     sheet.autoFilter !== null ||
     sheet.scenarios.scenarios.length > 0 ||
     sheet.scenarios.resultCells.length > 0 ||
-    sheet.advancedFilter !== null
+    sheet.advancedFilter !== null ||
+    sheet.queryTables.length > 0
   )
 }
 
@@ -524,6 +539,7 @@ function insertLines(
   sheet.annotations.shift(axis, at, count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, count)
   if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, count)
+  if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
   if (layout) inverse.push(layout)
@@ -581,6 +597,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   sheet.annotations.shift(axis, at, -count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, -count)
   if (sheet.advancedFilter) sheet.advancedFilter = shiftAdvancedFilter(sheet.advancedFilter, index, axis, at, -count)
+  if (sheet.queryTables.length) sheet.queryTables = shiftQueryTables(sheet.queryTables, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
   if (layout) inverse.push(layout)
   if (removed.length) {
