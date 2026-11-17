@@ -2690,3 +2690,39 @@ html.is-phone .clipboard-item-delete {
 .advanced-unique {
   margin-top: 10px;
 }
+
+/* ── Data › Data Tools › Consolidate (shell/ConsolidateDialog.tsx) ───────────────────────────────────────── */
+.consolidate-gap {
+  margin-top: 10px;
+}
+
+.consolidate-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.consolidate-row > .dialog-field,
+.consolidate-list {
+  flex: 1;
+  min-width: 0;
+}
+
+.consolidate-list {
+  height: 96px;
+  overflow: auto;
+}
+
+.consolidate-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 84px;
+}
+
+.consolidate-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}

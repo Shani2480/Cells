@@ -3,6 +3,9 @@ import {
   advancedFilterRows,
   type AdvancedFilter,
   type AxisEntry,
+  consolidateOps,
+  type ConsolidateSettings,
+  type ConsolidateSource,
   copyTable,
   displayText,
   flashFill,
@@ -492,6 +495,28 @@ export class DataCommands {
         after: sel,
       }) !== null
     )
+  }
+
+  // ── Consolidate ───────────────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Data › Consolidate into the selection: `sources` are the references the dialog resolved, `settings` what it
+   * shows next time (saved with the sheet). Returns Excel's message when it can't, else null.
+   */
+  consolidate(sources: ConsolidateSource[], settings: ConsolidateSettings): string | null {
+    if (this.c.edit) this.c.commitEdit()
+    let dest = this.c.selection.ranges[0]
+    // One merged cell is one cell: the result starts there and takes the room it needs.
+    const merged = this.c.sheet.merges.at(dest.r0, dest.c0)
+    if (merged && merged.r0 === dest.r0 && merged.c0 === dest.c0 && merged.r1 === dest.r1 && merged.c1 === dest.c1)
+      dest = { r0: dest.r0, c0: dest.c0, r1: dest.r0, c1: dest.c0 }
+    const result = consolidateOps(this.c.wb.sheets, this.c.wb.styles, this.c.sheetIndex, dest, sources, settings)
+    if ("problem" in result) return result.problem
+    const sel = this.c.selection
+    const after = { ...sel, ranges: [result.area], active: { row: result.area.r0, col: result.area.c0 } }
+    const ops: Op[] = [...result.ops, { kind: "consolidateSettings", sheet: this.c.sheetIndex, settings }]
+    this.c.transact(ops, { label: "Consolidate", before: sel, after })
+    return null
   }
 
   /** Data › Clear: every column's filter goes (the dropdowns stay) and all rows show. */

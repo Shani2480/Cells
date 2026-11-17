@@ -1,5 +1,8 @@
 import {
   tableAt,
+  CONSOLIDATE_FUNCTIONS,
+  parseRange,
+  type ConsolidateSettings,
   columnName,
   isError,
   MAX_COLS,
@@ -209,6 +212,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     sheetData: rowParts.length ? `<sheetData>${rowParts.join("")}</sheetData>` : `<sheetData/>`,
     sheetProtection: protectionXml(sheet),
     scenarios: scenariosXml(sheet),
+    ...(sheet.consolidate ? { dataConsolidate: consolidateXml(sheet.consolidate) } : {}),
     autoFilter: sheet.autoFilter ? autoFilterXml(sheet.autoFilter, styles, rangeRef) : "",
     mergeCells: sheet.merges.size
       ? `<mergeCells count="${sheet.merges.size}">${sheet.merges.all.map((m) => `<mergeCell ref="${rangeRef(m)}"/>`).join("")}</mergeCells>`
@@ -543,6 +547,25 @@ function dataTableXml(formula: string, ref: string): string {
     return `<f t="dataTable" ref="${ref}" dt2D="1" dtr="1"${attr("r1", rowIn, "del1")}${attr("r2", colIn, "del2")}/>`
   if (rowIn.trim()) return `<f t="dataTable" ref="${ref}" dt2D="0" dtr="1"${attr("r1", rowIn, "del1")}/>`
   return `<f t="dataTable" ref="${ref}" dt2D="0" dtr="0"${attr("r1", colIn, "del1")}/>`
+}
+
+/** Data › Consolidate's settings (the references as typed: "Sheet2!$A$1:$C$9", or a name). */
+function consolidateXml(s: ConsolidateSettings): string {
+  const refs = s.refs.map((text) => {
+    const bang = text.lastIndexOf("!")
+    const ref = text.slice(bang + 1).replace(/\$/g, "")
+    if (!parseRange(ref)) return `<dataRef name="${escapeXml(text)}"/>`
+    if (bang < 0) return `<dataRef ref="${ref}"/>`
+    const sheet = text.slice(0, bang).replace(/^'|'$/g, "").replace(/''/g, "'")
+    return `<dataRef ref="${ref}" sheet="${escapeXml(sheet)}"/>`
+  })
+  const fn = CONSOLIDATE_FUNCTIONS[s.fn]?.xml ?? "sum"
+  const attrs =
+    (fn !== "sum" ? ` function="${fn}"` : "") +
+    (s.left ? ` leftLabels="1"` : "") +
+    (s.top ? ` topLabels="1"` : "") +
+    (s.links ? ` link="1"` : "")
+  return `<dataConsolidate${attrs}>${refs.length ? `<dataRefs count="${refs.length}">${refs.join("")}</dataRefs>` : ""}</dataConsolidate>`
 }
 
 /** Scenario Manager's scenarios, as Excel writes them. */

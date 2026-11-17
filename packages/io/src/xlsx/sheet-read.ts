@@ -1,4 +1,5 @@
 import {
+  CONSOLIDATE_FUNCTIONS,
   copyFormula,
   DEFAULT_PROTECTION,
   ERROR_CODES,
@@ -10,6 +11,7 @@ import {
   parseRange,
   type CellData,
   type CellValue,
+  type ConsolidateSettings,
   type CFEntry,
   type CFRule,
   type CFThreshold,
@@ -404,6 +406,14 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
           sheet.outline.summaryRight = !falsy(at(outlinePr, "summaryRight"))
         }
       }
+      if (local === "dataConsolidate") {
+        const settings = readConsolidate(parseFragment(source, rootTag).root)
+        // References to other workbooks (r:id) stay as read.
+        if (settings) {
+          sheet.consolidate = settings
+          return
+        }
+      }
       if (local === "extLst") {
         const ext = readValidationExt(dropConditionalExt(source), rootTag)
         sheet.validations.push(...ext.entries)
@@ -783,6 +793,30 @@ export function dataTableFormula(f: {
   if (on(f.dt2D)) return `=TABLE(${r1},${r2})`
   return on(f.dtr) ? `=TABLE(${r1},)` : `=TABLE(,${r1})`
 }
+
+/** <dataConsolidate>: what Data › Consolidate last used. Null when a reference points to another workbook. */
+function readConsolidate(root: XNode): ConsolidateSettings | null {
+  const refs: string[] = []
+  for (const d of kids(kid(root, "dataRefs") ?? root, "dataRef")) {
+    if (at(d, "r:id") !== undefined || at(d, "id") !== undefined) return null
+    const name = at(d, "name")
+    const ref = at(d, "ref")
+    const sheet = at(d, "sheet")
+    if (name) refs.push(name)
+    else if (ref) refs.push(`${sheet ? `${quoteName(sheet)}!` : ""}${absolute(ref)}`)
+  }
+  const fn = CONSOLIDATE_FUNCTIONS.findIndex((f) => f.xml === (at(root, "function") ?? "sum"))
+  return {
+    fn: Math.max(0, fn),
+    refs,
+    top: truthy(at(root, "topLabels")),
+    left: truthy(at(root, "leftLabels")),
+    links: truthy(at(root, "link")),
+  }
+}
+
+const quoteName = (name: string) => (/^[A-Za-z_][\w.]*$/.test(name) ? name : `'${name.replace(/'/g, "''")}'`)
+const absolute = (ref: string) => ref.replace(/\$/g, "").replace(/([A-Z]+)(\d+)/gi, "$$$1$$$2")
 
 /** <scenarios>: Scenario Manager's named sets of values for changing cells. */
 function readScenarios(root: XNode): ScenarioSet {

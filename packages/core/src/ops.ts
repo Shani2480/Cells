@@ -6,6 +6,7 @@ import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
 import { copyValidations, shiftValidations, type ValidationEntry } from "./validation"
 import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
 import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
+import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
 import { copyPageSetup, shiftPageSetup, type PageSetup } from "./page-setup"
@@ -99,6 +100,8 @@ export type Op =
   | { kind: "autoFilter"; sheet: number; filter: AutoFilter | null; rows?: AxisEntry[] }
   /** Data › Advanced in place: the filter and the rows it shows and hides. */
   | { kind: "advancedFilter"; sheet: number; filter: AdvancedFilter | null; rows?: AxisEntry[] }
+  /** Data › Consolidate: what the dialog last used on the sheet. */
+  | { kind: "consolidateSettings"; sheet: number; settings: ConsolidateSettings | null }
   /** Protect Sheet (with the options) or Unprotect Sheet (null). */
   | { kind: "protect"; sheet: number; protection: SheetProtection | null }
   /** Protect Workbook (Structure) or Unprotect Workbook (null). */
@@ -271,6 +274,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       return {
         inverse: [{ kind: "advancedFilter", sheet: op.sheet, filter: before, ...(undoRows ? { rows: undoRows } : {}) }],
         change: rows?.change.structural ? rows.change : { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "consolidateSettings": {
+      const before = copyConsolidate(sheet.consolidate)
+      sheet.consolidate = copyConsolidate(op.settings)
+      return {
+        inverse: [{ kind: "consolidateSettings", sheet: op.sheet, settings: before }],
+        change: { sheet: op.sheet, structural: false },
       }
     }
     case "outlineLevels": {

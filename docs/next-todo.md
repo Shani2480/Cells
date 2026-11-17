@@ -152,6 +152,8 @@ decided when Part 8 is done.
 - Data tables in .xls files open as their values (the BIFF TABLE record isn't read).
 - An Advanced Filter in place isn't saved as one (its hidden rows are): after reopening, Clear and Reapply don't
   know it (Excel keeps it in the _FilterDatabase and Criteria names).
+- Consolidate works with ranges in this workbook only (Excel's Browse... for other workbooks isn't there); settings
+  that name another workbook are kept in the file as they were read.
 
 ## Later (from Phase 4)
 

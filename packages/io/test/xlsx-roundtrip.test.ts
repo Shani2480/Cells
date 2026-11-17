@@ -190,3 +190,26 @@ describe("Scenarios", () => {
     expect(back.sheets[0].scenarios).toEqual(wb.sheets[0].scenarios)
   })
 })
+
+describe("Consolidate settings", () => {
+  it("are written as <dataConsolidate> and read back", async () => {
+    const { Workbook } = await import("@cells/core")
+    const wb = new Workbook(["Total", "East Side"])
+    wb.sheets[0].cells.set(0, 0, { value: 1 })
+    wb.sheets[0].consolidate = {
+      fn: 2,
+      refs: ["'East Side'!$A$1:$C$4", "$E$1:$F$3", "Sales"],
+      top: true,
+      left: false,
+      links: true,
+    }
+    const bytes = await saveXlsx(wb)
+    const entries = await readZip(bytes)
+    const sheet = new TextDecoder().decode(entries.find((e) => e.normalizedName === "xl/worksheets/sheet1.xml")!.data)
+    expect(sheet).toContain(
+      `<dataConsolidate function="average" topLabels="1" link="1"><dataRefs count="3"><dataRef ref="A1:C4" sheet="East Side"/><dataRef ref="E1:F3"/><dataRef name="Sales"/></dataRefs></dataConsolidate>`,
+    )
+    const back = (await openXlsx(bytes)).workbook
+    expect(back.sheets[0].consolidate).toEqual(wb.sheets[0].consolidate)
+  })
+})

@@ -10,5 +10,13 @@ export function dataToolCommands(): Command[] {
       keytip: "Q",
       run: (env) => env.dialog("advancedFilter"),
     },
+    {
+      id: "Consolidate",
+      label: "Consolidate...",
+      description:
+        "Summarise data from separate ranges, on this or other sheets, into one table here, by position or by its labels.",
+      keytip: "N",
+      run: (env) => env.dialog("consolidate"),
+    },
   ]
 }

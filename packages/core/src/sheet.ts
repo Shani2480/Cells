@@ -11,6 +11,7 @@ import type { AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
 import { emptyScenarios, type ScenarioSet } from "./scenarios"
 import type { AdvancedFilter } from "./advanced-filter"
+import type { ConsolidateSettings } from "./consolidate"
 
 /**
  * Default sizes at 100% zoom, as Excel draws a new workbook with an 11 pt body font: rows 15 pt (20 px), columns
@@ -167,6 +168,8 @@ export class Sheet {
   scenarios: ScenarioSet = emptyScenarios()
   /** An Advanced Filter in place (rows hidden), for Data › Clear and Reapply. */
   advancedFilter: AdvancedFilter | null = null
+  /** Data › Consolidate as last used here (saved with the sheet, as Excel does). */
+  consolidate: ConsolidateSettings | null = null
 
   constructor(name: string) {
     this.name = name

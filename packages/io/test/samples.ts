@@ -2,6 +2,7 @@
 import { defaultChartSpec } from "@cells/chart"
 import {
   chartRefsFor,
+  consolidateOps,
   DEFAULT_VALIDATION,
   errorValue,
   hashPassword,
@@ -381,7 +382,35 @@ export function whatIf(): Workbook {
   return done(wb)
 }
 
+/** Data › Consolidate with links: two regions totalled on a third sheet, detail rows grouped under each total. */
+export function consolidated(): Workbook {
+  const wb = new Workbook(["Total", "East", "West Side"])
+  const fill = (sheet: number, rows: (string | number)[][]) =>
+    rows.forEach((r, ri) => r.forEach((v, ci) => wb.sheets[sheet].cells.set(ri, ci, { value: v })))
+  fill(1, [
+    ["Item", "Jan", "Feb"],
+    ["Pens", 4, 6],
+    ["Ink", 2, 3],
+  ])
+  fill(2, [
+    ["Item", "Feb", "Mar"],
+    ["Ink", 5, 1],
+    ["Paper", 9, 7],
+  ])
+  const sources = [
+    { sheet: 1, range: { r0: 0, c0: 0, r1: 2, c1: 2 } },
+    { sheet: 2, range: { r0: 0, c0: 0, r1: 2, c1: 2 } },
+  ]
+  const o = { fn: 0, top: true, left: true, links: true }
+  const result = consolidateOps(wb.sheets, wb.styles, 0, { r0: 0, c0: 0, r1: 0, c1: 0 }, sources, o)
+  if ("problem" in result) throw new Error(result.problem)
+  wb.transact(result.ops, { label: "Consolidate", history: false })
+  wb.sheets[0].consolidate = { ...o, refs: ["East!$A$1:$C$3", "'West Side'!$A$1:$C$3"] }
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  consolidated,
   whatIf,
   budget,
   formats,
