@@ -75,6 +75,7 @@ export class WorkerCalculator implements Calculator {
 /** The workbook as it is now, as operations: every stored cell and every row/column override. */
 function snapshotOps(wb: Workbook<unknown>): Op[] {
   const ops: Op[] = []
+  if (wb.links.list.length) ops.push({ kind: "externalLinks", links: wb.links.list })
   wb.sheets.forEach((sheet, index) => {
     const used = sheet.cells.usedBounds()
     if (used) {

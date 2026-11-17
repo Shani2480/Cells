@@ -162,6 +162,11 @@ decided when Part 8 is done.
   new (Excel's "Overwrite existing cells with new data, clear unused cells"). Excel's default, "Insert cells for new
   data, delete unused cells", and filling down formulas beside the data are not built yet. Neither are Power Query
   queries (they are kept in the file as they were read).
+- Workbook Links: formulas show a link by its file name ('[Prices.xlsx]Sheet1'!B2); Excel shows the full path while
+  the other file is closed. Break Link turns cells into values but leaves defined names that use the link (they show
+  #REF! once it's gone); links in conditional formatting and data validation formulas are kept as written. Links
+  to text files and Excel's DDE/OLE links aren't built (a file with DDE/OLE links keeps all its links as read).
+  Opening the other workbook from the pane isn't built either (Cells shows one workbook per window).
 
 ## Later (from Phase 4)
 

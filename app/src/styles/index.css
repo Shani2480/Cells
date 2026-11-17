@@ -2955,3 +2955,7 @@ html.is-phone .forecast-options {
 .query-props-problem {
   color: var(--app-error, #c42b1c);
 }
+
+.links-row {
+  cursor: default;
+}

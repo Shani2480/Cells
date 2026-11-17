@@ -91,6 +91,14 @@ export class DataCommands {
     this.c.changed()
   }
 
+  /** Data › Workbook Links: the pane of other workbooks that formulas use. */
+  linksOpen = false
+
+  toggleLinks(open = !this.linksOpen) {
+    this.linksOpen = open
+    this.c.changed()
+  }
+
   /** The linked range holding the active cell, for Data › Properties and Refresh (Alt+F5). */
   activeQuery(): { sheet: number; name: string } | null {
     const { row, col } = this.c.selection.active

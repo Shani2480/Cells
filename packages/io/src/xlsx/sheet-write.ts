@@ -23,6 +23,7 @@ import { argb } from "./colors"
 import { NS_MAIN, NS_R } from "./constants"
 import { assemble, attrText, type Kept } from "./dom"
 import { printElementsXml, withFitToPage } from "./page-setup"
+import type { LinkTable } from "./links"
 import { formulaToFile } from "./formula"
 import { PROTECTION_FLAGS, type SheetView } from "./sheet-read"
 import type { SheetSource } from "./read"
@@ -103,6 +104,8 @@ export type SheetWriteContext = {
   drawing?: string | null
   /** The relationship ids of the sheet's table parts. */
   tableParts?: string[]
+  /** Links to other workbooks, written by position ([1]Prices!B2); absent when they are kept as read. */
+  links?: LinkTable | null
 }
 
 export type SheetWritten = { xml: string; dynamic: boolean }
@@ -193,7 +196,8 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
       const spill = ctx.spills.get(`${row},${col}`)
       const spillError = isError(value) && value.error === "#SPILL!"
       const own = formula.includes("[") ? (tableAt(sheet, row, col)?.name ?? null) : null
-      const text = escapeXmlText(formulaToFile(formula.includes("[") ? structuredToFile(formula, own) : formula))
+      const linked = ctx.links ? ctx.links.toFile(formula) : formula
+      const text = escapeXmlText(formulaToFile(linked.includes("[") ? structuredToFile(linked, own) : linked))
       if (spill || spillError) {
         dynamic = true
         const area = spill ? rangeRef(spill) : r

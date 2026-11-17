@@ -1,3 +1,4 @@
+import type { ExternalBook } from "./links"
 import { CalcEngine, cellOfKey, type CalcMode } from "./calc/engine"
 import type { Range } from "./address"
 import { applyOp, type Change, type Op } from "./ops"
@@ -105,6 +106,8 @@ export class Workbook<Meta = unknown> {
   readonly names = new NameTable()
   /** Protect Workbook (Structure): null when the workbook isn't protected. */
   readonly structure: { protection: WorkbookProtection | null } = { protection: null }
+  /** Other workbooks that formulas link to (Data › Workbook Links), with the values last read from them. */
+  readonly links: { list: ExternalBook[] } = { list: [] }
   undoLimit: number
   private readonly undoStack: UndoEntry<Meta>[] = []
   private readonly redoStack: UndoEntry<Meta>[] = []
@@ -119,6 +122,7 @@ export class Workbook<Meta = unknown> {
     this.sheets = sheetNames.map((name) => new Sheet(name))
     ;(this.sheets as SheetList).names = this.names
     ;(this.sheets as SheetList).structure = this.structure
+    ;(this.sheets as SheetList).links = this.links
     this.undoLimit = undoLimit
     this.calc = new CalcEngine(this)
     this.calculator = new LocalCalculator(this.calc)

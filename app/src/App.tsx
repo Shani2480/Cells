@@ -39,6 +39,7 @@ import { TooltipProvider } from "@/ui/tooltip"
 import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
 import { QueriesPane } from "@/shell/QueriesPane"
+import { WorkbookLinksPane } from "@/shell/WorkbookLinksPane"
 import { QueryPropertiesDialog } from "@/shell/QueryPropertiesDialog"
 import { CreateNamesDialog, ErrorCheckingDialog, EvaluateFormulaDialog, NameManagerDialog } from "@/shell/AuditDialogs"
 import { WatchWindow } from "@/shell/WatchWindow"
@@ -836,6 +837,7 @@ function WorkbookWindow({
       onInsertFunction={() => openDialog("insertFunction")}
     />
   ) : null
+  const linksPane = <WorkbookLinksPane controller={controller} files={files} onDone={focusGrid} />
   const queriesPane = (
     <QueriesPane
       controller={controller}
@@ -933,6 +935,7 @@ function WorkbookWindow({
               {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
+              {controller.data.linksOpen ? linksPane : null}
             </div>
             <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
             <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
@@ -940,6 +943,7 @@ function WorkbookWindow({
         )}
         {shell === "phone" && controller.clipboardPaneOpen ? clipboardPane : null}
         {shell === "phone" && controller.data.queriesOpen ? queriesPane : null}
+        {shell === "phone" && controller.data.linksOpen ? linksPane : null}
         {shell === "phone" && controller.audit.watchOpen ? (
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}

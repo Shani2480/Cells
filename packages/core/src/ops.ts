@@ -8,6 +8,7 @@ import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
 import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
 import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
 import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tables"
+import { copyExternalBooks, type ExternalBook } from "./links"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
 import { copyPageSetup, shiftPageSetup, type PageSetup } from "./page-setup"
@@ -95,6 +96,8 @@ export type Op =
   | { kind: "annotations"; sheet: number; writes: AnnotationWrite[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
+  /** The linked workbooks and the values read from them (update, change source, break). */
+  | { kind: "externalLinks"; links: ExternalBook[] }
   /**
    * Data › Filter: the sheet's AutoFilter (null: none), with the rows it hides or shows (Excel hides filtered rows,
    * so the row entries come from the filter, worked out where today's date is known).
@@ -161,6 +164,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       table.replace(op.names)
       // Formulas that use a name read it when they are registered: re-read them all.
       return { inverse: [{ kind: "names", names: before }], change: { sheet: 0, structural: true } }
+    }
+    case "externalLinks": {
+      const box = (sheets as SheetList).links
+      if (!box) throw new Error("No links")
+      const before = copyExternalBooks(box.list)
+      box.list = copyExternalBooks(op.links)
+      // Every formula that reads a linked workbook calculates again.
+      return { inverse: [{ kind: "externalLinks", links: before }], change: { sheet: 0, structural: true } }
     }
     case "protectWorkbook": {
       const box = (sheets as SheetList).structure

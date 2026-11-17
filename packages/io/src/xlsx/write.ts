@@ -42,6 +42,14 @@ import {
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
 import { writeDrawing } from "./drawing"
 import {
+  CT_EXTERNAL_LINK,
+  externalLinkXml,
+  LinkTable,
+  linkTargets,
+  REL_EXTERNAL_LINK,
+  REL_EXTERNAL_LINK_PATH,
+} from "./links"
+import {
   connectionsXml,
   CT_CONNECTIONS,
   CT_QUERY_TABLE,
@@ -177,6 +185,15 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       CHARTSHEET_REL.test(r.type) ||
       (VBA_REL.test(r.type) && !allowsMacros(fileName)),
   )
+  // Links to other workbooks: Cells writes them anew, unless the file had links of other kinds (kept as read).
+  const ownLinks = source?.linksModelled !== false
+  if (ownLinks) for (const r of wbRels) if (r.type === REL_EXTERNAL_LINK && !dropped.includes(r)) dropped.push(r)
+  const links = ownLinks
+    ? new LinkTable(
+        wb.links.list,
+        wb.sheets.map((s) => s.name),
+      )
+    : null
   const keepWorksheet = new Set<string>()
   for (const sheet of wb.sheets) {
     const s = source?.sheets.get(sheet)
@@ -213,8 +230,8 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   const sheetEntries: string[] = []
   const usedTables = new Set<string>()
   // Connections: the kept ones and one per text link; each link's query table goes with its sheet.
-  const links = wb.sheets.flatMap((s) => s.queryTables)
-  const conns = connectionsXml(source?.keptConnections ?? [], links)
+  const textLinks = wb.sheets.flatMap((s) => s.queryTables)
+  const conns = connectionsXml(source?.keptConnections ?? [], textLinks)
   const usedQueryTables = new Set<string>()
 
   wb.sheets.forEach((sheet, i) => {
@@ -287,6 +304,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       legacyDrawing,
       drawing,
       tableParts,
+      links,
     })
     dynamic ||= written.dynamic
     put(partName, CT_WORKSHEET, written.xml)
@@ -326,9 +344,45 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   }
 
   // ── workbook.xml ──
+  const namesXml = definedNamesXml(wb, source, links)
+  const references: string[] = []
+  if (links)
+    links.books.forEach((book) => {
+      const part = freeName((n) => `/xl/externalLinks/externalLink${n}.xml`)
+      const targets = linkTargets(book)
+      const own = rels(part)
+      const target = newId(own)
+      own.push({
+        id: target,
+        type: REL_EXTERNAL_LINK_PATH,
+        target: targets.target,
+        targetMode: "External",
+        partName: null,
+      })
+      let absolute: string | undefined
+      if (targets.absolute) {
+        absolute = newId(own)
+        own.push({
+          id: absolute,
+          type: REL_EXTERNAL_LINK_PATH,
+          target: targets.absolute,
+          targetMode: "External",
+          partName: null,
+        })
+      }
+      put(part, CT_EXTERNAL_LINK, externalLinkXml(book, { target, absolute }))
+      references.push(`<externalReference r:id="${addRel(main, REL_EXTERNAL_LINK, part)}"/>`)
+    })
   const generated: Record<string, string> = {
     sheets: `<sheets>${sheetEntries.join("")}</sheets>`,
-    definedNames: definedNamesXml(wb, source),
+    ...(links
+      ? {
+          externalReferences: references.length
+            ? `<externalReferences>${references.join("")}</externalReferences>`
+            : "",
+        }
+      : {}),
+    definedNames: namesXml,
     workbookProtection: protectionXml(wb),
     bookViews: bookViewsXml(source, active),
     calcPr: `<calcPr${attrText({ calcId: 191029, calcMode: wb.calc.mode === "manual" ? "manual" : undefined })}/>`,
@@ -429,12 +483,14 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   return writePackage(pkg)
 }
 
-function definedNamesXml(wb: Workbook, source: XlsxSource | null): string {
+function definedNamesXml(wb: Workbook, source: XlsxSource | null, links: LinkTable | null): string {
   const items: string[] = []
-  for (const n of wb.names.all())
+  for (const n of wb.names.all()) {
+    const ref = links ? links.toFile("=" + n.ref) : "=" + n.ref
     items.push(
-      `<definedName${attrText({ name: n.name, comment: n.comment })}>${escapeXmlText(formulaToFile("=" + n.ref))}</definedName>`,
+      `<definedName${attrText({ name: n.name, comment: n.comment })}>${escapeXmlText(formulaToFile(ref))}</definedName>`,
     )
+  }
   // Excel's hidden name for each sheet's AutoFilter range.
   wb.sheets.forEach((sheet, index) => {
     if (!sheet.autoFilter) return

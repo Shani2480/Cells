@@ -1,5 +1,5 @@
 import { allQueryTables, type Op } from "@cells/core"
-import { sheetNameFor, type TextImport } from "@cells/io"
+import { openXls, openXlsx, sheetNameFor, type TextImport } from "@cells/io"
 import type { FilePort, FileRef } from "@cells/platform"
 import {
   classifyOpenError,
@@ -11,11 +11,13 @@ import {
   OPEN_TYPES,
   packageName,
   saveTypes,
+  TEXT_EXTENSIONS,
   TEXT_TYPES,
   titleOf,
   type WorkbookDocument,
 } from "./document"
 import { fileNameOf } from "@/platform/android-files"
+import { breakLinkOps, linkPaths, readLink, updateLinkOps, type SourceBook } from "@/sheet/links"
 import { newQueryTable, refreshOps, sourceName, textCells } from "@/sheet/queries"
 import { pinRecent, recentFiles, removeRecent, touchRecent, type RecentFile } from "./recent"
 import { AUTORECOVER_MS, dropRecovery, keepRecovery, recoveredFiles, type RecoveredFile } from "./recovery"
@@ -419,6 +421,87 @@ export class FileCommands {
     for (const { sheet, table } of due) ops.push(...((await this.refreshOpsFor(sheet, table.name)) ?? []))
     if (ops.length) this.transactRefresh(ops, "Refresh")
     return due.length
+  }
+
+  /**
+   * Workbook Links › Update Values: reads the linked workbook again (from its path beside this workbook, then its
+   * absolute path, then the Open dialog) and recalculates the formulas that use it. False when cancelled.
+   */
+  async updateLink(name: string): Promise<boolean> {
+    const c = this.doc.controller
+    const book = c.wb.links.list.find((b) => b.name.toUpperCase() === name.toUpperCase())
+    for (const path of linkPaths(book, this.doc.ref?.path)) {
+      const known = this.linked.get(path)
+      try {
+        const bytes = await this.files.read(known ?? { name: fileNameOf(path), path })
+        const source = await this.readSourceBook(bytes, fileNameOf(path))
+        if (!source) return false
+        this.transactRefresh(
+          updateLinkOps(c.wb, name, readLink(c.wb, name, source, this.linkLocation(path))),
+          "Update Values",
+        )
+        return true
+      } catch {
+        // Not there: try the next place.
+      }
+    }
+    return this.pickLink(name, "Update Values")
+  }
+
+  /** Workbook Links › Change Source: another workbook takes the link's place; formulas name the new file. */
+  changeLinkSource(name: string): Promise<boolean> {
+    return this.pickLink(name, "Change Source")
+  }
+
+  /** Workbook Links › Break Link, after Excel's warning: formulas that use the workbook become their values. */
+  async breakLink(name: string): Promise<boolean> {
+    const ok = await this.ui.confirm(
+      "Breaking links permanently converts formulas and external references to their existing values. Because this cannot be undone in Excel, you may want to save a version of this file with a new name. Do you want to break the links?",
+    )
+    if (!ok) return false
+    this.transactRefresh(breakLinkOps(this.doc.controller.wb, name), "Break Link")
+    return true
+  }
+
+  private async pickLink(name: string, label: string): Promise<boolean> {
+    let picked: { ref: FileRef; bytes: Uint8Array } | null
+    try {
+      picked = await this.files.pickOpen(
+        OPEN_TYPES.filter((t) => !t.extensions.every((e) => TEXT_EXTENSIONS.includes(e))),
+      )
+    } catch (error) {
+      this.ui.problem(classifyOpenError(error, null, name))
+      return false
+    }
+    if (!picked) return false
+    const source = await this.readSourceBook(picked.bytes, picked.ref.name)
+    if (!source) return false
+    const where = picked.ref.path ?? picked.ref.name
+    this.linked.set(where, picked.ref)
+    const c = this.doc.controller
+    this.transactRefresh(updateLinkOps(c.wb, name, readLink(c.wb, name, source, this.linkLocation(where))), label)
+    return true
+  }
+
+  /** Where a link points: relative to this workbook's folder when the file is beside it, as Excel stores it. */
+  private linkLocation(path: string): { target: string; absolute?: string } {
+    const own = this.doc.ref?.path
+    const absolute = /^(?:[A-Za-z]:[\\/]|[\\/])/.test(path) ? path : undefined
+    if (!absolute) return { target: path }
+    const dir = own ? own.slice(0, Math.max(own.lastIndexOf("/"), own.lastIndexOf("\\")) + 1) : ""
+    const target = dir && path.startsWith(dir) ? path.slice(dir.length) : path
+    return { target, absolute }
+  }
+
+  private async readSourceBook(bytes: Uint8Array, name: string): Promise<SourceBook | null> {
+    try {
+      const ext = extensionOf(name)
+      if (ext === "xls") return (await openXls(bytes, name, { calculate: false })).workbook
+      return (await openXlsx(bytes, name, { calculate: false })).workbook
+    } catch (error) {
+      this.ui.problem(classifyOpenError(error, bytes, name))
+      return null
+    }
   }
 
   private transactRefresh(ops: Op[], label: string) {

@@ -195,3 +195,45 @@ describe("text links", () => {
     expect(again.workbook.sheets.map((s) => s.queryTables)).toEqual(original.sheets.map((s) => s.queryTables))
   })
 })
+
+describe("links to other workbooks", () => {
+  it("reads Excel's links: formulas by file name, values calculated from the kept copy", async () => {
+    const read = await openXlsx(fixture("linked"), "Order.xlsx")
+    const wb = read.workbook
+    const s = wb.sheets[0]
+    expect([0, 1, 2, 3].map((r) => s.cells.input(r, 0))).toEqual([
+      "='[Price List.xlsx]Prices'!$B$1*2",
+      "=SUM('[Price List.xlsx]Prices'!$B$1:$B$3)",
+      "='Price List.xlsx'!Rate+1",
+      "=VLOOKUP(\"Ink\",'[Price List.xlsx]Prices'!$A$1:$B$3,2,FALSE)",
+    ])
+    expect(wb.links.list[0]).toMatchObject({
+      name: "Price List.xlsx",
+      target: "Price List.xlsx",
+      absolute: "C:\\cells-check\\Price List.xlsx",
+      names: [{ name: "Rate", refersTo: "='Prices'!$B$2" }],
+    })
+    wb.calc.calculateNow(true)
+    expect([0, 1, 2, 3].map((r) => s.cells.value(r, 0))).toEqual([3, 12.75, 5, 4])
+  })
+
+  it("writes them back as Excel does", async () => {
+    const read = await openXlsx(fixture("linked"), "Order.xlsx")
+    const bytes = await saveXlsx(read.workbook, { source: read.source })
+    const entries = await readZip(bytes)
+    const text = (name: string) => new TextDecoder().decode(entries.find((e) => e.normalizedName === name)?.data)
+    expect(text("xl/worksheets/sheet1.xml")).toContain("<f>[1]Prices!$B$1*2</f>")
+    expect(text("xl/worksheets/sheet1.xml")).toContain("<f>[1]!Rate+1</f>")
+    expect(text("xl/workbook.xml")).toMatch(
+      /<externalReferences><externalReference r:id="rId\d+"\/><\/externalReferences>/,
+    )
+    expect(text("xl/externalLinks/externalLink1.xml")).toContain('<cell r="B3"><v>7.25</v></cell>')
+    expect(text("xl/externalLinks/_rels/externalLink1.xml.rels")).toContain(
+      'Target="Price%20List.xlsx" TargetMode="External"',
+    )
+    expect(entries.filter((e) => e.normalizedName.startsWith("xl/externalLinks/externalLink"))).toHaveLength(1)
+    const again = (await openXlsx(bytes)).workbook
+    expect(again.links.list).toEqual(read.workbook.links.list)
+    expect(again.sheets[0].cells.input(2, 0)).toBe("='Price List.xlsx'!Rate+1")
+  })
+})

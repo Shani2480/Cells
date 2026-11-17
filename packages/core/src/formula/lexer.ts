@@ -39,7 +39,9 @@ const ERRORS = [
 ]
 
 /** A sheet prefix: Sheet1!, 'My Sheet'!, Sheet1:Sheet3!, '[Book]Sheet'! */
-const SHEET = String.raw`(?:'(?:[^']|'')+'|[A-Za-z_\u00a0-\uffff][\w.\u00a0-\uffff]*(?::[A-Za-z_\u00a0-\uffff][\w.\u00a0-\uffff]*)?)!`
+// A sheet, quoted or not; unquoted it may name its workbook first ([Budget.xlsx]Sheet1!A1, a link; [1]!Rate in files).
+const SHEET_NAME = String.raw`[A-Za-z_\u00a0-\uffff][\w.\u00a0-\uffff]*(?::[A-Za-z_\u00a0-\uffff][\w.\u00a0-\uffff]*)?`
+const SHEET = String.raw`(?:'(?:[^']|'')+'|\[[^\[\]'!]+\](?:${SHEET_NAME})?|${SHEET_NAME})!`
 const COL = String.raw`\$?[A-Za-z]{1,3}`
 const ROW = String.raw`\$?[0-9]{1,7}`
 const CELL = `${COL}${ROW}`
@@ -144,7 +146,7 @@ export function tokenize(source: string, options: LexOptions = {}): Token[] {
       push("ref", refMatch)
       continue
     }
-    if (ch === "'" || /[A-Za-z_\u00a0-\uffff]/.test(ch)) {
+    if (ch === "'" || ch === "[" || /[A-Za-z_\u00a0-\uffff]/.test(ch)) {
       // A sheet-qualified name or a #REF! after a sheet: Sheet1!#REF!, 'x'!Name
       const sheet = SHEET_ONLY.exec(rest)?.[0]
       if (sheet) {

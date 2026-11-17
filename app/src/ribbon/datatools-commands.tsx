@@ -1,3 +1,4 @@
+import { cachedLinkRows } from "@/sheet/links"
 import type { Command, RibbonEnv } from "./registry"
 
 /** Data › Sort & Filter › Advanced, and the Data Tools that come with Part 4. */
@@ -74,6 +75,16 @@ export function dataToolCommands(): Command[] {
       pressed: (env) => env.c.data.queriesOpen,
     },
     {
+      id: "WorkbookLinks",
+      label: "Workbook Links",
+      description:
+        "See the other workbooks this one's formulas use, update their values, change where they come from or break the links.",
+      keytip: "K",
+      run: (env) => env.c.data.toggleLinks(),
+      pressed: (env) => env.c.data.linksOpen,
+      enabled: (env) => hasBookLinks(env) || hasLinkedFormulas(env),
+    },
+    {
       id: "DataRangeProperties",
       label: "Properties",
       description: "Change how the linked data in the selected cells refreshes, and its names.",
@@ -84,6 +95,8 @@ export function dataToolCommands(): Command[] {
   ]
 }
 
+const hasBookLinks = (env: RibbonEnv) => env.c.wb.links.list.length > 0 || env.c.data.linksOpen
+
 const hasLinks = (env: RibbonEnv) => env.c.wb.sheets.some((s) => s.queryTables.length > 0)
 
 function openProperties(env: RibbonEnv) {
@@ -92,3 +105,6 @@ function openProperties(env: RibbonEnv) {
   env.c.data.queryTarget = q
   env.dialog("queryProperties")
 }
+
+/** Formulas that name a workbook with no link yet (typed, not yet updated). Checked only when there's no link. */
+const hasLinkedFormulas = (env: RibbonEnv) => cachedLinkRows(env.c.wb).length > 0

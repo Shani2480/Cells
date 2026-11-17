@@ -17,6 +17,7 @@ import {
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from "./dom"
 import { readDrawing, REL_DRAWING, type DrawingSource } from "./drawing"
+import { linksFromFile, readExternalLink } from "./links"
 import {
   queryTableFrom,
   readConnections,
@@ -66,6 +67,8 @@ export type XlsxSource = {
   dynamic: boolean
   /** Connections Cells doesn't model (databases, the web, Power Query), written back as read. */
   keptConnections: ConnectionIn[]
+  /** The file's links to other workbooks are in wb.links (false: some are of other kinds, kept as read). */
+  linksModelled: boolean
 }
 
 export type XlsxRead = {
@@ -329,6 +332,25 @@ export async function openXlsx(
       for (const col of t.columns) if (col.formula) col.formula = structuredFromFile("=" + col.formula, t.name).slice(1)
   }
 
+  // Links to other workbooks: formulas name them by position in the file ([1]Prices!B2), by file name in Cells.
+  const linkBooks = kids(kid(root, "externalReferences"), "externalReference").map((n) => {
+    const r = wbRels.find((x) => x.id === at(n, "id", NS_R))
+    return r?.partName ? readExternalLink(partText(pkg, r.partName) ?? null, relationshipsFor(pkg, r.partName)) : null
+  })
+  const linksModelled = linkBooks.every((b) => b !== null)
+  if (linksModelled && linkBooks.length) {
+    const books = linkBooks.filter((b) => b !== null)
+    wb.links.list = books
+    for (const sheet of wb.sheets) {
+      const changes: { row: number; col: number; input: string }[] = []
+      sheet.cells.forEachFormula((row, col, input) => {
+        const next = linksFromFile(input, books)
+        if (next !== input) changes.push({ row, col, input: next })
+      })
+      for (const c of changes) sheet.cells.set(c.row, c.col, { ...sheet.cells.get(c.row, c.col)!, input: c.input })
+    }
+  }
+
   // Defined names: workbook-wide ones Cells manages; the rest stay as read.
   const names: DefinedName[] = []
   const keptNames: XlsxSource["keptNames"] = []
@@ -359,7 +381,7 @@ export async function openXlsx(
       keptNames.push({ xml: raw(wbDoc, n), sheet: local !== undefined ? (wb.sheets[Number(local)] ?? null) : null })
       continue
     }
-    const def: DefinedName = { name, ref: formulaFromFile(n.text).slice(1) }
+    const def: DefinedName = { name, ref: linksFromFile(formulaFromFile(n.text), wb.links.list).slice(1) }
     const comment = at(n, "comment")
     if (comment) def.comment = comment
     names.push(def)
@@ -414,7 +436,18 @@ export async function openXlsx(
     workbook: wb,
     views,
     activeSheet,
-    source: { pkg, workbook: wbDoc, styles, reuse, rich, keptNames, sheets: sheetSources, dynamic, keptConnections },
+    source: {
+      pkg,
+      workbook: wbDoc,
+      styles,
+      reuse,
+      rich,
+      keptNames,
+      sheets: sheetSources,
+      dynamic,
+      keptConnections,
+      linksModelled,
+    },
     warnings: [...new Set(warnings)],
   }
 }

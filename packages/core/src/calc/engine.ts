@@ -11,6 +11,7 @@ import { allTables, parseStructured, structuredArea, type Table } from "../table
 import { parseFormula } from "../formula/parser"
 import { isMatrix, isRef, type Area, type Scalar, type Value } from "../formula/types"
 import type { Change } from "../ops"
+import { BOOK_SCOPE, externalIndexOf, externalSheetOf, linkKey, type ExternalBook } from "../links"
 
 /** A formula cell as the engine knows it. */
 type Formula = {
@@ -67,6 +68,8 @@ export interface CalcHost {
   readonly sheets: readonly Sheet[]
   /** Defined names (Phase 4 adds the Name Manager); the engine asks by upper-case name. */
   definedName?(name: string, sheet: number): Node | null
+  /** Other workbooks that formulas link to, with the values last read from them. */
+  readonly links?: { list: ExternalBook[] }
 }
 
 /**
@@ -129,6 +132,7 @@ export class CalcEngine {
     this.volatiles.clear()
     this.spillers.clear()
     this.tableList = allTables(this.host.sheets)
+    this.externalNames.clear()
     this.host.sheets.forEach((sheet, s) => {
       sheet.cells.forEachFormula((row, col, input) => {
         const f = this.register(s, row, col, input)
@@ -217,7 +221,7 @@ export class CalcEngine {
       }
       case "name": {
         const s = node.sheet === null ? sheet : this.sheetIndex(node.sheet)
-        const def = s >= 0 ? this.host.definedName?.(node.name.toUpperCase(), s) : null
+        const def = s >= 0 ? this.definedName(node.name, s) : null
         if (def) this.collect(def, s, row, col, out, depth + 1)
         return
       }
@@ -298,7 +302,42 @@ export class CalcEngine {
 
   private sheetIndex(name: string): number {
     const upper = name.toUpperCase()
-    return this.host.sheets.findIndex((s) => s.name.toUpperCase() === upper)
+    const own = this.host.sheets.findIndex((s) => s.name.toUpperCase() === upper)
+    if (own >= 0 || !this.host.links?.list.length) return own
+    return externalIndexOf(
+      this.host.links.list,
+      name,
+      this.host.sheets.map((s) => s.name),
+    )
+  }
+
+  /** Linked workbooks' names, parsed with their sheets as "[Book]Sheet", by "book:NAME". */
+  private readonly externalNames = new Map<string, Node | null>()
+
+  /** @internal A linked workbook and sheet, for a pseudo sheet index. */
+  externalSheet(index: number): { book: ExternalBook; sheet: number } | null {
+    const at = externalSheetOf(index)
+    const book = at ? this.host.links?.list[at.book] : undefined
+    return at && book ? { book, sheet: at.sheet } : null
+  }
+
+  private externalName(name: string, index: number): Node | null {
+    const at = this.externalSheet(index)
+    if (!at) return null
+    const key = `${externalSheetOf(index)!.book}:${name.toUpperCase()}`
+    if (this.externalNames.has(key)) return this.externalNames.get(key)!
+    const upper = name.toUpperCase()
+    const scoped = at.sheet === BOOK_SCOPE ? undefined : at.sheet
+    const def =
+      at.book.names.find((n) => n.name.toUpperCase() === upper && n.sheet === scoped) ??
+      at.book.names.find((n) => n.name.toUpperCase() === upper && n.sheet === undefined)
+    let node: Node | null = null
+    if (def) {
+      const parsed = parseFormula(def.refersTo.replace(/^=/, ""))
+      if (parsed.ok) node = inBook(parsed.ast, at.book.name)
+    }
+    this.externalNames.set(key, node)
+    return node
   }
 
   // ── Changes ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -936,6 +975,7 @@ export class CalcEngine {
 
   /** @internal */
   definedName(name: string, sheet: number) {
+    if (externalSheetOf(sheet)) return this.externalName(name, sheet)
     return this.host.definedName?.(name.toUpperCase(), sheet) ?? null
   }
 
@@ -1136,6 +1176,8 @@ class FormulaContext implements EvalContext {
       this.engine.circular ??= { sheet: f.sheet, row: f.row, col: f.col }
       return 0
     }
+    const linked = this.engine.externalSheet(sheet)
+    if (linked) return toScalar(linked.book.sheets[linked.sheet]?.cells.get(linkKey(row, col)))
     this.engine.checkRead(f, sheet, row, col)
     const cells = this.engine.hostSheets[sheet]?.cells
     if (!cells) return null
@@ -1147,6 +1189,18 @@ class FormulaContext implements EvalContext {
   }
 
   values(area: Area, visit: (value: Scalar, row: number, col: number) => void) {
+    const linked = this.engine.externalSheet(area.sheet)
+    if (linked) {
+      const found: [number, number, CellValue][] = []
+      for (const [k, v] of linked.book.sheets[linked.sheet]?.cells ?? []) {
+        const row = Math.floor(k / MAX_COLS)
+        const col = k % MAX_COLS
+        if (row >= area.r0 && row <= area.r1 && col >= area.c0 && col <= area.c1) found.push([row, col, v])
+      }
+      found.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+      for (const [row, col, v] of found) visit(v, row, col)
+      return
+    }
     const cells = this.engine.hostSheets[area.sheet]?.cells
     if (!cells) return
     const f = this.f
@@ -1168,7 +1222,10 @@ class FormulaContext implements EvalContext {
   }
 
   usedArea(area: Area): Area | null {
-    const bounds = this.engine.hostSheets[area.sheet]?.cells.usedBounds()
+    const linked = this.engine.externalSheet(area.sheet)
+    const bounds = linked
+      ? linkedBounds(linked.book.sheets[linked.sheet]?.cells)
+      : this.engine.hostSheets[area.sheet]?.cells.usedBounds()
     if (!bounds) return null
     const r0 = Math.max(area.r0, bounds.r0)
     const r1 = Math.min(area.r1, bounds.r1)
@@ -1182,6 +1239,8 @@ class FormulaContext implements EvalContext {
   }
 
   sheetName(i: number) {
+    const linked = this.engine.externalSheet(i)
+    if (linked) return `[${linked.book.name}]${linked.book.sheets[linked.sheet]?.name ?? ""}`
     return this.engine.hostSheets[i]?.name ?? ""
   }
 
@@ -1223,4 +1282,37 @@ class FormulaContext implements EvalContext {
   isHiddenRow(sheet: number, row: number) {
     return this.engine.hostSheets[sheet]?.rows.isHidden(row) ?? false
   }
+}
+
+/** A linked workbook's name, with its sheet references written as "[Book]Sheet". */
+function inBook(node: Node, book: string): Node {
+  const walk = (n: unknown): unknown => {
+    if (Array.isArray(n)) return n.map(walk)
+    if (!n || typeof n !== "object") return n
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(n)) out[k] = walk(v)
+    if ((out.type === "ref" || out.type === "name") && typeof out.sheet === "string" && !out.sheet.startsWith("["))
+      out.sheet = `[${book}]${out.sheet}`
+    if (out.type === "ref" && typeof out.sheetTo === "string" && !out.sheetTo.startsWith("["))
+      out.sheetTo = `[${book}]${out.sheetTo}`
+    return out
+  }
+  return walk(node) as Node
+}
+
+function linkedBounds(cells: Map<number, CellValue> | undefined): Range | null {
+  if (!cells?.size) return null
+  let r0 = Infinity
+  let r1 = -1
+  let c0 = Infinity
+  let c1 = -1
+  for (const k of cells.keys()) {
+    const row = Math.floor(k / MAX_COLS)
+    const col = k % MAX_COLS
+    r0 = Math.min(r0, row)
+    r1 = Math.max(r1, row)
+    c0 = Math.min(c0, col)
+    c1 = Math.max(c1, col)
+  }
+  return { r0, r1, c0, c1 }
 }

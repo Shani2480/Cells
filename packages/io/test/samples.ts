@@ -6,8 +6,10 @@ import {
   DEFAULT_VALIDATION,
   errorValue,
   hashPassword,
+  linkKey,
   Workbook,
   type CellData,
+  type CellValue,
   type CFEntry,
 } from "@cells/core"
 
@@ -493,7 +495,45 @@ export function linkedText(): Workbook {
   return done(wb)
 }
 
+/** Formulas linked to another workbook (closed): calculated from the values kept with the link. */
+export function linkedBook(): Workbook {
+  const wb = new Workbook(["Order"])
+  wb.links.list = [
+    {
+      name: "Price List.xlsx",
+      target: "Price List.xlsx",
+      absolute: "C:\\Users\\alex\\Documents\\Price List.xlsx",
+      sheets: [
+        {
+          name: "Prices",
+          cells: new Map<number, CellValue>([
+            [linkKey(0, 0), "Pens"],
+            [linkKey(0, 1), 1.5],
+            [linkKey(1, 0), "Ink"],
+            [linkKey(1, 1), 4],
+            [linkKey(2, 0), "Paper"],
+            [linkKey(2, 1), 7.25],
+          ]),
+        },
+        { name: "Old Prices", cells: new Map<number, CellValue>([[linkKey(0, 1), true]]) },
+      ],
+      names: [{ name: "Rate", refersTo: "='Prices'!$B$2" }],
+    },
+  ]
+  const s = wb.sheets[0]
+  const formulas = [
+    "='[Price List.xlsx]Prices'!$B$1*2",
+    "=SUM('[Price List.xlsx]Prices'!$B$1:$B$3)",
+    "='Price List.xlsx'!Rate+1",
+    "=VLOOKUP(\"Ink\",'[Price List.xlsx]Prices'!$A$1:$B$3,2,FALSE)",
+    '=IF(\'[Price List.xlsx]Old Prices\'!B1,"old","new")',
+  ]
+  formulas.forEach((input, row) => s.cells.set(row, 0, { input, value: 0 }))
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  linkedBook,
   linkedText,
   forecast,
   consolidated,

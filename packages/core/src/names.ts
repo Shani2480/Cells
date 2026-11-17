@@ -1,3 +1,4 @@
+import type { ExternalBook } from "./links"
 import type { WorkbookProtection } from "./protection"
 import { MAX_COLS, parseCell, parseRange } from "./address"
 import type { Node } from "./formula/ast"
@@ -20,6 +21,8 @@ export type SheetList = Sheet[] & {
   names?: NameTable
   /** Protect Workbook's state, held in a box so operations can change it. */
   structure?: { protection: WorkbookProtection | null }
+  /** Linked workbooks (Data › Workbook Links). */
+  links?: { list: ExternalBook[] }
 }
 
 export class NameTable {

@@ -1,5 +1,5 @@
 import { decodeText, defaultImport, saveXlsx, type TextImport } from "@cells/io"
-import { Workbook } from "@cells/core"
+import { linkKey, Workbook } from "@cells/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MemoryFiles } from "@/test/memory-files"
 import { EMBEDDED_SAVE_MS, FileCommands, type FileUi, type SaveChoice } from "./commands"
@@ -371,5 +371,72 @@ describe("Edit Data (a chart's workbook from Inkspire)", () => {
     enter(commands.doc, "Water")
     await commands.close()
     expect(ui.asked).toEqual(["Chart data"])
+  })
+})
+
+describe("Workbook Links (formulas that use other workbooks)", () => {
+  beforeEach(() => localStorage.clear())
+
+  const priceList = (pens: number, sheet = "Prices") => {
+    const wb = new Workbook([sheet])
+    wb.sheets[0].cells.set(0, 0, { value: "Pens" })
+    wb.sheets[0].cells.set(0, 1, { value: pens })
+    wb.sheets[0].cells.set(1, 1, { value: 4 })
+    wb.names.replace([{ name: "Rate", ref: `${sheet}!$B$2` }])
+    return saveXlsx(wb, { fileName: "Price List.xlsx" })
+  }
+
+  async function order() {
+    const t = setup("cancel", {}, true)
+    const wb = new Workbook(["Order"])
+    wb.links.list = [
+      {
+        name: "Price List.xlsx",
+        target: "Price List.xlsx",
+        sheets: [{ name: "Prices", cells: new Map([[linkKey(0, 1), 1.5]]) }],
+        names: [],
+      },
+    ]
+    wb.sheets[0].cells.set(0, 0, { input: "='[Price List.xlsx]Prices'!B1*2", value: 3 })
+    wb.sheets[0].cells.set(1, 0, { input: "='Price List.xlsx'!Rate+1", value: 0 })
+    t.files.disk.set("/home/alex/Order.xlsx", await saveXlsx(wb, { fileName: "Order.xlsx" }))
+    await t.commands.openPath("/home/alex/Order.xlsx")
+    const c = t.commands.doc.controller
+    c.wb.calculate(true)
+    return { ...t, c }
+  }
+
+  it("Update Values reads the file beside the workbook and recalculates; undo goes back", async () => {
+    const { files, commands, c } = await order()
+    files.disk.set("/home/alex/Price List.xlsx", await priceList(2.5))
+    expect(await commands.updateLink("Price List.xlsx")).toBe(true)
+    expect(c.sheet.cells.value(0, 0)).toBe(5)
+    expect(c.sheet.cells.value(1, 0)).toBe(5)
+    expect(c.wb.links.list[0].names).toEqual([{ name: "Rate", refersTo: "=Prices!$B$2" }])
+    c.undo()
+    expect(c.sheet.cells.value(0, 0)).toBe(3)
+  })
+
+  it("a file that isn't there is looked for; Change Source renames the formulas to the new file", async () => {
+    const { files, commands, c } = await order()
+    expect(await commands.updateLink("Price List.xlsx")).toBe(false) // not found, Open cancelled
+    files.disk.set("/home/alex/2027/Prices 2027.xlsx", await priceList(9))
+    files.nextOpen = "/home/alex/2027/Prices 2027.xlsx"
+    expect(await commands.changeLinkSource("Price List.xlsx")).toBe(true)
+    expect(c.sheet.cells.input(0, 0)).toBe("='[Prices 2027.xlsx]Prices'!B1*2")
+    expect(c.sheet.cells.input(1, 0)).toBe("='Prices 2027.xlsx'!Rate+1")
+    expect(c.sheet.cells.value(0, 0)).toBe(18)
+    expect(c.wb.links.list).toMatchObject([
+      { name: "Prices 2027.xlsx", target: "2027/Prices 2027.xlsx", absolute: "/home/alex/2027/Prices 2027.xlsx" },
+    ])
+  })
+
+  it("Break Link keeps the values and drops the formulas and the link, after asking", async () => {
+    const { ui, commands, c } = await order()
+    expect(await commands.breakLink("Price List.xlsx")).toBe(true)
+    expect(ui.confirms[0]).toMatch(/^Breaking links permanently converts formulas/)
+    expect(c.sheet.cells.input(0, 0)).toBeUndefined()
+    expect(c.sheet.cells.value(0, 0)).toBe(3)
+    expect(c.wb.links.list).toEqual([])
   })
 })
