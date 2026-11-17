@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { OFFICE_THEME, type SheetSlicer } from "@cells/core"
 import { objectSvg } from "@/drawing/render"
 import { SheetController } from "./controller"
@@ -98,5 +98,65 @@ describe("slicers and their table", () => {
     expect(c.slicers.view(c.sheet.objects[0] as SheetSlicer).items).toHaveLength(4)
     c.undo()
     expect((c.sheet.objects[0] as SheetSlicer).column).toBe(region.column)
+  })
+})
+
+describe("Insert › Slicer and the Slicer tab", () => {
+  const fresh = () => {
+    const { c } = book()
+    c.sheet.objects = []
+    c.goTo({ r0: 1, c0: 0, r1: 1, c1: 0 })
+    return c
+  }
+
+  it("inserts a slicer per column picked, named after it, selected, as one undo step", () => {
+    const c = fresh()
+    const made = c.slicers.insert(["Region", "Product"])
+    expect(made.map((s) => [s.name, s.caption, s.style, s.placement])).toEqual([
+      ["Region", "Region", "SlicerStyleLight1", "fixed"],
+      ["Product", "Product", "SlicerStyleLight1", "fixed"],
+    ])
+    expect(c.slicers.selected()).toHaveLength(2)
+    expect(c.slicers.insert(["Region"])[0].name).toBe("Region 1")
+    c.undo()
+    c.undo()
+    expect(c.sheet.objects).toEqual([])
+  })
+
+  it("asks for a table when the active cell isn't in one", () => {
+    const c = fresh()
+    const alert = vi.fn()
+    c.shell.alert = alert
+    c.goTo({ r0: 20, c0: 8, r1: 20, c1: 8 })
+    c.slicers.openInsert()
+    expect(alert).toHaveBeenCalled()
+  })
+
+  it("changes caption, style, columns and buttons, and Slicer Settings", () => {
+    const c = fresh()
+    const [s] = c.slicers.insert(["Region"])
+    c.slicers.setCaption("Area")
+    c.slicers.setStyle("SlicerStyleDark3")
+    c.slicers.setColumns(2)
+    c.slicers.setButtonHeight(30)
+    c.slicers.setButtonWidth(100)
+    const now = c.slicers.active()!
+    expect(now).toMatchObject({ caption: "Area", style: "SlicerStyleDark3", columns: 2, buttonHeight: 30 })
+    expect(Math.round(c.slicers.buttonWidth(now))).toBe(100)
+    expect(c.slicers.styleIndex()).toBe(10)
+    const settings = {
+      name: "Areas",
+      caption: "Area",
+      header: false,
+      sort: "descending" as const,
+      customLists: true,
+      hideNoData: false,
+      crossFilter: "none" as const,
+    }
+    expect(c.slicers.applySettings(now, settings)).toBeNull()
+    expect(c.slicers.view(c.slicers.active()!).items.map((i) => i.text)).toEqual(["West", "South", "North", "East"])
+    c.slicers.insert(["Product"])
+    expect(c.slicers.applySettings(c.slicers.active()!, { ...settings, name: "areas" })).toMatch(/already in use/)
+    expect(s.name).toBe("Region")
   })
 })

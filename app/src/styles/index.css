@@ -3908,3 +3908,31 @@ html.is-phone .forecast-options {
   gap: 8px;
   margin: 0 0 12px 12px;
 }
+
+/* Insert Slicers: the table's columns in a box, as Excel lists them. */
+.slicer-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  min-height: 180px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+}
+
+/* Slicer Settings: Header beside Item Sorting and Filtering. */
+.slicer-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 560px) {
+  .slicer-settings {
+    grid-template-columns: 1fr;
+  }
+}

@@ -172,7 +172,6 @@ export function tableCommands(): Command[] {
       description: "Summarize this table's data with a PivotTable.",
       keytip: "P",
     },
-    { id: "TableInsertSlicer", label: "Insert Slicer", description: "Filter the table's data visually.", keytip: "I" },
     // New Table Style needs custom table styles (not built yet).
     { id: "TableStyleNew", label: "New Table Style..." },
     { id: "PivotTableNewStyle", label: "New PivotTable Style..." },

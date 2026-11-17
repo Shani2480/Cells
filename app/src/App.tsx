@@ -1,5 +1,14 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
-import { isChart, isEquation, parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
+import {
+  isChart,
+  isEquation,
+  parseCell,
+  rangeName,
+  regionalFrom,
+  setRegional,
+  type Range,
+  type SheetSlicer,
+} from "@cells/core"
 import {
   lazy,
   Suspense,
@@ -43,6 +52,7 @@ import {
   SMARTART_FORMAT,
   PICTURE_FORMAT,
   SHAPE_FORMAT,
+  SLICER,
   SPARKLINE,
   TABLE_DESIGN,
   TABS,
@@ -53,6 +63,7 @@ import {
   SparklineDateDialog,
   SparklineEmptyDialog,
 } from "@/shell/SparklineDialogs"
+import { InsertSlicersDialog, SlicerSettingsDialog } from "@/shell/SlicerDialogs"
 import type { SparklineDialogInit } from "@/sheet/sparklines"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
@@ -148,6 +159,7 @@ import type { TextImport } from "@cells/io"
 const NOT_BUILT = "Not built yet."
 const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
 const TABS_IN_SPARKLINE = [...TABS, SPARKLINE]
+const TABS_IN_SLICER = [...TABS, SLICER]
 const TABS_IN_TABLE_SPARKLINE = [...TABS, TABLE_DESIGN, SPARKLINE]
 const TABS_IN_CHART = [...TABS, CHART_DESIGN]
 const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
@@ -217,6 +229,8 @@ type DialogState =
   | { kind: "resizeTable"; range: Range }
   | { kind: "sparklineData"; init: SparklineDialogInit }
   | { kind: "sparklineEmpty" }
+  | { kind: "insertSlicers" }
+  | { kind: "slicerSettings"; slicer: SheetSlicer }
   | { kind: "sparklineDates" }
   | { kind: "sparklineAxis"; which: "min" | "max" }
   | { kind: "textToColumns"; range: Range; texts: string[] }
@@ -877,7 +891,11 @@ function WorkbookWindow({
       setDialog({ kind })
     else if (kind === "zoomToSelection") zoomToSelection()
     else if (kind === "sparklineEmpty" || kind === "sparklineDates") setDialog({ kind })
-    else if (kind === "sparklineAxis" && (arg === "min" || arg === "max")) setDialog({ kind, which: arg })
+    else if (kind === "insertSlicers") setDialog({ kind })
+    else if (kind === "slicerSettings") {
+      const slicer = controller.slicers.active()
+      if (slicer) setDialog({ kind, slicer })
+    } else if (kind === "sparklineAxis" && (arg === "min" || arg === "max")) setDialog({ kind, which: arg })
     else if (kind === "cf" && isQuickKind(arg)) setDialog({ kind: "cfQuick", quick: arg })
     else if (kind === "cfNew") setDialog({ kind: "cfNew", start: arg ?? "contains" })
     else if (kind === "cfManage") setDialog({ kind: "cfManage" })
@@ -1039,7 +1057,7 @@ function WorkbookWindow({
       : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
         ? TABS_IN_MODEL3D
         : drawings.length && drawings.every((o) => o.kind === "slicer")
-          ? TABS
+          ? TABS_IN_SLICER
           : drawings.length && drawings.every((o) => o.kind === "picture")
             ? TABS_IN_PICTURE
             : drawings.length
@@ -1325,6 +1343,12 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "sparklineData" ? (
           <SparklineDataDialog controller={controller} init={dialog.init} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "insertSlicers" ? (
+          <InsertSlicersDialog controller={controller} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "slicerSettings" ? (
+          <SlicerSettingsDialog controller={controller} slicer={dialog.slicer} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "sparklineEmpty" ? (
           <SparklineEmptyDialog controller={controller} onClose={closeDialog} />

@@ -203,9 +203,10 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         styles from the theme; x15 slicer caches, slicers parts and sle:slicer frames written anew; click, Ctrl+click,
         Shift+click, Multi-Select, Clear Filter, wheel scrolling; follow a renamed header). Checked against Excel's
         pictures of all 14 styles and opened in Excel 365. A file with PivotTable slicers keeps all slicers as read.
-  - [ ] Slicers step 2: Insert › Slicer and Table Design › Insert Slicer (Insert Slicers dialog), the Slicer tab
-        (caption, Slicer Settings, Report Connections greyed, style gallery, columns, button and slicer size,
-        arrange), the Format Slicer pane; copying a sheet links its slicers to the copied table
+  - [x] Slicers step 2: Insert › Slicer and Table Design › Insert Slicer (Insert Slicers dialog), the Slicer tab
+        (caption, Slicer Settings, Report Connections greyed, style gallery, columns, button height and width, size,
+        arrange; Group and Rotate off for slicers). Opened in Excel 365 with every setting. Not yet: the Format
+        Slicer pane, hover colours, copying a sheet links its slicers to the copied table
   - [ ] Quick Analysis (Ctrl+Q)
   - Timelines go with Part 10 (Excel only links them to PivotTables)
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)

@@ -88,4 +88,42 @@ describe("table slicers in xlsx", () => {
     expect(zip.some((e) => /slicer/i.test(e.normalizedName))).toBe(false)
     expect(await part(saved, "xl/workbook.xml")).not.toContain("Slicer_")
   })
+
+  it("writes a new slicer with a cache of its own and its settings", async () => {
+    const read = await openXlsx(fixture(), "slicer.xlsx")
+    const sheet = read.workbook.sheets[0]
+    const [region] = slicersOf(read.workbook)
+    sheet.objects.push({
+      ...region,
+      id: 999,
+      name: "Sales",
+      column: "Sales",
+      caption: "Amount",
+      cache: undefined,
+      uid: undefined,
+      cacheUid: undefined,
+      style: "SlicerStyleDark4",
+      columns: 3,
+      sort: "descending",
+      crossFilter: "none",
+      hideNoData: true,
+      header: false,
+    })
+    const saved = await saveXlsx(read.workbook, { source: read.source })
+    if (process.env.SLICER_OUT) (await import("node:fs")).writeFileSync(process.env.SLICER_OUT, saved)
+    expect(await part(saved, "xl/workbook.xml")).toContain(`<definedName name="Slicer_Sales">#N/A</definedName>`)
+    const again = await openXlsx(saved, "slicer.xlsx")
+    expect(slicersOf(again.workbook)[2]).toMatchObject({
+      name: "Sales",
+      column: "Sales",
+      caption: "Amount",
+      cache: "Slicer_Sales",
+      style: "SlicerStyleDark4",
+      columns: 3,
+      sort: "descending",
+      crossFilter: "none",
+      hideNoData: true,
+      header: false,
+    })
+  })
 })

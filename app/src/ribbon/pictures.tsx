@@ -71,6 +71,8 @@ const PICTURES: Record<string, LucideIcon> = {
   SparklineColor: L.Palette,
   SparklineMarkerColor: L.CircleDot,
   SparklineAxis: L.MoveHorizontal,
+  SlicerSettings: L.Settings2,
+  SlicerReportConnections: L.Unplug,
   SparklineGroup: L.Group,
   SparklineUngroup: L.Ungroup,
   SparklineClear: L.Eraser,

@@ -1,3 +1,4 @@
+import { slicerCommands } from "./slicer-commands"
 import { sparklineCommands } from "./sparkline-commands"
 import { linkCommands } from "./link-commands"
 import { pageLayoutCommands } from "./page-layout-commands"
@@ -20,7 +21,17 @@ import { pictureFor } from "./pictures"
 import { qatCommands } from "./qat-commands"
 import { reviewCommands } from "./review-commands"
 import { CommandRegistry, type Command, type RibbonEnv } from "./registry"
-import { CHART_DESIGN, EQUATION, PICTURE_FORMAT, SHAPE_FORMAT, SPARKLINE, TABLE_DESIGN, TABS, controlIds } from "./tabs"
+import {
+  CHART_DESIGN,
+  EQUATION,
+  PICTURE_FORMAT,
+  SHAPE_FORMAT,
+  SLICER,
+  SPARKLINE,
+  TABLE_DESIGN,
+  TABS,
+  controlIds,
+} from "./tabs"
 import { chartCommands } from "./chart-commands"
 import { objectCommands } from "./object-commands"
 import { tableCommands } from "./table-commands"
@@ -376,6 +387,7 @@ export function allCommands(): Command[] {
     ...model3dCommands(),
     ...smartArtCommands(),
     ...sparklineCommands(),
+    ...slicerCommands(),
     ...linkCommands(),
     ...otherCommands(),
   ]
@@ -383,7 +395,7 @@ export function allCommands(): Command[] {
 
 export function buildRegistry(): CommandRegistry {
   const registry = new CommandRegistry().add(...allCommands())
-  for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN, SHAPE_FORMAT, PICTURE_FORMAT, EQUATION, SPARKLINE]) {
+  for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN, SHAPE_FORMAT, PICTURE_FORMAT, EQUATION, SPARKLINE, SLICER]) {
     for (const id of controlIds(tab)) {
       if (!registry.get(id)) registry.add({ id, label: LABELS[id] ?? excelLabel(id) ?? id })
     }

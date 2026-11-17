@@ -686,6 +686,38 @@ export const SPARKLINE: Tab = {
   ],
 }
 
+/** Slicer, while slicers are selected (Excel's Slicer tab). */
+export const SLICER: Tab = {
+  id: "TabSlicer",
+  label: "Slicer",
+  keytip: "JI",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupSlicerProperties",
+      label: "Slicer",
+      columns: [
+        smalls({ kind: "label", text: "Slicer Caption:" }, F("SlicerCaption"), S("SlicerSettings")),
+        L("SlicerReportConnections"),
+      ],
+    },
+    { id: "GroupSlicerStyles", label: "Slicer Styles", columns: [L("SlicerStyleGallery")] },
+    ARRANGE,
+    {
+      id: "GroupSlicerButtons",
+      label: "Buttons",
+      columns: [
+        stack(
+          [{ kind: "label", text: "Columns:" }, F("SlicerColumns")],
+          [{ kind: "label", text: "Height:" }, F("SlicerButtonHeight")],
+          [{ kind: "label", text: "Width:" }, F("SlicerButtonWidth")],
+        ),
+      ],
+    },
+    SIZE,
+  ],
+}
+
 /**
  * Table Design, while the active cell is in a table. Built from Excel 365 at a wide window (no reference screenshot
  * in docs/reference yet). External Table Data (Export, Refresh, Unlink…) is left out: Cells has no linked tables.

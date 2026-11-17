@@ -159,7 +159,7 @@ export class ObjectCommands {
   }
 
   /** A box in the middle of the window, `w` × `h`. */
-  private middle(w: number, h: number): ChartBox {
+  middle(w: number, h: number): ChartBox {
     const zoom = this.c.zoom
     return {
       x: Math.max(0, this.c.scrollX + (this.c.viewWidth / zoom - w) / 2),

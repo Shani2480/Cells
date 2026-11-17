@@ -65,6 +65,7 @@ export type Command = {
 const ONE_SHEET_PREFIXES = [
   "Table",
   "Sparkline",
+  "Slicer",
   "FormatAsTable",
   "Chart",
   "ConditionalFormatting",

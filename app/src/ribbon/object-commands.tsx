@@ -517,7 +517,9 @@ export function objectCommands(): Command[] {
       id: "ObjectsGroup",
       label: "Group",
       run: (env) => env.c.objects.group(),
-      enabled: (env) => env.c.objects.drawings().length >= 2,
+      // Slicers stay on their own (Cells can't keep one inside a group).
+      enabled: (env) =>
+        env.c.objects.drawings().length >= 2 && !env.c.objects.drawings().some((o) => o.kind === "slicer"),
     },
     {
       id: "ObjectsUngroup",
@@ -531,7 +533,8 @@ export function objectCommands(): Command[] {
       label: "Rotate",
       description: "Rotate or flip the selected object.",
       keytip: "AY",
-      enabled: hasDrawing,
+      // Slicers don't turn, as in Excel.
+      enabled: (env) => hasDrawing(env) && !env.c.objects.drawings().some((o) => o.kind === "slicer"),
       menu: ["ObjectRotateRight90", "ObjectRotateLeft90", "ObjectFlipVertical", "ObjectFlipHorizontal"],
     },
     {
