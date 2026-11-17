@@ -91,6 +91,8 @@ export type SheetRead = {
   legacyDrawing: string | null
   /** The relationship of the sheet's drawing (charts, pictures), read and written anew. */
   drawing: string | null
+  /** The relationship of the sheet's background picture (Page Layout › Background). */
+  picture: string | null
   /** The file had dynamic-array formulas: their spilled cells need calculating. */
   dynamic: boolean
   /** Conditional formats Cells doesn't model, as `conditionalFormatting` elements to write back as read. */
@@ -136,6 +138,7 @@ const OWN = new Set([
   "hyperlinks",
   "drawing",
   "legacyDrawing",
+  "picture",
   "printOptions",
   "pageMargins",
   "pageSetup",
@@ -185,6 +188,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let view: SheetView = { ...DEFAULT_VIEW }
   let legacyDrawing: string | null = null
   let drawing: string | null = null
+  let picture: string | null = null
   const pageExtras = emptyExtras()
   let fitToPage = false
   let sawPageSetup = false
@@ -500,6 +504,14 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
             "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
           ) ?? null
         break
+      case "picture":
+        picture =
+          at(
+            parseFragment(source, rootTag).root,
+            "id",
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+          ) ?? null
+        break
       case "legacyDrawing":
         legacyDrawing =
           at(
@@ -571,6 +583,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
     kept,
     legacyDrawing,
     drawing,
+    picture,
     pageExtras,
     dynamic,
     keptConditional,

@@ -119,3 +119,40 @@ describe("the workbook's theme", () => {
     expect(read.workbook.theme.fonts.minor).toBeTruthy()
   })
 })
+
+describe("Page Layout › Background", () => {
+  const PNG =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/eL9GtQAAAABJRU5ErkJggg=="
+  it("writes the sheet's picture and reads it back; a deleted one leaves no part behind", async () => {
+    const wb = new Workbook(["One", "Two"])
+    wb.sheets[1].background = PNG
+    const bytes = await saveXlsx(wb)
+    const entries = await readZip(bytes)
+    const sheet2 = new TextDecoder().decode(entries.find((e) => e.name === "xl/worksheets/sheet2.xml")!.data)
+    expect(sheet2).toMatch(/<picture r:id="rId\d+"\/><\/worksheet>$/)
+    expect(entries.filter((e) => e.name.startsWith("xl/media/"))).toHaveLength(1)
+    const again = await openXlsx(bytes, "x.xlsx")
+    expect(again.workbook.sheets[0].background).toBeUndefined()
+    expect(again.workbook.sheets[1].background).toBe(PNG)
+
+    // Saved again unchanged: one picture still; deleted: none.
+    const twice = await readZip(await saveXlsx(again.workbook, { source: again.source }))
+    expect(twice.filter((e) => e.name.startsWith("xl/media/"))).toHaveLength(1)
+    again.workbook.sheets[1].background = undefined
+    const none = await readZip(await saveXlsx(again.workbook, { source: again.source }))
+    expect(none.filter((e) => e.name.startsWith("xl/media/"))).toHaveLength(0)
+    const rels = new TextDecoder().decode(none.find((e) => e.name === "xl/worksheets/_rels/sheet2.xml.rels")?.data)
+    expect(rels).not.toMatch(/image/)
+  })
+
+  it("reads Excel's own background and saves it back where Excel keeps it", async () => {
+    const read = await openXlsx(fixture("background"), "background.xlsx")
+    const [report, notes] = read.workbook.sheets
+    expect(report.background).toMatch(/^data:image\/png;base64,iVBOR/)
+    expect(notes.background).toBeUndefined()
+    const entries = await readZip(await saveXlsx(read.workbook, { source: read.source }))
+    const sheet1 = new TextDecoder().decode(entries.find((e) => e.name === "xl/worksheets/sheet1.xml")!.data)
+    expect(sheet1.match(/<picture r:id="(rId\d+)"\/>/g)).toHaveLength(1)
+    expect(entries.filter((e) => e.name.startsWith("xl/media/"))).toHaveLength(1)
+  })
+})

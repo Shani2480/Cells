@@ -1,7 +1,8 @@
 import { columnName, isWholeColumns, isWholeRows, rangeIntersection, type Range } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
-import type { Measure } from "./cell-look"
+import { prefersDarkText, type Measure } from "./cell-look"
 import { drawCells } from "./draw-cells"
+import { drawBackground } from "./background"
 import { drawPageLayout } from "./page-layout"
 import { drawBreakPreview } from "./break-preview"
 import {
@@ -40,16 +41,17 @@ export type Painter = Pick<
   | "translate"
   | "rotate"
   | "createLinearGradient"
-> & {
-  fillStyle: CanvasRenderingContext2D["fillStyle"]
-  strokeStyle: CanvasRenderingContext2D["strokeStyle"]
-  lineWidth: number
-  font: string
-  textAlign: CanvasTextAlign
-  textBaseline: CanvasTextBaseline
-  lineDashOffset: number
-  globalAlpha: number
-}
+> &
+  Partial<Pick<CanvasRenderingContext2D, "createPattern">> & {
+    fillStyle: CanvasRenderingContext2D["fillStyle"]
+    strokeStyle: CanvasRenderingContext2D["strokeStyle"]
+    lineWidth: number
+    font: string
+    textAlign: CanvasTextAlign
+    textBaseline: CanvasTextBaseline
+    lineDashOffset: number
+    globalAlpha: number
+  }
 
 export type DrawOptions = {
   painter: Painter
@@ -75,6 +77,7 @@ export function drawGrid(options: DrawOptions) {
 
   // Each part of the cell area (frozen rows and columns, the scrolling part) draws in its own rectangle.
   for (const pane of layout.panes) {
+    drawBackground(p, options.controller, pane, prefersDarkText(theme.background) ? undefined : theme.background)
     drawCells({ ...options, layout: pane })
     drawPageLayout(p, options.controller, pane, theme)
     drawPageBreaks({ ...options, layout: pane })

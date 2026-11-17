@@ -88,6 +88,7 @@ const ONE_SHEET_PREFIXES = [
   "SheetRename",
   "SheetMoveOrCopy",
   "SheetProtect",
+  "SheetBackground",
   "ClearComments",
   "ClearNotes",
   "ClearHyperlinks",

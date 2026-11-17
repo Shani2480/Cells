@@ -110,6 +110,8 @@ export type SheetWriteContext = {
   links?: LinkTable | null
   /** The relationship id of each link's address (null for a place in the workbook), by index in sheet.hyperlinks. */
   hyperlinkRels?: (string | null)[]
+  /** The relationship id of the sheet's background picture. */
+  picture?: string | null
   /** View › Custom Views: the sheet's customSheetViews ("" for none). */
   customSheetViews?: string
 }
@@ -234,6 +236,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     customSheetViews: ctx.customSheetViews ?? "",
     drawing: ctx.drawing ? `<drawing r:id="${ctx.drawing}"/>` : "",
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
+    picture: ctx.picture ? `<picture r:id="${ctx.picture}"/>` : "",
     ...printElementsXml(sheet.pageSetup, ctx.source?.pageExtras),
     tableParts: ctx.tableParts?.length
       ? `<tableParts count="${ctx.tableParts.length}">${ctx.tableParts.map((id) => `<tablePart r:id="${id}"/>`).join("")}</tableParts>`

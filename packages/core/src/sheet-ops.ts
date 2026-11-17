@@ -52,6 +52,7 @@ export type SheetSnapshot = {
   hyperlinks?: Hyperlink[]
   editRanges?: EditRange[]
   tabColor?: string
+  background?: string
   hidden: boolean
 }
 
@@ -60,7 +61,7 @@ export type SheetOp =
   | { kind: "removeSheet"; sheet: number }
   | { kind: "renameSheet"; sheet: number; name: string }
   | { kind: "moveSheet"; sheet: number; to: number }
-  | { kind: "sheetProps"; sheet: number; tabColor?: string | null; hidden?: boolean }
+  | { kind: "sheetProps"; sheet: number; tabColor?: string | null; hidden?: boolean; background?: string | null }
 
 export function snapshotSheet(sheet: Sheet): SheetSnapshot {
   const used = sheet.cells.usedBounds()
@@ -88,6 +89,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     hyperlinks: copyHyperlinks(sheet.hyperlinks),
     editRanges: copyEditRanges(sheet.editRanges),
     tabColor: sheet.tabColor,
+    background: sheet.background,
     hidden: sheet.hidden,
   }
 }
@@ -125,6 +127,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.hyperlinks = copyHyperlinks(s.hyperlinks ?? [])
   sheet.editRanges = copyEditRanges(s.editRanges ?? [])
   sheet.tabColor = s.tabColor
+  sheet.background = s.background
   sheet.hidden = s.hidden
   return sheet
 }
@@ -203,6 +206,10 @@ export function applySheetOp(sheets: Sheet[], op: SheetOp): Applied {
       if (op.tabColor !== undefined) {
         before.tabColor = sheet.tabColor ?? null
         sheet.tabColor = op.tabColor ?? undefined
+      }
+      if (op.background !== undefined) {
+        before.background = sheet.background ?? null
+        sheet.background = op.background ?? undefined
       }
       if (op.hidden !== undefined) {
         before.hidden = sheet.hidden

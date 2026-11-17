@@ -43,7 +43,7 @@ import {
   REL_WORKSHEET,
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
-import { writeDrawing } from "./drawing"
+import { putPicture, REL_IMAGE, writeDrawing } from "./drawing"
 import {
   CT_EXTERNAL_LINK,
   externalLinkXml,
@@ -302,6 +302,17 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       freeName,
       putBytes: (name, contentType, data) => parts.set(partKey(name), { name, contentType, data }),
     })
+    // Page Layout › Background: its picture in a media part of its own.
+    const picture = sheet.background
+      ? addRel(
+          partName,
+          REL_IMAGE,
+          putPicture(sheet.background, {
+            freeName,
+            putBytes: (name, contentType, data) => parts.set(partKey(name), { name, contentType, data }),
+          }),
+        )
+      : null
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active || (views[i]?.selected ?? false) }
     const written = writeSheet({
       sheet,
@@ -317,6 +328,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       tableParts,
       links,
       hyperlinkRels,
+      picture,
       customSheetViews: customSheetViewsXml(wb, sheet),
     })
     dynamic ||= written.dynamic

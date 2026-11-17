@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest"
-import { nextSheetName, parseCell, parseInput, sheetNameProblem, Workbook, type CellWrite, type Op } from "../src"
+import {
+  nextSheetName,
+  parseCell,
+  parseInput,
+  sheetNameProblem,
+  snapshotSheet,
+  Workbook,
+  type CellWrite,
+  type Op,
+} from "../src"
 import { snapshot } from "./helpers"
 
 function set(wb: Workbook, cells: Record<string, string>, sheetIndex = 0) {
@@ -118,6 +127,17 @@ describe("sheet operations", () => {
     wb.undo()
     expect(wb.sheets[1].tabColor).toBeUndefined()
     expect(wb.sheets[1].hidden).toBe(false)
+  })
+
+  it("a background picture undoes and travels with a copied sheet", () => {
+    const wb = new Workbook(["Sheet1"])
+    run(wb, { kind: "sheetProps", sheet: 0, background: "data:image/png;base64,AA==" })
+    expect(wb.sheets[0].background).toBe("data:image/png;base64,AA==")
+    run(wb, { kind: "addSheet", sheet: 1, name: "Copy", snapshot: snapshotSheet(wb.sheets[0]) })
+    expect(wb.sheets[1].background).toBe("data:image/png;base64,AA==")
+    wb.undo()
+    wb.undo()
+    expect(wb.sheets[0].background).toBeUndefined()
   })
 
   it("checks names as Excel does", () => {

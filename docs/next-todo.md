@@ -156,7 +156,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Text Box, Shapes, Pictures, Icons, WordArt: one object list per sheet (charts included) in stacking order;
         Shape Format and Picture Format tabs; Arrange (order, Align, Group, Rotate, Flip); Selection Pane; Alt Text
         for every object; xlsx read/write keeping Excel's own objects exactly unless edited; printing; statistics
-  - [ ] Sheet Background
+  - [x] Sheet Background (tiled behind the cells, screen only; dimmed in dark mode; xlsx `<picture>`)
   - [ ] Themes: theme colours, fonts and effects galleries, writing the theme part
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
@@ -181,6 +181,8 @@ decided when Part 8 is done.
   connectors that stay glued to shapes are missing; adjustment handles (the yellow dots) aren't shown; text in a
   shape is typed as plain text (one format for all of it); Graphics Fill for icons; the Size dialog (Format Shape
   pane). Spelling doesn't check text in shapes yet.
+
+- Sheet Background: .xls files open without theirs (the BIFF BITMAP record isn't read).
 
 - Check Accessibility: contrast ignores conditional formats, table styles and number-format colours; Excel's
   "Keep accessibility checker running" setting and its Tips aren't there; Alt Text moves to the chart's Format tab

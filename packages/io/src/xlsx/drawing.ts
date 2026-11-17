@@ -25,7 +25,7 @@ import { NS_R } from "./constants"
 import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
 import { objectKey, objectXml, readObject } from "./shapes"
 
-const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+export const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 
 /**
  * A sheet's drawing part: its charts, shapes, text boxes, pictures and groups, which Cells reads and writes in their
@@ -105,11 +105,7 @@ export function readDrawing(
     const rel = rels.find((r) => r.id === rid && r.type === REL_IMAGE)
     const part = bytes(rel?.partName)
     if (!part) return undefined
-    const ext = rel!.partName!.split(".").pop()!.toLowerCase()
-    const mime = part.contentType.startsWith("image/")
-      ? part.contentType
-      : (Object.keys(PICTURE_TYPES).find((m) => PICTURE_TYPES[m] === ext) ?? "image/png")
-    const url = dataUrl(part.data, mime)
+    const url = pictureUrl(rel!.partName!, part)
     source.images.set(rid, url)
     return url
   }
@@ -182,6 +178,24 @@ const keepLook = (spec: ChartSpec): ChartSpec => ({
 })
 
 /** The package operations a save gives the drawing writer. */
+/** A picture part as a data URL (its type from the part, else from the file extension). */
+export function pictureUrl(partName: string, part: { data: Uint8Array; contentType: string }): string {
+  const ext = partName.split(".").pop()!.toLowerCase()
+  const mime = part.contentType.startsWith("image/")
+    ? part.contentType
+    : (Object.keys(PICTURE_TYPES).find((m) => PICTURE_TYPES[m] === ext) ?? "image/png")
+  return dataUrl(part.data, mime)
+}
+
+/** A picture (data URL) written as a new media part; returns the part's name. */
+export function putPicture(src: string, out: Pick<DrawingWriter, "freeName" | "putBytes">): string {
+  const data = dataUrlBytes(src)
+  const ext = PICTURE_TYPES[data?.mime ?? ""] ?? "png"
+  const media = out.freeName((n) => `/xl/media/image${n}.${ext}`)
+  out.putBytes(media, data?.mime ?? "image/png", data?.bytes ?? new Uint8Array())
+  return media
+}
+
 export type DrawingWriter = {
   put(name: string, contentType: string, xml: string): void
   /** A part and the parts only it uses (a chart's style, colours and embedded workbook). */
@@ -232,11 +246,7 @@ export function writeDrawing(
       if (was && source?.images.get(was) === src && rels.some((r) => r.id === was)) return was
       let rid = newImages.get(src)
       if (rid) return rid
-      const data = dataUrlBytes(src)
-      const ext = PICTURE_TYPES[data?.mime ?? ""] ?? "png"
-      const media = out.freeName((n) => `/xl/media/image${n}.${ext}`)
-      out.putBytes(media, data?.mime ?? "image/png", data?.bytes ?? new Uint8Array())
-      rid = out.addRel(partName, REL_IMAGE, media)
+      rid = out.addRel(partName, REL_IMAGE, putPicture(src, out))
       newImages.set(src, rid)
       return rid
     },

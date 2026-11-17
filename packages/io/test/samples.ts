@@ -551,7 +551,18 @@ export function hyperlinks(): Workbook {
   return done(wb)
 }
 
+/** Page Layout › Background: a tiled picture behind the first sheet, none on the second. */
+function background(): Workbook {
+  const wb = new Workbook(["Pictured", "Plain"])
+  wb.sheets[0].background =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAJElEQVR4nGN49uE/VvT/12usiGFUA01CCZcELoNGNfynRSgBAOY/3J/akEcBAAAAAElFTkSuQmCC"
+  wb.sheets[0].cells.set(0, 0, { value: "Over the picture" })
+  wb.sheets[1].cells.set(0, 0, { value: 1 })
+  return done(wb)
+}
+
 export const samples: Record<string, () => Workbook> = {
+  background,
   hyperlinks,
   linkedBook,
   linkedText,

@@ -77,13 +77,15 @@ const out = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../ap
 mkdirSync(out, { recursive: true })
 const text = lines.join("\n") + "\n"
 writeFileSync(path.join(out, "thesaurus.txt.gz"), gzipSync(Buffer.from(text, "utf8"), { level: 9 }))
-const licence = ["LICENSE", "license"].map((n) => path.join(dict, "..", n)).find((p) => {
-  try {
-    readFileSync(p)
-    return true
-  } catch {
-    return false
-  }
-})
+const licence = ["LICENSE", "license"]
+  .map((n) => path.join(dict, "..", n))
+  .find((p) => {
+    try {
+      readFileSync(p)
+      return true
+    } catch {
+      return false
+    }
+  })
 if (licence) copyFileSync(licence, path.join(out, "WORDNET-LICENSE.txt"))
 console.log(`${synsets.size} meanings, ${text.length} bytes, written to ${out}`)

@@ -1,4 +1,5 @@
 import { MARGIN_PRESETS, PAPER_SIZES, paperOf, type PageMargins } from "@cells/core"
+import { pickPicture } from "@/drawing/pictures"
 import { marginPreset } from "@/sheet/print"
 import { marginUnit } from "@/shell/PageSetupDialog"
 import type { Command, RibbonEnv } from "./registry"
@@ -269,6 +270,19 @@ export function pageLayoutCommands(): Command[] {
       keytip: "A",
       run: (env) => env.c.print.resetBreaks(),
       enabled: (env) => env.c.print.setup().rowBreaks.length + env.c.print.setup().colBreaks.length > 0,
+    },
+    {
+      id: "SheetBackground",
+      label: "Background",
+      labelFor: (env) => (env.c.sheet.background ? "Delete Background" : "Background"),
+      description: "Choose a picture to show behind the sheet. The background shows on screen only; it isn't printed.",
+      keytip: "G",
+      run: (env) => {
+        if (env.c.sheet.background) return env.c.sheets.setBackground(null)
+        void pickPicture().then((p) => {
+          if (p) env.c.sheets.setBackground(p.src)
+        })
+      },
     },
     {
       id: "PrintTitles",

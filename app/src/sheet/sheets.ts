@@ -236,6 +236,17 @@ export class SheetCommands {
     this.run([{ kind: "sheetProps", sheet: index, tabColor: color }], "Tab Color", this.c.sheetIndex)
   }
 
+  /** Page Layout › Background: a picture tiled behind the active sheet's cells (null: Delete Background). */
+  setBackground(src: string | null) {
+    const index = this.c.sheetIndex
+    if ((this.c.sheet.background ?? null) === src) return
+    this.run(
+      [{ kind: "sheetProps", sheet: index, background: src }],
+      src ? "Sheet Background" : "Delete Background",
+      index,
+    )
+  }
+
   /** Hides a sheet (every grouped sheet, when `index` is in the group). */
   hide(index = this.c.sheetIndex) {
     const sheet = this.c.wb.sheets[index]

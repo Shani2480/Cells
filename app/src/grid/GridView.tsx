@@ -13,6 +13,7 @@ import { FilterButtons } from "./FilterButtons"
 import { ValidationLayer } from "./ValidationLayer"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
 import { drawGrid } from "./draw"
+import { onBackgroundLoaded } from "./background"
 import { lookOf, shownText } from "./cell-look"
 import { PAD } from "./draw-cells"
 import { FormulaAssist, FormulaHighlight } from "./FormulaAssist"
@@ -207,6 +208,9 @@ export function GridView({
     observer.observe(host)
     return () => observer.disconnect()
   }, [])
+
+  // A sheet background picture draws once it has loaded.
+  useEffect(() => onBackgroundLoaded(() => setThemeVersion((v) => v + 1)), [])
 
   // Theme: re-read the tokens when light/dark changes.
   useEffect(() => {

@@ -27,7 +27,7 @@ import {
   REL_WORKSHEET,
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from "./dom"
-import { readDrawing, REL_DRAWING, type DrawingSource } from "./drawing"
+import { pictureUrl, readDrawing, REL_DRAWING, REL_IMAGE, type DrawingSource } from "./drawing"
 import { linksFromFile, readExternalLink } from "./links"
 import {
   queryTableFrom,
@@ -313,6 +313,10 @@ export async function openXlsx(
       }
       if (h.link.address || h.link.location) sheet.hyperlinks.push(h.link)
     }
+    // Page Layout › Background.
+    const pictureRel = rels.find((r) => r.id === read.picture && r.type === REL_IMAGE)
+    const picturePart = pictureRel?.partName ? findPart(pkg, pictureRel.partName) : undefined
+    if (picturePart) sheet.background = pictureUrl(pictureRel!.partName!, picturePart)
     const tables: { id: number; partName: string }[] = []
     for (const r of rels) {
       if (r.type !== REL_TABLE || !r.partName) continue
@@ -363,6 +367,7 @@ export async function openXlsx(
           r.type !== REL_TABLE &&
           r.type !== REL_HYPERLINK &&
           !(drawing && r.id === read.drawing) &&
+          !(picturePart && r.id === read.picture) &&
           !(r.type === REL_VML && r.id === read.legacyDrawing),
       ),
       tables,

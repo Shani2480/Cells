@@ -143,6 +143,11 @@ export class Sheet {
   name: string
   /** The tab's colour (Format › Tab Color), as hex. */
   tabColor?: string
+  /**
+   * Page Layout › Background: a picture tiled behind the cells (a data URL). It shows on screen only; it isn't
+   * printed, as in Excel.
+   */
+  background?: string
   /** Hidden sheets keep their contents and formulas; their tab is not shown. */
   hidden = false
   readonly cells = new CellStore()
