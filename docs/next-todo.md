@@ -163,8 +163,18 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Sheet Background (tiled behind the cells, screen only; dimmed in dark mode; xlsx `<picture>`)
   - [x] Themes: Themes, Colors and Fonts galleries, Browse for Themes, writing the theme part; cells, cell styles,
         table styles, charts and shapes follow the theme
-- [ ] Part 8b — More objects (decided 2026-11-17: build them): Equations, SmartArt, 3D Models, Signature Line,
-      Object (OLE: embedded files shown as icons or pictures, opened in their own app; Excel's kept)
+- [ ] Part 8b — More objects (decided 2026-11-17: build them), smallest first; Excel-made reference files in
+      packages/io/test/fixtures/excel (sigline, oleobject, model3d, smartart)
+  - [x] Signature Line: Insert › Text › Signature Line, Signature Setup (signer, title, email, instructions, comments,
+        sign date), drawn like Office's; VML in xlsx (`o:signatureline`), Excel's kept
+  - [ ] Object: Insert › Text › Object › Create from File (as an icon, or linked); opens in its own app on double-click;
+        xlsx `oleObjects` + VML + embeddings (a file in an OLE package; Office files as they are)
+  - [ ] Equations: Insert › Equation (Alt+=) and its gallery; linear (UnicodeMath) and professional display; the
+        Equation tab's structures and symbols; OMML in xlsx text boxes with Excel's text fallback
+  - [ ] 3D Models: Insert › 3D Models from a file (.glb, .gltf, .obj, .stl); drawn with WebGL, turned with the 3D
+        handle; 3D Model tab (Views, Pan & Zoom, Reset); xlsx `am3d:model3d` with its picture fallback
+  - [ ] SmartArt: Insert › SmartArt (the most used layouts of each category), Text Pane, SmartArt Design and Format
+        tabs; xlsx diagram parts (data, layout, style, colours, drawing) read and written
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
@@ -193,6 +203,8 @@ built in Part 8b.
   Customize Colors and Customize Fonts (custom sets); Save Current Theme; Reset to Theme from Template. Conditional
   formats and colours in charts read from a file keep their colours (Excel's follow the theme). .xls files keep their
   colours as read (BIFF8 has no theme references).
+- Signature Line: Sign (a digital ID and the file's XML signature, _xmlsignatures) and Add Signature Services aren't
+  built; Excel redraws the line's picture itself when it saves.
 - Windows: only the active window's view is saved (Excel writes a workbookView per window and reopens them all);
   the sheet tabs and status bar follow the active window instead of each panel having its own; Cascade's panels
   can't be dragged or resized; Hide is greyed out for the last visible window (Cells shows one workbook at a time).

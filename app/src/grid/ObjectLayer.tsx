@@ -286,7 +286,9 @@ export function ObjectLayer({
             onDoubleClick={(event) => {
               if (isChart(o)) return
               event.stopPropagation()
-              objects.startText(o.id)
+              // A signature line opens its setup (signing needs a digital ID, which Cells doesn't have).
+              if (o.kind === "picture" && o.signature) controller.shell.openDialog?.(`signatureSetup:${o.id}`)
+              else objects.startText(o.id)
             }}
           >
             <div className="object-picture" style={flips ? { transform: flips.trim() } : undefined}>

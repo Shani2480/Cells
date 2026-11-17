@@ -7,6 +7,7 @@ import {
   type Sheet,
   type Theme,
   type WorkbookProtection,
+  objectName,
 } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
@@ -26,6 +27,7 @@ import {
   REL_WORKSHEET,
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc } from "./dom"
+import { readVmlSignatures } from "./vml"
 import { pictureUrl, readDrawing, REL_DRAWING, REL_IMAGE, type DrawingSource } from "./drawing"
 import { linksFromFile, readExternalLink } from "./links"
 import {
@@ -254,7 +256,12 @@ export async function openXlsx(
     const rels = relationshipsFor(pkg, rel.partName)
     const vmlRel = rels.find((r) => r.id === read.legacyDrawing)
     const vml = partText(pkg, vmlRel?.partName)
-    if (vml && /ObjectType="(?!Note")/.test(vml))
+    if (
+      vml &&
+      /ObjectType="(?!Note")/.test(
+        vml.replace(/<v:shape\b(?:(?!<\/v:shape>)[\s\S])*?<o:signatureline\b[\s\S]*?<\/v:shape>/g, ""),
+      )
+    )
       warnings.push(`Form controls on ${sheet.name} aren't supported; they are left out when you save.`)
     readComments(sheet, {
       legacy: partText(pkg, relOfType(rels, REL_COMMENTS)?.partName),
@@ -307,6 +314,22 @@ export async function openXlsx(
             },
           )
         : undefined
+    // Signature lines (Insert › Signature Line) live in the notes' VML drawing.
+    if (vml && vmlRel?.partName) {
+      const vmlRels = relationshipsFor(pkg, vmlRel.partName)
+      for (const line of readVmlSignatures(vml)) {
+        const target = vmlRels.find((r) => r.id === line.relId)?.partName
+        const part = target ? findPart(pkg, target) : undefined
+        const id = ++chartIds
+        const { relId: _rel, spid: _spid, ...picture } = line
+        sheet.objects.push({
+          ...picture,
+          id,
+          name: objectName({ kind: "picture" }, id),
+          src: part ? pictureUrl(target!, part) : "",
+        })
+      }
+    }
     sheetSources.set(sheet, {
       partName: rel.partName,
       rootTag: read.rootTag,

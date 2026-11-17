@@ -1,3 +1,4 @@
+import { lastShapeId, pictureVml, signatureShapeXml, withPictures } from "./vml"
 import { customSheetViewsXml, customViewNamesXml, customWorkbookViewsXml, viewNamePrefix } from "./custom-views"
 import { hyperlinkTarget } from "./hyperlinks"
 import { columnName, quoteSheet, type Range, type Sheet, type Workbook } from "@cells/core"
@@ -45,7 +46,7 @@ import {
   REL_WORKSHEET,
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
-import { putPicture, REL_IMAGE, writeDrawing } from "./drawing"
+import { boxOf, isSignatureLine, putPicture, REL_IMAGE, writeDrawing } from "./drawing"
 import { patchThemeXml, themeChanged, themeXml } from "./theme"
 import {
   CT_EXTERNAL_LINK,
@@ -276,13 +277,31 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       (r) => sheet.rows.size(r),
     )
     let legacyDrawing: string | null = null
+    // Signature lines share the notes' VML drawing (Excel keeps them there).
+    const lines = sheet.objects.filter(isSignatureLine)
+    if (notes || lines.length) {
+      const vml = freeName((n) => `/xl/drawings/vmlDrawing${n}.vml`)
+      let shapeXml = ""
+      let shapeId = Math.max(1024 * (i + 1), notes ? lastShapeId(notes.vml) : 0)
+      for (const line of lines) {
+        const rel = addRel(
+          vml,
+          REL_IMAGE,
+          putPicture(line.src, {
+            freeName,
+            putBytes: (name, contentType, data) => parts.set(partKey(name), { name, contentType, data }),
+          }),
+        )
+        shapeXml += signatureShapeXml(line, ++shapeId, rel, boxOf(sheet, line.anchor))
+      }
+      const xml = notes ? (lines.length ? withPictures(notes.vml, shapeXml) : notes.vml) : pictureVml(i, shapeXml)
+      parts.set(partKey(vml), { name: vml, contentType: CT_VML, data: new TextEncoder().encode(xml) })
+      legacyDrawing = addRel(partName, REL_VML, vml)
+    }
     if (notes) {
       const comments = freeName((n) => `/xl/comments${n}.xml`)
       put(comments, CT_COMMENTS, notes.legacy)
       addRel(partName, REL_COMMENTS, comments)
-      const vml = freeName((n) => `/xl/drawings/vmlDrawing${n}.vml`)
-      parts.set(partKey(vml), { name: vml, contentType: CT_VML, data: new TextEncoder().encode(notes.vml) })
-      legacyDrawing = addRel(partName, REL_VML, vml)
       if (notes.threaded) {
         const threaded = freeName((n) => `/xl/threadedComments/threadedComment${n}.xml`)
         put(threaded, CT_THREADED, notes.threaded)

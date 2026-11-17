@@ -14,6 +14,7 @@ import {
   type SheetObject,
   type SheetPicture,
   type SheetShape,
+  type SignatureSetup,
 } from "@cells/core"
 import { anchorOf, chartBox, type ChartBox } from "./charts"
 import type { SheetController } from "./controller"
@@ -222,6 +223,40 @@ export class ObjectCommands {
       ...extra,
     }
     return this.put(picture, extra.icon ? "Insert Icon" : "Insert Picture") as SheetPicture
+  }
+
+  /**
+   * Insert › Signature Line: an unsigned line (`png` is its picture for files) at the active cell, Office's size.
+   */
+  insertSignatureLine(setup: SignatureSetup, png: string, size: { w: number; h: number }): SheetPicture {
+    const id = this.nextId()
+    const { row, col } = this.c.selection.active
+    const x = this.c.sheet.cols.offset(col)
+    const y = this.c.sheet.rows.offset(row)
+    const picture: SheetPicture = {
+      kind: "picture",
+      id,
+      name: objectName({ kind: "picture" }, id),
+      anchor: anchorOf(this.c.sheet, { x, y, w: size.w, h: size.h }),
+      src: png,
+      natural: { ...size },
+      signature: { ...setup },
+      altText: "Microsoft Office Signature Line...",
+    }
+    return this.put(picture, "Insert Signature Line") as SheetPicture
+  }
+
+  /** Signature Setup on a line already there: new details and the picture drawn from them. */
+  setSignature(id: number, setup: SignatureSetup, png: string): boolean {
+    return this.update(
+      "Signature Setup",
+      (o) => {
+        if (isChart(o) || o.kind !== "picture") return
+        o.signature = { ...setup }
+        o.src = png
+      },
+      [id],
+    )
   }
 
   /** Insert › WordArt › a style: "Your text here" in the middle of the window, selected for typing. */

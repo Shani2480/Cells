@@ -3855,3 +3855,21 @@ html.is-phone .forecast-options {
   width: 16px;
   justify-content: center;
 }
+
+/* Insert › Signature Line: Signature Setup's fields, one under another. */
+.signature-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.signature-setup .dialog-field {
+  margin-bottom: 6px;
+}
+
+.signature-setup textarea.dialog-field {
+  height: auto;
+  min-height: 58px;
+  padding-block: 4px;
+  resize: vertical;
+}

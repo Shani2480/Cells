@@ -18,6 +18,9 @@ import {
   type DrawingObject,
   type Sheet,
   type SheetChart,
+  type SheetObject,
+  type SheetPicture,
+  type SignatureSetup,
   type Workbook,
 } from "@cells/core"
 import type { OpcRelationship } from "../opc"
@@ -219,7 +222,9 @@ export function writeDrawing(
   out: DrawingWriter,
 ): string | null {
   const used = new Set<number>()
-  if (!sheet.objects.length && !source?.kept.length) {
+  // Signature lines go in the VML drawing (vml.ts), not this one.
+  const drawn = sheet.objects.filter((o) => !isSignatureLine(o))
+  if (!drawn.length && !source?.kept.length) {
     if (source) {
       for (const c of source.charts.values()) out.removeTree(c.partName)
       out.removeTree(source.partName)
@@ -253,7 +258,7 @@ export function writeDrawing(
     decorativeXml: (o: DrawingObject) => (o.decorative ? decorativeExt() : ""),
   }
   const anchors: string[] = []
-  for (const object of sheet.objects) {
+  for (const object of drawn) {
     if (!isChart(object)) {
       const box = boxOf(sheet, object.anchor)
       // Unchanged since it was read (and still in this drawing): written back exactly as it came.
@@ -335,7 +340,11 @@ function cornerAt(sheet: Sheet, px: number, py: number): ChartCorner {
 }
 
 /** An anchor's box on the sheet, in pixels. */
-function boxOf(sheet: Sheet, a: ChartAnchor) {
+/** A signature line (Insert › Signature Line), which files keep in the VML drawing. */
+export const isSignatureLine = (o: SheetObject): o is SheetPicture & { signature: SignatureSetup } =>
+  !isChart(o) && o.kind === "picture" && o.signature !== undefined
+
+export function boxOf(sheet: Sheet, a: ChartAnchor) {
   const x = sheet.cols.offset(a.from.col) + a.from.x
   const y = sheet.rows.offset(a.from.row) + a.from.y
   const x1 = sheet.cols.offset(a.to.col) + a.to.x

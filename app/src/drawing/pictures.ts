@@ -38,14 +38,22 @@ export function readPicture(file: Blob & { name?: string }): Promise<PickedPictu
 export function svgToPng(svg: string, w: number, h: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
+    // A webview that never answers mustn't leave the caller waiting: the SVG stands in after a moment.
+    const timer = setTimeout(() => reject(new Error("The picture took too long to draw.")), 3000)
     img.onload = () => {
+      clearTimeout(timer)
       const canvas = document.createElement("canvas")
       canvas.width = Math.max(1, Math.round(w))
       canvas.height = Math.max(1, Math.round(h))
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return reject(new Error("No canvas to draw the picture on."))
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
       resolve(canvas.toDataURL("image/png"))
     }
-    img.onerror = () => reject(new Error("The icon couldn't be drawn."))
+    img.onerror = () => {
+      clearTimeout(timer)
+      reject(new Error("The picture couldn't be drawn."))
+    }
     img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
   })
 }

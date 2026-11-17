@@ -125,8 +125,30 @@ export type SheetShape = ObjectBase & {
   shadow?: boolean
 }
 
+/**
+ * Insert › Signature Line: who is asked to sign, as Office's Signature Setup sets it. The line is a picture drawn from
+ * these (an X, the line, the signer's name and title); the picture itself (`src`) is what files show.
+ */
+export type SignatureSetup = {
+  /** The line's GUID ("{…}"), which a digital signature would name. */
+  id: string
+  /** The signature provider's GUID as the file had it (Office's own when absent). */
+  provider?: string
+  signer: string
+  title: string
+  email: string
+  instructions: string
+  allowComments: boolean
+  showDate: boolean
+}
+
+/** Office's default instructions to the signer. */
+export const SIGNING_INSTRUCTIONS = "Before signing this document, verify that the content you are signing is correct."
+
 export type SheetPicture = ObjectBase & {
   kind: "picture"
+  /** A signature line (Insert › Signature Line): drawn from its setup. */
+  signature?: SignatureSetup
   /** The picture as a data URL ("data:image/png;base64,…"). */
   src: string
   /** An SVG picture (icons): drawn instead of `src`, which is its PNG for apps that can't show SVG. */
@@ -182,6 +204,7 @@ export function copyObject<T extends SheetObject>(o: T): T {
     if (p.crop) out.crop = { ...p.crop }
     if (p.natural) out.natural = { ...p.natural }
     if (p.line) out.line = copyLine(p.line)
+    if (p.signature) out.signature = { ...p.signature }
   } else {
     const g = o as SheetGroup
     out.child = { ...g.child }
