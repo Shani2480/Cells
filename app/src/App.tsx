@@ -1,6 +1,16 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
 import { parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react"
 import { columnChars, charsToPixels, pointsToPixels, rowPoints } from "@/grid/autofit"
 import { GridView, type GridContextMenu } from "@/grid/GridView"
 import { usePlatform } from "@/platform/context"
@@ -22,7 +32,7 @@ import { PhoneShell } from "@/phone/PhoneShell"
 import { installBackHandler, syncSystemBars } from "@/platform/android-files"
 import { useShellKind } from "@/phone/shell-choice"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
-import { CHART_DESIGN, HELP, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
+import { CHART_DESIGN, HELP, PICTURE_FORMAT, SHAPE_FORMAT, TABLE_DESIGN, TABS } from "@/ribbon/tabs"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
 import { whatsNewOnStart } from "@/about/release-notes"
@@ -40,6 +50,9 @@ import { ClipboardPane } from "@/shell/ClipboardPane"
 import { CommentsPane } from "@/shell/CommentsPane"
 import { AccessibilityPane } from "@/shell/AccessibilityPane"
 import { SpellingDialog } from "@/shell/SpellingDialog"
+import { SelectionPane } from "@/shell/SelectionPane"
+// The icon set is large: it loads the first time Insert › Icons opens.
+const IconsDialog = lazy(() => import("@/shell/IconsDialog").then((m) => ({ default: m.IconsDialog })))
 import { ThesaurusPane } from "@/shell/ThesaurusPane"
 import { QueriesPane } from "@/shell/QueriesPane"
 import { WorkbookLinksPane } from "@/shell/WorkbookLinksPane"
@@ -109,6 +122,8 @@ import type { TextImport } from "@cells/io"
 const NOT_BUILT = "Not built yet."
 const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
 const TABS_IN_CHART = [...TABS, CHART_DESIGN]
+const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
+const TABS_IN_PICTURE = [...TABS, PICTURE_FORMAT]
 
 type DialogState =
   | { kind: "goto" }
@@ -125,6 +140,7 @@ type DialogState =
         | "customViews"
         | "statistics"
         | "spelling"
+        | "icons"
         | "allowEditRanges"
         | "cfManage"
         | "protectSheet"
@@ -792,6 +808,7 @@ function WorkbookWindow({
       kind === "customViews" ||
       kind === "statistics" ||
       kind === "spelling" ||
+      kind === "icons" ||
       kind === "allowEditRanges"
     )
       setDialog({ kind })
@@ -930,7 +947,16 @@ function WorkbookWindow({
     <ClipboardPane controller={controller} onPaste={(text, html) => controller.paste(text, html)} onDone={focusGrid} />
   )
   const grid = <GridView controller={controller} onContextMenu={setMenu} />
-  const ribbonTabs = controller.charts.active() ? TABS_IN_CHART : controller.tables.active() ? TABS_IN_TABLE : TABS
+  const drawings = controller.objects.drawings()
+  const ribbonTabs = controller.charts.active()
+    ? TABS_IN_CHART
+    : drawings.length && drawings.every((o) => o.kind === "picture")
+      ? TABS_IN_PICTURE
+      : drawings.length
+        ? TABS_IN_SHAPE
+        : controller.tables.active()
+          ? TABS_IN_TABLE
+          : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 
@@ -1015,6 +1041,7 @@ function WorkbookWindow({
               {controller.annotations.paneOpen ? <CommentsPane controller={controller} onDone={focusGrid} /> : null}
               {controller.accessibilityOpen ? accessibilityPane : null}
               {controller.thesaurusOpen ? <ThesaurusPane controller={controller} onDone={focusGrid} /> : null}
+              {controller.objects.paneOpen ? <SelectionPane controller={controller} onDone={focusGrid} /> : null}
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
               {controller.data.linksOpen ? linksPane : null}
@@ -1030,6 +1057,9 @@ function WorkbookWindow({
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}
         {shell === "phone" && controller.accessibilityOpen ? accessibilityPane : null}
+        {shell === "phone" && controller.objects.paneOpen ? (
+          <SelectionPane controller={controller} onDone={focusGrid} />
+        ) : null}
         {shell === "phone" && controller.thesaurusOpen ? (
           <ThesaurusPane controller={controller} onDone={focusGrid} />
         ) : null}
@@ -1272,6 +1302,11 @@ function WorkbookWindow({
           />
         ) : null}
         {dialog?.kind === "spelling" ? <SpellingDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "icons" ? (
+          <Suspense fallback={null}>
+            <IconsDialog controller={controller} onClose={closeDialog} />
+          </Suspense>
+        ) : null}
         {dialog?.kind === "statistics" ? (
           <WorkbookStatisticsDialog controller={controller} onClose={closeDialog} />
         ) : null}

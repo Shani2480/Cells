@@ -34,6 +34,8 @@ export type SheetChart = {
   altText?: string
   /** Alt Text › Mark as decorative: a screen reader skips the chart. */
   decorative?: boolean
+  /** Inside a group: where it sits in the group (pixels of the group's own size). */
+  box?: { x: number; y: number; w: number; h: number }
 }
 
 const corner = (c: ChartCorner): ChartCorner => ({ ...c })
@@ -89,10 +91,14 @@ export function rewriteChartRefs(chart: SheetChart, map: (ref: string) => string
   return changed
 }
 
-/** The next free chart id and "Chart n" name across the workbook. */
-export function nextChartId(sheets: readonly { charts: SheetChart[] }[]): number {
+/** The next free chart id across the workbook (charts, shapes and pictures share ids, as in a drawing). */
+export function nextChartId(sheets: readonly { charts: SheetChart[]; objects?: readonly { id: number }[] }[]): number {
   let max = 0
-  for (const s of sheets) for (const c of s.charts) max = Math.max(max, c.id)
+  const visit = (o: { id: number; items?: readonly { id: number }[] }) => {
+    max = Math.max(max, o.id)
+    o.items?.forEach(visit)
+  }
+  for (const s of sheets) (s.objects ?? s.charts).forEach(visit)
   return max + 1
 }
 

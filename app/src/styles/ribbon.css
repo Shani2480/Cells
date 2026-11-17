@@ -2740,8 +2740,8 @@
   line-height: 1.4;
 }
 
-/* ── Charts on the sheet ── */
-.chart-layer {
+/* ── Charts, shapes and pictures on the sheet ── */
+.object-layer {
   position: absolute;
   z-index: 2;
   right: 0;
@@ -2750,12 +2750,82 @@
   pointer-events: none;
 }
 
-.chart-frame {
+.object-frame {
   position: absolute;
   box-sizing: border-box;
-  cursor: default;
+  cursor: move;
   pointer-events: auto;
   touch-action: none;
+}
+
+.object-frame.is-chart {
+  cursor: default;
+}
+
+.object-picture {
+  width: 100%;
+  height: 100%;
+}
+
+/* Shapes are paper too: their own colours in dark mode, as in Excel. */
+.object-svg {
+  display: block;
+  overflow: visible;
+}
+
+.object-frame.is-selected {
+  outline: 1px solid var(--chart-select, #8a8a8a);
+  outline-offset: 0;
+}
+
+/* The round handle above a shape turns it. */
+.object-rotate {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  margin-left: -6px;
+  border: 1px solid var(--chart-select, #8a8a8a);
+  border-radius: 50%;
+  background: #fff;
+  cursor: grab;
+}
+
+.object-rotate::after {
+  position: absolute;
+  left: 50%;
+  top: 11px;
+  width: 1px;
+  height: 10px;
+  background: var(--chart-select, #8a8a8a);
+  content: "";
+}
+
+/* Insert › Shapes: drag on the sheet to draw. */
+.object-draw {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  pointer-events: auto;
+}
+
+.object-text-editor {
+  position: absolute;
+  inset: 4px;
+  box-sizing: border-box;
+  resize: none;
+  padding: 2px 6px;
+  border: 1px dashed var(--chart-select, #8a8a8a);
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.94);
+  color: #000;
+  font:
+    15px "Aptos",
+    "Calibri",
+    sans-serif;
+  outline: none;
 }
 
 /* Charts are paper: they keep their own colours in dark mode, as Excel's do. */
@@ -2958,4 +3028,156 @@
 .sd-list {
   height: 140px;
   overflow-y: auto;
+}
+
+/* Insert › Shapes and WordArt galleries */
+.shape-gallery {
+  display: flex;
+  width: 300px;
+  max-height: calc(100vh - 220px);
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.shape-gallery-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  padding: 2px 6px 6px;
+}
+
+.shape-gallery-item,
+.wordart-gallery-item {
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  cursor: pointer;
+}
+
+.shape-gallery-item {
+  width: 26px;
+  height: 26px;
+}
+
+.shape-gallery-item:hover,
+.wordart-gallery-item:hover {
+  border-color: var(--app-field-focus);
+  background: var(--app-hover);
+}
+
+.wordart-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, 52px);
+  gap: 4px;
+  padding: 8px;
+}
+
+.wordart-gallery-item {
+  height: 52px;
+  font:
+    700 36px/1 "Aptos",
+    "Calibri",
+    sans-serif;
+}
+
+/* Insert › Icons */
+.icons-grid {
+  display: grid;
+  max-height: 340px;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 4px;
+  margin-top: 8px;
+  overflow-y: auto;
+}
+
+.icons-item {
+  display: grid;
+  height: 52px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.icons-item:hover {
+  background: var(--app-hover);
+}
+
+.icons-item.is-selected {
+  border-color: var(--app-field-focus);
+  background: var(--app-pressed);
+}
+
+/* Selection Pane */
+.selection-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.selection-gap {
+  flex: 1;
+}
+
+.selection-list {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.selection-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 4px;
+  cursor: default;
+}
+
+.selection-row:hover {
+  background: var(--app-hover);
+}
+
+.selection-row.is-selected {
+  background: var(--app-pressed);
+}
+
+.selection-row.is-hidden .selection-name {
+  opacity: 0.5;
+}
+
+.selection-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selection-row .dialog-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.selection-eye {
+  display: grid;
+  width: 24px;
+  height: 22px;
+  flex: none;
+  place-items: center;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.selection-eye:hover {
+  background: var(--app-hover);
 }

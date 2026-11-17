@@ -56,8 +56,19 @@ export function anchorOf(sheet: Sheet, box: ChartBox): ChartAnchor {
  * tab's changes. A chart's look is its spec; its numbers come from its ranges each time it is drawn.
  */
 export class ChartCommands {
-  /** The selected chart's id (Excel selects a chart instead of cells; the Chart Design tab shows). */
-  selected: number | null = null
+  /**
+   * The selected chart's id (Excel selects a chart instead of cells; the Chart Design tab shows): the object
+   * selection when it's one chart.
+   */
+  get selected(): number | null {
+    const ids = this.c.objects.selected
+    if (ids.length !== 1) return null
+    return this.c.sheet.charts.some((ch) => ch.id === ids[0]) ? ids[0] : null
+  }
+
+  set selected(id: number | null) {
+    this.c.objects.selected = id === null ? [] : [id]
+  }
   /** The chart last copied, kept whole (its ranges too) for a paste back into Cells. */
   private clip: { token: string; chart: SheetChart } | null = null
   /**
@@ -75,10 +86,7 @@ export class ChartCommands {
   }
 
   select(id: number | null) {
-    if (this.selected === id) return
-    if (id !== null && this.c.edit) this.c.commitEdit()
-    this.selected = id
-    this.c.changed()
+    this.c.objects.select(id)
   }
 
   /** The spec a chart is drawn with: its own look, with the categories and series read from its ranges now. */

@@ -152,8 +152,12 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Allow Edit Ranges: New, Modify, Delete, Apply, Protect Sheet; Unlock Range asks a range's password once;
         ranges follow inserted rows and columns; read from and written to Excel files, checked in Excel 365
   - [x] Workbook Statistics (sheet and workbook counts; pictures and other objects join the list with Part 8)
-- [ ] Part 8 — Objects: Text Box, Shapes, Pictures, Icons, WordArt; Bring Forward / Send Backward, Align, Group,
-      Rotate, Selection Pane; Sheet Background; Themes, theme colours, fonts and effects
+- [ ] Part 8 — Objects
+  - [x] Text Box, Shapes, Pictures, Icons, WordArt: one object list per sheet (charts included) in stacking order;
+        Shape Format and Picture Format tabs; Arrange (order, Align, Group, Rotate, Flip); Selection Pane; Alt Text
+        for every object; xlsx read/write keeping Excel's own objects exactly unless edited; printing; statistics
+  - [ ] Sheet Background
+  - [ ] Themes: theme colours, fonts and effects galleries, writing the theme part
 - [ ] Part 9 — Sparklines, Slicers and Timelines for tables, Quick Analysis, filter and sort by icon
 - [ ] Part 10 — PivotTables and PivotCharts (the largest: its own plan when we get there)
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
@@ -171,6 +175,12 @@ decided when Part 8 is done.
 - Spelling and Thesaurus: more languages as optional downloads (first-run setup / Settings), with the language
   picker in the Spelling dialog; Excel's proofing options (ignore words in UPPERCASE, with numbers, addresses) in
   File › Options › Proofing; AutoCorrect; checking text in charts, text boxes, comments and the header/footer.
+
+- Shapes and pictures: no Crop tool, picture corrections, colour or artistic effects yet; no Shape Styles or WordArt
+  Styles galleries on the Format tabs (the colour menus are there); Edit Shape / Edit Points, freeform drawing and
+  connectors that stay glued to shapes are missing; adjustment handles (the yellow dots) aren't shown; text in a
+  shape is typed as plain text (one format for all of it); Graphics Fill for icons; the Size dialog (Format Shape
+  pane). Spelling doesn't check text in shapes yet.
 
 - Check Accessibility: contrast ignores conditional formats, table styles and number-format colours; Excel's
   "Keep accessibility checker running" setting and its Tips aren't there; Alt Text moves to the chart's Format tab

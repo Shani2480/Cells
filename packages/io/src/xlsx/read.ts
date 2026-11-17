@@ -1,5 +1,14 @@
 import { readCustomViews, type CustomSheetViewRead } from "./custom-views"
-import { tableAt, Workbook, type DefinedName, type Sheet, type WorkbookProtection } from "@cells/core"
+import {
+  copyTheme,
+  OFFICE_THEME,
+  tableAt,
+  Workbook,
+  type DefinedName,
+  type Sheet,
+  type Theme,
+  type WorkbookProtection,
+} from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
 import { themeColorsFrom, DEFAULT_THEME_COLORS, type ThemeColors } from "./colors"
@@ -106,6 +115,34 @@ function partText(pkg: OpcPackage, name: string | null | undefined): string | un
   return part ? decodeXml(part.data) : undefined
 }
 
+/** The theme as shapes use it: its name, colours (by slot) and fonts. */
+function themeOf(xml: string | undefined, colors: ThemeColors): Theme {
+  const order = [
+    "lt1",
+    "dk1",
+    "lt2",
+    "dk2",
+    "accent1",
+    "accent2",
+    "accent3",
+    "accent4",
+    "accent5",
+    "accent6",
+    "hlink",
+    "folHlink",
+  ] as const
+  const theme = copyTheme(OFFICE_THEME)
+  if (!xml) return theme
+  order.forEach((slot, i) => (theme.colors[slot] = colors[i]))
+  const doc = parseTree(xml)
+  theme.name = at(doc.root, "name") ?? theme.name
+  const find = (n: XNode, local: string): XNode | undefined =>
+    n.local === local ? n : n.children.map((c) => find(c, local)).find((x) => x !== undefined)
+  const font = (local: string) => at(kid(find(doc.root, local) ?? doc.root, "latin"), "typeface")
+  theme.fonts = { major: font("majorFont") || theme.fonts.major, minor: font("minorFont") || theme.fonts.minor }
+  return theme
+}
+
 /** The theme's colour scheme (`a:clrScheme`). */
 function readTheme(xml: string | undefined): ThemeColors {
   if (!xml) return DEFAULT_THEME_COLORS
@@ -189,7 +226,8 @@ export async function openXlsx(
   const root = wbDoc.root
   const wbRels = relationshipsFor(pkg, pkg.mainPartName)
 
-  const theme = readTheme(partText(pkg, relOfType(wbRels, REL_THEME)?.partName))
+  const themeXml = partText(pkg, relOfType(wbRels, REL_THEME)?.partName)
+  const theme = readTheme(themeXml)
   const stylesXml = partText(pkg, relOfType(wbRels, REL_STYLES)?.partName)
   const styles = stylesXml ? new StylesIn(stylesXml, theme) : null
   const rich = new Map<string, string>()
@@ -207,6 +245,7 @@ export async function openXlsx(
   const sheetNodes = kids(kid(root, "sheets"), "sheet")
   if (!sheetNodes.length) throw new XlsxError("The workbook has no sheets.")
   const wb = new Workbook(sheetNodes.map((s) => at(s, "name") ?? "Sheet"))
+  wb.theme = themeOf(themeXml, theme)
 
   const reuse = new Map<number, number>()
   const xfIds = new Map<number, number>()
@@ -302,6 +341,10 @@ export async function openXlsx(
             (name) => partText(pkg, name),
             () => ++chartIds,
             warnings,
+            (name) => {
+              const part = name ? findPart(pkg, name) : undefined
+              return part ? { data: part.data, contentType: part.contentType } : undefined
+            },
           )
         : undefined
     sheetSources.set(sheet, {

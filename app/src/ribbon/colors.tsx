@@ -1,3 +1,4 @@
+import type { ShapeColor } from "@cells/core"
 import { useState } from "react"
 
 /**
@@ -150,4 +151,22 @@ export function ColorPanel({
       <div className="color-grid">{STANDARD_COLORS.map((c, i) => swatch(c, `s${i}`))}</div>
     </div>
   )
+}
+
+const SLOTS = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6"] as const
+
+/**
+ * A colour picked from the menu as a shape keeps it: a theme colour (with its lighter or darker step, as DrawingML's
+ * lumMod/lumOff) so it follows the workbook's theme, or a standard colour as RGB.
+ */
+export function shapeColorOf(hex: string): ShapeColor {
+  const up = hex.toUpperCase()
+  for (let r = 0; r < GRID.length; r++) {
+    const i = GRID[r].findIndex((c) => c.hex.toUpperCase() === up)
+    if (i < 0) continue
+    if (r === 0) return { theme: SLOTS[i] }
+    const t = variations(THEME_COLORS[i].hex)[r - 1]
+    return t > 0 ? { theme: SLOTS[i], lumMod: 1 - t, lumOff: t } : { theme: SLOTS[i], lumMod: 1 + t }
+  }
+  return { rgb: up.replace("#", "") }
 }

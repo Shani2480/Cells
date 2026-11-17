@@ -7,6 +7,7 @@ const ROWS: [keyof SheetCounts, string][] = [
   ["tables", "Tables"],
   ["formulas", "Formulas"],
   ["charts", "Charts"],
+  ["images", "Images"],
   ["comments", "Comments"],
   ["notes", "Notes"],
 ]

@@ -1,3 +1,4 @@
+import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
 import { PrintCommands } from "./print"
 import { TableCommands, type CreateTableInit } from "./tables"
@@ -60,6 +61,7 @@ import {
   type EditReference,
   type FunctionInfo,
   type CellAddress,
+  type DrawingObject,
   type CellBlock,
   type CellWrite,
   type CFEntry,
@@ -354,6 +356,9 @@ export class SheetController {
     this.changed()
   }
 
+  /** A picture of objects for the clipboard (a PNG data URL), when the view can make one. */
+  objectPicture: ((objects: DrawingObject[]) => string | null) | null = null
+
   /** Review › Thesaurus: the Thesaurus pane is open. */
   thesaurusOpen = false
 
@@ -391,6 +396,8 @@ export class SheetController {
   readonly tables: TableCommands = new TableCommands(this)
   /** Charts: inserting, selecting, moving and the Chart Design tab. */
   readonly charts: ChartCommands = new ChartCommands(this)
+  /** Shapes, text boxes, pictures and groups (and charts, as objects): Insert › Illustrations, Shape Format. */
+  readonly objects: ObjectCommands = new ObjectCommands(this)
   /** Printing: Page Layout, Page Setup, print area, page breaks and the pages File › Print shows. */
   readonly print: PrintCommands = new PrintCommands(this)
   /** Find, Replace and Go To Special. */
@@ -724,8 +731,10 @@ export class SheetController {
   // ── Selection ──────────────────────────────────────────────────────────────────────────────────────────────
 
   setSelection(selection: Selection, reveal: CellAddress | null = selection.focus) {
-    // Selecting cells leaves a selected chart.
-    this.charts.selected = null
+    // Selecting cells leaves the selected objects (and a pending shape).
+    this.objects.selected = []
+    this.objects.editing = null
+    this.objects.pending = null
     this.selection = this.mergeAware(selection)
     this.lastCtrlARegion = null
     if (reveal) this.scrollIntoView(reveal)
@@ -1397,6 +1406,7 @@ export class SheetController {
 
   private copyNow(cut: boolean): { text: string; html: string } | null {
     if (this.charts.selected !== null) return this.charts.copy(cut)
+    if (this.objects.selected.length) return this.objects.copy(cut, (list) => this.objectPicture?.(list) ?? null)
     if (this.selection.ranges.length !== 1) return null
     const range = clampToUsed(this.sheet, this.selection.ranges[0])
     const content = this.rangeContent(this.sheetIndex, range)
@@ -1444,6 +1454,7 @@ export class SheetController {
    */
   paste(text: string | null, html?: string | null): boolean {
     if (this.charts.paste(html)) return true
+    if (this.objects.paste(html)) return true
     if (this.selection.ranges.length !== 1) return false
     const target = this.selection.ranges[0]
     const own = this.clip && text !== null && normalizeNewlines(text) === normalizeNewlines(this.clip.text)
@@ -1970,10 +1981,8 @@ export class SheetController {
       ArrowRight: "right",
     }
     // A selected chart: Delete removes it, Esc goes back to the cells.
-    if (this.charts.selected !== null && !primary && !alt) {
-      if (key === "Delete" || key === "Backspace") return (this.charts.delete(), true)
-      if (key === "Escape") return (this.charts.select(null), true)
-    }
+    // Selected shapes, pictures and charts take the keys first (Delete, Escape, arrows nudge, Tab to the next).
+    if (!alt && this.objects.key(key, primary, shift)) return true
     if (key === "F1" && alt && !primary && !shift) return (this.charts.insert(), true)
     if (arrows[key] && !alt) {
       this.arrow(arrows[key], primary, shift)

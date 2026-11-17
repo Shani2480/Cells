@@ -12,7 +12,8 @@ import { copyHyperlinks, shiftHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyEditRanges, shiftEditRanges, type EditRange } from "./edit-ranges"
 import { copyExternalBooks, type ExternalBook } from "./links"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
-import { copyCharts, rewriteChartRefs, shiftCharts, type SheetChart } from "./chart"
+import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
+import { copyObjects, shiftObjects, type SheetObject } from "./shapes"
 import { copyPageSetup, shiftPageSetup, type PageSetup } from "./page-setup"
 import { copyAutoFilter, shiftAutoFilter, type AutoFilter } from "./filter"
 import { rewriteNames, type DefinedName, type SheetList } from "./names"
@@ -77,6 +78,7 @@ export type Op =
       validations?: ValidationEntry[]
       tables?: Table[]
       charts?: SheetChart[]
+      objects?: SheetObject[]
       pageSetup?: PageSetup
       annotations?: AnnotationWrite[]
       autoFilter?: AutoFilter | null
@@ -94,6 +96,8 @@ export type Op =
   | { kind: "tables"; sheet: number; tables: Table[] }
   /** The sheet's whole list of charts (insert, move, resize, change, delete). */
   | { kind: "charts"; sheet: number; charts: SheetChart[] }
+  /** The sheet's whole drawing: charts, shapes, pictures and groups in order (insert, arrange, group, delete). */
+  | { kind: "objects"; sheet: number; objects: SheetObject[] }
   /** The sheet's page setup (Page Layout, Page Setup, print area and titles, page breaks). */
   | { kind: "pageSetup"; sheet: number; setup: PageSetup }
   /** Notes and comments: set or remove one cell's annotation each. */
@@ -251,6 +255,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       return {
         inverse: [{ kind: "tables", sheet: op.sheet, tables: before }],
         change: { sheet: op.sheet, structural: true },
+      }
+    }
+    case "objects": {
+      const before = copyObjects(sheet.objects)
+      sheet.objects = copyObjects(op.objects)
+      return {
+        inverse: [{ kind: "objects", sheet: op.sheet, objects: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
       }
     }
     case "charts": {
@@ -413,7 +425,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     conditional: copyEntries(sheet.conditional),
     validations: copyValidations(sheet.validations),
     tables: copyTables(sheet.tables),
-    charts: copyCharts(sheet.charts),
+    objects: copyObjects(sheet.objects),
     pageSetup: copyPageSetup(sheet.pageSetup),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     autoFilter: copyAutoFilter(sheet.autoFilter),
@@ -435,7 +447,8 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   if (op.conditional) sheet.conditional = copyEntries(op.conditional)
   if (op.validations) sheet.validations = copyValidations(op.validations)
   if (op.tables) sheet.tables = copyTables(op.tables)
-  if (op.charts) sheet.charts = copyCharts(op.charts)
+  if (op.objects) sheet.objects = copyObjects(op.objects)
+  else if (op.charts) sheet.charts = copyCharts(op.charts)
   if (op.pageSetup) sheet.pageSetup = copyPageSetup(op.pageSetup)
   if (op.annotations) {
     sheet.annotations.clear()
@@ -459,7 +472,7 @@ function hasLayout(sheet: Sheet) {
     sheet.conditional.length > 0 ||
     sheet.validations.length > 0 ||
     sheet.tables.length > 0 ||
-    sheet.charts.length > 0 ||
+    sheet.objects.length > 0 ||
     sheet.pageSetup.printArea !== null ||
     sheet.pageSetup.titleRows !== null ||
     sheet.pageSetup.titleCols !== null ||
@@ -577,7 +590,7 @@ function insertLines(
   shiftValidations(sheet, axis, at, count)
   shiftScenarios(sheet, axis, at, count)
   shiftTables(sheet, axis, at, count)
-  shiftCharts(sheet.charts, axis, at, count)
+  shiftObjects(sheet.objects, axis, at, count)
   sheet.pageSetup = shiftPageSetup(sheet.pageSetup, axis, at, count)
   sheet.annotations.shift(axis, at, count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, count)
@@ -637,7 +650,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   shiftValidations(sheet, axis, at, -count)
   shiftScenarios(sheet, axis, at, -count)
   shiftTables(sheet, axis, at, -count)
-  shiftCharts(sheet.charts, axis, at, -count)
+  shiftObjects(sheet.objects, axis, at, -count)
   sheet.pageSetup = shiftPageSetup(sheet.pageSetup, axis, at, -count)
   sheet.annotations.shift(axis, at, -count)
   if (sheet.autoFilter) sheet.autoFilter = shiftAutoFilter(sheet.autoFilter, axis, at, -count)

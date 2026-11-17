@@ -1203,8 +1203,6 @@ export function homeCommands(): Command[] {
       label: "Data Validation",
       run: (env) => env.c.find.special({ kind: "validation", same: false }),
     },
-    { id: "SelectObjects", label: "Select Objects" },
-    { id: "SelectionPane", label: "Selection Pane..." },
   ]
   return cmds
 }

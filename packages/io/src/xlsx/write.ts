@@ -300,6 +300,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       addRel,
       rels,
       freeName,
+      putBytes: (name, contentType, data) => parts.set(partKey(name), { name, contentType, data }),
     })
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active || (views[i]?.selected ?? false) }
     const written = writeSheet({

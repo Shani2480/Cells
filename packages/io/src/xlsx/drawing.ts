@@ -7,14 +7,29 @@ import {
   withSheetData,
   type ChartSpec,
 } from "@cells/chart"
-import { readChartData, type ChartCorner, type Sheet, type SheetChart, type Workbook } from "@cells/core"
+import {
+  dataUrl,
+  dataUrlBytes,
+  isChart,
+  PICTURE_TYPES,
+  readChartData,
+  type ChartAnchor,
+  type ChartCorner,
+  type DrawingObject,
+  type Sheet,
+  type SheetChart,
+  type Workbook,
+} from "@cells/core"
 import type { OpcRelationship } from "../opc"
 import { NS_R } from "./constants"
 import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
+import { objectKey, objectXml, readObject } from "./shapes"
+
+const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 
 /**
- * A sheet's drawing part: the charts on it, which Cells reads and writes, and everything else (pictures, shapes,
- * charts it can't read), which stays as it came.
+ * A sheet's drawing part: its charts, shapes, text boxes, pictures and groups, which Cells reads and writes in their
+ * order, and what it can't read (chartex charts, groups with charts in them), which stays as it came.
  */
 
 export const REL_DRAWING = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
@@ -40,6 +55,8 @@ export type DrawingSource = {
    * the same numbers in its cells, the part goes back as Excel wrote it.
    */
   charts: Map<number, { partName: string; print: string; cache: string }>
+  /** The pictures read, by relationship id: the same picture written again uses the same part. */
+  images: Map<string, string>
 }
 
 const print = (chart: SheetChart) => JSON.stringify({ spec: chart.spec, refs: chart.refs })
@@ -71,6 +88,8 @@ export function readDrawing(
   text: (partName: string | null | undefined) => string | undefined,
   nextId: () => number,
   warnings: string[],
+  bytes: (partName: string | null | undefined) => { data: Uint8Array; contentType: string } | undefined = () =>
+    undefined,
 ): DrawingSource {
   const doc = parseTree(xml)
   const source: DrawingSource = {
@@ -79,9 +98,48 @@ export function readDrawing(
     kept: [],
     chartRels: new Set(),
     charts: new Map(),
+    images: new Map(),
+  }
+  const image = (rid: string) => {
+    if (source.images.has(rid)) return source.images.get(rid)
+    const rel = rels.find((r) => r.id === rid && r.type === REL_IMAGE)
+    const part = bytes(rel?.partName)
+    if (!part) return undefined
+    const ext = rel!.partName!.split(".").pop()!.toLowerCase()
+    const mime = part.contentType.startsWith("image/")
+      ? part.contentType
+      : (Object.keys(PICTURE_TYPES).find((m) => PICTURE_TYPES[m] === ext) ?? "image/png")
+    const url = dataUrl(part.data, mime)
+    source.images.set(rid, url)
+    return url
   }
   let unread = 0
   for (const anchor of doc.root.children) {
+    const placed = anchorOf(sheet, anchor)
+    const content = anchor.children.find((c) => OBJECTS.has(c.local))
+    if (placed && content && content.local !== "graphicFrame") {
+      const object = readObject(content, { nextId, image }, isDecorative)
+      if (object) {
+        object.anchor = placed.anchor
+        if (placed.placement) object.placement = placed.placement
+        const embeds: Record<string, string> = {}
+        const blip = kid(kid(content, "blipFill"), "blip")
+        const embed = at(blip, "embed", NS_R)
+        if (embed) embeds.embed = embed
+        const svg = kids(kid(blip, "extLst"), "ext")
+          .map((e) => at(kid(e, "svgBlip"), "embed", NS_R))
+          .find(Boolean)
+        if (svg) embeds.svg = svg
+        object.source = {
+          xml: raw(doc, content),
+          key: objectKey(object),
+          part: partName,
+          ...(Object.keys(embeds).length ? { rels: embeds } : {}),
+        }
+        sheet.objects.push(object)
+        continue
+      }
+    }
     const rid = anchor.local === "twoCellAnchor" ? chartRelOf(anchor) : undefined
     const rel = rid ? rels.find((r) => r.id === rid && r.type === CHART_RELATIONSHIP) : undefined
     const chartXml = text(rel?.partName)
@@ -106,7 +164,7 @@ export function readDrawing(
     const descr = at(nv, "descr")
     if (descr) chart.altText = descr
     if (isDecorative(nv)) chart.decorative = true
-    sheet.charts.push(chart)
+    sheet.objects.push(chart)
     source.chartRels.add(rid!)
     source.charts.set(chart.id, { partName: rel.partName, print: print(chart), cache: cacheOf(spec) })
   }
@@ -131,6 +189,8 @@ export type DrawingWriter = {
   addRel(from: string, type: string, to: string): string
   rels(part: string): OpcRelationship[]
   freeName(pattern: (n: number) => string): string
+  /** A binary part (a picture). */
+  putBytes(name: string, contentType: string, data: Uint8Array): void
 }
 
 /**
@@ -145,7 +205,7 @@ export function writeDrawing(
   out: DrawingWriter,
 ): string | null {
   const used = new Set<number>()
-  if (!sheet.charts.length && !source?.kept.length) {
+  if (!sheet.objects.length && !source?.kept.length) {
     if (source) {
       for (const c of source.charts.values()) out.removeTree(c.partName)
       out.removeTree(source.partName)
@@ -153,13 +213,51 @@ export function writeDrawing(
     return null
   }
   const partName = source?.partName ?? out.freeName((n) => `/xl/drawings/drawing${n}.xml`)
-  // The drawing's relationships: the kept anchors' (pictures, unread charts), then the charts' anew.
+  // The drawing's relationships: the kept anchors' and pictures', then the charts' anew.
   const rels = out.rels(partName)
   for (const r of [...rels]) if (source?.chartRels.has(r.id)) rels.splice(rels.indexOf(r), 1)
   // Shape ids are unique within a drawing: new ones go above the kept anchors'.
-  let shapeId = Math.max(1, ...(source?.kept ?? []).flatMap((k) => [...k.matchAll(/\bid="(\d+)"/g)].map((m) => +m[1])))
+  const keptXml = [
+    ...(source?.kept ?? []),
+    ...sheet.objects.flatMap((o) => (!isChart(o) && o.source?.part === partName ? [o.source.xml] : [])),
+  ]
+  let shapeId = Math.max(1, ...keptXml.flatMap((k) => [...k.matchAll(/\bid="(\d+)"/g)].map((m) => +m[1])))
+  // A copy of an object read from the file is written anew: the file's own goes back once.
+  const rawUsed = new Set<string>()
+  // A picture written again uses its part; a new one gets a part of its own (one per picture data in this save).
+  const newImages = new Map<string, string>()
+  const writer = {
+    nextId: () => ++shapeId,
+    imageRel: (src: string, was?: string) => {
+      if (was && source?.images.get(was) === src && rels.some((r) => r.id === was)) return was
+      let rid = newImages.get(src)
+      if (rid) return rid
+      const data = dataUrlBytes(src)
+      const ext = PICTURE_TYPES[data?.mime ?? ""] ?? "png"
+      const media = out.freeName((n) => `/xl/media/image${n}.${ext}`)
+      out.putBytes(media, data?.mime ?? "image/png", data?.bytes ?? new Uint8Array())
+      rid = out.addRel(partName, REL_IMAGE, media)
+      newImages.set(src, rid)
+      return rid
+    },
+    decorativeXml: (o: DrawingObject) => (o.decorative ? decorativeExt() : ""),
+  }
   const anchors: string[] = []
-  for (const chart of sheet.charts) {
+  for (const object of sheet.objects) {
+    if (!isChart(object)) {
+      const box = boxOf(sheet, object.anchor)
+      // Unchanged since it was read (and still in this drawing): written back exactly as it came.
+      const same =
+        object.source &&
+        object.source.part === partName &&
+        !rawUsed.has(object.source.xml) &&
+        object.source.key === objectKey(object)
+      if (same) rawUsed.add(object.source!.xml)
+      const xml = same ? object.source!.xml : objectXml(object, box, writer)
+      anchors.push(placedXml(object.anchor, object.placement, xml))
+      continue
+    }
+    const chart = object
     const was = source?.charts.get(chart.id)
     const spec = chart.refs
       ? withSheetData(chart.spec as Partial<ChartSpec>, readChartData(wb.sheets, wb.styles, chart.refs))
@@ -183,6 +281,74 @@ export function writeDrawing(
   out.put(partName, CT_DRAWING, `${open}>${source?.kept.join("") ?? ""}${anchors.join("")}</${name}>`)
   return out.addRel(sheetPart, REL_DRAWING, partName)
 }
+
+/** The drawing objects Cells reads (inside an anchor). */
+const OBJECTS = new Set(["sp", "cxnSp", "pic", "grpSp", "graphicFrame"])
+
+/** Where an anchor puts its object: two cells, one cell and a size, or a position and a size. */
+function anchorOf(sheet: Sheet, anchor: XNode): { anchor: ChartAnchor; placement?: "move" | "fixed" } | null {
+  if (anchor.local === "twoCellAnchor") {
+    const from = corner(kid(anchor, "from"))
+    const to = corner(kid(anchor, "to"))
+    if (!from || !to) return null
+    const editAs = at(anchor, "editAs")
+    return {
+      anchor: { from, to },
+      placement: editAs === "oneCell" ? "move" : editAs === "absolute" ? "fixed" : undefined,
+    }
+  }
+  const ext = kid(anchor, "ext")
+  const w = Number(at(ext, "cx")) / EMU
+  const h = Number(at(ext, "cy")) / EMU
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return null
+  if (anchor.local === "oneCellAnchor") {
+    const from = corner(kid(anchor, "from"))
+    if (!from) return null
+    const x = sheet.cols.offset(from.col) + from.x
+    const y = sheet.rows.offset(from.row) + from.y
+    return { anchor: { from, to: cornerAt(sheet, x + w, y + h) }, placement: "move" }
+  }
+  if (anchor.local === "absoluteAnchor") {
+    const pos = kid(anchor, "pos")
+    const x = Number(at(pos, "x")) / EMU
+    const y = Number(at(pos, "y")) / EMU
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+    return { anchor: { from: cornerAt(sheet, x, y), to: cornerAt(sheet, x + w, y + h) }, placement: "fixed" }
+  }
+  return null
+}
+
+function cornerAt(sheet: Sheet, px: number, py: number): ChartCorner {
+  const col = sheet.cols.indexAt(Math.max(0, px))
+  const row = sheet.rows.indexAt(Math.max(0, py))
+  return { col, row, x: Math.max(0, px) - sheet.cols.offset(col), y: Math.max(0, py) - sheet.rows.offset(row) }
+}
+
+/** An anchor's box on the sheet, in pixels. */
+function boxOf(sheet: Sheet, a: ChartAnchor) {
+  const x = sheet.cols.offset(a.from.col) + a.from.x
+  const y = sheet.rows.offset(a.from.row) + a.from.y
+  const x1 = sheet.cols.offset(a.to.col) + a.to.x
+  const y1 = sheet.rows.offset(a.to.row) + a.to.y
+  return { x, y, w: Math.max(0, x1 - x), h: Math.max(0, y1 - y) }
+}
+
+const cornerXml = (c: ChartCorner) =>
+  `<xdr:col>${c.col}</xdr:col><xdr:colOff>${Math.round(c.x * EMU)}</xdr:colOff>` +
+  `<xdr:row>${c.row}</xdr:row><xdr:rowOff>${Math.round(c.y * EMU)}</xdr:rowOff>`
+
+/** An object in a two-cell anchor, as Excel writes them (editAs: how it follows the cells). */
+function placedXml(a: ChartAnchor, placement: "move" | "fixed" | undefined, xml: string): string {
+  const editAs = placement === "move" ? ` editAs="oneCell"` : placement === "fixed" ? ` editAs="absolute"` : ""
+  return (
+    `<xdr:twoCellAnchor xmlns:xdr="${NS_XDR}" xmlns:a="${NS_A}"${editAs}>` +
+    `<xdr:from>${cornerXml(a.from)}</xdr:from><xdr:to>${cornerXml(a.to)}</xdr:to>` +
+    `${xml}<xdr:clientData/></xdr:twoCellAnchor>`
+  )
+}
+
+const decorativeExt = () =>
+  `<a:extLst><a:ext uri="${DECORATIVE_EXT}"><adec:decorative xmlns:adec="${NS_ADEC}" val="1"/></a:ext></a:extLst>`
 
 /** Office's "Mark as decorative" extension on a drawing object's cNvPr. */
 const DECORATIVE_EXT = "{C183D7F6-B498-43B3-948B-1728B52AA6E4}"

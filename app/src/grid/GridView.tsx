@@ -4,7 +4,7 @@ import { usePlatform } from "@/platform/context"
 import { MAX_ZOOM, MIN_ZOOM, type SheetController } from "@/sheet/controller"
 import { isSystemShortcut, keyInputFrom } from "@/sheet/keys"
 import { AnnotationLayer } from "./AnnotationLayer"
-import { ChartLayer } from "./ChartLayer"
+import { ObjectLayer } from "./ObjectLayer"
 import { TraceLayer } from "./TraceLayer"
 import { Ruler, RULER, rulerShown } from "./Ruler"
 import { pagePartAt } from "./page-layout"
@@ -1101,7 +1101,7 @@ export function GridView({
             onPick={focusInput}
           />
         ) : null}
-        {layout ? <ChartLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+        {layout ? <ObjectLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? <TraceLayer controller={controller} layout={layout} zoom={zoom} /> : null}
         {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}

@@ -1,4 +1,13 @@
-import { columnName, selectCell, selectRange, type Range, type Workbook } from "@cells/core"
+import {
+  columnName,
+  isChart,
+  plainText,
+  selectCell,
+  selectRange,
+  type Range,
+  type SheetObject,
+  type Workbook,
+} from "@cells/core"
 import type { SheetController } from "./controller"
 
 /**
@@ -15,7 +24,7 @@ export type Issue = {
   sheet: number
   /** What the pane lists: "Chart 1", "A1:C1", "Sheet1". */
   label: string
-  target: { chart: number } | { range: Range } | { sheetOnly: true }
+  target: { object: number } | { range: Range } | { sheetOnly: true }
 }
 
 /** Excel's names and explanations for each kind of issue (Why Fix, How to Fix). */
@@ -100,13 +109,23 @@ const rangeLabel = (r: Range) => {
   return r.r0 === r.r1 && r.c0 === r.c1 ? cell(r.r0, r.c0) : `${cell(r.r0, r.c0)}:${cell(r.r1, r.c1)}`
 }
 
+/**
+ * Whether an object needs Alt Text: charts, pictures, shapes and groups, unless described or marked decorative. A
+ * shape whose own text says what it is (a text box, WordArt, a labelled shape) reads out already, as in Excel.
+ */
+function needsAltText(o: SheetObject): boolean {
+  if (o.altText?.trim() || o.decorative) return false
+  if (!isChart(o) && o.kind === "shape" && plainText(o.text).trim()) return false
+  if (!isChart(o) && o.hidden) return false
+  return true
+}
+
 /** Every issue in the workbook, sheet by sheet (hidden sheets too, as Excel checks them). */
 export function checkAccessibility(wb: Workbook): Issue[] {
   const out: Issue[] = []
   wb.sheets.forEach((sheet, index) => {
-    for (const chart of sheet.charts)
-      if (!chart.altText?.trim() && !chart.decorative)
-        out.push({ kind: "altText", sheet: index, label: chart.name, target: { chart: chart.id } })
+    for (const o of sheet.objects)
+      if (needsAltText(o)) out.push({ kind: "altText", sheet: index, label: o.name, target: { object: o.id } })
     for (const table of sheet.tables)
       if (!table.header)
         out.push({ kind: "tableHeader", sheet: index, label: table.name, target: { range: table.range } })
@@ -131,7 +150,7 @@ export function checkAccessibility(wb: Workbook): Issue[] {
     }
     for (const m of sheet.merges.all)
       out.push({ kind: "merged", sheet: index, label: rangeLabel(m), target: { range: { ...m } } })
-    const hasContent = used !== null || sheet.charts.length > 0
+    const hasContent = used !== null || sheet.objects.length > 0
     if (hasContent && /^Sheet\d+$/i.test(sheet.name))
       out.push({ kind: "sheetName", sheet: index, label: sheet.name, target: { sheetOnly: true } })
     for (const link of sheet.hyperlinks) {
@@ -147,9 +166,9 @@ export function checkAccessibility(wb: Workbook): Issue[] {
 export function goToIssue(c: SheetController, issue: Issue) {
   if (c.sheetIndex !== issue.sheet) c.activate(issue.sheet)
   const t = issue.target
-  if ("chart" in t) c.charts.select(t.chart)
+  if ("object" in t) c.objects.select(t.object)
   else if ("range" in t) {
-    c.charts.select(null)
+    c.objects.select(null)
     const r = t.range
     c.setSelection(r.r0 === r.r1 && r.c0 === r.c1 ? selectCell({ row: r.r0, col: r.c0 }) : selectRange(r), {
       row: r.r0,
@@ -165,10 +184,10 @@ export function issueActions(c: SheetController, issue: Issue, open: (dialog: st
   const go = () => goToIssue(c, issue)
   switch (issue.kind) {
     case "altText": {
-      const id = (issue.target as { chart: number }).chart
+      const id = (issue.target as { object: number }).object
       return [
         { label: "Add a description", run: () => (go(), open(`altText:${id}`)) },
-        { label: "Mark as decorative", run: () => (go(), c.charts.setAltText(id, "", true)) },
+        { label: "Mark as decorative", run: () => (go(), c.objects.setAltText(id, "", true)) },
       ]
     }
     case "tableHeader":

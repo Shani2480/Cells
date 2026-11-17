@@ -1,6 +1,15 @@
 import { renderChart } from "@cells/chart"
-import { columnName, type HeaderFooterText, type Pagination, type PrintPage, type Sheet } from "@cells/core"
-import { chartBox } from "@/sheet/charts"
+import {
+  columnName,
+  isChart,
+  type CellAddress,
+  type HeaderFooterText,
+  type Pagination,
+  type PrintPage,
+  type Sheet,
+} from "@cells/core"
+import { canvasMeasure, objectAt } from "@/drawing/render"
+import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
 import { drawCells } from "@/grid/draw-cells"
 import { colX, rowY, type GridLayout, type Line } from "@/grid/layout"
@@ -105,30 +114,43 @@ function pageLayout(sheet: Sheet, page: PrintPage, headingsW: number, headingsH:
   }
 }
 
-/** The charts' pictures, loaded once per drawing pass (SVG to an image the canvas can draw). */
-async function chartImages(c: SheetController, sheet: Sheet): Promise<Map<number, HTMLImageElement>> {
-  const out = new Map<number, HTMLImageElement>()
-  await Promise.all(
-    sheet.charts.map(async (chart) => {
-      const box = chartBox(sheet, chart.anchor)
-      let svg: string
+/**
+ * The sheet's charts, shapes and pictures as pictures, loaded once per drawing pass (SVG to an image the canvas can
+ * draw), in stacking order. Hidden objects don't print. Each image covers the object's turned box.
+ */
+async function objectImages(
+  c: SheetController,
+  sheet: Sheet,
+): Promise<{ img: HTMLImageElement; box: ChartBox; from: CellAddress }[]> {
+  const out = await Promise.all(
+    sheet.objects.map(async (o) => {
+      if (!isChart(o) && o.hidden) return null
+      const box = chartBox(sheet, o.anchor)
+      // Room around the box for a rotated object's corners and a shadow.
+      const pad = Math.ceil(Math.max(box.w, box.h) / 2) + 8
+      let body: string
       try {
-        svg = renderChart(c.charts.liveSpec(chart), box.w, box.h)
+        body = isChart(o)
+          ? renderChart(c.charts.liveSpec(o), box.w, box.h)
+          : objectAt(o, { x: 0, y: 0, w: box.w, h: box.h }, c.wb.theme, canvasMeasure)
       } catch {
-        return
+        return null
       }
-      const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${box.w}" height="${box.h}" viewBox="0 0 ${box.w} ${box.h}">${svg}</svg>`
+      const w = box.w + 2 * pad
+      const h = box.h + 2 * pad
+      const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${-pad} ${-pad} ${w} ${h}">${body}</svg>`
       const img = new Image()
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup)
       try {
         await img.decode()
-        out.set(chart.id, img)
       } catch {
-        // A chart that can't be drawn prints as nothing.
+        // An object that can't be drawn prints as nothing.
+        return null
       }
+      return { img, box: { x: box.x - pad, y: box.y - pad, w, h }, from: o.anchor.from }
     }),
   )
-  return out
+  return out.filter((x) => x !== null)
 }
 
 /** Header and footer codes: the text each section prints (formatting codes left out). */
@@ -241,19 +263,15 @@ export async function drawPage(
     drawCells({ painter: p, layout: pane, controller: view, theme: PAPER_THEME, measure })
   if (setup.headings) drawHeadings(p, layout)
 
-  // Charts on the page, clipped to its cells.
-  if (sheet.charts.length) {
-    const images = await chartImages(c, sheet)
+  // Charts, shapes and pictures on the page, clipped to its cells.
+  if (sheet.objects.length) {
+    const images = await objectImages(c, sheet)
     p.save()
     p.beginPath()
     p.rect(layout.originX, layout.originY, layout.width - layout.originX, layout.height - layout.originY)
     p.clip()
-    for (const chart of sheet.charts) {
-      const img = images.get(chart.id)
-      if (!img) continue
-      const box = chartBox(sheet, chart.anchor)
-      const { from } = chart.anchor
-      // Charts in the titles' rows or columns aren't repeated with them, as in Excel.
+    for (const { img, box, from } of images) {
+      // Objects in the titles' rows or columns aren't repeated with them, as in Excel.
       const x = colX(sheet, { ...layout, frozen: null }, from.col) + box.x - sheet.cols.offset(from.col)
       const y = rowY(sheet, { ...layout, frozen: null }, from.row) + box.y - sheet.rows.offset(from.row)
       p.drawImage(img, x, y, box.w, box.h)

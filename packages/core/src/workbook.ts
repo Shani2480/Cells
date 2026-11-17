@@ -9,6 +9,7 @@ import { StyleTable } from "./styles"
 import { NameTable, type SheetList } from "./names"
 import type { WorkbookProtection } from "./protection"
 import type { Node } from "./formula/ast"
+import { copyTheme, OFFICE_THEME, type Theme } from "./theme"
 
 /** One undoable step: a label for the Undo tooltip, the ops either way, and the caller's state either side. */
 export type UndoEntry<Meta = unknown> = {
@@ -111,6 +112,8 @@ export class Workbook<Meta = unknown> {
   readonly links: { list: ExternalBook[] } = { list: [] }
   /** View › Custom Views (kept out of undo, as Excel does). */
   customViews: CustomView[] = []
+  /** Page Layout › Themes: the colours and fonts theme colours in shapes follow. */
+  theme: Theme = copyTheme(OFFICE_THEME)
   undoLimit: number
   private readonly undoStack: UndoEntry<Meta>[] = []
   private readonly redoStack: UndoEntry<Meta>[] = []

@@ -13,8 +13,9 @@ import { pictureFor } from "./pictures"
 import { qatCommands } from "./qat-commands"
 import { reviewCommands } from "./review-commands"
 import { CommandRegistry, type Command, type RibbonEnv } from "./registry"
-import { CHART_DESIGN, TABLE_DESIGN, TABS, controlIds } from "./tabs"
+import { CHART_DESIGN, PICTURE_FORMAT, SHAPE_FORMAT, TABLE_DESIGN, TABS, controlIds } from "./tabs"
 import { chartCommands } from "./chart-commands"
+import { objectCommands } from "./object-commands"
 import { tableCommands } from "./table-commands"
 
 const large = { size: 32, strokeWidth: 1.25 }
@@ -359,6 +360,7 @@ export function allCommands(): Command[] {
     ...qatCommands(),
     ...tableCommands(),
     ...chartCommands(),
+    ...objectCommands(),
     ...pageLayoutCommands(),
     ...linkCommands(),
     ...otherCommands(),
@@ -367,7 +369,7 @@ export function allCommands(): Command[] {
 
 export function buildRegistry(): CommandRegistry {
   const registry = new CommandRegistry().add(...allCommands())
-  for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN]) {
+  for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN, SHAPE_FORMAT, PICTURE_FORMAT]) {
     for (const id of controlIds(tab)) {
       if (!registry.get(id)) registry.add({ id, label: LABELS[id] ?? excelLabel(id) ?? id })
     }

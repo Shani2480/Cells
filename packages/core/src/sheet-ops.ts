@@ -7,6 +7,7 @@ import { copyEntries, type CFEntry } from "./conditional"
 import { copyValidations, type ValidationEntry } from "./validation"
 import { copyTables, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
+import { copyObjects, type SheetObject } from "./shapes"
 import { rewriteNames, type SheetList } from "./names"
 import { copyAutoFilter, type AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
@@ -38,6 +39,7 @@ export type SheetSnapshot = {
   validations?: ValidationEntry[]
   tables?: Table[]
   charts?: SheetChart[]
+  objects?: SheetObject[]
   pageSetup?: PageSetup
   annotations?: AnnotationWrite[]
   protection?: SheetProtection | null
@@ -73,7 +75,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     conditional: copyEntries(sheet.conditional),
     validations: copyValidations(sheet.validations),
     tables: copyTables(sheet.tables),
-    charts: copyCharts(sheet.charts),
+    objects: copyObjects(sheet.objects),
     pageSetup: copyPageSetup(sheet.pageSetup),
     annotations: sheet.annotations.all().map((a) => ({ row: a.row, col: a.col, value: a.value })),
     protection: sheet.protection ? { ...sheet.protection } : null,
@@ -109,7 +111,8 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.conditional = copyEntries(s.conditional ?? [])
   sheet.validations = copyValidations(s.validations ?? [])
   sheet.tables = copyTables(s.tables ?? [])
-  sheet.charts = copyCharts(s.charts ?? [])
+  if (s.objects) sheet.objects = copyObjects(s.objects)
+  else sheet.charts = copyCharts(s.charts ?? [])
   if (s.pageSetup) sheet.pageSetup = copyPageSetup(s.pageSetup)
   for (const a of s.annotations ?? []) sheet.annotations.set(a.row, a.col, a.value)
   sheet.protection = s.protection ? { ...s.protection } : null

@@ -160,6 +160,13 @@ Phase 3, added at the end:
       greys Custom Views out while sheets are grouped.
 - [ ] Fill Across Worksheets on whole rows and columns (Cells copies the used part of the cells; row and column
       formats aren't copied).
+- [ ] Shapes: Excel's standard size for a clicked (not dragged) shape and where it lands; the nudge step with and
+      without Ctrl; the default theme colours of new shapes, text boxes and WordArt in Excel 365 (Cells: accent1
+      fill, accent1 50% outline, white text; text box white with grey outline). A Cells-made file opens with no
+      repair (checked 2026-11-17: shapes, star rotated and flipped, connector, text box, WordArt, picture with a
+      border, SVG icon as a Graphic, group).
+- [ ] Icons: Excel's icon size and colour on insert (Cells: one inch, black) and the alt text it fills in.
+- [ ] Selection Pane: Excel's order and wording; does it list charts' and groups' children?
 
 ## Installers (Phase 6)
 

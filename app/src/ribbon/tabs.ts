@@ -479,6 +479,63 @@ export const CHART_DESIGN: Tab = {
   ],
 }
 
+/** Arrange, as Shape Format, Picture Format and Page Layout show it. */
+const ARRANGE: Group = {
+  id: "GroupArrange",
+  label: "Arrange",
+  columns: [
+    L("ObjectBringForwardMenu"),
+    L("ObjectSendBackwardMenu"),
+    L("SelectionPane", "Selection Pane"),
+    smalls(S("ObjectAlignMenu"), S("ObjectsGroupMenu"), S("ObjectRotateGallery")),
+  ],
+}
+
+const SIZE: Group = { id: "GroupSize", label: "Size", columns: [smalls(F("ShapeHeight"), F("ShapeWidth"))] }
+
+/** Shape Format, while a shape, text box or WordArt is selected. */
+export const SHAPE_FORMAT: Tab = {
+  id: "TabDrawingToolsFormat",
+  label: "Shape Format",
+  keytip: "JD",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupInsertShapes",
+      label: "Insert Shapes",
+      columns: [smalls(S("ShapesInsertGallery"), S("TextBoxInsertExcel"))],
+    },
+    {
+      id: "GroupShapeStyles",
+      label: "Shape Styles",
+      columns: [smalls(S("ShapeFillColorPicker"), S("ShapeOutlineColorPicker"), S("ShapeEffectsMenu"))],
+    },
+    {
+      id: "GroupWordArtStyles",
+      label: "WordArt Styles",
+      columns: [smalls(S("TextFillColorPicker"), S("TextOutlineColorPicker"), S("TextEffectsMenu"))],
+    },
+    { id: "GroupShapeAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
+    ARRANGE,
+    SIZE,
+  ],
+}
+
+/** Picture Format, while a picture or an icon is selected. */
+export const PICTURE_FORMAT: Tab = {
+  id: "TabPictureToolsFormat",
+  label: "Picture Format",
+  keytip: "JP",
+  contextual: true,
+  groups: [
+    { id: "GroupPictureAdjust", label: "Adjust", columns: [smalls(S("PictureReset"))] },
+    { id: "GroupPictureStyles", label: "Picture Styles", columns: [smalls(S("PictureBorderColorPicker"))] },
+    { id: "GroupPictureAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
+    ARRANGE,
+    SIZE,
+  ],
+}
+
 /**
  * Table Design, while the active cell is in a table. Built from Excel 365 at a wide window (no reference screenshot
  * in docs/reference yet). External Table Data (Export, Refresh, Unlink…) is left out: Cells has no linked tables.

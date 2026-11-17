@@ -1,5 +1,5 @@
 import {
-  copiedSheetCharts,
+  copiedSheetObjects,
   nextTableId,
   renameTableInFormula,
   type SheetSnapshot,
@@ -194,7 +194,8 @@ export class SheetCommands {
       connections.push(connection)
       return { ...q, connection }
     })
-    snapshot.charts = copiedSheetCharts(snapshot.charts ?? [], this.c.wb.sheets, sheet, name)
+    snapshot.objects = copiedSheetObjects(snapshot.objects ?? snapshot.charts ?? [], this.c.wb.sheets, sheet, name)
+    delete snapshot.charts
     this.run([{ kind: "addSheet", sheet: before, name, snapshot }], "Copy Sheet", before)
   }
 

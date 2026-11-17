@@ -7,8 +7,15 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: "0.7.0",
-    date: "2026-11-16",
+    date: "2026-11-17",
     notes: [
+      "Shapes (Insert tab): rectangles, circles, arrows, stars, flowchart shapes, callouts and lines. Pick one, then drag on the sheet where it goes (Shift keeps it even), or click for the standard size. Double-click a shape to type in it. Drag a shape to move it, its handles to size it, and the round handle above it to turn it (Shift turns in 15° steps).",
+      "Text Box and WordArt (Insert tab): a box of text you can put anywhere on the sheet, and decorative text in eight styles with fill, outline, glow, shadow or reflection.",
+      "Pictures (Insert tab): put a photo, logo or other picture from this device on the sheet. Icons (Insert tab): pick from more than 2,000 icons that come with Cells, searchable, several at once. They go in as sharp SVG pictures that Excel shows too.",
+      "Shape Format and Picture Format tabs appear while a shape or a picture is selected: fill, outline (colour, weight and dashes), shadow, text colour, outline and effects, picture border, Reset Picture, Alt Text, and the exact height and width. Theme colours follow the workbook's theme.",
+      "Arrange (on the Format tabs and Page Layout): Bring Forward, Send Backward, to front and to back, Align and Distribute, Group and Ungroup, Rotate and Flip. Ctrl+click or Shift+click selects more than one object; the arrow keys nudge them (Ctrl for one pixel at a time), Ctrl+D duplicates and Delete removes them. Copy and paste work on them, and other apps get a picture.",
+      "Selection Pane (Page Layout › Arrange, or Home › Find & Select): every shape, picture and chart on the sheet, top first. Select, rename (double-click), hide or show each one, or reorder them with the arrows. Select Objects selects them all.",
+      "Shapes, text boxes, WordArt, pictures, icons and groups open and save with Excel files: the ones made in Excel come back unchanged unless you edit them, and the ones made in Cells open in Excel. They print, count as Images in Workbook Statistics, and Check Accessibility now asks for alt text on pictures and shapes too.",
       "Spelling (Review tab, or F7): checks the text in your sheet, or in the cells you selected, with Ignore, Add to Dictionary, Change and Change All, like Excel. Words you add are shared with Inkspire. The English dictionary comes with Cells, so nothing goes online.",
       "Thesaurus (Review tab, or Shift+F7): synonyms and opposites for the word in the cell, grouped by meaning. Click a word to look it up, or Insert to put it in the cell. Works offline.",
       "Check Accessibility (Review tab, or the Accessibility note in the status bar): finds charts without alt text, tables without a header row, hard-to-read text colours, merged cells, unclear link text and default sheet names, takes you to each one and offers a fix, with why it matters.",

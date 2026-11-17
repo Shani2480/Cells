@@ -15,7 +15,9 @@ export function AltTextDialog({
   chartId: number
   onClose: () => void
 }) {
-  const chart = controller.sheet.charts.find((c) => c.id === chartId)
+  const chart = controller.objects.find(chartId)
+  const what =
+    chart && !("kind" in chart) ? "chart" : chart && "kind" in chart && chart.kind === "picture" ? "picture" : "object"
   const [text, setText] = useState(chart?.altText ?? "")
   const [decorative, setDecorative] = useState(chart?.decorative ?? false)
   if (!chart) return null
@@ -25,12 +27,12 @@ export function AltTextDialog({
       width={380}
       onCancel={onClose}
       onAccept={() => {
-        controller.charts.setAltText(chartId, text, decorative)
+        controller.objects.setAltText(chartId, text, decorative)
         onClose()
       }}
     >
       <p className="dialog-note">
-        How would you describe this chart and what it shows to someone who is blind or has low vision?
+        How would you describe this {what} and what it shows to someone who is blind or has low vision?
       </p>
       <textarea
         className="dialog-field alt-text-field"
@@ -49,7 +51,7 @@ export function AltTextDialog({
         </span>
       </label>
       <p className="dialog-note">
-        Decorative charts add visual interest but aren't informative. Screen readers skip them.
+        Decorative {what}s add visual interest but aren't informative. Screen readers skip them.
       </p>
     </Dialog>
   )

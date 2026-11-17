@@ -1,5 +1,6 @@
 import type { EditRange } from "./edit-ranges"
 import type { SheetChart } from "./chart"
+import { isChart, type SheetObject } from "./shapes"
 import { defaultPageSetup, type PageSetup } from "./page-setup"
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import { Axis } from "./axis"
@@ -156,8 +157,30 @@ export class Sheet {
   validations: ValidationEntry[] = []
   /** Tables (Excel's ListObjects) on the sheet. */
   tables: Table[] = []
-  /** Charts on the sheet, in drawing order (the last on top). */
-  charts: SheetChart[] = []
+  /** Everything in the sheet's drawing, in drawing order (the last on top): charts, shapes, pictures, groups. */
+  objects: SheetObject[] = []
+
+  /** The sheet's charts (not in groups), in drawing order. */
+  get charts(): SheetChart[] {
+    return this.objects.filter(isChart)
+  }
+
+  /**
+   * Puts a new list of charts in: a chart still there keeps its place among the other objects, a chart gone leaves,
+   * a new one goes on top.
+   */
+  set charts(list: SheetChart[]) {
+    const byId = new Map(list.map((c) => [c.id, c]))
+    const kept: SheetObject[] = []
+    for (const o of this.objects) {
+      if (!isChart(o)) kept.push(o)
+      else if (byId.has(o.id)) {
+        kept.push(byId.get(o.id)!)
+        byId.delete(o.id)
+      }
+    }
+    this.objects = [...kept, ...byId.values()]
+  }
   /** How the sheet prints (Page Layout, File › Print). */
   pageSetup: PageSetup = defaultPageSetup()
   /** Notes and comments by cell. */

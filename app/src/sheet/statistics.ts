@@ -1,4 +1,4 @@
-import { columnName, lastCell, type Sheet, type Workbook } from "@cells/core"
+import { allObjects, columnName, isChart, lastCell, type Sheet, type Workbook } from "@cells/core"
 
 /** Review › Workbook Statistics: what a sheet, and the whole workbook, holds. */
 export type SheetCounts = {
@@ -6,6 +6,8 @@ export type SheetCounts = {
   tables: number
   formulas: number
   charts: number
+  /** Pictures and icons. */
+  images: number
   comments: number
   notes: number
 }
@@ -29,6 +31,7 @@ export function sheetCounts(sheet: Sheet): SheetCounts {
     tables: sheet.tables.length,
     formulas,
     charts: sheet.charts.length,
+    images: [...allObjects(sheet.objects)].filter((o) => !isChart(o) && o.kind === "picture").length,
     comments,
     notes,
   }
@@ -47,6 +50,7 @@ export function workbookStatistics(wb: Workbook, active: number): WorkbookStatis
       tables: sum("tables"),
       formulas: sum("formulas"),
       charts: sum("charts"),
+      images: sum("images"),
       comments: sum("comments"),
       notes: sum("notes"),
     },
