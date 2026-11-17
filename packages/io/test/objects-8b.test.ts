@@ -71,3 +71,62 @@ describe("signature lines (Insert › Signature Line)", () => {
     expect(lines(again.workbook)[0].signature).toMatchObject({ signer: "Sam Sample", showDate: false })
   })
 })
+
+const embedded = (wb: Workbook, sheet = 0) =>
+  wb.sheets[sheet].objects.filter((o): o is SheetPicture => !isChart(o) && o.kind === "picture" && !!o.embed)
+
+describe("embedded files (Insert › Object)", () => {
+  it("reads Excel's embedded text file as an object with its file, and writes it back the way Excel does", async () => {
+    const read = await openXlsx(fixture("oleobject"), "oleobject.xlsx")
+    expect(read.warnings).toEqual([])
+    expect(read.workbook.sheets[0].objects).toHaveLength(1)
+    const [o] = embedded(read.workbook)
+    expect(o.embed!.name).toBe("note.txt")
+    expect(new TextDecoder().decode(o.embed!.data)).toBe("Shopping list\nApples\nBread\n")
+    expect(o.anchor.from).toMatchObject({ col: 2, row: 2 })
+    expect(o.src).toMatch(/^data:image\/x-emf;base64,/)
+
+    const bytes = await saveXlsx(read.workbook, { source: read.source })
+    const entries = await readZip(bytes)
+    const sheet = text(entries, "xl/worksheets/sheet1.xml")
+    expect(sheet).toMatch(/<legacyDrawing r:id="rId\d+"\/><oleObjects /)
+    expect(sheet).toMatch(/<oleObject progId="Package" dvAspect="DVASPECT_ICON" shapeId="(\d+)"/)
+    const shapeId = /shapeId="(\d+)"/.exec(sheet)![1]
+    expect(text(entries, "xl/drawings/vmlDrawing1.vml")).toContain(`id="_x0000_s${shapeId}"`)
+    expect(entries.filter((e) => e.name.startsWith("xl/embeddings/"))).toHaveLength(1)
+    // No DrawingML stand-in left over from Excel's file.
+    expect(entries.some((e) => e.name === "xl/drawings/drawing1.xml")).toBe(false)
+    const again = await openXlsx(bytes, "x.xlsx")
+    expect(embedded(again.workbook)[0].embed).toEqual(o.embed)
+  })
+
+  it("embeds a Word document as itself and other files in a Package", async () => {
+    const wb = new Workbook()
+    const docx = new Uint8Array([0x50, 0x4b, 3, 4, 1, 2, 3])
+    const put = (id: number, name: string, progId: string, data: Uint8Array, col: number) =>
+      wb.sheets[0].objects.push({
+        kind: "picture",
+        id,
+        name: `Object ${id}`,
+        anchor: { from: { col, x: 0, row: 1, y: 0 }, to: { col: col + 1, x: 0, row: 4, y: 0 } },
+        src: PNG,
+        placement: "move",
+        embed: { name, progId, data },
+      })
+    put(1, "Report.docx", "Word.Document.12", docx, 1)
+    put(2, "List.txt", "Package", new TextEncoder().encode("milk"), 4)
+    const bytes = await saveXlsx(wb)
+    const entries = await readZip(bytes)
+    expect(entries.map((e) => e.name).filter((n) => n.startsWith("xl/embeddings/"))).toEqual([
+      "xl/embeddings/Microsoft_Word_Document.docx",
+      "xl/embeddings/oleObject1.bin",
+    ])
+    expect(text(entries, "[Content_Types].xml")).toContain("wordprocessingml.document")
+    const again = embedded((await openXlsx(bytes, "x.xlsx")).workbook)
+    expect(again.map((o) => [o.embed!.name, o.embed!.progId, o.placement])).toEqual([
+      ["Microsoft_Word_Document.docx", "Word.Document.12", "move"],
+      ["List.txt", "Package", "move"],
+    ])
+    expect(again[0].embed!.data).toEqual(docx)
+  })
+})

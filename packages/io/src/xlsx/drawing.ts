@@ -27,6 +27,7 @@ import type { OpcRelationship } from "../opc"
 import { NS_R } from "./constants"
 import { at, kid, kids, parseTree, raw, startTag, type XNode } from "./dom"
 import { objectKey, objectXml, readObject } from "./shapes"
+import { isEmbeddedObject } from "./ole-objects"
 
 export const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 
@@ -145,6 +146,8 @@ export function readDrawing(
     const from = corner(kid(anchor, "from"))
     const to = corner(kid(anchor, "to"))
     const spec = chartXml ? readChartSpace(chartXml) : null
+    // A stand-in Excel writes for a VML shape (an embedded object, a form control): Cells writes the VML side.
+    if (!spec && /compatExt\b[^>]*\bspid="_x0000_s\d+"/.test(raw(doc, anchor))) continue
     if (!rel?.partName || !chartXml || !spec || !from || !to) {
       if (rid || anchor.local === "AlternateContent") unread++
       source.kept.push(raw(doc, anchor))
@@ -222,8 +225,8 @@ export function writeDrawing(
   out: DrawingWriter,
 ): string | null {
   const used = new Set<number>()
-  // Signature lines go in the VML drawing (vml.ts), not this one.
-  const drawn = sheet.objects.filter((o) => !isSignatureLine(o))
+  // Signature lines and embedded objects go in the VML drawing (vml.ts, ole-objects.ts), not this one.
+  const drawn = sheet.objects.filter((o) => !isSignatureLine(o) && !isEmbeddedObject(o))
   if (!drawn.length && !source?.kept.length) {
     if (source) {
       for (const c of source.charts.values()) out.removeTree(c.partName)

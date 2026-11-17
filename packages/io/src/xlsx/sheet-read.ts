@@ -93,6 +93,8 @@ export type SheetRead = {
   drawing: string | null
   /** The relationship of the sheet's background picture (Page Layout › Background). */
   picture: string | null
+  /** The `oleObjects` element (Insert › Object's embedded files), read into objects and written anew. */
+  oleObjects: string | null
   /** The file had dynamic-array formulas: their spilled cells need calculating. */
   dynamic: boolean
   /** Conditional formats Cells doesn't model, as `conditionalFormatting` elements to write back as read. */
@@ -139,6 +141,7 @@ const OWN = new Set([
   "drawing",
   "legacyDrawing",
   "picture",
+  "oleObjects",
   "printOptions",
   "pageMargins",
   "pageSetup",
@@ -189,6 +192,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let legacyDrawing: string | null = null
   let drawing: string | null = null
   let picture: string | null = null
+  let oleObjects: string | null = null
   const pageExtras = emptyExtras()
   let fitToPage = false
   let sawPageSetup = false
@@ -512,6 +516,9 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
             "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
           ) ?? null
         break
+      case "oleObjects":
+        oleObjects = source
+        break
       case "legacyDrawing":
         legacyDrawing =
           at(
@@ -584,6 +591,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
     legacyDrawing,
     drawing,
     picture,
+    oleObjects,
     pageExtras,
     dynamic,
     keptConditional,

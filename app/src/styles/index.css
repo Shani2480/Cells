@@ -3873,3 +3873,24 @@ html.is-phone .forecast-options {
   padding-block: 4px;
   resize: vertical;
 }
+
+/* Insert › Object: Create from File. */
+.object-page {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.object-file-row {
+  display: flex;
+  gap: 8px;
+}
+
+.object-file-row .dialog-field {
+  flex: 1;
+}
+
+.object-options {
+  display: flex;
+  gap: 18px;
+}

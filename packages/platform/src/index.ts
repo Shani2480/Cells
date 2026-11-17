@@ -112,6 +112,11 @@ export interface OpenPort {
    * in the app the system has for it. Rejects when it can't (a browser tab can't open files).
    */
   external(target: string): Promise<void>
+  /**
+   * Insert › Object: opens an embedded file in the app the system has for it, from a copy in Cells' cache (a browser
+   * downloads it instead). Optional: where it's absent, double-clicking an embedded file says it can't be opened.
+   */
+  openCopy?(name: string, bytes: Uint8Array): Promise<void>
 }
 
 /**

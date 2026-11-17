@@ -276,6 +276,40 @@ fn is_edit_copy(app: tauri::AppHandle, path: String) -> bool {
     }
 }
 
+/// A file name safe to create: the last part of `name` without separators or control characters (Insert › Object's
+/// embedded files come from other people's workbooks).
+fn safe_file_name(name: &str) -> String {
+    let last = name.rsplit(['/', '\\']).next().unwrap_or("");
+    let clean: String = last
+        .chars()
+        .filter(|c| !c.is_control() && !matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*'))
+        .take(120)
+        .collect();
+    let clean = clean.trim().trim_matches('.').to_string();
+    if clean.is_empty() {
+        "Object".into()
+    } else {
+        clean
+    }
+}
+
+/// Insert › Object: an embedded file written to `<cache dir>/cells/objects/<n>/<name>` so the system can open it in
+/// its own app; returns the path. Each copy gets a folder of its own, so two files of one name don't collide.
+#[tauri::command]
+fn write_object_copy(app: tauri::AppHandle, name: String, bytes: Vec<u8>) -> Result<String, String> {
+    let cache = app.path().cache_dir().map_err(|e| e.to_string())?;
+    let root = cache.join("cells").join("objects");
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let folder = root.join(format!("{stamp:x}"));
+    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let path = folder.join(safe_file_name(&name));
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn read_shared_settings(app: tauri::AppHandle) -> Result<Option<String>, String> {
     Ok(read_settings_file(&shared_settings_path(&app)?))
@@ -523,6 +557,7 @@ pub fn run() {
             read_link_wants,
             write_link_snapshot,
             is_edit_copy,
+            write_object_copy,
             ai::ai_generate,
             ai::ai_cancel,
             ai::ai_test,
@@ -554,6 +589,16 @@ fn opened_files(urls: &[tauri::Url]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn object_copies_keep_only_a_plain_name() {
+        assert_eq!(safe_file_name("Shopping list.txt"), "Shopping list.txt");
+        assert_eq!(safe_file_name("../../etc/passwd"), "passwd");
+        assert_eq!(safe_file_name("C:\\Users\\a\\Report.docx"), "Report.docx");
+        assert_eq!(safe_file_name("a<b>:c?.pdf"), "abc.pdf");
+        assert_eq!(safe_file_name(".."), "Object");
+        assert_eq!(safe_file_name(""), "Object");
+    }
 
     #[test]
     fn titles() {

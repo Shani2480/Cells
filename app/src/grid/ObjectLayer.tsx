@@ -288,6 +288,7 @@ export function ObjectLayer({
               event.stopPropagation()
               // A signature line opens its setup (signing needs a digital ID, which Cells doesn't have).
               if (o.kind === "picture" && o.signature) controller.shell.openDialog?.(`signatureSetup:${o.id}`)
+              else if (o.kind === "picture" && o.embed) controller.shell.openDialog?.(`openObject:${o.id}`)
               else objects.startText(o.id)
             }}
           >

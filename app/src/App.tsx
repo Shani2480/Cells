@@ -1,5 +1,5 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
-import { parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
+import { isChart, parseCell, rangeName, regionalFrom, setRegional, type Range } from "@cells/core"
 import {
   lazy,
   Suspense,
@@ -98,6 +98,7 @@ import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
 import { SignatureSetupDialog } from "@/shell/SignatureSetupDialog"
+import { ObjectDialog } from "@/shell/ObjectDialog"
 import { ArrangeWindowsDialog, CompareSideBySideDialog, UnhideWindowDialog } from "@/shell/WindowDialogs"
 import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
 import { AltTextDialog } from "@/shell/AltTextDialog"
@@ -143,6 +144,7 @@ type DialogState =
         | "fillAcross"
         | "customViews"
         | "arrangeWindows"
+        | "object"
         | "unhideWindow"
         | "compareSideBySide"
         | "statistics"
@@ -538,6 +540,20 @@ function WorkbookWindow({
     for (const w of doc.windows.all) w.shell = shell
   }, [controller, doc, windowsVersion])
 
+  /** Double-click on an embedded file (Insert › Object): it opens in the app the system has for it. */
+  const openObject = async (id: number) => {
+    const o = controller.objects.find(id)
+    const embed = o && !isChart(o) && o.kind === "picture" ? o.embed : undefined
+    if (!embed) return
+    try {
+      const bytes = embed.data ?? embed.raw?.bytes
+      if (!bytes || !platform.opens.openCopy) throw new Error("no way to open")
+      await platform.opens.openCopy(embed.data ? embed.name : `${embed.name}.${embed.raw!.ext}`, bytes)
+    } catch {
+      controller.shell.alert(`Cells can't open ${embed.name}. There's no app on this device that opens it.`)
+    }
+  }
+
   /** A link out of the sheet: another workbook opens here (then goes to its place); the rest goes to the system. */
   const followLink = async (target: LinkTarget) => {
     if (target.kind === "workbook") {
@@ -817,6 +833,7 @@ function WorkbookWindow({
       kind === "fillAcross" ||
       kind === "customViews" ||
       kind === "arrangeWindows" ||
+      kind === "object" ||
       kind === "unhideWindow" ||
       kind === "compareSideBySide" ||
       kind === "statistics" ||
@@ -833,6 +850,7 @@ function WorkbookWindow({
       setDialog({ kind: "ai", tool: arg })
     else if (kind === "options") setDialog({ kind: "options", page: arg === "ai" ? "ai" : undefined })
     else if (kind === "altText" && arg) setDialog({ kind: "altText", chartId: Number(arg) })
+    else if (kind === "openObject" && arg) void openObject(Number(arg))
     else if (kind === "signatureSetup") setDialog({ kind: "signatureSetup", editing: arg ? Number(arg) : undefined })
     else if (kind === "pageSetup") setDialog({ kind: "pageSetup", tab: (arg as PageSetupTab) ?? "page" })
     else if (
@@ -1340,6 +1358,7 @@ function WorkbookWindow({
           <WorkbookStatisticsDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "customViews" ? <CustomViewsDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "object" ? <ObjectDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "arrangeWindows" ? (
           <ArrangeWindowsDialog windows={doc.windows} onClose={closeDialog} />
         ) : null}

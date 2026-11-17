@@ -1,3 +1,4 @@
+import { embedSvg } from "./embed"
 import { signatureSvg } from "./signature"
 import {
   colorCss,
@@ -192,6 +193,7 @@ const SHADOW = `<filter id="shape-shadow" x="-20%" y="-20%" width="150%" height=
 /** An object's SVG content in its own box (0,0)–(w,h), not rotated. */
 export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, measure: Measure = estimate): string {
   if (o.kind === "picture" && o.signature) return signatureSvg(o.signature, w, h, theme)
+  if (o.kind === "picture" && o.embed) return embedSvg(o.embed, w, h, theme)
   if (o.kind === "picture") {
     const c = o.crop ?? { l: 0, t: 0, r: 0, b: 0 }
     const fw = w / Math.max(0.01, 1 - c.l - c.r)

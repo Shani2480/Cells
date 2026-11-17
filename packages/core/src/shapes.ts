@@ -145,8 +145,25 @@ export type SignatureSetup = {
 /** Office's default instructions to the signer. */
 export const SIGNING_INSTRUCTIONS = "Before signing this document, verify that the content you are signing is correct."
 
+/**
+ * Insert › Object: a file embedded in the workbook, shown as its icon and name and opened in its own app. `src` is
+ * the icon picture files carry.
+ */
+export type EmbeddedFile = {
+  /** The file's name ("Shopping list.txt"): the label under the icon, and the name it opens under. */
+  name: string
+  /** The file itself; absent for an object Cells can't unpack (then `raw` keeps it). */
+  data?: Uint8Array
+  /** The OLE class: "Package" for any file, "Word.Document.12" and the like for Office documents. */
+  progId: string
+  /** The embedding as the file had it, written back as it came (objects of other apps). */
+  raw?: { bytes: Uint8Array; ext: string; contentType: string; relType: string }
+}
+
 export type SheetPicture = ObjectBase & {
   kind: "picture"
+  /** An embedded file (Insert › Object): drawn as its icon and name. */
+  embed?: EmbeddedFile
   /** A signature line (Insert › Signature Line): drawn from its setup. */
   signature?: SignatureSetup
   /** The picture as a data URL ("data:image/png;base64,…"). */
@@ -205,6 +222,7 @@ export function copyObject<T extends SheetObject>(o: T): T {
     if (p.natural) out.natural = { ...p.natural }
     if (p.line) out.line = copyLine(p.line)
     if (p.signature) out.signature = { ...p.signature }
+    if (p.embed) out.embed = { ...p.embed }
   } else {
     const g = o as SheetGroup
     out.child = { ...g.child }

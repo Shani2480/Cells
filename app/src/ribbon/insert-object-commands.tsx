@@ -19,6 +19,13 @@ export function insertObjectCommands(): Command[] {
       menu: ["SignatureLineInsert", "SignatureLineSetup"],
     },
     {
+      id: "OleObjectctInsert",
+      label: "Object",
+      description: "Embed a file in the workbook, shown as an icon you can double-click to open it.",
+      keytip: "J",
+      run: (env) => env.dialog("object"),
+    },
+    {
       id: "SignatureLineInsert",
       label: "Microsoft Office Signature Line...",
       description: "Insert a signature line: who should sign, their title, and instructions for them.",

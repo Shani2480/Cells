@@ -167,7 +167,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
       packages/io/test/fixtures/excel (sigline, oleobject, model3d, smartart)
   - [x] Signature Line: Insert › Text › Signature Line, Signature Setup (signer, title, email, instructions, comments,
         sign date), drawn like Office's; VML in xlsx (`o:signatureline`), Excel's kept
-  - [ ] Object: Insert › Text › Object › Create from File (as an icon, or linked); opens in its own app on double-click;
+  - [x] Object: Insert › Text › Object › Create from File (as an icon); opens in its own app on double-click;
         xlsx `oleObjects` + VML + embeddings (a file in an OLE package; Office files as they are)
   - [ ] Equations: Insert › Equation (Alt+=) and its gallery; linear (UnicodeMath) and professional display; the
         Equation tab's structures and symbols; OMML in xlsx text boxes with Excel's text fallback
@@ -203,6 +203,10 @@ built in Part 8b.
   Customize Colors and Customize Fonts (custom sets); Save Current Theme; Reset to Theme from Template. Conditional
   formats and colours in charts read from a file keep their colours (Excel's follow the theme). .xls files keep their
   colours as read (BIFF8 has no theme references).
+- Object: Link to file (an oleLink in an externalLink part, numbered with the workbook links); Create New (needs the
+  other app's object server); objects shown as their content rather than an icon (Excel's picture is an EMF, which
+  Cells can't draw: such objects show as icons); an Office document's own name isn't kept by Excel, so it comes back
+  as "Microsoft_Word_Document.docx". Android can't open embedded files yet (no cache file sharing).
 - Signature Line: Sign (a digital ID and the file's XML signature, _xmlsignatures) and Add Signature Services aren't
   built; Excel redraws the line's picture itself when it saves.
 - Windows: only the active window's view is saved (Excel writes a workbookView per window and reopens them all);

@@ -1,3 +1,4 @@
+import { isEmbeddedObject, oleObjectsXml, oleObjectXml, oleShapeXml, writeEmbedding } from "./ole-objects"
 import { lastShapeId, pictureVml, signatureShapeXml, withPictures } from "./vml"
 import { customSheetViewsXml, customViewNamesXml, customWorkbookViewsXml, viewNamePrefix } from "./custom-views"
 import { hyperlinkTarget } from "./hyperlinks"
@@ -277,24 +278,36 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       (r) => sheet.rows.size(r),
     )
     let legacyDrawing: string | null = null
-    // Signature lines share the notes' VML drawing (Excel keeps them there).
+    // Signature lines and embedded objects share the notes' VML drawing (Excel keeps them there).
     const lines = sheet.objects.filter(isSignatureLine)
-    if (notes || lines.length) {
+    const embedded = sheet.objects.filter(isEmbeddedObject)
+    const oleItems: string[] = []
+    if (notes || lines.length || embedded.length) {
       const vml = freeName((n) => `/xl/drawings/vmlDrawing${n}.vml`)
+      const putBytes = (name: string, contentType: string, data: Uint8Array) =>
+        parts.set(partKey(name), { name, contentType, data })
       let shapeXml = ""
       let shapeId = Math.max(1024 * (i + 1), notes ? lastShapeId(notes.vml) : 0)
       for (const line of lines) {
-        const rel = addRel(
-          vml,
-          REL_IMAGE,
-          putPicture(line.src, {
-            freeName,
-            putBytes: (name, contentType, data) => parts.set(partKey(name), { name, contentType, data }),
-          }),
-        )
+        const rel = addRel(vml, REL_IMAGE, putPicture(line.src, { freeName, putBytes }))
         shapeXml += signatureShapeXml(line, ++shapeId, rel, boxOf(sheet, line.anchor))
       }
-      const xml = notes ? (lines.length ? withPictures(notes.vml, shapeXml) : notes.vml) : pictureVml(i, shapeXml)
+      for (const o of embedded) {
+        const id = ++shapeId
+        const { relId, progId } = writeEmbedding(o.embed, {
+          embed: (name, contentType, relType, data) => {
+            const part = freeName(name)
+            putBytes(part, contentType, data)
+            return addRel(partName, relType, part)
+          },
+        })
+        const media = putPicture(o.src, { freeName, putBytes })
+        const imageRelId = addRel(partName, REL_IMAGE, media)
+        shapeXml += oleShapeXml(o, id, addRel(vml, REL_IMAGE, media), boxOf(sheet, o.anchor))
+        oleItems.push(oleObjectXml(o, { shapeId: id, relId, imageRelId, progId }))
+      }
+      const pictures = lines.length + embedded.length > 0
+      const xml = notes ? (pictures ? withPictures(notes.vml, shapeXml) : notes.vml) : pictureVml(i, shapeXml)
       parts.set(partKey(vml), { name: vml, contentType: CT_VML, data: new TextEncoder().encode(xml) })
       legacyDrawing = addRel(partName, REL_VML, vml)
     }
@@ -363,6 +376,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       source: s,
       spills: spills.get(i) ?? new Map(),
       legacyDrawing,
+      oleObjects: oleObjectsXml(oleItems),
       drawing,
       tableParts,
       links,

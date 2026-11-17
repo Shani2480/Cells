@@ -28,6 +28,7 @@ import {
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc } from "./dom"
 import { readVmlSignatures } from "./vml"
+import { embedFrom, readOleObjects, REL_OLE_OBJECT, REL_PACKAGE, vmlAnchor, vmlImageRel } from "./ole-objects"
 import { pictureUrl, readDrawing, REL_DRAWING, REL_IMAGE, type DrawingSource } from "./drawing"
 import { linksFromFile, readExternalLink } from "./links"
 import {
@@ -256,12 +257,8 @@ export async function openXlsx(
     const rels = relationshipsFor(pkg, rel.partName)
     const vmlRel = rels.find((r) => r.id === read.legacyDrawing)
     const vml = partText(pkg, vmlRel?.partName)
-    if (
-      vml &&
-      /ObjectType="(?!Note")/.test(
-        vml.replace(/<v:shape\b(?:(?!<\/v:shape>)[\s\S])*?<o:signatureline\b[\s\S]*?<\/v:shape>/g, ""),
-      )
-    )
+    // Pictures (signature lines, embedded objects) are read; other VML objects are form controls.
+    if (vml && /ObjectType="(?!Note"|Pict")/.test(vml))
       warnings.push(`Form controls on ${sheet.name} aren't supported; they are left out when you save.`)
     readComments(sheet, {
       legacy: partText(pkg, relOfType(rels, REL_COMMENTS)?.partName),
@@ -330,6 +327,43 @@ export async function openXlsx(
         })
       }
     }
+    // Insert › Object's embedded files: the sheet's oleObjects, their pictures and the embedded parts.
+    const oleImageRels = new Set<string>()
+    if (read.oleObjects) {
+      for (const ole of readOleObjects(read.oleObjects)) {
+        const anchor = ole.anchor ?? vmlAnchor(vml, ole.shapeId)
+        if (!anchor) continue
+        const embedRel = rels.find((r) => r.id === ole.relId)
+        const embedPart = embedRel?.partName ? findPart(pkg, embedRel.partName) : undefined
+        let src = ""
+        const imageRel = ole.imageRelId ? rels.find((r) => r.id === ole.imageRelId) : undefined
+        if (imageRel?.partName) {
+          oleImageRels.add(imageRel.id)
+          const part = findPart(pkg, imageRel.partName)
+          if (part) src = pictureUrl(imageRel.partName, part)
+        } else if (vmlRel?.partName) {
+          const target = relationshipsFor(pkg, vmlRel.partName).find((r) => r.id === vmlImageRel(vml, ole.shapeId))
+          const part = target?.partName ? findPart(pkg, target.partName) : undefined
+          if (part) src = pictureUrl(target!.partName!, part)
+        }
+        const id = ++chartIds
+        sheet.objects.push({
+          kind: "picture",
+          id,
+          name: `Object ${id}`,
+          anchor,
+          src,
+          embed: embedFrom(
+            ole.progId,
+            embedPart
+              ? { name: embedRel!.partName!, data: embedPart.data, contentType: embedPart.contentType }
+              : undefined,
+            embedRel?.type ?? "",
+          ),
+          ...(ole.placement ? { placement: ole.placement } : {}),
+        })
+      }
+    }
     sheetSources.set(sheet, {
       partName: rel.partName,
       rootTag: read.rootTag,
@@ -347,6 +381,9 @@ export async function openXlsx(
           r.type !== REL_HYPERLINK &&
           !(drawing && r.id === read.drawing) &&
           !(picturePart && r.id === read.picture) &&
+          r.type !== REL_OLE_OBJECT &&
+          r.type !== REL_PACKAGE &&
+          !oleImageRels.has(r.id) &&
           !(r.type === REL_VML && r.id === read.legacyDrawing),
       ),
       tables,

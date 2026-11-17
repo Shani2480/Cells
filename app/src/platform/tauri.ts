@@ -62,6 +62,10 @@ export function tauriPlatform(): Platform {
         if (/^[a-z][a-z0-9+.-]*:/i.test(target) && !/^[a-z]:[\\/]/i.test(target)) await openUrl(target)
         else await openPath(target)
       },
+      async openCopy(name, bytes) {
+        const path = await invoke<string>("write_object_copy", { name, bytes: Array.from(bytes) })
+        await openPath(path)
+      },
     },
     ai: tauriAi(),
     links: {

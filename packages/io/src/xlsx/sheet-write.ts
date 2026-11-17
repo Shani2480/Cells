@@ -104,6 +104,8 @@ export type SheetWriteContext = {
   legacyDrawing: string | null
   /** The relationship id of the sheet's drawing (charts, and pictures kept from the file). */
   drawing?: string | null
+  /** The sheet's `oleObjects` element (Insert › Object's embedded files), or "". */
+  oleObjects?: string
   /** The relationship ids of the sheet's table parts. */
   tableParts?: string[]
   /** Links to other workbooks, written by position ([1]Prices!B2); absent when they are kept as read. */
@@ -237,6 +239,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     drawing: ctx.drawing ? `<drawing r:id="${ctx.drawing}"/>` : "",
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
     picture: ctx.picture ? `<picture r:id="${ctx.picture}"/>` : "",
+    oleObjects: ctx.oleObjects ?? "",
     ...printElementsXml(sheet.pageSetup, ctx.source?.pageExtras),
     tableParts: ctx.tableParts?.length
       ? `<tableParts count="${ctx.tableParts.length}">${ctx.tableParts.map((id) => `<tablePart r:id="${id}"/>`).join("")}</tableParts>`

@@ -1,5 +1,7 @@
 import { parseInput, parseRange, type CFEntry, type CellWrite, type Op, type StylePatch } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
+import { embedDocument, OBJECT_ICON_SIZE } from "@/drawing/embed"
+import { SIGNATURE_SIZE, signatureDocument } from "@/drawing/signature"
 
 /**
  * Made-up data for trying the grid at scale: `?demo=100k` (100,000 rows × 20 columns) or `?demo=small`. Nothing
@@ -8,6 +10,10 @@ import type { SheetController } from "@/sheet/controller"
 export function loadDemo(controller: SheetController, name: string | null) {
   if (!name) return
   if (name === "formats") return formatsDemo(controller)
+  if (name === "objects") {
+    formatsDemo(controller)
+    return objectsDemo(controller)
+  }
   if (name === "notes") {
     loadDemo(controller, "small")
     return notesDemo(controller)
@@ -290,4 +296,41 @@ function notesDemo(controller: SheetController) {
     { label: "Demo" },
   )
   controller.wb.clearHistory()
+}
+
+/** Part 8b's objects on the formats sheet: a signature line and embedded files (made-up names, no real files). */
+function objectsDemo(c: SheetController) {
+  const svg = (markup: string) => `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`
+  const at = (row: number, col: number) =>
+    c.setSelection({
+      ranges: [{ r0: row, c0: col, r1: row, c1: col }],
+      active: { row, col },
+      activeRange: 0,
+      anchor: { row, col },
+      focus: { row, col },
+    })
+  at(16, 0)
+  const setup = {
+    id: "{00000000-0000-4000-8000-000000000001}",
+    signer: "Sam Sample",
+    title: "Treasurer",
+    email: "sam@example.com",
+    instructions: "Check the totals before signing.",
+    allowComments: false,
+    showDate: true,
+  }
+  const { w, h } = SIGNATURE_SIZE
+  c.objects.insertSignatureLine(setup, svg(signatureDocument(setup, w, h, c.wb.theme)), SIGNATURE_SIZE)
+  const files = [
+    { name: "Quarterly budget notes.docx", progId: "Word.Document.12" },
+    { name: "Receipts.pdf", progId: "Package" },
+    { name: "Shopping list.txt", progId: "Package" },
+  ]
+  files.forEach((f, i) => {
+    at(16, 3 + i)
+    const embed = { ...f, data: new TextEncoder().encode("Made-up content") }
+    const { w: iw, h: ih } = OBJECT_ICON_SIZE
+    c.objects.insertObject(embed, svg(embedDocument(embed, iw, ih, c.wb.theme)), OBJECT_ICON_SIZE)
+  })
+  at(0, 0)
 }

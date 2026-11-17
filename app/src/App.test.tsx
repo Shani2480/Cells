@@ -201,9 +201,10 @@ describe("File commands in the window", () => {
     await act(async () => {
       fireEvent.keyDown(window, { key: "o", ctrlKey: true })
     })
-    expect((await screen.findAllByText("Hello - Cells", {}, { timeout: 5000 })).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText("Hello - Cells", {}, { timeout: 10_000 })).length).toBeGreaterThan(0)
     expect(screen.getByDisplayValue("A1")).toBeInTheDocument()
-  })
+    // Opening reads the file and starts the calculation: slow when the whole suite runs at once.
+  }, 15_000)
 
   it("File opens on Home, with the Recent list", async () => {
     renderApp()

@@ -74,7 +74,7 @@ export const webPlatform: Platform = {
   files: webFiles(),
   settings: webSettings(),
   // A browser tab is never handed links or files by the system.
-  opens: { onRequest: () => () => {}, external: openInBrowser },
+  opens: { onRequest: () => () => {}, external: openInBrowser, openCopy: downloadCopy },
   links: webLinks(),
   ai: noAi,
 }
@@ -130,6 +130,16 @@ export function webSettings(): SettingsPort {
 }
 
 /** A browser tab opens web and mail addresses in a new tab; files on the disk are out of its reach. */
+/** A browser can't hand a file to another app: the embedded file downloads, for the person to open. */
+export async function downloadCopy(name: string, bytes: Uint8Array): Promise<void> {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart]))
+  const a = document.createElement("a")
+  a.href = url
+  a.download = name || "Object"
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 export async function openInBrowser(target: string): Promise<void> {
   if (!/^(https?|ftp|mailto):/i.test(target)) throw new Error("A browser can't open files on this computer.")
   const opened = window.open(target, "_blank", "noopener,noreferrer")

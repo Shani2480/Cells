@@ -15,6 +15,7 @@ import {
   type SheetPicture,
   type SheetShape,
   type SignatureSetup,
+  type EmbeddedFile,
 } from "@cells/core"
 import { anchorOf, chartBox, type ChartBox } from "./charts"
 import type { SheetController } from "./controller"
@@ -244,6 +245,25 @@ export class ObjectCommands {
       altText: "Microsoft Office Signature Line...",
     }
     return this.put(picture, "Insert Signature Line") as SheetPicture
+  }
+
+  /** Insert › Object › Create from File: the file as an icon (`png` its picture for files) at the active cell. */
+  insertObject(embed: EmbeddedFile, png: string, size: { w: number; h: number }): SheetPicture {
+    const id = this.nextId()
+    const { row, col } = this.c.selection.active
+    const x = this.c.sheet.cols.offset(col)
+    const y = this.c.sheet.rows.offset(row)
+    const picture: SheetPicture = {
+      kind: "picture",
+      id,
+      name: `Object ${id}`,
+      anchor: anchorOf(this.c.sheet, { x, y, w: size.w, h: size.h }),
+      src: png,
+      natural: { ...size },
+      embed: { ...embed },
+      placement: "move",
+    }
+    return this.put(picture, "Insert Object") as SheetPicture
   }
 
   /** Signature Setup on a line already there: new details and the picture drawn from them. */
