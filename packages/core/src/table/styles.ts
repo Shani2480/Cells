@@ -47,10 +47,16 @@ export function tableStyleDef(name: string | null, theme?: Theme): TableStyleDef
 
 const themed = new WeakMap<Theme, Map<string, TableStyleDef>>()
 
-function rethemeDef(def: TableStyleDef, theme: Theme): TableStyleDef {
+const rethemeDef = (def: TableStyleDef, theme: Theme): TableStyleDef => rethemeStyleDef(def, theme)
+
+/** A style's elements in another theme's colours (Office's colours mapped to the theme's, as Excel does). */
+export function rethemeStyleDef<K extends string>(
+  def: Partial<Record<K, TableStyleElement>>,
+  theme: Theme,
+): Partial<Record<K, TableStyleElement>> {
   const color = (hex: string | undefined) => (hex ? rethemeColor(hex, theme) : hex)
-  const out: TableStyleDef = {}
-  for (const [key, e] of Object.entries(def) as [TableStyleElementName, TableStyleElement][]) {
+  const out: Partial<Record<K, TableStyleElement>> = {}
+  for (const [key, e] of Object.entries(def) as [K, TableStyleElement][]) {
     const border = e.border
       ? Object.fromEntries(Object.entries(e.border).map(([side, b]) => [side, { ...b, color: color(b.color) }]))
       : undefined

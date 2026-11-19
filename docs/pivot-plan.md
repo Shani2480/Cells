@@ -37,7 +37,13 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    order with new ones after; each PivotTable keeps its fields by name and items by value; cells laid out anew with
    the value fields' number formats, old ones cleared, one undo step with the "pivotCaches" op), app
    `sheet/pivots.ts` (Refresh, Refresh All, refresh on open, the cell menu). Checked: after changing the data of both
-   reference files, Excel's own Refresh gives the same cells as Cells' for all 12 PivotTables. — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
+   reference files, Excel's own Refresh gives the same cells as Cells' for all 12 PivotTables. _Styles done:_ core
+   `pivot/built-in-styles.ts` (Excel 365's 84 PivotStyle definitions read through COM, like the table styles) and
+   `pivot/styles.ts` (`pivotCellLook`: each element over the ones before in Excel's order; outer items are row
+   subheadings, across the row in compact and outline form and down their label column in tabular form; only real
+   subtotal lines get the subtotal-row element), drawn by the grid under the cells' own formats. Checked against
+   Excel's pictures of `pivot-styles.xlsx` (Light16, Light20, Medium2, Medium9, Dark2, Dark8). The style gallery
+   comes with the Design tab in step 4. — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
    and column labels (Label Filters, Value Filters, Top 10, item checkboxes, Sort), the report filter dropdowns,
    expand / collapse (+/− buttons, Expand / Collapse Entire Field), double-click a value to see its rows on a new
    sheet (Show Details), and the PivotTable styles drawn from the theme (Excel's 85 built-in styles).

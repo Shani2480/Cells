@@ -1,5 +1,8 @@
 import {
   hasFormatMarks,
+  pivotAt,
+  pivotCellLook,
+  pivotStyleDef,
   tableAt,
   tableCellLook,
   withTableLook,
@@ -103,10 +106,21 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   const cfOf = (r: number, c: number): CFResult | null => (cfOn ? controller.cfAt(r, c) : null)
   // Tables: their style lies under the cells' own formats; conditional formatting goes over both.
   const tablesOn = sheet.tables.length > 0
+  // PivotTables: their style lies under the cells' own formats too.
+  const pivotsOn = sheet.pivots.length > 0
+  const pivotLookAt = (r: number, c: number) => {
+    const t = pivotAt(sheet, r, c)
+    const cache = t && controller.wb.pivotCaches.find((x) => x.id === t.cacheId)
+    return t && cache ? pivotCellLook(t, cache, r, c, pivotStyleDef(t.style.name, controller.wb.theme)) : null
+  }
   const lookAt = (r: number, c: number, cf: CFResult | null = cfOf(r, c)): CellLook => {
     const id = sheet.styleAt(r, c)
     const table = tablesOn ? tableAt(sheet, r, c) : null
-    const tableLook = table ? tableCellLook(table, r, c, tableStyleDef(table.style, controller.wb.theme)) : null
+    const tableLook = table
+      ? tableCellLook(table, r, c, tableStyleDef(table.style, controller.wb.theme))
+      : pivotsOn
+        ? pivotLookAt(r, c)
+        : null
     const cfLook = cf && (cf.style || cf.fill)
     if (!tableLook && !cfLook) return lookOf(styles, id)
     const merged = { ...withTableLook(styles.get(id), tableLook), ...cf?.style }

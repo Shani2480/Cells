@@ -62,6 +62,8 @@ export type PivotLayout = {
   firstHeaderRow: number
   firstDataRow: number
   firstDataCol: number
+  /** The label column (from the table's left) of each row level; compact levels share their parent's. */
+  rowLabelCols: number[]
   cells: PivotCell[]
   rowItems: PivotAxisItem[]
   colItems: PivotAxisItem[]
@@ -545,6 +547,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     firstHeaderRow: 1,
     firstDataRow: headerRows,
     firstDataCol: labelCols,
+    rowLabelCols: labelCol,
     cells,
     rowItems: axisItems(rowLines, dataInRows),
     colItems: axisItems(colLines, dataInCols),

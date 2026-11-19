@@ -7,7 +7,10 @@ import {
   applyOp,
   cellName,
   newPivotField,
+  pivotCellLook,
   pivotLayout,
+  pivotStyleDef,
+  PIVOT_STYLE_GROUPS,
   Workbook,
   type PivotCache,
   type PivotTable,
@@ -219,5 +222,35 @@ describe("PivotTables in xlsx", () => {
     expect(again.sheets[1].pivots[0].values[0].numFmt).toBe("#,##0.00")
     expect(again.pivotCaches[0].fields[0].items).toEqual(["North", "South"])
     expect(expectCellsAsExcel(again)).toBe(1)
+  })
+
+  it("draws each PivotTable in its style as Excel does", async () => {
+    const { workbook: wb } = await openXlsx(fixture("pivot-styles.xlsx"), "pivot-styles.xlsx")
+    // What Excel 365 drew for these cells (its pictures of the tables, sampled).
+    const look = (sheet: string, row: number, col: number) => {
+      const t = wb.sheets.find((s) => s.name === sheet)!.pivots[0]
+      return pivotCellLook(t, cacheOf(wb, t), row, col, pivotStyleDef(t.style.name))
+    }
+    const light = (hex: string) => ({ style: "thin", color: hex })
+    // Light16, compact: the header row, an outer item (a subheading: bold, a line below), an inner one, Grand Total.
+    expect(look("Compact", 2, 0)).toMatchObject({ fill: "#C0E6F5", bold: true, borderBottom: light("#44B3E1") })
+    expect(look("Compact", 3, 0)).toEqual({ bold: true, fontColor: "#000000", borderBottom: light("#44B3E1") })
+    expect(look("Compact", 4, 0)).toEqual({ indent: 1 })
+    expect(look("Compact", 19, 1)).toMatchObject({ fill: "#C0E6F5", bold: true, borderTop: light("#44B3E1") })
+    // Dark8 with the values down the rows: outer items grey, the rest the table's fill, the totals dark.
+    expect(look("ValuesRows", 4, 0)).toMatchObject({ fill: "#BFBFBF", bold: true })
+    expect(look("ValuesRows", 5, 1)).toMatchObject({ fill: "#D9D9D9" })
+    expect(look("ValuesRows", 16, 2)).toMatchObject({ fill: "#404040", fontColor: "#FFFFFF", bold: true })
+    // Light20, tabular with banded rows: the outer labels are a subheading down their group, lined where it ends.
+    expect(look("Tabular", 3, 0)).toEqual({ fill: "#D9D9D9", bold: true, fontColor: "#000000" })
+    expect(look("Tabular", 5, 0)?.borderBottom).toEqual(light("#D86DCD"))
+    expect(look("Tabular", 4, 0)?.borderBottom).toBeUndefined()
+    expect(look("Tabular", 4, 1)).toEqual({})
+    // Dark2: the report filter, and the Grand Total column with banded columns.
+    expect(look("Cross", 2, 0)).toMatchObject({ fill: "#0B3040", bold: true, fontColor: "#FFFFFF" })
+    expect(look("Cross", 6, 3)).toMatchObject({ fill: "#83CCEB" })
+    // Outside the table there's no look; a table without a style only indents.
+    expect(look("Compact", 0, 5)).toBeNull()
+    expect(PIVOT_STYLE_GROUPS.flatMap((g) => g.names).filter((n) => pivotStyleDef(n))).toHaveLength(84)
   })
 })
