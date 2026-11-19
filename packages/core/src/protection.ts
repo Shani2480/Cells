@@ -234,6 +234,9 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
     case "autoFilter":
       // Use AutoFilter lets filters change; turning the filter on or off never works on a protected sheet.
       return !p.autoFilter || (sheet.autoFilter === null) !== (op.filter === null)
+    case "pivots":
+      // Use PivotTable & PivotChart.
+      return !p.pivotTables
     case "insertCells":
     case "deleteCells":
     case "merge":

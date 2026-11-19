@@ -2,6 +2,7 @@ import type { ExternalBook } from "./links"
 import { CalcEngine, cellOfKey, type CalcMode } from "./calc/engine"
 import type { Range } from "./address"
 import type { CustomView } from "./custom-views"
+import type { PivotCache } from "./pivot/model"
 import { applyOp, type Change, type Op } from "./ops"
 import type { CellValue } from "./values"
 import { Sheet } from "./sheet"
@@ -112,6 +113,8 @@ export class Workbook<Meta = unknown> {
   readonly links: { list: ExternalBook[] } = { list: [] }
   /** View › Custom Views (kept out of undo, as Excel does). */
   customViews: CustomView[] = []
+  /** The PivotTables' caches (their data as last refreshed), shared by the sheets' PivotTables by id. */
+  pivotCaches: PivotCache[] = []
   /** Page Layout › Themes, in a box so operations can change it. */
   readonly look: { theme: Theme } = { theme: copyTheme(OFFICE_THEME) }
   /** The colours and fonts that theme colours and fonts in cells, shapes and charts follow. */

@@ -1,6 +1,8 @@
 import { copyHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyEditRanges, type EditRange } from "./edit-ranges"
 import { copySparklineGroups, rewriteSparklineRefs, type SparklineGroup } from "./sparklines"
+import { copyPivotTables } from "./pivot/sheet"
+import type { PivotTable } from "./pivot/model"
 import type { Range } from "./address"
 import { copyPageSetup, type PageSetup } from "./page-setup"
 import type { AnnotationWrite } from "./annotations"
@@ -53,6 +55,7 @@ export type SheetSnapshot = {
   hyperlinks?: Hyperlink[]
   editRanges?: EditRange[]
   sparklines?: SparklineGroup[]
+  pivots?: PivotTable[]
   tabColor?: string
   background?: string
   hidden: boolean
@@ -91,6 +94,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     hyperlinks: copyHyperlinks(sheet.hyperlinks),
     editRanges: copyEditRanges(sheet.editRanges),
     sparklines: copySparklineGroups(sheet.sparklines),
+    pivots: copyPivotTables(sheet.pivots),
     tabColor: sheet.tabColor,
     background: sheet.background,
     hidden: sheet.hidden,
@@ -130,6 +134,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.hyperlinks = copyHyperlinks(s.hyperlinks ?? [])
   sheet.editRanges = copyEditRanges(s.editRanges ?? [])
   sheet.sparklines = copySparklineGroups(s.sparklines ?? [])
+  sheet.pivots = copyPivotTables(s.pivots ?? [])
   sheet.tabColor = s.tabColor
   sheet.background = s.background
   sheet.hidden = s.hidden

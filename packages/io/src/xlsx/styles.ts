@@ -357,6 +357,11 @@ export class StylesOut {
     }
   }
 
+  /** The file's id for a number format (a custom one is added). */
+  numberFormatId(code: string | undefined): number {
+    return this.numFmtId(code)
+  }
+
   private numFmtId(code: string | undefined): number {
     if (!code || code === "General") return 0
     for (const [id, c] of this.numFmts) if (c === code) return id

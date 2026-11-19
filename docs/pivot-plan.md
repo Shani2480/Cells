@@ -23,6 +23,15 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
 2. **Open and keep (io)** — read `pivotCacheDefinition`, `pivotCacheRecords` and `pivotTable` parts into the model;
    write them anew (records included) once a PivotTable changes, as read while it doesn't. The PivotTable's area
    becomes protected the way Excel's is ("We can't change this part of the PivotTable").
+   _Done:_ `io/xlsx/pivot.ts` reads caches into `wb.pivotCaches` and PivotTables into `sheet.pivots`, and writes
+   them back as read while unchanged, with only the location patched when rows or columns are inserted before them,
+   and anew (cache, records, definition with the engine's row and column items) once changed. Checked: the engine's
+   layout of every read PivotTable equals the cells Excel saved; all 12 written anew, a changed one, a moved one and
+   one made in Cells open in Excel 365 without repair, and Excel's own Refresh leaves every cell as written. Kept as
+   read for now (with all PivotTables of that cache): OLAP and external sources, grouped fields, calculated fields
+   and items, Show Values As, label and value filters, Top 10 and sort by value — each comes with its step.
+   Typing, clearing, pasting or inserting cells through a PivotTable is refused with Excel's message; whole rows and
+   columns before it move it, deleting all of its rows or columns deletes it.
 3. **Refresh and use** — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
    and column labels (Label Filters, Value Filters, Top 10, item checkboxes, Sort), the report filter dropdowns,
    expand / collapse (+/− buttons, Expand / Collapse Entire Field), double-click a value to see its rows on a new

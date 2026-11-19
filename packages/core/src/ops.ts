@@ -11,6 +11,8 @@ import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tabl
 import { copyHyperlinks, shiftHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyEditRanges, shiftEditRanges, type EditRange } from "./edit-ranges"
 import { copySparklineGroups, rewriteSparklineRefs, shiftSparklines, type SparklineGroup } from "./sparklines"
+import { copyPivotTables, shiftPivots } from "./pivot/sheet"
+import type { PivotTable } from "./pivot/model"
 import { copyExternalBooks, type ExternalBook } from "./links"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
@@ -90,6 +92,7 @@ export type Op =
       hyperlinks?: Hyperlink[]
       editRanges?: EditRange[]
       sparklines?: SparklineGroup[]
+      pivots?: PivotTable[]
     }
   /** The sheet's whole list of conditional formatting rules (New Rule, Clear Rules, Manage Rules). */
   | { kind: "conditional"; sheet: number; entries: CFEntry[] }
@@ -111,6 +114,8 @@ export type Op =
   | { kind: "editRanges"; sheet: number; ranges: EditRange[] }
   /** Insert › Sparklines and the Sparkline tab: the sheet's whole list of sparkline groups. */
   | { kind: "sparklines"; sheet: number; groups: SparklineGroup[] }
+  /** The sheet's whole list of PivotTables (their cells are written by setCells ops alongside). */
+  | { kind: "pivots"; sheet: number; tables: PivotTable[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
   /** The linked workbooks and the values read from them (update, change source, break). */
@@ -159,6 +164,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "hyperlinks",
   "editRanges",
   "sparklines",
+  "pivots",
 ])
 
 /**
@@ -303,6 +309,14 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       sheet.editRanges = copyEditRanges(op.ranges)
       return {
         inverse: [{ kind: "editRanges", sheet: op.sheet, ranges: before }],
+        change: { sheet: op.sheet, structural: false, format: true },
+      }
+    }
+    case "pivots": {
+      const before = copyPivotTables(sheet.pivots)
+      sheet.pivots = copyPivotTables(op.tables)
+      return {
+        inverse: [{ kind: "pivots", sheet: op.sheet, tables: before }],
         change: { sheet: op.sheet, structural: false, format: true },
       }
     }
@@ -460,6 +474,7 @@ function layoutOf(sheet: Sheet, index: number): Extract<Op, { kind: "layout" }> 
     hyperlinks: copyHyperlinks(sheet.hyperlinks),
     editRanges: copyEditRanges(sheet.editRanges),
     sparklines: copySparklineGroups(sheet.sparklines),
+    pivots: copyPivotTables(sheet.pivots),
   }
 }
 
@@ -487,6 +502,7 @@ function setLayout(sheet: Sheet, op: Extract<Op, { kind: "layout" }>): Applied {
   if (op.hyperlinks) sheet.hyperlinks = copyHyperlinks(op.hyperlinks)
   if (op.editRanges) sheet.editRanges = copyEditRanges(op.editRanges)
   if (op.sparklines) sheet.sparklines = copySparklineGroups(op.sparklines)
+  if (op.pivots) sheet.pivots = copyPivotTables(op.pivots)
   return { inverse: [before], change: { sheet: op.sheet, structural: true, format: true } }
 }
 
@@ -513,7 +529,8 @@ function hasLayout(sheet: Sheet) {
     sheet.queryTables.length > 0 ||
     sheet.hyperlinks.length > 0 ||
     sheet.editRanges.length > 0 ||
-    sheet.sparklines.length > 0
+    sheet.sparklines.length > 0 ||
+    sheet.pivots.length > 0
   )
 }
 
@@ -634,6 +651,7 @@ function insertLines(
   if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, count)
   if (sheet.editRanges.length) sheet.editRanges = shiftEditRanges(sheet.editRanges, axis, at, count)
   if (sheet.sparklines.length) sheet.sparklines = shiftSparklines(sheet.sparklines, axis, at, count)
+  if (sheet.pivots.length) sheet.pivots = shiftPivots(sheet.pivots, axis, at, count)
   if (!plain) copyFormatsInto(sheet, axis, at, count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "deleteRows" : "deleteCols", sheet: index, at, count }]
   if (layout) inverse.push(layout)
@@ -695,6 +713,7 @@ function deleteLines(sheets: readonly Sheet[], index: number, axis: AxisName, at
   if (sheet.hyperlinks.length) sheet.hyperlinks = shiftHyperlinks(sheet.hyperlinks, axis, at, -count)
   if (sheet.editRanges.length) sheet.editRanges = shiftEditRanges(sheet.editRanges, axis, at, -count)
   if (sheet.sparklines.length) sheet.sparklines = shiftSparklines(sheet.sparklines, axis, at, -count)
+  if (sheet.pivots.length) sheet.pivots = shiftPivots(sheet.pivots, axis, at, -count)
   const inverse: Op[] = [{ kind: axis === "rows" ? "insertRows" : "insertCols", sheet: index, at, count, plain: true }]
   if (layout) inverse.push(layout)
   if (removed.length) {

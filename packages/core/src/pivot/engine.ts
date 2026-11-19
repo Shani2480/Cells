@@ -423,7 +423,10 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   const dataInRows = rowFields.includes(VALUES_FIELD)
   const dataInCols = colFields.includes(VALUES_FIELD)
   if (n) {
-    if (table.values.length === 1 && !dataInRows && !dataInCols) put(0, 0, "corner", dataName(0))
+    // With no row fields the column header takes the corner's cell.
+    if (!labelCols) {
+      /* no corner */
+    } else if (table.values.length === 1 && !dataInRows && !dataInCols) put(0, 0, "corner", dataName(0))
     else put(0, 0, "corner")
     if (colFields.length === 1 && dataInCols) put(0, labelCols, "colHeader", table.captions.data)
     else if (compactOf(colFields[0])) put(0, labelCols, "colHeader", table.captions.colHeader ?? "Column Labels")

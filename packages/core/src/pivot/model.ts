@@ -1,4 +1,4 @@
-import type { CellAddress } from "../address"
+import type { CellAddress, Range } from "../address"
 import type { CellValue } from "../values"
 
 /**
@@ -108,6 +108,11 @@ export type PivotTable = {
   cacheId: number
   /** The top-left cell of the table (below the report filters). */
   at: CellAddress
+  /**
+   * The table's cells as last laid out (Excel's location), without the report filters: what the sheet's cells show
+   * and what edits must leave alone until the next refresh.
+   */
+  location: Range
   /** One per cache field. */
   fields: PivotField[]
   /** Row and column fields in order; VALUES_FIELD marks where the value fields go. */

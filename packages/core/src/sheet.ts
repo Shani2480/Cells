@@ -1,5 +1,6 @@
 import type { EditRange } from "./edit-ranges"
 import type { SparklineGroup } from "./sparklines"
+import type { PivotTable } from "./pivot/model"
 import type { SheetChart } from "./chart"
 import { isChart, type SheetObject } from "./shapes"
 import { defaultPageSetup, type PageSetup } from "./page-setup"
@@ -210,6 +211,8 @@ export class Sheet {
   editRanges: EditRange[] = []
   /** Insert › Sparklines: the groups of in-cell charts. */
   sparklines: SparklineGroup[] = []
+  /** PivotTables on the sheet; their caches are the workbook's (wb.pivotCaches). */
+  pivots: PivotTable[] = []
   /** Edit ranges unlocked with their password this session (lower-case titles; not saved, not undone). */
   readonly unlockedEditRanges = new Set<string>()
 

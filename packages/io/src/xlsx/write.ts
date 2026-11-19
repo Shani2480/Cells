@@ -77,6 +77,23 @@ import {
   REL_QUERY_TABLE,
 } from "./connections"
 import { printNamesXml } from "./page-setup"
+import {
+  cacheForWriting,
+  CT_PIVOT_CACHE,
+  CT_PIVOT_RECORDS,
+  CT_PIVOT_TABLE,
+  keptPivotChildren,
+  movedPivotXml,
+  pivotCacheKey,
+  pivotCacheXml,
+  pivotPlaceKey,
+  pivotRecordsXml,
+  pivotTableKey,
+  pivotTableXml,
+  REL_PIVOT_CACHE,
+  REL_PIVOT_RECORDS,
+  REL_PIVOT_TABLE,
+} from "./pivot"
 import { formulaToFile } from "./formula"
 import type { XlsxSource } from "./read"
 import { DEFAULT_VIEW, type SheetView } from "./sheet-read"
@@ -244,9 +261,15 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   taken.add(partKey(stylesName))
   taken.add(partKey(sstName))
   for (const name of keepWorksheet) taken.add(name)
+  // PivotTable caches Cells models: their relationships are written again below (their parts stay for now, to be
+  // written back as read when they didn't change).
+  const modelledCaches = new Set([...(source?.pivots?.caches.values() ?? [])].map((c) => partKey(c.partName)))
   relGroups.set(
     partKey(main),
-    wbRels.filter((r) => !dropped.includes(r)),
+    wbRels.filter(
+      (r) =>
+        !dropped.includes(r) && !(r.type === REL_PIVOT_CACHE && r.partName && modelledCaches.has(partKey(r.partName))),
+    ),
   )
 
   // Page Layout › Themes: the file's theme part with the workbook's colours and fonts, or a new one; the theme's
@@ -318,6 +341,38 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         }
         cacheOf.set(o, cache)
       }
+  }
+
+  // PivotTable caches that some PivotTable uses: as read when unchanged, else written anew with their records.
+  const numFmt = (code?: string) => styles.numberFormatId(code)
+  const cacheEntries: string[] = []
+  const cachePart = new Map<number, string>()
+  /** Caches written anew, as written (every axis field's shared items listed). */
+  const cacheWritten = new Map<number, ReturnType<typeof cacheForWriting>>()
+  for (const cache of wb.pivotCaches) {
+    const tables = wb.sheets.flatMap((s) => s.pivots.filter((t) => t.cacheId === cache.id))
+    if (!tables.length || cachePart.has(cache.id)) continue
+    const was = source?.pivots?.caches.get(cache.id)
+    const out = cacheForWriting(cache, tables)
+    const same =
+      was !== undefined &&
+      was.key === pivotCacheKey(cache) &&
+      was.records === cache.records &&
+      parts.has(partKey(was.partName)) &&
+      out.fields.every((f, i) => f === cache.fields[i])
+    const def = was?.partName ?? freeName((n) => `/xl/pivotCache/pivotCacheDefinition${n}.xml`)
+    taken.add(partKey(def))
+    if (!same) {
+      const records = was?.recordsPart ?? freeName((n) => `/xl/pivotCache/pivotCacheRecords${n}.xml`)
+      taken.add(partKey(records))
+      relGroups.set(partKey(def), [])
+      const recordsRel = addRel(def, REL_PIVOT_RECORDS, records)
+      put(def, CT_PIVOT_CACHE, pivotCacheXml(out, recordsRel, numFmt))
+      put(records, CT_PIVOT_RECORDS, pivotRecordsXml(out))
+      cacheWritten.set(cache.id, out)
+    }
+    cachePart.set(cache.id, def)
+    cacheEntries.push(`<pivotCache cacheId="${cache.id}" r:id="${addRel(main, REL_PIVOT_CACHE, def)}"/>`)
   }
 
   wb.sheets.forEach((sheet, i) => {
@@ -392,6 +447,29 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       const toFile = (f: string) => formulaToFile(structuredToFile("=" + f, t.name))
       put(part, CT_TABLE, tableXml(t, styles, rangeRef, toFile))
       tableParts.push(addRel(partName, REL_TABLE, part))
+    }
+    // PivotTables: as read when neither they nor their cache changed, moved when only their place did, else anew.
+    const pivotsRead = source?.pivots?.tables.get(sheet)
+    for (const t of sheet.pivots) {
+      const def = cachePart.get(t.cacheId)
+      const cache = wb.pivotCaches.find((c) => c.id === t.cacheId)
+      if (!def || !cache) continue
+      const was = pivotsRead?.get(t.name)
+      const rewritten = cacheWritten.get(t.cacheId)
+      const part =
+        was && !taken.has(partKey(was.partName)) ? was.partName : freeName((n) => `/xl/pivotTables/pivotTable${n}.xml`)
+      taken.add(partKey(part))
+      if (was && part === was.partName && !rewritten && was.key === pivotTableKey(t) && parts.has(partKey(part))) {
+        if (was.place !== pivotPlaceKey(t)) put(part, CT_PIVOT_TABLE, movedPivotXml(was.xml, t))
+      } else
+        put(
+          part,
+          CT_PIVOT_TABLE,
+          pivotTableXml(t, rewritten ?? cacheForWriting(cache, [t]), numFmt, was ? keptPivotChildren(was.xml) : []),
+        )
+      relGroups.set(partKey(part), [])
+      addRel(part, REL_PIVOT_CACHE, def)
+      addRel(partName, REL_PIVOT_TABLE, part)
     }
     for (const r of own) if (r.type === REL_QUERY_TABLE && r.partName) usedQueryTables.add(partKey(r.partName))
     for (const q of sheet.queryTables) {
@@ -554,6 +632,14 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     ),
     workbookProtection: protectionXml(wb),
     bookViews: bookViewsXml(source, active),
+    ...(source?.pivots || cacheEntries.length
+      ? {
+          pivotCaches:
+            cacheEntries.length || source?.pivots?.kept.length
+              ? `<pivotCaches>${[...cacheEntries, ...(source?.pivots?.kept ?? [])].join("")}</pivotCaches>`
+              : "",
+        }
+      : {}),
     calcPr: `<calcPr${attrText({ calcId: 191029, calcMode: wb.calc.mode === "manual" ? "manual" : undefined })}/>`,
   }
   let wbXml: string

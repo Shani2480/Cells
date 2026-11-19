@@ -6,6 +6,9 @@ import {
   type DefinedName,
   type Sheet,
   type Theme,
+  type PivotCache,
+  type PivotTable,
+  type PivotValue,
   type WorkbookProtection,
   isChart,
   objectName,
@@ -43,6 +46,16 @@ import {
 import { readPrintArea, readPrintTitles, type PageSetupExtras } from "./page-setup"
 import { formulaFromFile } from "./formula"
 import { hyperlinkAddress } from "./hyperlinks"
+import {
+  pivotCacheKey,
+  pivotPlaceKey,
+  pivotTableKey,
+  readPivotCache,
+  readPivotTable,
+  REL_PIVOT_CACHE,
+  REL_PIVOT_RECORDS,
+  REL_PIVOT_TABLE,
+} from "./pivot"
 import { readSlicerCache, readSlicerPart, REL_SLICER, REL_SLICER_CACHE, type SlicerCacheRead } from "./slicers"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
@@ -89,6 +102,17 @@ export type XlsxSource = {
   slicersModelled?: boolean
   /** The theme as read, so a save rewrites the theme part only when it changed. */
   theme?: Theme
+  /** PivotTables as read, so a save writes back the parts of those that didn't change. */
+  pivots?: PivotSource
+}
+
+export type PivotSource = {
+  /** Modelled caches by id: their parts, and what they were when read. */
+  caches: Map<number, { partName: string; recordsPart: string | null; key: string; records: PivotValue[][] }>
+  /** Modelled PivotTables by sheet and name. */
+  tables: WeakMap<Sheet, Map<string, { partName: string; xml: string; key: string; place: string }>>
+  /** The workbook's `<pivotCache>` entries for caches kept as read (their relationships stay). */
+  kept: string[]
 }
 
 export type XlsxRead = {
@@ -234,6 +258,41 @@ export async function openXlsx(
   const tableColumnIds = new Map<number, number[]>()
   const slicerSheets = new Map<Sheet, number>()
 
+  // PivotTables: the caches the workbook lists; each sheet's PivotTables are read with the sheet.
+  type CacheRead = {
+    id: number
+    cache: PivotCache | null
+    partName: string
+    recordsPart: string | null
+    entry: string
+    relId: string
+  }
+  const pivotCaches: CacheRead[] = []
+  for (const n of kids(kid(root, "pivotCaches"), "pivotCache")) {
+    const relId = at(n, "id", NS_R) ?? ""
+    const r = wbRels.find((x) => x.id === relId && x.type === REL_PIVOT_CACHE && x.partName)
+    if (!r?.partName) continue
+    const id = Number(at(n, "cacheId") ?? 0)
+    const recordsPart = relOfType(relationshipsFor(pkg, r.partName), REL_PIVOT_RECORDS)?.partName ?? null
+    const defXml = partText(pkg, r.partName) ?? ""
+    let cache: PivotCache | null
+    try {
+      cache = readPivotCache(id, defXml, partText(pkg, recordsPart), (f) => styles?.numberFormat(f))
+    } catch {
+      cache = null
+    }
+    pivotCaches.push({ id, cache, partName: r.partName, recordsPart, entry: raw(wbDoc, n), relId })
+  }
+  type TableRead = {
+    sheet: Sheet
+    relId: string
+    partName: string
+    xml: string
+    table: PivotTable | null
+    cache: string
+  }
+  const pivotTables: TableRead[] = []
+
   const views: SheetView[] = []
   const customSheetViews = new Map<Sheet, CustomSheetViewRead[]>()
   const sheetSources = new WeakMap<Sheet, SheetSource>()
@@ -310,6 +369,18 @@ export async function openXlsx(
           table.id,
           [...tableXml.matchAll(/<(?:\w+:)?tableColumn\b[^>]*?\bid="(\d+)"/g)].map((m) => Number(m[1])),
         )
+    }
+    for (const r of rels) {
+      if (r.type !== REL_PIVOT_TABLE || !r.partName || !pivotCaches.length) continue
+      const xml = partText(pkg, r.partName) ?? ""
+      const cache = relOfType(relationshipsFor(pkg, r.partName), REL_PIVOT_CACHE)?.partName ?? ""
+      let table: PivotTable | null
+      try {
+        table = readPivotTable(xml, (f) => styles?.numberFormat(f))
+      } catch {
+        table = null
+      }
+      pivotTables.push({ sheet, relId: r.id, partName: r.partName, xml, table, cache })
     }
     for (const r of rels) {
       if (r.type !== REL_QUERY_TABLE || !r.partName) continue
@@ -427,6 +498,42 @@ export async function openXlsx(
     })
     views.push(read.view)
     before += sizes[i]
+  }
+
+  // PivotTables Cells models: a cache and all its PivotTables, or (when any of them uses what Cells doesn't model)
+  // none of them, kept as read.
+  const pivots: PivotSource = { caches: new Map(), tables: new WeakMap(), kept: [] }
+  for (const c of pivotCaches) {
+    const tables = pivotTables.filter((t) => t.cache.toLowerCase() === c.partName.toLowerCase())
+    const modelled =
+      c.cache !== null && tables.every((t) => t.table !== null && t.table.fields.length === c.cache!.fields.length)
+    if (!modelled) {
+      pivots.kept.push(c.entry)
+      continue
+    }
+    const cache = c.cache!
+    wb.pivotCaches.push(cache)
+    pivots.caches.set(cache.id, {
+      partName: c.partName,
+      recordsPart: c.recordsPart,
+      key: pivotCacheKey(cache),
+      records: cache.records,
+    })
+    for (const t of tables) {
+      const table = t.table!
+      table.cacheId = cache.id
+      t.sheet.pivots.push(table)
+      let byName = pivots.tables.get(t.sheet)
+      if (!byName) pivots.tables.set(t.sheet, (byName = new Map()))
+      byName.set(table.name, {
+        partName: t.partName,
+        xml: t.xml,
+        key: pivotTableKey(table),
+        place: pivotPlaceKey(table),
+      })
+      const s = sheetSources.get(t.sheet)
+      if (s) s.rels = s.rels.filter((r) => r.id !== t.relId)
+    }
   }
 
   // Each slicer's table and column, from its cache; one whose table or column is gone is left out.
@@ -609,6 +716,7 @@ export async function openXlsx(
       linksModelled,
       slicersModelled,
       theme: themeXml ? copyTheme(wb.theme) : undefined,
+      pivots: pivotCaches.length ? pivots : undefined,
     },
     warnings: [...new Set(warnings)],
   }

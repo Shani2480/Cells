@@ -96,6 +96,7 @@ function table(
     name: "PT",
     cacheId: 1,
     at: { row: Number(m[2]) - 1, col: m[1].charCodeAt(0) - 65 },
+    location: { r0: 0, c0: 0, r1: 0, c1: 0 },
     fields,
     rows: o.rows ?? [],
     cols: o.cols ?? [],

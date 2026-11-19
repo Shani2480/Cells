@@ -10,7 +10,10 @@ import {
   MAX_COLS,
   PROTECTED_MESSAGE,
   breaksDataTable,
+  breaksPivot,
   isDataTableInput,
+  pivotAt,
+  PIVOT_MESSAGE,
   canEditCell,
   protectionBlocks,
   structureBlocks,
@@ -535,6 +538,10 @@ export class SheetController {
       this.shell.alert(DATA_TABLE_MESSAGE)
       return true
     }
+    if (ops.some((op) => "sheet" in op && sheets[op.sheet] !== undefined && breaksPivot(sheets[op.sheet], op))) {
+      this.shell.alert(PIVOT_MESSAGE)
+      return true
+    }
     const blocked = ops.some((op) => {
       const sheet = "sheet" in op ? sheets[op.sheet] : undefined
       return sheet !== undefined && sheet.protection !== null && protectionBlocks(sheet, this.wb.styles, op)
@@ -846,6 +853,10 @@ export class SheetController {
     const { row, col } = this.selection.active
     if (isDataTableInput(this.sheet.cells.input(row, col))) {
       this.shell.alert(DATA_TABLE_MESSAGE)
+      return
+    }
+    if (pivotAt(this.sheet, row, col)) {
+      this.shell.alert(PIVOT_MESSAGE)
       return
     }
     const initial = text ?? (mode === "edit" ? this.formulaBarText() : "")
