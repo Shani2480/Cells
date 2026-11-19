@@ -3821,3 +3821,35 @@
 .pfm-multiple {
   margin: 4px 8px 0;
 }
+
+/* A PivotTable's Label Filter, Value Filter and Top 10 Filter dialogs. */
+.pivot-filter-lead {
+  margin: 0 0 8px;
+}
+
+.pivot-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pivot-filter-row .dialog-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.pivot-filter-hint {
+  margin: 12px 0 0;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+}
+
+.tiw-fieldset.pivot-top10 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tiw-fieldset.pivot-top10 input {
+  width: 64px;
+}

@@ -96,6 +96,29 @@ describe("PivotTables in xlsx", () => {
     )
   })
 
+  it("reads Label Filters, Value Filters and Top 10, and the engine shows Excel's cells (pivot-filters.xlsx)", async () => {
+    const { workbook: wb } = await openXlsx(fixture("pivot-filters.xlsx"), "pivot-filters.xlsx")
+    expect(expectCellsAsExcel(wb)).toBe(15)
+  })
+
+  it("writes the filters anew as Excel does, and reads them back the same", async () => {
+    const read = await openXlsx(fixture("pivot-filters.xlsx"), "pivot-filters.xlsx")
+    const wb = read.workbook
+    const before = wb.sheets.flatMap((s) => s.pivots.map((t) => t.filters))
+    // Every PivotTable changed a little, so all are written anew.
+    for (const sheet of wb.sheets) sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    const saved = await saveXlsx(wb, { source: read.source })
+    const xml = [...(await parts(saved))].filter(([n]) => /^xl\/pivotTables\/[^/]+\.xml$/.test(n)).map(([, x]) => x)
+    expect(xml).toHaveLength(15)
+    // All but AxisHidden (unticked items only) have filters.
+    expect(xml.filter((x) => x.includes("<filters"))).toHaveLength(14)
+    for (const x of xml.filter((x) => x.includes("<filters"))) expect(x).toMatch(/<filters count="\d"><filter fld="\d" type="\w+" evalOrder="-1" id="\d"/)
+    const again = (await openXlsx(saved)).workbook
+    expect(again.sheets.flatMap((s) => s.pivots.map((t) => t.filters))).toEqual(before)
+    expect(again.sheets.find((s) => s.name === "TwoValues")!.pivots[0].hideValuesRow).toBe(true)
+    expect(expectCellsAsExcel(again)).toBe(15)
+  })
+
   it("moves a PivotTable with rows inserted above it, patching only its location", async () => {
     const read = await openXlsx(fixture("pivot-basic.xlsx"), "pivot-basic.xlsx")
     const wb = read.workbook

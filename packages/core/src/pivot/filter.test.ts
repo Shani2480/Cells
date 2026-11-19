@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest"
 import { pivotLayout } from "./engine"
-import { pivotChoices, pivotFilterTarget, withPageItems, withPagePick, withShownItems, withSort } from "./filter"
+import {
+  fieldFilter,
+  pivotChoices,
+  pivotFilterTarget,
+  withFieldCleared,
+  withFieldFilter,
+  withPageItems,
+  withPagePick,
+  withShownItems,
+  withSort,
+} from "./filter"
 import { newPivotField, type PivotCache, type PivotTable } from "./model"
 
 /** Sales by Region (rows), Product as a report filter, at A4 below it. */
@@ -144,5 +154,42 @@ describe("PivotTable filter dropdowns", () => {
     expect(sorted.fields[1].items.map((i) => i.x)).toEqual([1, 0])
     expect(sorted.pages[0].item).toBe(1)
     expect(cellAt(sorted, cache, 1, 1)?.value).toBe("Apples")
+  })
+
+  it("a Label Filter keeps the items whose label matches, wildcards and all", () => {
+    const { cache, table } = setup()
+    const t = withFieldFilter(table, 0, { kind: "label", op: "endsWith", value: "th" })
+    expect(column(t, cache).slice(2)).toEqual(["North", 17, "South", 20, "Grand Total", 37])
+    expect(column(withFieldFilter(table, 0, { kind: "label", op: "equal", value: "?ast" }), cache).slice(2, 4)).toEqual(
+      ["East", 5],
+    )
+    const between = withFieldFilter(table, 0, { kind: "label", op: "between", value: "e", value2: "n" })
+    expect(column(between, cache).slice(2, 4)).toEqual(["East", 5])
+    expect(pivotChoices(t, cache, 0)).toMatchObject({ filtered: true, filter: { kind: "label", op: "endsWith" } })
+  })
+
+  it("a Value Filter and Top 10 judge each item by its total", () => {
+    const { cache, table } = setup()
+    const over = withFieldFilter(table, 0, { kind: "value", op: "greaterThan", measure: 0, value: 10 })
+    expect(column(over, cache).slice(2)).toEqual(["North", 17, "South", 20, "Grand Total", 37])
+    const top = withFieldFilter(table, 0, { kind: "top", by: "count", top: true, measure: 0, value: 1 })
+    expect(column(top, cache).slice(2)).toEqual(["South", 20, "Grand Total", 20])
+    const bottomSum = withFieldFilter(table, 0, { kind: "top", by: "sum", top: false, measure: 0, value: 20 })
+    // East (5) then North (17) reach 20.
+    expect(column(bottomSum, cache).slice(2)).toEqual(["North", 17, "East", 5, "Grand Total", 22])
+  })
+
+  it("a new filter replaces the field's old one; Clear Filter From clears items and filter", () => {
+    const { cache, table } = setup()
+    const a = withFieldFilter(table, 0, { kind: "label", op: "contains", value: "o" })
+    const b = withFieldFilter(a, 0, { kind: "value", op: "lessThan", measure: 0, value: 18 })
+    expect(b.filters).toHaveLength(1)
+    expect(fieldFilter(b, 0)).toMatchObject({ kind: "value", id: 2 })
+    expect(withFieldFilter(b, 0, null).filters).toBeUndefined()
+    expect(withFieldFilter(table, 0, null)).toBe(table)
+    const hidden = withShownItems(b, cache, 0, new Set([0]))
+    const cleared = withFieldCleared(hidden, cache, 0)
+    expect(cleared.filters).toBeUndefined()
+    expect(cleared.fields[0].items.some((i) => i.hidden)).toBe(false)
   })
 })

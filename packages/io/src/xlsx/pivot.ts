@@ -9,6 +9,9 @@ import {
   type PivotCache,
   type PivotCacheField,
   type PivotField,
+  type PivotFilter,
+  type PivotLabelOp,
+  type PivotValueOp,
   type PivotFn,
   type PivotSort,
   type PivotSubtotal,
@@ -23,7 +26,7 @@ import { at, attrText, kid, kids, parseTree, raw, type Kept, type XNode } from "
  * PivotTables in xlsx: the cache definition (fields and shared items), the cache records, and each PivotTable's
  * definition (ECMA-376 Part 1, §18.10). What Cells models is read into wb.pivotCaches and sheet.pivots; a cache that
  * uses what Cells doesn't model yet (OLAP, external data, grouping, calculated fields or items, Show Values As,
- * label and value filters) is kept as read with all its PivotTables, as before.
+ * date filters) is kept as read with all its PivotTables, as before.
  *
  * On save a cache or PivotTable that hasn't changed is written back byte for byte; one that only moved (rows
  * inserted above it) gets its location patched; a changed one is written anew.
@@ -189,7 +192,9 @@ const X14_FIELD = "{2946ED86-A175-432a-8AC1-64E0C546D7DE}"
 /** A PivotTable definition; null when it uses what Cells doesn't model. */
 export function readPivotTable(xml: string, numberFormat: (id: number) => string | undefined): PivotTable | null {
   const root = parseTree(xml).root
-  if (kid(root, "filters") || kid(root, "pivotHierarchies") || kid(root, "calculatedItems")) return null
+  if (kid(root, "pivotHierarchies") || kid(root, "calculatedItems")) return null
+  const filters = readPivotFilters(kid(root, "filters"))
+  if (!filters) return null
   const loc = kid(root, "location")
   const location = parseRange(at(loc, "ref") ?? "")
   if (!location) return null
@@ -300,6 +305,8 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
     showError: truthy(at(root, "showError"), false),
     showMissing: truthy(at(root, "showMissing"), true),
     ...(truthy(at(root, "showDrill"), true) ? {} : { showDrill: false as const }),
+    ...(filters.length ? { filters } : {}),
+    ...(hideValuesRow(root) ? { hideValuesRow: true as const } : {}),
     style: {
       name: at(style, "name") ?? null,
       rowHeaders: truthy(at(style, "showRowHeaders"), false),
@@ -309,6 +316,142 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
       lastColumn: truthy(at(style, "showLastColumn"), false),
     },
   }
+}
+
+const X14_TABLE = "{962EF5D1-5CA2-4c93-8EF4-DBF5C05439D2}"
+
+/** Excel 365's Show the Values row off, kept in the x14 extension of the definition (written back with the extLst). */
+function hideValuesRow(root: XNode): boolean {
+  const ext = kids(kid(root, "extLst"), "ext").find((e) => at(e, "uri") === X14_TABLE)
+  return truthy(at(kid(ext, "pivotTableDefinition"), "hideValuesRow"), false)
+}
+
+// ── Label Filters, Value Filters and Top 10 (`<filters>`) ──
+
+const LABEL_OPS: PivotLabelOp[] = [
+  "equal",
+  "notEqual",
+  "beginsWith",
+  "notBeginsWith",
+  "endsWith",
+  "notEndsWith",
+  "contains",
+  "notContains",
+  "greaterThan",
+  "greaterThanOrEqual",
+  "lessThan",
+  "lessThanOrEqual",
+  "between",
+  "notBetween",
+]
+const VALUE_OPS: PivotValueOp[] = [
+  "equal",
+  "notEqual",
+  "greaterThan",
+  "greaterThanOrEqual",
+  "lessThan",
+  "lessThanOrEqual",
+  "between",
+  "notBetween",
+]
+const cap = (op: string) => op[0].toUpperCase() + op.slice(1)
+
+/** The filters of a PivotTable; null when one is of a kind Cells doesn't model (date filters, OLAP members). */
+function readPivotFilters(node: XNode | undefined): PivotFilter[] | null {
+  const out: PivotFilter[] = []
+  for (const f of kids(node, "filter")) {
+    const type = at(f, "type") ?? ""
+    const field = Number(at(f, "fld") ?? -1)
+    const id = Number(at(f, "id") ?? out.length + 1)
+    if (field < 0 || at(f, "mpFld") !== undefined || at(f, "iMeasureHier") !== undefined) return null
+    const label = LABEL_OPS.find((op) => type === `caption${cap(op)}`)
+    const value = VALUE_OPS.find((op) => type === `value${cap(op)}`)
+    const measure = Number(at(f, "iMeasureFld") ?? 0)
+    if (label) {
+      const filter: PivotFilter = { field, id, kind: "label", op: label, value: at(f, "stringValue1") ?? "" }
+      const v2 = at(f, "stringValue2")
+      if (v2 !== undefined) filter.value2 = v2
+      out.push(filter)
+    } else if (value) {
+      // The numbers are in the autoFilter's custom filters.
+      const vals = kids(kid(kid(kid(f, "autoFilter"), "filterColumn"), "customFilters"), "customFilter").map((c) =>
+        Number(at(c, "val")),
+      )
+      if (!vals.length || vals.some((v) => !Number.isFinite(v))) return null
+      const filter: PivotFilter = { field, id, kind: "value", op: value, measure, value: vals[0] }
+      if (vals.length > 1) filter.value2 = vals[1]
+      out.push(filter)
+    } else if (type === "count" || type === "percent" || type === "sum") {
+      const top10 = kid(kid(kid(f, "autoFilter"), "filterColumn"), "top10")
+      const v = Number(at(top10, "val"))
+      if (!top10 || !Number.isFinite(v)) return null
+      out.push({ field, id, kind: "top", by: type, top: truthy(at(top10, "top"), true), measure, value: v })
+    } else return null
+  }
+  return out
+}
+
+/** Excel's `<filter>` for one of a PivotTable's filters, with the autoFilter Excel writes beside it. */
+function pivotFilterXml(f: PivotFilter): string {
+  const custom = (list: { operator?: string; val: string | number }[], and = false) =>
+    `<customFilters${and ? ' and="1"' : ""}>${list
+      .map((c) => `<customFilter${attrText({ operator: c.operator, val: c.val })}/>`)
+      .join("")}</customFilters>`
+  let type: string
+  let inner: string
+  const extra: Record<string, string | number | undefined> = {}
+  const range = (a: string | number, b: string | number, not: boolean) =>
+    not
+      ? custom([
+          { operator: "lessThan", val: a },
+          { operator: "greaterThan", val: b },
+        ])
+      : custom(
+          [
+            { operator: "greaterThanOrEqual", val: a },
+            { operator: "lessThanOrEqual", val: b },
+          ],
+          true,
+        )
+  if (f.kind === "label") {
+    type = `caption${cap(f.op)}`
+    extra.stringValue1 = f.value
+    extra.stringValue2 = f.op === "between" || f.op === "notBetween" ? (f.value2 ?? f.value) : undefined
+    const lit = f.value.replace(/[~*?]/g, (c) => `~${c}`)
+    const like: Partial<Record<PivotLabelOp, string>> = {
+      equal: f.value,
+      notEqual: f.value,
+      beginsWith: `${lit}*`,
+      notBeginsWith: `${lit}*`,
+      endsWith: `*${lit}`,
+      notEndsWith: `*${lit}`,
+      contains: `*${lit}*`,
+      notContains: `*${lit}*`,
+    }
+    const pattern = like[f.op]
+    if (pattern !== undefined)
+      inner = custom([{ operator: f.op.startsWith("not") ? "notEqual" : undefined, val: pattern }])
+    else if (f.op === "between" || f.op === "notBetween")
+      inner = range(f.value, f.value2 ?? f.value, f.op === "notBetween")
+    else inner = custom([{ operator: f.op, val: f.value }])
+  } else if (f.kind === "value") {
+    type = `value${cap(f.op)}`
+    extra.iMeasureFld = f.measure
+    if (f.op === "between" || f.op === "notBetween") inner = range(f.value, f.value2 ?? f.value, f.op === "notBetween")
+    else inner = custom([{ operator: f.op === "equal" ? undefined : f.op, val: f.value }])
+  } else {
+    type = f.by
+    extra.iMeasureFld = f.measure
+    inner = `<top10${attrText({
+      top: f.top ? undefined : 0,
+      percent: f.by === "percent" ? 1 : undefined,
+      val: f.value,
+      filterVal: f.value,
+    })}/>`
+  }
+  const head = attrText({ fld: f.field, type, evalOrder: -1, id: f.id, iMeasureFld: extra.iMeasureFld })
+  const strings = attrText({ stringValue1: extra.stringValue1, stringValue2: extra.stringValue2 })
+  return `<filter${head}${strings}><autoFilter ref="A1"><filterColumn colId="0">${inner}</filterColumn></autoFilter></filter>`
 }
 
 /** The children of a PivotTable definition that Cells doesn't write itself, kept when it writes the table anew. */
@@ -528,6 +671,7 @@ export function pivotTableXml(
       outline: f.outline ? undefined : 0,
       subtotalTop: f.subtotalTop ? undefined : 0,
       multipleItemSelectionAllowed: f.multipleItems ? 1 : undefined,
+      measureFilter: table.filters?.some((x) => x.field === i && x.kind !== "label") ? 1 : undefined,
       insertBlankRow: f.insertBlankRow ? 1 : undefined,
       showAll: f.showAll ? undefined : 0,
       sortType: f.sort === "manual" ? undefined : f.sort,
@@ -591,6 +735,9 @@ export function pivotTableXml(
               })}/>`,
           )
           .join("")}</dataFields>`
+      : "",
+    filters: table.filters?.length
+      ? `<filters count="${table.filters.length}">${table.filters.map(pivotFilterXml).join("")}</filters>`
       : "",
     pivotTableStyleInfo: `<pivotTableStyleInfo${attrText({
       name: table.style.name ?? undefined,

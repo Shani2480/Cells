@@ -74,6 +74,8 @@ import { DataValidationDialog, ValidationAlertDialog } from "@/shell/DataValidat
 import type { AlertAnswer, ValidationAlert, ValidationDialogInit } from "@/sheet/validation"
 import { FindReplaceDialog, GoToSpecialDialog } from "@/shell/FindDialogs"
 import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
+import { PivotFilterDialog } from "@/shell/PivotFilterDialogs"
+import type { PivotFilterRequest } from "@/sheet/pivots"
 import type { FilterDialogRequest } from "@/sheet/data"
 import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
 import { FormatCellsDialog, type FormatTab } from "@/shell/format-cells/FormatCellsDialog"
@@ -235,6 +237,7 @@ type DialogState =
   | { kind: "sparklineAxis"; which: "min" | "max" }
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
+  | { kind: "pivotFilter"; request: PivotFilterRequest }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
   | { kind: "options"; page?: OptionsPage }
@@ -571,6 +574,7 @@ function WorkbookWindow({
       textToColumns: (range, texts) => setDialog({ kind: "textToColumns", range, texts }),
       sortDialog: (range) => setDialog({ kind: "sort", range }),
       filterDialog: (request) => setDialog({ kind: "filter", request }),
+      pivotFilterDialog: (request) => setDialog({ kind: "pivotFilter", request }),
       findReplace: (tab) => setDialog({ kind: "findReplace", tab, n: Date.now() }),
       goToSpecial: () => setDialog({ kind: "goToSpecial" }),
       dataValidation: (init) => setDialog({ kind: "dataValidation", init }),
@@ -1333,6 +1337,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "filter" && dialog.request.kind === "top10" ? (
           <Top10Dialog controller={controller} col={dialog.request.col} onClose={closeFilterDialog} />
+        ) : null}
+        {dialog?.kind === "pivotFilter" ? (
+          <PivotFilterDialog controller={controller} request={dialog.request} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "textToColumns" ? (
           <TextImportWizard

@@ -1,9 +1,11 @@
 import type { Range } from "../address"
+import { wildcardRegExp } from "../filter"
 import { errorValue, type CellError, type CellValue } from "../values"
 import {
   PIVOT_FN_LABEL,
   VALUES_FIELD,
   type PivotCache,
+  type PivotFilter,
   type PivotFn,
   type PivotSubtotal,
   type PivotTable,
@@ -398,9 +400,10 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     }
     records.push(r)
   }
+  const filtered = applyFilters(table, cache, items, records)
 
-  const rowLines = axisLines(table, rowFields, items, records, true)
-  const colLines = axisLines(table, colFields, items, records, false)
+  const rowLines = axisLines(table, rowFields, items, filtered.rows, true)
+  const colLines = axisLines(table, colFields, items, filtered.cols, false)
 
   // Label columns: a compact field shares its column with the field after it.
   const compactOf = (f: number) =>
@@ -409,7 +412,9 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   rowFields.forEach((_f, j) => labelCol.push(j === 0 ? 0 : labelCol[j - 1] + (compactOf(rowFields[j - 1]) ? 0 : 1)))
   const labelCols = rowFields.length ? labelCol[labelCol.length - 1] + 1 : 0
   const n = colFields.length
-  const headerRows = n ? n + 1 : 1
+  // Excel 365 leaves out the row above the value fields' names when they are the only column field (the Values row).
+  const valuesRowHidden = Boolean(table.hideValuesRow) && n === 1 && colFields[0] === VALUES_FIELD
+  const headerRows = n ? n + (valuesRowHidden ? 0 : 1) : 1
   const top = table.at.row
   const left = table.at.col
   const cells: PivotCell[] = []
@@ -443,7 +448,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   // ── The header rows ──
   const dataInRows = rowFields.includes(VALUES_FIELD)
   const dataInCols = colFields.includes(VALUES_FIELD)
-  if (n) {
+  if (n && !valuesRowHidden) {
     // With no row fields the column header takes the corner's cell.
     if (!labelCols) {
       /* no corner */
@@ -464,7 +469,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   if (!n && table.values.length === 1) put(0, labelCols, "dataHeader", dataName(0))
 
   // Column labels: each level's item over the first column of its group.
-  const colLevelRow = (j: number) => 1 + j
+  const colLevelRow = (j: number) => (valuesRowHidden ? 0 : 1) + j
   colLines.forEach((line, ci) => {
     const col = labelCols + ci
     if (!n) return
@@ -491,7 +496,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
 
   // ── Rows ──
   const indentOf = (j: number) => labelCol.slice(0, j).filter((c) => c === labelCol[j]).length
-  const statsFor = makeStats(table, cache, items, records)
+  const statsFor = makeStats(table, cache, items, filtered.both)
   rowLines.forEach((line, ri) => {
     const row = headerRows + ri
     if (line.t === "blank") return
@@ -566,7 +571,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   return {
     range: { r0: top, c0: left, r1: top + height - 1, c1: left + Math.max(width, 1) - 1 },
     pages: pageCount ? { r0: top - pageCount - 1, c0: left, r1: top - 2, c1: left + 1 } : null,
-    firstHeaderRow: 1,
+    firstHeaderRow: valuesRowHidden ? 0 : 1,
     firstDataRow: headerRows,
     firstDataCol: labelCols,
     rowLabelCols: labelCol,
@@ -574,6 +579,180 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     rowItems: axisItems(rowLines, dataInRows),
     colItems: axisItems(colLines, dataInCols),
   }
+}
+
+// ── Label Filters, Value Filters and Top 10 ──
+
+/**
+ * A label filter's test of one item's label. Labels compare as text ignoring case, numbers too, as Excel does
+ * ("Greater Than 10" keeps 2 to 9 as well as 11 and up).
+ */
+function labelTest(filter: Extract<PivotFilter, { kind: "label" }>): (v: CellValue) => boolean {
+  const text = (v: CellValue) => labelText(v).toLowerCase()
+  const a = filter.value
+  const b = filter.value2 ?? ""
+  const cmp = (v: CellValue, t: string) => text(v).localeCompare(t.toLowerCase(), undefined, { sensitivity: "base" })
+  const like = (pattern: string) => {
+    const re = wildcardRegExp(pattern.toLowerCase())
+    return (v: CellValue) => re.test(text(v))
+  }
+  const literal = (t: string) => t.replace(/[~*?]/g, (c) => `~${c}`)
+  switch (filter.op) {
+    case "equal":
+      return like(a)
+    case "notEqual":
+      return (v) => !like(a)(v)
+    case "beginsWith":
+      return like(`${literal(a)}*`)
+    case "notBeginsWith":
+      return (v) => !like(`${literal(a)}*`)(v)
+    case "endsWith":
+      return like(`*${literal(a)}`)
+    case "notEndsWith":
+      return (v) => !like(`*${literal(a)}`)(v)
+    case "contains":
+      return like(`*${literal(a)}*`)
+    case "notContains":
+      return (v) => !like(`*${literal(a)}*`)(v)
+    case "greaterThan":
+      return (v) => cmp(v, a) > 0
+    case "greaterThanOrEqual":
+      return (v) => cmp(v, a) >= 0
+    case "lessThan":
+      return (v) => cmp(v, a) < 0
+    case "lessThanOrEqual":
+      return (v) => cmp(v, a) <= 0
+    case "between":
+      return (v) => cmp(v, a) >= 0 && cmp(v, b) <= 0
+    case "notBetween":
+      return (v) => cmp(v, a) < 0 || cmp(v, b) > 0
+  }
+}
+
+function valueTest(filter: Extract<PivotFilter, { kind: "value" }>): (v: number) => boolean {
+  const a = filter.value
+  const b = filter.value2 ?? a
+  const [lo, hi] = a <= b ? [a, b] : [b, a]
+  switch (filter.op) {
+    case "equal":
+      return (v) => v === a
+    case "notEqual":
+      return (v) => v !== a
+    case "greaterThan":
+      return (v) => v > a
+    case "greaterThanOrEqual":
+      return (v) => v >= a
+    case "lessThan":
+      return (v) => v < a
+    case "lessThanOrEqual":
+      return (v) => v <= a
+    case "between":
+      return (v) => v >= lo && v <= hi
+    case "notBetween":
+      return (v) => v < lo || v > hi
+  }
+}
+
+/** The records each axis lays its lines out from, and those the values count (in both). */
+type Filtered = { rows: number[]; cols: number[]; both: number[] }
+
+/**
+ * The records left once the table's filters have had their say. A label filter drops the items whose label fails,
+ * everywhere (like unticked items). A value filter or Top 10 judges each item by its total (of the filter's value
+ * field, over the records still in) under the items of the fields before it on its axis, and only narrows that axis:
+ * Excel keeps the other axis' items even when a column filter leaves them no values.
+ */
+function applyFilters(
+  table: PivotTable,
+  cache: PivotCache,
+  items: Map<number, FieldItems>,
+  records: number[],
+): Filtered {
+  const filters = table.filters ?? []
+  let kept = records
+  for (const filter of filters) {
+    if (filter.kind !== "label") continue
+    const fi = items.get(filter.field)
+    if (!fi) continue
+    const test = labelTest(filter)
+    const pass = new Map<number, boolean>()
+    kept = kept.filter((r) => {
+      const pos = fi.ofRecord[r]
+      let ok = pass.get(pos)
+      if (ok === undefined) pass.set(pos, (ok = test(itemLabel(fi, pos))))
+      return ok
+    })
+  }
+  const axisKept = (axis: number[]) => {
+    let out = kept
+    for (const filter of filters)
+      if (filter.kind !== "label" && axis.includes(filter.field))
+        out = measureFilter(table, cache, items, out, axis, filter)
+    return out
+  }
+  const rows = axisKept(table.rows)
+  const cols = axisKept(table.cols)
+  if (rows === kept && cols === kept) return { rows, cols, both: kept }
+  const inCols = new Set(cols)
+  return { rows, cols, both: rows.filter((r) => inCols.has(r)) }
+}
+
+/** The records whose item of `filter.field` passes a value filter or Top 10, judged within its parent items. */
+function measureFilter(
+  table: PivotTable,
+  cache: PivotCache,
+  items: Map<number, FieldItems>,
+  records: number[],
+  axis: number[],
+  filter: Exclude<PivotFilter, { kind: "label" }>,
+): number[] {
+  const fi = items.get(filter.field)
+  const df = table.values[filter.measure]
+  if (!fi || !df) return records
+  const real = axis.filter((f) => f !== VALUES_FIELD)
+  const outer = real.slice(0, real.indexOf(filter.field))
+  const parentOf = (r: number) => outer.map((f) => items.get(f)!.ofRecord[r]).join(",")
+  // Each item's total under its parent items.
+  const groups = new Map<string, Map<number, Stats>>()
+  for (const r of records) {
+    const key = parentOf(r)
+    let g = groups.get(key)
+    if (!g) groups.set(key, (g = new Map()))
+    const pos = fi.ofRecord[r]
+    let st = g.get(pos)
+    if (!st) g.set(pos, (st = newStats()))
+    addValue(st, cache.records[r][df.field] ?? null)
+  }
+  const keep = new Set<string>()
+  for (const [key, g] of groups) {
+    const totals: { pos: number; v: number }[] = []
+    for (const [pos, st] of g) {
+      const v = summarize(st, df.fn)
+      if (typeof v === "number") totals.push({ pos, v })
+    }
+    if (filter.kind === "value") {
+      const test = valueTest(filter)
+      for (const t of totals) if (test(t.v)) keep.add(`${key}|${t.pos}`)
+      continue
+    }
+    // Top 10: biggest first (smallest first for Bottom).
+    const ranked = totals.sort((x, y) => (filter.top ? y.v - x.v : x.v - y.v))
+    if (filter.by === "count") {
+      const n = Math.max(0, Math.floor(filter.value))
+      ranked.slice(0, n).forEach((t) => keep.add(`${key}|${t.pos}`))
+    } else {
+      // Percent and Sum: items in turn until they reach the share of the whole or the sum asked for.
+      const whole = ranked.reduce((sum, t) => sum + t.v, 0)
+      const target = filter.by === "percent" ? (whole * filter.value) / 100 : filter.value
+      let sum = 0
+      for (const t of ranked) {
+        if (sum >= target) break
+        keep.add(`${key}|${t.pos}`)
+        sum += t.v
+      }
+    }
+  }
+  return records.filter((r) => keep.has(`${parentOf(r)}|${fi.ofRecord[r]}`))
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   VALUES_FIELD,
   type PivotCache,
   type PivotField,
+  type PivotFilter,
   type PivotSort,
   type PivotTable,
   type PivotValue,
@@ -70,7 +71,9 @@ export type PivotChoices = {
   /** Report filters: the one item picked, or null for (All) / several. */
   picked: number | null
   multipleItems: boolean
-  /** Some item is unticked (or a report filter has a pick): the button shows a funnel. */
+  /** The field's Label Filter, Value Filter or Top 10, if any. */
+  filter: PivotFilter | null
+  /** Some item is unticked, a filter is set, or a report filter has a pick: the button shows a funnel. */
   filtered: boolean
 }
 
@@ -152,7 +155,8 @@ export function pivotChoices(
     items: list.map(({ x, label, checked }) => ({ x, label, checked })),
     picked,
     multipleItems: field.multipleItems,
-    filtered: picked !== null || items.some((i) => i.hidden),
+    filter: fieldFilter(table, f),
+    filtered: picked !== null || items.some((i) => i.hidden) || fieldFilter(table, f) !== null,
   }
 }
 
@@ -265,4 +269,39 @@ export function withSort(table: PivotTable, cache: PivotCache, f: number, sort: 
     pages = table.pages.map((p, i) => (i === pageAt ? { ...p, item: index >= 0 ? index : null } : p))
   }
   return { ...withField(table, f, { ...field, sort, items }), pages }
+}
+
+/** A field's Label Filter, Value Filter or Top 10 (Excel keeps one per field), or null. */
+export function fieldFilter(table: PivotTable, f: number): PivotFilter | null {
+  return table.filters?.find((x) => x.field === f) ?? null
+}
+
+/** What a filter says apart from its field and id: what the dialogs make. */
+export type PivotFilterSpec = PivotFilter extends infer F
+  ? F extends PivotFilter
+    ? Omit<F, "field" | "id">
+    : never
+  : never
+
+/**
+ * The table with field `f`'s filter set to `spec` (null: removed, the submenus' Clear Filter). A new filter replaces
+ * the field's old one, as Excel's does while "Allow multiple filters per field" is off; ticked items stay as they are.
+ */
+export function withFieldFilter(table: PivotTable, f: number, spec: PivotFilterSpec | null): PivotTable {
+  const old = table.filters ?? []
+  const others = old.filter((x) => x.field !== f)
+  if (!spec && others.length === old.length) return table
+  const filters = [...others]
+  if (spec) {
+    const id = Math.max(0, ...old.map((x) => x.id)) + 1
+    filters.push({ ...spec, field: f, id } as PivotFilter)
+  }
+  const next: PivotTable = { ...table, filters }
+  if (!filters.length) delete next.filters
+  return next
+}
+
+/** Clear Filter From "Field": every item ticked again and the field's filter gone. */
+export function withFieldCleared(table: PivotTable, cache: PivotCache, f: number): PivotTable {
+  return withFieldFilter(withShownItems(table, cache, f, null), f, null)
 }

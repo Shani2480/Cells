@@ -5,6 +5,8 @@ import {
   pivotAt,
   pivotChoices,
   pivotFilterTarget,
+  withFieldCleared,
+  withFieldFilter,
   withPageItems,
   withPagePick,
   withShownItems,
@@ -20,11 +22,22 @@ import {
   type PivotCache,
   type PivotCell,
   type PivotChoices,
+  type PivotFilterSpec,
   type PivotFilterTarget,
   type PivotSort,
   type PivotTable,
 } from "@cells/core"
 import type { SheetController } from "./controller"
+
+/** Which dialog a PivotTable filter dropdown opens, for the field at a filter button's cell. */
+export type PivotFilterRequest = {
+  kind: "label" | "value" | "top"
+  row: number
+  col: number
+  field: number
+  /** The operator picked in the submenu (Label and Value Filters). */
+  op?: string
+}
 
 /**
  * PivotTables in the window: the one at the active cell, and Refresh (PivotTable Analyze › Refresh, Alt+F5, the cell
@@ -217,6 +230,23 @@ export class PivotCommands {
     const next =
       page && shown ? withPageItems(at.table, at.cache, field, shown) : withShownItems(at.table, at.cache, field, shown)
     return this.relayout(at, next, shown ? "Filter" : "Clear Filter")
+  }
+
+  /** A Label Filter, Value Filter or Top 10 on a field (null: removed), from the submenus and their dialogs. */
+  setFilter(row: number, col: number, field: number, spec: PivotFilterSpec | null): boolean {
+    const at = this.cellAt(row, col)
+    return at ? this.relayout(at, withFieldFilter(at.table, field, spec), spec ? "Filter" : "Clear Filter") : false
+  }
+
+  /** Clear Filter From "Field": ticked items and the field's filter both. */
+  clearField(row: number, col: number, field: number): boolean {
+    const at = this.cellAt(row, col)
+    return at ? this.relayout(at, withFieldCleared(at.table, at.cache, field), "Clear Filter") : false
+  }
+
+  /** The value fields a Value Filter or Top 10 can judge by. */
+  valueNames(row: number, col: number): string[] {
+    return this.cellAt(row, col)?.table.values.map((v) => v.name) ?? []
   }
 
   /** A report filter set to one item, or to (All) (null). */

@@ -165,14 +165,19 @@ export function PivotButtons({
   )
 }
 
-/** Whether a button's fields have items unticked (or a report filter a pick), and the sort of a sorted one. */
+/** Whether a button's fields have items unticked, a filter, or a report filter's pick, and the sort of a sorted one. */
 function filterState(table: PivotTable, target: PivotFilterTarget) {
   let filtered = false
   let sorted: "ascending" | "descending" | null = null
   for (const f of target.fields) {
     const field = table.fields[f]
     if (!field) continue
-    if (field.items.some((i) => i.hidden) || table.pages.some((p) => p.field === f && p.item !== null)) filtered = true
+    if (
+      field.items.some((i) => i.hidden) ||
+      table.pages.some((p) => p.field === f && p.item !== null) ||
+      table.filters?.some((x) => x.field === f)
+    )
+      filtered = true
     if (target.kind !== "page" && field.sort !== "manual") sorted ??= field.sort
   }
   return { filtered, sorted }

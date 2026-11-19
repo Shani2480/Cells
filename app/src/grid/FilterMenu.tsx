@@ -33,7 +33,7 @@ const MONTHS = [
   "December",
 ]
 
-type SubItem =
+export type SubItem =
   | { kind: "separator" }
   | {
       kind: "item"
@@ -448,7 +448,7 @@ export function FilterMenu({
 const dateText = (d: { year: number; month: number; day: number }) => `${MONTHS[d.month - 1]} ${d.day}, ${d.year}`
 
 /** A flyout beside its row; nested flyouts (All Dates in the Period) open the same way. */
-function Submenu({ parent, items, onBack }: { parent: HTMLElement | null; items: SubItem[]; onBack: () => void }) {
+export function Submenu({ parent, items, onBack }: { parent: HTMLElement | null; items: SubItem[]; onBack: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null)
   const [open, setOpen] = useState<number | null>(null)

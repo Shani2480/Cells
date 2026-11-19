@@ -10,6 +10,7 @@ import {
   type Selection,
 } from "@cells/core"
 import { SheetController } from "@/sheet/controller"
+import { PivotFilterDialog } from "@/shell/PivotFilterDialogs"
 import { PivotFilterMenu } from "./PivotFilterMenu"
 
 /** Sales by Region and Product (compact rows) on Sheet2 at A3, with Channel as a report filter in A1:B1. */
@@ -170,5 +171,63 @@ describe("PivotTable filter dropdown", () => {
     expect(openMenu).toHaveBeenCalledWith(3, 0)
     c.goTo({ r0: 4, c0: 0, r1: 4, c1: 0 })
     expect(c.pivots.openMenuAtActive()).toBe(false)
+  })
+
+  it("Label Filters › Begins With... opens its dialog, whose OK filters the field", () => {
+    const c = setup()
+    c.shell.pivotFilterDialog = vi.fn()
+    open(c, 3, 0)
+    fireEvent.click(screen.getByRole("menuitem", { name: "Label Filters" }))
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Begins With..." }))
+    expect(c.shell.pivotFilterDialog).toHaveBeenCalledWith({
+      kind: "label",
+      row: 3,
+      col: 0,
+      field: 0,
+      op: "beginsWith",
+    })
+    cleanup()
+    render(
+      <PivotFilterDialog
+        controller={c}
+        request={{ kind: "label", row: 3, col: 0, field: 0, op: "beginsWith" }}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole("dialog", { name: "Label Filter (Region)" })).toBeInTheDocument()
+    expect(screen.getByRole("combobox", { name: "Comparison" })).toHaveValue("beginsWith")
+    fireEvent.change(screen.getByRole("textbox", { name: "Value" }), { target: { value: "s" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    expect(labels(c)).toEqual(["Row Labels", "South", "Apples", "Grand Total"])
+    expect(c.sheet.pivots[0].filters).toEqual([{ field: 0, id: 1, kind: "label", op: "beginsWith", value: "s" }])
+    // The button's menu now offers Clear Filter in Label Filters, and a tick on it.
+    open(c, 3, 0)
+    fireEvent.click(screen.getByRole("menuitem", { name: "Label Filters" }))
+    fireEvent.click(screen.getByRole("menuitem", { name: "Clear Filter" }))
+    expect(labels(c)).toHaveLength(9)
+    c.undo()
+    expect(labels(c)).toHaveLength(4)
+  })
+
+  it("the Top 10 Filter dialog keeps the biggest items by a value field", () => {
+    const c = setup()
+    render(<PivotFilterDialog controller={c} request={{ kind: "top", row: 3, col: 0, field: 0 }} onClose={vi.fn()} />)
+    expect(screen.getByRole("dialog", { name: "Top 10 Filter (Region)" })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole("spinbutton", { name: "How many" }), { target: { value: "1" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    expect(labels(c)).toEqual(["Row Labels", "South", "Apples", "Grand Total"])
+    // A Value Filter replaces it: North (15) and South (20) are over 10.
+    cleanup()
+    render(
+      <PivotFilterDialog
+        controller={c}
+        request={{ kind: "value", row: 3, col: 0, field: 0, op: "greaterThan" }}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByRole("textbox", { name: "Value" }), { target: { value: "10" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    expect(labels(c)).toEqual(["Row Labels", "North", "Apples", "Pears", "South", "Apples", "Grand Total"])
+    expect(c.sheet.pivots[0].filters).toHaveLength(1)
   })
 })

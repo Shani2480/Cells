@@ -56,7 +56,18 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    `grid/PivotFilterMenu.tsx`, buttons in `grid/PivotButtons.tsx` (funnel when filtered, arrow when sorted), Alt+Down.
    Checked: every PivotTable of both reference files with an item hidden, fields sorted and report filters picked
    (one item, several) opens in Excel 365 without repair and Excel's Refresh gives the same cells for all 12. Still to
-   come in step 3: Label Filters, Value Filters and Top 10 (Excel's `<filters>`, kept as read today), Show Details.
+   come in step 3: Show Details. _Label Filters, Value Filters and Top 10 done:_ `PivotTable.filters` (Excel's
+   `<filters>`, written as Excel writes them, `measureFilter` on the field) and `hideValuesRow` (Excel 365's Show the
+   Values row off, read from the x14 extension); the engine applies label filters to the records everywhere (like
+   unticked items: label text compared as text, numbers too, wildcards in Equals), and value filters and Top 10
+   (count, percent, sum; Bottom too) per item within its parent items and only on their own axis, as Excel keeps the
+   other axis' items when a column filter leaves them no values. One filter per field (a new one replaces it), app
+   `PivotCommands.setFilter` / `clearField`, the dropdown's Label Filters and Value Filters submenus and
+   `shell/PivotFilterDialogs.tsx` (Label Filter, Value Filter, Top 10 Filter). Checked: `pivot-filters.xlsx` (15
+   PivotTables made in Excel 365 with every kind of filter) lays out as Excel saved it, its filters are written back
+   as Excel wrote them, and Excel's Refresh gives the same cells for all 27 PivotTables of the three reference files
+   with filters set in Cells. Kept as read: date filters (they come with date grouping in step 5) and "Allow multiple
+   filters per field". Not checked against Excel: Top 10 by count when items tie at the cut.
    — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
    and column labels (Label Filters, Value Filters, Top 10, item checkboxes, Sort), the report filter dropdowns,
    expand / collapse (+/− buttons, Expand / Collapse Entire Field), double-click a value to see its rows on a new

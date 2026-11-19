@@ -1,8 +1,12 @@
 import { wildcardRegExp, type PivotChoices, type PivotFilterTarget } from "@cells/core"
-import { ArrowDownAZ, ArrowUpAZ, FunnelX, Search } from "lucide-react"
+import { ArrowDownAZ, ArrowUpAZ, Check, ChevronRight, FunnelX, Search } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { SheetController } from "@/sheet/controller"
+import type { PivotFilterRequest } from "@/sheet/pivots"
+import { LABEL_OPS, VALUE_OPS } from "@/shell/PivotFilterDialogs"
+import { cn } from "@/lib/cn"
+import { Submenu, type SubItem } from "./FilterMenu"
 
 /**
  * The dropdown of a PivotTable's filter button, as Excel's. On Row Labels / Column Labels or a field's header: Select
@@ -36,6 +40,7 @@ export function PivotFilterMenu({
   const [multiple, setMultiple] = useState(Boolean(choices?.multipleItems && choices.picked === null))
   const [search, setSearch] = useState("")
   const [place, setPlace] = useState({ left, top, visible: false })
+  const [submenu, setSubmenu] = useState<"label" | "value" | null>(null)
 
   useLayoutEffect(() => {
     const menu = ref.current
@@ -49,13 +54,15 @@ export function PivotFilterMenu({
 
   useEffect(() => {
     const onDown = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) onClose()
+      const target = event.target as HTMLElement
+      if (!ref.current?.contains(target) && !target.closest?.(".fm-submenu")) onClose()
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault()
         event.stopPropagation()
-        onClose()
+        if (submenu) setSubmenu(null)
+        else onClose()
       }
     }
     window.addEventListener("pointerdown", onDown, true)
@@ -66,7 +73,7 @@ export function PivotFilterMenu({
       window.removeEventListener("keydown", onKey, true)
       window.removeEventListener("blur", onClose)
     }
-  }, [onClose])
+  }, [onClose, submenu])
 
   if (!choices) return null
   const changeField = (f: number) => {
@@ -102,6 +109,67 @@ export function PivotFilterMenu({
     number: ["Sort Smallest to Largest", "Sort Largest to Smallest"],
     date: ["Sort Oldest to Newest", "Sort Newest to Oldest"],
   }[choices.kind]
+
+  // ── Label Filters and Value Filters ──
+  const dialog = (kind: PivotFilterRequest["kind"], op?: string) => {
+    onClose()
+    controller.shell.pivotFilterDialog?.({ kind, row, col, field, op })
+  }
+  const current = choices.filter
+  /** A label filter belongs to Label Filters; a value filter and Top 10 to Value Filters. */
+  const isOf = (kind: "label" | "value") => Boolean(current) && (current!.kind === "label") === (kind === "label")
+  const subItems = (kind: "label" | "value"): SubItem[] => {
+    const out: SubItem[] = []
+    if (isOf(kind))
+      out.push(
+        {
+          kind: "item",
+          label: "Clear Filter",
+          run: () => {
+            onClose()
+            controller.pivots.setFilter(row, col, field, null)
+          },
+        },
+        { kind: "separator" },
+      )
+    for (const o of kind === "label" ? LABEL_OPS : VALUE_OPS)
+      out.push({
+        kind: "item",
+        label: o.menu,
+        checked: current?.kind === kind && current.op === o.op,
+        run: () => dialog(kind, o.op),
+      })
+    if (kind === "value")
+      out.push(
+        { kind: "separator" },
+        { kind: "item", label: "Top 10...", checked: current?.kind === "top", run: () => dialog("top") },
+      )
+    return out
+  }
+  const hasValues = controller.pivots.valueNames(row, col).length > 0
+  const subRow = (id: "label" | "value", label: string, disabled = false) => (
+    <button
+      type="button"
+      role="menuitem"
+      className={cn("fm-row", submenu === id && "is-open")}
+      disabled={disabled}
+      aria-haspopup="menu"
+      aria-expanded={submenu === id}
+      data-sub={id}
+      onPointerEnter={() => setSubmenu(id)}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowRight" || event.key === "Enter") {
+          event.preventDefault()
+          setSubmenu(id)
+        }
+      }}
+      onClick={() => setSubmenu(id)}
+    >
+      <span className="fm-row-icon">{isOf(id) ? <Check size={14} /> : null}</span>
+      <span>{label}</span>
+      <ChevronRight className="fm-row-more" size={14} strokeWidth={1.6} />
+    </button>
+  )
 
   const okDisabled = checkboxes ? !(matcher ? shown.some((i) => ticked.has(i.x)) : ticked.size) : false
   const tick = (x: number, on: boolean) => {
@@ -173,9 +241,10 @@ export function PivotFilterMenu({
             role="menuitem"
             className="fm-row"
             disabled={!choices.filtered}
+            onPointerEnter={() => setSubmenu(null)}
             onClick={() => {
               onClose()
-              controller.pivots.showItems(row, col, field, null)
+              controller.pivots.clearField(row, col, field)
             }}
           >
             <span className="fm-row-icon">
@@ -183,9 +252,11 @@ export function PivotFilterMenu({
             </span>
             <span>{`Clear Filter From "${choices.name}"`}</span>
           </button>
+          {subRow("label", "Label Filters")}
+          {subRow("value", "Value Filters", !hasValues)}
         </>
       ) : null}
-      <label className="fm-search">
+      <label className="fm-search" onPointerEnter={() => setSubmenu(null)}>
         <input
           type="search"
           value={search}
@@ -260,6 +331,16 @@ export function PivotFilterMenu({
           Cancel
         </button>
       </div>
+      {submenu ? (
+        <Submenu
+          parent={ref.current?.querySelector<HTMLElement>(`[data-sub="${submenu}"]`) ?? null}
+          items={subItems(submenu)}
+          onBack={() => {
+            ref.current?.querySelector<HTMLElement>(`[data-sub="${submenu}"]`)?.focus()
+            setSubmenu(null)
+          }}
+        />
+      ) : null}
     </div>,
     document.body,
   )

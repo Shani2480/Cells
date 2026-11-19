@@ -91,6 +91,44 @@ export type PivotDataField = { name: string; field: number; fn: PivotFn; numFmt?
 /** A report filter: the item picked (an index into its field's items), or null for (All) / several items. */
 export type PivotPage = { field: number; item: number | null }
 
+/** How a Label Filter compares an item's label (Excel's caption filters; text is matched ignoring case). */
+export type PivotLabelOp =
+  | "equal"
+  | "notEqual"
+  | "beginsWith"
+  | "notBeginsWith"
+  | "endsWith"
+  | "notEndsWith"
+  | "contains"
+  | "notContains"
+  | "greaterThan"
+  | "greaterThanOrEqual"
+  | "lessThan"
+  | "lessThanOrEqual"
+  | "between"
+  | "notBetween"
+
+/** How a Value Filter compares an item's total. */
+export type PivotValueOp =
+  | "equal"
+  | "notEqual"
+  | "greaterThan"
+  | "greaterThanOrEqual"
+  | "lessThan"
+  | "lessThanOrEqual"
+  | "between"
+  | "notBetween"
+
+/**
+ * A Label Filter, Value Filter or Top 10 on a row or column field (Excel's `<filter>`). Value filters and Top 10
+ * judge each item by its total of value field `measure` (an index into `values`) within the item above it.
+ */
+export type PivotFilter = { field: number; id: number } & (
+  | { kind: "label"; op: PivotLabelOp; value: string; value2?: string }
+  | { kind: "value"; op: PivotValueOp; measure: number; value: number; value2?: number }
+  | { kind: "top"; by: "count" | "percent" | "sum"; top: boolean; measure: number; value: number }
+)
+
 /** The Values pseudo field's place among the row or column fields ("Σ Values"). */
 export const VALUES_FIELD = -2
 
@@ -141,6 +179,13 @@ export type PivotTable = {
   }
   showError: boolean
   showMissing: boolean
+  /**
+   * PivotTable Options › Display › Show the Values row off (Excel 365's default for new PivotTables): with the value
+   * fields as the only column field, their names head the columns with no row above them.
+   */
+  hideValuesRow?: true
+  /** Label Filters, Value Filters and Top 10, in the order they were set. */
+  filters?: PivotFilter[]
   /** PivotTable Options › Display › Show expand/collapse buttons (Excel's showDrill); false only when off. */
   showDrill?: false
   style: PivotTableStyle

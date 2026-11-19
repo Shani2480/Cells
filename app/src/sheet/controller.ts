@@ -1,7 +1,7 @@
 import { SlicerCommands } from "./slicers"
 import { QuickAnalysis } from "./quick-analysis"
 import { SparklineCommands, type SparklineDialogInit } from "./sparklines"
-import { PivotCommands } from "./pivots"
+import { PivotCommands, type PivotFilterRequest } from "./pivots"
 import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
 import { PrintCommands } from "./print"
@@ -217,6 +217,8 @@ export type ShellRequests = {
   goToSpecial?(): void
   /** Custom AutoFilter or Top 10 AutoFilter, from a filter dropdown. */
   filterDialog?(request: FilterDialogRequest): void
+  /** A PivotTable filter dropdown's Label Filter, Value Filter or Top 10 dialog. */
+  pivotFilterDialog?(request: PivotFilterRequest): void
   /** Data › Data Validation: the dialog, with the rule it opens on. */
   dataValidation?(init: ValidationDialogInit): void
   /** The error alert after an entry breaks a rule; `answer` gets the button pressed. */
