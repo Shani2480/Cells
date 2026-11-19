@@ -48,7 +48,16 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    off); core `pivot/drill.ts` (`withCollapsed`), app `PivotCommands.toggle` / `drill` / `drillState`,
    `grid/PivotButtons.tsx`, double-click, the cell menu's Expand/Collapse. Labels keep their indent in the cells'
    formats, as Excel saves it. Checked: Excel's Refresh of files Cells collapsed gives the same cells for all 12
-   PivotTables. — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
+   PivotTables. _Filter dropdowns done (items, sorts, report filters):_ core `pivot/filter.ts` (`pivotFilterTarget`: the
+   compact Row Labels / Column Labels button covers every field of its area, "Select field" picks one; a field's own
+   header in outline and tabular form; each report filter's value cell; `pivotChoices`, `withShownItems`, `withSort`
+   keeping the items in the order shown so a report filter's pick still points at its item, `withPagePick`,
+   `withPageItems` for Select Multiple Items), app `PivotCommands.showItems` / `pickPage` / `sortField`,
+   `grid/PivotFilterMenu.tsx`, buttons in `grid/PivotButtons.tsx` (funnel when filtered, arrow when sorted), Alt+Down.
+   Checked: every PivotTable of both reference files with an item hidden, fields sorted and report filters picked
+   (one item, several) opens in Excel 365 without repair and Excel's Refresh gives the same cells for all 12. Still to
+   come in step 3: Label Filters, Value Filters and Top 10 (Excel's `<filters>`, kept as read today), Show Details.
+   — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
    and column labels (Label Filters, Value Filters, Top 10, item checkboxes, Sort), the report filter dropdowns,
    expand / collapse (+/− buttons, Expand / Collapse Entire Field), double-click a value to see its rows on a new
    sheet (Show Details), and the PivotTable styles drawn from the theme (Excel's 85 built-in styles).

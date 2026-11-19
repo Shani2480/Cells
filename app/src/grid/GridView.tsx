@@ -1119,7 +1119,7 @@ export function GridView({
         {layout ? <ObjectLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? <TraceLayer controller={controller} layout={layout} zoom={zoom} /> : null}
         {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
-        {layout ? <PivotButtons controller={controller} layout={layout} zoom={zoom} /> : null}
+        {layout ? <PivotButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? (
           <QuickAnalysisLayer

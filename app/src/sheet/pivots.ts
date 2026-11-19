@@ -1,7 +1,14 @@
 import {
   innerFields,
   outerField,
+  displayText,
   pivotAt,
+  pivotChoices,
+  pivotFilterTarget,
+  withPageItems,
+  withPagePick,
+  withShownItems,
+  withSort,
   pivotCellAt,
   pivotCellsPlan,
   pivotOverwriteMessage,
@@ -12,6 +19,9 @@ import {
   type Op,
   type PivotCache,
   type PivotCell,
+  type PivotChoices,
+  type PivotFilterTarget,
+  type PivotSort,
   type PivotTable,
 } from "@cells/core"
 import type { SheetController } from "./controller"
@@ -19,7 +29,8 @@ import type { SheetController } from "./controller"
 /**
  * PivotTables in the window: the one at the active cell, and Refresh (PivotTable Analyze › Refresh, Alt+F5, the cell
  * menu) and Refresh All (Data tab, Ctrl+Alt+F5), and expand / collapse (the +/− buttons, double-clicking an item,
- * the cell menu's Expand/Collapse), each one undo step.
+ * the cell menu's Expand/Collapse), and the filter dropdowns (items ticked, sorts, report filters' picks), each one
+ * undo step.
  */
 export class PivotCommands {
   constructor(private readonly c: SheetController) {}
@@ -148,7 +159,11 @@ export class PivotCommands {
     const cell = at?.cell
     if (!at || !cell?.item || !cell.button) return false
     const collapse = cell.button === "collapse"
-    return this.relayout(at, withCollapsed(at.table, at.cache, cell.item.field, [cell.item.x], collapse), collapse)
+    return this.relayout(
+      at,
+      withCollapsed(at.table, at.cache, cell.item.field, [cell.item.x], collapse),
+      collapse ? "Collapse" : "Expand",
+    )
   }
 
   /**
@@ -161,20 +176,69 @@ export class PivotCommands {
     const item = at?.cell?.item
     if (!at || !item) return false
     const inner = innerFields(at.table, item).length > 0
+    const label = collapse ? "Collapse" : "Expand"
     if (scope === "item")
-      return inner && this.relayout(at, withCollapsed(at.table, at.cache, item.field, [item.x], collapse), collapse)
+      return inner && this.relayout(at, withCollapsed(at.table, at.cache, item.field, [item.x], collapse), label)
     const field = inner ? item.field : collapse ? outerField(at.table, item) : null
-    return field !== null && this.relayout(at, withCollapsed(at.table, at.cache, field, null, collapse), collapse)
+    return field !== null && this.relayout(at, withCollapsed(at.table, at.cache, field, null, collapse), label)
   }
 
-  private relayout(at: { table: PivotTable; cache: PivotCache }, next: PivotTable, collapse: boolean): boolean {
+  // ── Filter dropdowns ──
+
+  /** Set by the grid while it shows the buttons: opens the dropdown of the button at a cell. */
+  openMenu: ((row: number, col: number) => void) | null = null
+
+  /** Alt+Down on a cell with a PivotTable filter button: its dropdown. */
+  openMenuAtActive(): boolean {
+    const { row, col } = this.c.selection.active
+    if (!this.openMenu || !this.filterTargetAt(row, col)) return false
+    this.openMenu(row, col)
+    return true
+  }
+
+  /** The filter button a cell shows (Row Labels / Column Labels, a field's header, a report filter's value). */
+  filterTargetAt(row: number, col: number): PivotFilterTarget | null {
+    const at = this.cellAt(row, col)
+    return at ? pivotFilterTarget(at.table, at.cache, at.cell) : null
+  }
+
+  /** A dropdown's list for one of its fields, labels in the field's number format. */
+  choices(row: number, col: number, field: number): PivotChoices | null {
+    const at = this.cellAt(row, col)
+    if (!at || !pivotFilterTarget(at.table, at.cache, at.cell)?.fields.includes(field)) return null
+    return pivotChoices(at.table, at.cache, field, (v, numFmt) => displayText(v, numFmt ?? "General"))
+  }
+
+  /** The dropdown's OK: only `shown` ticked (null: Clear Filter), one undo step. */
+  showItems(row: number, col: number, field: number, shown: ReadonlySet<number> | null): boolean {
+    const at = this.cellAt(row, col)
+    if (!at) return false
+    const page = at.table.pages.some((p) => p.field === field)
+    const next =
+      page && shown ? withPageItems(at.table, at.cache, field, shown) : withShownItems(at.table, at.cache, field, shown)
+    return this.relayout(at, next, shown ? "Filter" : "Clear Filter")
+  }
+
+  /** A report filter set to one item, or to (All) (null). */
+  pickPage(row: number, col: number, field: number, x: number | null): boolean {
+    const at = this.cellAt(row, col)
+    return at ? this.relayout(at, withPagePick(at.table, at.cache, field, x), "Filter") : false
+  }
+
+  /** Sort A to Z / Z to A on a field. */
+  sortField(row: number, col: number, field: number, sort: PivotSort): boolean {
+    const at = this.cellAt(row, col)
+    return at ? this.relayout(at, withSort(at.table, at.cache, field, sort), "Sort") : false
+  }
+
+  private relayout(at: { table: PivotTable; cache: PivotCache }, next: PivotTable, label: string): boolean {
     if (next === at.table) return false
     const s = this.c.wb.sheets.indexOf(this.c.sheet)
     const plan = pivotCellsPlan(this.c.wb.sheets, this.c.wb.styles, s, at.table, next, at.cache)
     const tables = this.c.sheet.pivots.map((t) => (t === at.table ? plan.table : t))
     const ops: Op[] = [...plan.ops, { kind: "pivots", sheet: s, tables }]
     const go = () => {
-      this.c.transact(ops, { label: collapse ? "Collapse" : "Expand", before: this.c.selection })
+      this.c.transact(ops, { label, before: this.c.selection })
     }
     if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, this.c.sheet.name), go)
     else go()

@@ -2123,6 +2123,7 @@ export class SheetController {
         return true
     }
     if (alt && !primary && key === "ArrowDown" && this.data.openMenuAtActive()) return true
+    if (alt && !primary && key === "ArrowDown" && this.pivots.openMenuAtActive()) return true
     if (alt && !primary && key === "ArrowDown" && this.openPickList()) return true
     if (primary && !alt) {
       const lower = key.toLowerCase()

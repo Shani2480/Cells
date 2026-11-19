@@ -3775,3 +3775,49 @@
   top: calc(100% + 6px);
   bottom: auto;
 }
+
+/* A PivotTable's filter dropdown: Select field, and a report filter's single-pick list. */
+.pfm-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  font-size: 12px;
+}
+
+.pfm-field select {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  border: 1px solid var(--filter-button-border);
+  border-radius: 2px;
+  background: var(--filter-button-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.pfm-pick {
+  display: block;
+  width: 100%;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.pfm-pick:hover {
+  background: var(--filter-button-hover);
+}
+
+.pfm-pick.is-picked {
+  background: var(--app-theme-primary);
+  color: #ffffff;
+}
+
+.pfm-multiple {
+  margin: 4px 8px 0;
+}
