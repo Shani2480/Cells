@@ -114,7 +114,14 @@ export class Workbook<Meta = unknown> {
   /** View › Custom Views (kept out of undo, as Excel does). */
   customViews: CustomView[] = []
   /** The PivotTables' caches (their data as last refreshed), shared by the sheets' PivotTables by id. */
-  pivotCaches: PivotCache[] = []
+  readonly pivotData: { caches: PivotCache[] } = { caches: [] }
+  get pivotCaches(): PivotCache[] {
+    return this.pivotData.caches
+  }
+  /** Sets the caches as read from a file (use the "pivotCaches" op to change them). */
+  set pivotCaches(caches: PivotCache[]) {
+    this.pivotData.caches = caches
+  }
   /** Page Layout › Themes, in a box so operations can change it. */
   readonly look: { theme: Theme } = { theme: copyTheme(OFFICE_THEME) }
   /** The colours and fonts that theme colours and fonts in cells, shapes and charts follow. */
@@ -141,6 +148,7 @@ export class Workbook<Meta = unknown> {
     ;(this.sheets as SheetList).structure = this.structure
     ;(this.sheets as SheetList).links = this.links
     ;(this.sheets as SheetList).look = this.look
+    ;(this.sheets as SheetList).pivotData = this.pivotData
     this.undoLimit = undoLimit
     this.calc = new CalcEngine(this)
     this.calculator = new LocalCalculator(this.calc)

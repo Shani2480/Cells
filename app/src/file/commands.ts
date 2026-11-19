@@ -412,6 +412,7 @@ export class FileCommands {
   /** Asks to refresh the links that are set to refresh when the file opens (Excel asks before reading files too). */
   async refreshOnOpen(): Promise<number> {
     const c = this.doc.controller
+    c.pivots.refreshOnLoad()
     const due = allQueryTables(c.wb.sheets).filter((q) => q.table.refreshOnLoad)
     if (!due.length) return 0
     const names = due.map((q) => sourceName(q.table.source)).join(", ")

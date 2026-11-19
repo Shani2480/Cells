@@ -1,6 +1,7 @@
 import { SlicerCommands } from "./slicers"
 import { QuickAnalysis } from "./quick-analysis"
 import { SparklineCommands, type SparklineDialogInit } from "./sparklines"
+import { PivotCommands } from "./pivots"
 import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
 import { PrintCommands } from "./print"
@@ -398,6 +399,7 @@ export class SheetController {
   readonly hyperlinks: HyperlinkCommands = new HyperlinkCommands(this)
   /** Insert › Sparklines and the Sparkline tab. */
   readonly sparklines: SparklineCommands = new SparklineCommands(this)
+  readonly pivots: PivotCommands = new PivotCommands(this)
   /** Quick Analysis (Ctrl+Q): the gallery's choices, their previews and the changes they make. */
   readonly quick: QuickAnalysis = new QuickAnalysis(this)
   readonly slicers: SlicerCommands = new SlicerCommands(this)
@@ -538,7 +540,12 @@ export class SheetController {
       this.shell.alert(DATA_TABLE_MESSAGE)
       return true
     }
-    if (ops.some((op) => "sheet" in op && sheets[op.sheet] !== undefined && breaksPivot(sheets[op.sheet], op))) {
+    // A PivotTable's own changes (a "pivots" op rewrites its cells) are fine.
+    const pivotEdit = ops.some((op) => op.kind === "pivots")
+    if (
+      !pivotEdit &&
+      ops.some((op) => "sheet" in op && sheets[op.sheet] !== undefined && breaksPivot(sheets[op.sheet], op))
+    ) {
       this.shell.alert(PIVOT_MESSAGE)
       return true
     }

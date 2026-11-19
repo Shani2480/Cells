@@ -11,8 +11,8 @@ import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tabl
 import { copyHyperlinks, shiftHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyEditRanges, shiftEditRanges, type EditRange } from "./edit-ranges"
 import { copySparklineGroups, rewriteSparklineRefs, shiftSparklines, type SparklineGroup } from "./sparklines"
-import { copyPivotTables, shiftPivots } from "./pivot/sheet"
-import type { PivotTable } from "./pivot/model"
+import { copyPivotCache, copyPivotTables, shiftPivots } from "./pivot/sheet"
+import type { PivotCache, PivotTable } from "./pivot/model"
 import { copyExternalBooks, type ExternalBook } from "./links"
 import { copyTables, shiftTables, syncTableHeaders, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
@@ -116,6 +116,8 @@ export type Op =
   | { kind: "sparklines"; sheet: number; groups: SparklineGroup[] }
   /** The sheet's whole list of PivotTables (their cells are written by setCells ops alongside). */
   | { kind: "pivots"; sheet: number; tables: PivotTable[] }
+  /** The workbook's PivotTable caches (Refresh reads their sources again). */
+  | { kind: "pivotCaches"; caches: PivotCache[] }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
   /** The linked workbooks and the values read from them (update, change source, break). */
@@ -165,6 +167,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "editRanges",
   "sparklines",
   "pivots",
+  "pivotCaches",
 ])
 
 /**
@@ -201,6 +204,16 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       box.list = copyExternalBooks(op.links)
       // Every formula that reads a linked workbook calculates again.
       return { inverse: [{ kind: "externalLinks", links: before }], change: { sheet: 0, structural: true } }
+    }
+    case "pivotCaches": {
+      const box = (sheets as SheetList).pivotData
+      if (!box) throw new Error("No pivot caches")
+      const before = box.caches.map(copyPivotCache)
+      box.caches = op.caches.map(copyPivotCache)
+      return {
+        inverse: [{ kind: "pivotCaches", caches: before }],
+        change: { sheet: 0, structural: false, format: true },
+      }
     }
     case "theme": {
       const box = (sheets as SheetList).look

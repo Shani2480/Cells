@@ -783,6 +783,17 @@ function WorkbookWindow({
         { kind: "item", label: "Delete...", onSelect: () => controller.insertOrDelete("delete") },
         { kind: "item", label: "Clear Contents", onSelect: () => controller.clearContents() },
         { kind: "separator" },
+        ...(controller.pivots.active()
+          ? ([
+              {
+                kind: "item",
+                label: "Refresh",
+                icon: pictureFor("RefreshAll", 16),
+                onSelect: () => controller.pivots.refresh(),
+              },
+              { kind: "separator" },
+            ] as MenuItem[])
+          : []),
         {
           kind: "item",
           label: "Quick Analysis",
@@ -960,9 +971,11 @@ function WorkbookWindow({
         // Ctrl+Alt+F5: Refresh All; Alt+F5: Refresh the linked data at the active cell.
         event.preventDefault()
         event.stopPropagation()
-        if (primary) void files.refreshAll()
+        const c = files.doc.controller
+        if (primary) void files.refreshAll().then(() => c.pivots.refreshAll())
+        else if (c.pivots.active()) c.pivots.refresh()
         else {
-          const q = files.doc.controller.data.activeQuery()
+          const q = c.data.activeQuery()
           if (q) void files.refreshQuery(q.sheet, q.name)
         }
       } else if (

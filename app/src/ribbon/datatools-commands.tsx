@@ -30,33 +30,34 @@ export function dataToolCommands(): Command[] {
     {
       id: "RefreshAllMenu",
       label: "Refresh All",
-      description: "Get the latest data by reading every linked text file in the workbook again.",
+      description: "Get the latest data by reading every linked text file and PivotTable source in the workbook again.",
       shortcut: "Ctrl+Alt+F5",
       keytip: "RA",
-      run: (env) => void env.files?.refreshAll(),
-      enabled: (env) => Boolean(env.files) && hasLinks(env),
+      run: (env) => refreshAll(env),
+      enabled: (env) => (Boolean(env.files) && hasLinks(env)) || env.c.pivots.any(),
       menu: ["RefreshAll", "RefreshData", "-", "ConnectionProperties"],
     },
     {
       id: "RefreshAll",
       label: "Refresh All",
-      description: "Get the latest data by reading every linked text file in the workbook again.",
+      description: "Get the latest data by reading every linked text file and PivotTable source in the workbook again.",
       shortcut: "Ctrl+Alt+F5",
       keytip: "A",
-      run: (env) => void env.files?.refreshAll(),
-      enabled: (env) => Boolean(env.files) && hasLinks(env),
+      run: (env) => refreshAll(env),
+      enabled: (env) => (Boolean(env.files) && hasLinks(env)) || env.c.pivots.any(),
     },
     {
       id: "RefreshData",
       label: "Refresh",
-      description: "Get the latest data from the file linked to the selected cells.",
+      description: "Get the latest data from the file or PivotTable source of the selected cells.",
       shortcut: "Alt+F5",
       keytip: "R",
       run: (env) => {
+        if (env.c.pivots.active()) return void env.c.pivots.refresh()
         const q = env.c.data.activeQuery()
         if (q) void env.files?.refreshQuery(q.sheet, q.name)
       },
-      enabled: (env) => Boolean(env.files) && env.c.data.activeQuery() !== null,
+      enabled: (env) => env.c.pivots.active() !== null || (Boolean(env.files) && env.c.data.activeQuery() !== null),
     },
     {
       id: "ConnectionProperties",
@@ -98,6 +99,12 @@ export function dataToolCommands(): Command[] {
 const hasBookLinks = (env: RibbonEnv) => env.c.wb.links.list.length > 0 || env.c.data.linksOpen
 
 const hasLinks = (env: RibbonEnv) => env.c.wb.sheets.some((s) => s.queryTables.length > 0)
+
+/** Linked text files first (a PivotTable may count their data), then the PivotTables. */
+async function refreshAll(env: RibbonEnv) {
+  if (env.files && hasLinks(env)) await env.files.refreshAll()
+  env.c.pivots.refreshAll()
+}
 
 function openProperties(env: RibbonEnv) {
   const q = env.c.data.activeQuery()

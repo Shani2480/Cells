@@ -1,4 +1,5 @@
 import type { Theme } from "./theme"
+import type { PivotCache } from "./pivot/model"
 import type { ExternalBook } from "./links"
 import type { WorkbookProtection } from "./protection"
 import { MAX_COLS, parseCell, parseRange } from "./address"
@@ -26,6 +27,8 @@ export type SheetList = Sheet[] & {
   links?: { list: ExternalBook[] }
   /** Page Layout › Themes. */
   look?: { theme: Theme }
+  /** The PivotTables' caches. */
+  pivotData?: { caches: PivotCache[] }
 }
 
 export class NameTable {

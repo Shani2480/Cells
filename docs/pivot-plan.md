@@ -32,7 +32,12 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    and items, Show Values As, label and value filters, Top 10 and sort by value — each comes with its step.
    Typing, clearing, pasting or inserting cells through a PivotTable is refused with Excel's message; whole rows and
    columns before it move it, deleting all of its rows or columns deletes it.
-3. **Refresh and use** — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
+3. **Refresh and use**
+   _Refresh done:_ core `pivot/refresh.ts` (read the source range, table or name again; shared items keep their
+   order with new ones after; each PivotTable keeps its fields by name and items by value; cells laid out anew with
+   the value fields' number formats, old ones cleared, one undo step with the "pivotCaches" op), app
+   `sheet/pivots.ts` (Refresh, Refresh All, refresh on open, the cell menu). Checked: after changing the data of both
+   reference files, Excel's own Refresh gives the same cells as Cells' for all 12 PivotTables. — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
    and column labels (Label Filters, Value Filters, Top 10, item checkboxes, Sort), the report filter dropdowns,
    expand / collapse (+/− buttons, Expand / Collapse Entire Field), double-click a value to see its rows on a new
    sheet (Show Details), and the PivotTable styles drawn from the theme (Excel's 85 built-in styles).
