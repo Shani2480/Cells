@@ -1,5 +1,5 @@
-import { pivotFilterTarget, pivotLayoutOf, type PivotFilterTarget, type PivotTable } from "@cells/core"
-import { ArrowDown, ArrowUp, Filter } from "lucide-react"
+import { pivotFilterTarget, pivotIsEmpty, pivotLayoutOf, type PivotFilterTarget, type PivotTable } from "@cells/core"
+import { ArrowDown, ArrowUp, Filter, Table2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { SheetController } from "@/sheet/controller"
 import { INDENT_PX } from "./cell-look"
@@ -142,6 +142,37 @@ export function PivotButtons({
         </button>,
       )
     }
+  }
+  // An empty PivotTable shows Excel's placeholder over its 18 by 3 cells until a field is added.
+  for (const table of sheet.pivots) {
+    if (!pivotIsEmpty(table)) continue
+    const a = table.location
+    const x = colX(sheet, layout, a.c0)
+    const y = rowY(sheet, layout, a.r0)
+    const w = colX(sheet, layout, a.c1) + sheet.cols.size(a.c1) - x
+    const h = rowY(sheet, layout, a.r1) + sheet.rows.size(a.r1) - y
+    if (w <= 0 || h <= 0) continue
+    const clipLeft = Math.max(0, layout.rowHeaderWidth - x)
+    const clipTop = Math.max(0, layout.headerHeight - y)
+    buttons.push(
+      <div
+        key={`empty:${table.name}`}
+        className="pivot-placeholder"
+        aria-hidden
+        style={{
+          left: x * zoom,
+          top: y * zoom,
+          width: w * zoom,
+          height: h * zoom,
+          clipPath: clipLeft || clipTop ? `inset(${clipTop * zoom}px 0 0 ${clipLeft * zoom}px)` : undefined,
+          fontSize: 12 * zoom,
+        }}
+      >
+        <Table2 size={28 * zoom} strokeWidth={1.25} />
+        <strong>{table.name}</strong>
+        <span>To build a report, choose fields from the PivotTable Field List</span>
+      </div>,
+    )
   }
   return (
     <>

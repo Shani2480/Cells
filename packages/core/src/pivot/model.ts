@@ -188,6 +188,11 @@ export type PivotTable = {
   filters?: PivotFilter[]
   /** PivotTable Options › Data › Enable show details (Excel's enableDrill); false only when off. */
   enableDrill?: false
+  /**
+   * PivotTable Options › Layout & Format › Autofit column widths on update (Excel's useAutoFormatting, off when a file
+   * leaves it out); false only when off. New PivotTables have it on.
+   */
+  autoFit?: false
   /** PivotTable Options › Display › Show expand/collapse buttons (Excel's showDrill); false only when off. */
   showDrill?: false
   style: PivotTableStyle

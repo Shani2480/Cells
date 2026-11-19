@@ -598,6 +598,19 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
 
   const width = labelCols + colLines.length
   const height = headerRows + rowLines.length
+  if (!rowFields.length && !colFields.length && !table.values.length)
+    // An empty PivotTable: Excel keeps 18 rows by 3 columns for its placeholder, and only report filters show.
+    return {
+      range: { r0: top, c0: left, r1: top + EMPTY_PIVOT.rows - 1, c1: left + EMPTY_PIVOT.cols - 1 },
+      pages: pageCount ? { r0: top - pageCount - 1, c0: left, r1: top - 2, c1: left + 1 } : null,
+      firstHeaderRow: 1,
+      firstDataRow: 1,
+      firstDataCol: 0,
+      rowLabelCols: [],
+      cells: cells.filter((c) => c.role === "pageLabel" || c.role === "pageValue"),
+      rowItems: [],
+      colItems: [],
+    }
   return {
     range: { r0: top, c0: left, r1: top + height - 1, c1: left + Math.max(width, 1) - 1 },
     pages: pageCount ? { r0: top - pageCount - 1, c0: left, r1: top - 2, c1: left + 1 } : null,
@@ -610,6 +623,9 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     colItems: axisItems(colLines, dataInCols),
   }
 }
+
+/** The area an empty PivotTable keeps for its placeholder ("To build a report, choose fields..."). */
+export const EMPTY_PIVOT = { rows: 18, cols: 3 }
 
 // ── Label Filters, Value Filters and Top 10 ──
 

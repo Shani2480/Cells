@@ -306,6 +306,7 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
     showMissing: truthy(at(root, "showMissing"), true),
     ...(truthy(at(root, "showDrill"), true) ? {} : { showDrill: false as const }),
     ...(truthy(at(root, "enableDrill"), true) ? {} : { enableDrill: false as const }),
+    ...(truthy(at(root, "useAutoFormatting"), false) ? {} : { autoFit: false as const }),
     ...(filters.length ? { filters } : {}),
     ...(hideValuesRow(root) ? { hideValuesRow: true as const } : {}),
     style: {
@@ -642,7 +643,7 @@ function axisItemsXml(local: string, items: PivotAxisItem[]): string {
       return xs ? `<i${attrs}>${xs}</i>` : `<i${attrs}/>`
     })
     .join("")
-  return `<${local} count="${items.length}">${body}</${local}>`
+  return items.length ? `<${local} count="${items.length}">${body}</${local}>` : ""
 }
 
 /** The order of pivotTableDefinition's children. */
@@ -768,7 +769,7 @@ export function pivotTableXml(
     missingCaption: c.missing,
     updatedVersion: 8,
     minRefreshableVersion: 3,
-    useAutoFormatting: 1,
+    useAutoFormatting: table.autoFit === false ? undefined : 1,
     rowGrandTotals: table.rowGrandTotals ? undefined : 0,
     colGrandTotals: table.colGrandTotals ? undefined : 0,
     itemPrintTitles: 1,
@@ -784,6 +785,12 @@ export function pivotTableXml(
     rowHeaderCaption: c.rowHeader,
     colHeaderCaption: c.colHeader,
   })
+  // A PivotTable made in Cells says Excel 365's "no Values row" the way Excel does; a read one keeps its extLst.
+  if (table.hideValuesRow && !kept.some((k) => k.local === "extLst"))
+    generated.extLst =
+      `<extLst><ext uri="${X14_TABLE}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">` +
+      `<x14:pivotTableDefinition hideValuesRow="1" xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main"/>` +
+      `</ext></extLst>`
   const body = TABLE_ORDER.map((local) => generated[local] ?? kept.find((k) => k.local === local)?.xml ?? "").join("")
   return `<pivotTableDefinition xmlns="${NS_MAIN}"${attrs}>${body}</pivotTableDefinition>`
 }

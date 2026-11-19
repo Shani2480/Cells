@@ -3853,3 +3853,27 @@
 .tiw-fieldset.pivot-top10 input {
   width: 64px;
 }
+
+/* An empty PivotTable's placeholder (its name and how to start), over its cells until a field is added. */
+.pivot-placeholder {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 1em;
+  border: 1px solid var(--filter-button-border);
+  background: var(--filter-button-bg);
+  color: var(--filter-button-glyph);
+  pointer-events: none;
+  text-align: center;
+  font-family: var(--font-ui);
+  line-height: 1.35;
+}
+
+.pivot-placeholder strong {
+  font-weight: 600;
+}

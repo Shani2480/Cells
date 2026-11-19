@@ -80,7 +80,7 @@ describe("ribbon", () => {
   it("a command that is not built yet is disabled and does nothing", () => {
     const { control } = setup()
     fireEvent.click(screen.getByRole("tab", { name: "Insert" }))
-    const pivot = control("PivotTableInsert")
+    const pivot = control("PivotTableSuggestion")
     expect(pivot.getAttribute("aria-disabled")).toBe("true")
     fireEvent.click(pivot)
     expect(document.querySelector(".popover")).toBeNull()

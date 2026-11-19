@@ -1,4 +1,4 @@
-import { selectRange, tableRows } from "@cells/core"
+import { selectRange, tableAt, tableRows } from "@cells/core"
 import type { TableOption } from "@/sheet/tables"
 import type { Command, RibbonEnv } from "./registry"
 import { FormatAsTableIcon } from "./icons"
@@ -29,6 +29,14 @@ export function tableCommands(): Command[] {
       shortcut: "Ctrl+T",
       keytip: "T",
       run: (env) => env.c.tables.openCreate(),
+    },
+    {
+      id: "PivotTableInsert",
+      label: "PivotTable",
+      description:
+        "Easily arrange and summarize complex data in a PivotTable. You can double-click a value to see which detailed values make up the summarized total.",
+      keytip: "V",
+      run: (env) => env.dialog("createPivot"),
     },
     {
       id: "FormatAsTableGallery",
@@ -165,12 +173,16 @@ export function tableCommands(): Command[] {
         "TableStyleClear",
       ],
     },
-    // Not built yet: PivotTables and slicers.
     {
       id: "TableSummarizeWithPivot",
       label: "Summarize with PivotTable",
       description: "Summarize this table's data with a PivotTable.",
       keytip: "P",
+      run: (env) => {
+        const { row, col } = env.c.selection.active
+        const table = tableAt(env.c.sheet, row, col)
+        if (table) env.dialog(`createPivot:${table.name}`)
+      },
     },
     // New Table Style needs custom table styles (not built yet).
     { id: "TableStyleNew", label: "New Table Style..." },

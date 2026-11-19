@@ -1,4 +1,17 @@
 import {
+  chartRefRange,
+  currentRegion,
+  newPivotTable,
+  pivotIsEmpty,
+  pivotLayout,
+  nextPivotCacheId,
+  nextPivotName,
+  pivotArea,
+  pivotCacheFrom,
+  quoteSheet,
+  rangeName,
+  Sheet,
+  tableAt,
   innerFields,
   nextSheetName,
   nextTableId,
@@ -24,7 +37,9 @@ import {
   withCollapsed,
   type CellWrite,
   type Op,
+  type CellAddress,
   type PivotCache,
+  type PivotCacheSource,
   type PivotCell,
   type PivotChoices,
   type PivotFilterSpec,
@@ -34,6 +49,15 @@ import {
   type Table,
 } from "@cells/core"
 import type { SheetController } from "./controller"
+
+/** The width autofit adds for a cell's filter button (17 px and a gap). */
+const FILTER_BUTTON_ROOM = 19
+
+/** Excel's message when a new PivotTable would sit over another. */
+export const PIVOT_OVERLAP_MESSAGE = "A PivotTable report cannot overlap another PivotTable report."
+
+/** Where Create PivotTable puts the new PivotTable. */
+export type PivotDestination = { kind: "newSheet" } | { kind: "existing"; sheet: number; at: CellAddress }
 
 /** Which dialog a PivotTable filter dropdown opens, for the field at a filter button's cell. */
 export type PivotFilterRequest = {
@@ -107,7 +131,8 @@ export class PivotCommands {
       return false
     }
     const go = () => {
-      this.c.transact(result.ops, { label, before: this.c.selection, after: this.c.selection })
+      const entry = this.c.transact(result.ops, { label, before: this.c.selection, after: this.c.selection })
+      if (entry) this.fitColumns(entry, result.ops)
     }
     if (result.overwrites.length)
       this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, result.overwrites[0]), go)
@@ -148,6 +173,154 @@ export class PivotCommands {
     const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
     if (!table || !cache) return null
     return { table, cache, cell: pivotCellAt(table, cache, row, col) }
+  }
+
+  // ── Making and changing ──
+
+  /**
+   * Insert › PivotTable's starting source, as the dialog's Table/Range box shows it: the table at the active cell,
+   * else the data around it (its current region), else nothing.
+   */
+  defaultSource(): string {
+    const { row, col } = this.c.selection.active
+    const table = tableAt(this.c.sheet, row, col)
+    if (table) return table.name
+    const sel = this.c.selection.ranges[0]
+    const single = sel.r0 === sel.r1 && sel.c0 === sel.c1
+    const range = single ? currentRegion(this.c.sheet, { row, col }) : sel
+    if (single && !this.c.sheet.cells.get(row, col) && range.r0 === range.r1 && range.c0 === range.c1) return ""
+    return `${quoteSheet(this.c.sheet.name)}!${absolute(range)}`
+  }
+
+  /** What the Table/Range box says: a table or defined name, or a range on a sheet (this one when it names none). */
+  parseSource(text: string): PivotCacheSource | null {
+    const t = text.trim().replace(/^=/, "")
+    if (!t) return null
+    const wb = this.c.wb
+    if (wb.sheets.some((s) => s.tables.some((x) => x.name.toLowerCase() === t.toLowerCase())))
+      return {
+        kind: "name",
+        name: wb.sheets.flatMap((s) => s.tables).find((x) => x.name.toLowerCase() === t.toLowerCase())!.name,
+      }
+    if (wb.names.get(t)) return { kind: "name", name: wb.names.get(t)!.name }
+    const ref = t.includes("!") ? t : `${quoteSheet(this.c.sheet.name)}!${t}`
+    const at = chartRefRange(wb.sheets, ref)
+    if (!at) return null
+    return { kind: "range", sheet: at.sheet.name, ref: rangeName(at.range) }
+  }
+
+  /**
+   * Create PivotTable's OK: a new cache from the source and an empty PivotTable, on a new sheet before this one (at
+   * A3, as Excel puts it) or at a cell, shown and selected so the Fields pane opens on it. A message when it can't.
+   */
+  create(sourceText: string, dest: PivotDestination): string | null {
+    const source = this.parseSource(sourceText)
+    if (!source) return "Reference isn't valid."
+    const wb = this.c.wb
+    const data = readPivotSource(wb.sheets, wb.styles, source)
+    if (typeof data === "string") return data
+    if (!data.records.length && source.kind === "range") return "Reference isn't valid."
+    const cache = pivotCacheFrom(nextPivotCacheId(wb.pivotCaches), source, data)
+    const newSheet = dest.kind === "newSheet"
+    const index = newSheet ? this.c.sheetIndex : dest.sheet
+    const at = newSheet ? { row: 2, col: 0 } : dest.at
+    const table = newPivotTable(nextPivotName(wb.sheets), cache, at)
+    const sheets = [...wb.sheets]
+    const name = nextSheetName(wb.sheets.map((s) => s.name))
+    if (newSheet) sheets.splice(index, 0, new Sheet(name))
+    else {
+      const area = pivotArea({ ...table, location: { r0: at.row, c0: at.col, r1: at.row + 17, c1: at.col + 2 } })
+      const hits = (r: { r0: number; c0: number; r1: number; c1: number }) =>
+        r.r0 <= area.r1 && r.r1 >= area.r0 && r.c0 <= area.c1 && r.c1 >= area.c0
+      if (sheets[index].pivots.some((p) => hits(pivotArea(p)))) return PIVOT_OVERLAP_MESSAGE
+    }
+    const plan = pivotCellsPlan(sheets, wb.styles, index, null, table, cache)
+    const ops: Op[] = [
+      ...(newSheet ? [{ kind: "addSheet" as const, sheet: index, name }] : []),
+      { kind: "pivotCaches", caches: [...wb.pivotCaches, cache] },
+      ...plan.ops,
+      { kind: "pivots", sheet: index, tables: [...sheets[index].pivots, plan.table] },
+    ]
+    const go = () => {
+      if (this.c.edit) this.c.commitEdit()
+      const entry = this.c.transact(ops, { label: "Insert PivotTable", before: this.c.selection, sheetAfter: index })
+      if (!entry) return
+      if (index !== this.c.sheetIndex || newSheet) this.c.activate(index)
+      this.fitColumns(entry, ops)
+      this.c.goTo({ r0: at.row, c0: at.col, r1: at.row, c1: at.col })
+      this.fieldsOpen = true
+      this.fieldsAsked = true
+      this.c.changed()
+    }
+    if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, sheets[index].name), go)
+    else go()
+    return null
+  }
+
+  /**
+   * The PivotTable Fields pane is on (Analyze › Field List): it shows while the active cell is in a PivotTable. On a
+   * phone it covers the screen, so there it shows only once asked for (a new PivotTable, Field List).
+   */
+  fieldsOpen = true
+  fieldsAsked = false
+
+  setFieldsOpen(open: boolean) {
+    this.fieldsOpen = open
+    this.fieldsAsked = open
+    this.c.changed()
+  }
+
+  /** Whether the Fields pane shows now, in the window's layout. */
+  fieldsShown(phone: boolean): boolean {
+    return this.fieldsOpen && (!phone || this.fieldsAsked) && this.active() !== null
+  }
+
+  /** The active PivotTable and its cache, for the Fields pane. */
+  activeWithCache(): { table: PivotTable; cache: PivotCache } | null {
+    const table = this.active()
+    const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
+    return table && cache ? { table, cache } : null
+  }
+
+  /** A change to the active PivotTable (the Fields pane, the field menus), laid out again as one undo step. */
+  change(make: (table: PivotTable, cache: PivotCache) => PivotTable, label = "PivotTable Field"): boolean {
+    const at = this.activeWithCache()
+    return at ? this.relayout(at, make(at.table, at.cache), label) : false
+  }
+
+  /**
+   * Autofit column widths on update: the columns of each PivotTable the ops lay out on the active sheet fit its cells
+   * (wider or narrower, as in Excel), in the same undo step. An empty PivotTable keeps the widths it has.
+   */
+  private fitColumns(entry: Parameters<SheetController["wb"]["amend"]>[0], ops: readonly Op[]) {
+    const fit = this.c.columnFit
+    const s = this.c.sheetIndex
+    if (!fit) return
+    const sizes = new Map<number, number>()
+    for (const op of ops) {
+      if (op.kind !== "pivots" || op.sheet !== s) continue
+      for (const t of op.tables) {
+        if (t.autoFit === false || pivotIsEmpty(t)) continue
+        const area = pivotArea(t)
+        const grow = (c: number, size: number | null) => {
+          if (size !== null) sizes.set(c, Math.max(sizes.get(c) ?? 0, size))
+        }
+        for (let c = area.c0; c <= area.c1; c++) grow(c, fit(c, { r0: area.r0, r1: area.r1 }))
+        // A cell with a filter button gets room for it, as Excel's autofit gives.
+        const cache = this.c.wb.pivotCaches.find((x) => x.id === t.cacheId)
+        if (cache)
+          for (const cell of pivotLayout(t, cache).cells) {
+            if (!pivotFilterTarget(t, cache, cell)) continue
+            const size = fit(cell.col, { r0: cell.row, r1: cell.row })
+            if (size !== null) grow(cell.col, size + FILTER_BUTTON_ROOM)
+          }
+      }
+    }
+    const cols = this.c.sheet.cols
+    const entries = [...sizes]
+      .filter(([c, size]) => Math.abs(size - cols.size(c)) >= 1)
+      .map(([index, size]) => ({ index, size, hidden: false }))
+    if (entries.length) this.c.wb.amend(entry, [{ kind: "axis", sheet: s, axis: "cols", entries }])
   }
 
   // ── Show Details ──
@@ -347,10 +520,25 @@ export class PivotCommands {
     const tables = this.c.sheet.pivots.map((t) => (t === at.table ? plan.table : t))
     const ops: Op[] = [...plan.ops, { kind: "pivots", sheet: s, tables }]
     const go = () => {
-      this.c.transact(ops, { label, before: this.c.selection })
+      const entry = this.c.transact(ops, { label, before: this.c.selection })
+      if (entry) this.fitColumns(entry, ops)
+      // The active cell stays in the PivotTable (at its top left) when the change shrinks the table away from it, so
+      // the Fields pane stays open on it.
+      const { row, col } = this.c.selection.active
+      const area = pivotArea(plan.table)
+      if (row < area.r0 || row > area.r1 || col < area.c0 || col > area.c1)
+        this.c.goTo({ r0: plan.table.at.row, c0: plan.table.at.col, r1: plan.table.at.row, c1: plan.table.at.col })
     }
     if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, this.c.sheet.name), go)
     else go()
     return true
   }
+}
+
+/** A range with $ signs, as Excel's Table/Range box shows it. */
+function absolute(r: { r0: number; c0: number; r1: number; c1: number }): string {
+  return rangeName(r)
+    .split(":")
+    .map((part) => part.replace(/^([A-Z]+)(\d+)$/, "$$$1$$$2"))
+    .join(":")
 }

@@ -82,6 +82,14 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    Columns, Rows and Values, Defer Layout Update), Value Field Settings (Summarize Values By, Number Format, custom
    name), Field Settings (subtotals, layout, print), PivotTable Options, the **PivotTable Analyze** and **Design**
    tabs, Change Data Source, Move / Clear / Select PivotTable. Each change one undo step.
+   _Insert PivotTable and the Fields pane done:_ core `pivot/make.ts` (`newPivotTable` with Excel 365's defaults,
+   `withFieldIn` / `withoutField` / `withFieldTicked` / `withValueMoved`; Σ Values joins Columns at two value fields;
+   an empty PivotTable keeps 18 × 3 cells), app `PivotCommands.create` / `change`, `CreatePivotDialog`,
+   `PivotFieldsPane` (ticks, search, drag and drop, the chips' Move menus), the empty PivotTable's placeholder, and
+   Autofit column widths on update (`useAutoFormatting`, read and written; room for filter buttons). Seven
+   PivotTables made in Cells open in Excel 365 without repairs and refresh to the same cells. Not yet: Defer Layout
+   Update, the field and value settings dialogs, the Analyze and Design tabs, the pane's phone layout beyond full
+   screen, autofit of PivotTables on other sheets when a refresh changes them.
 5. **Show Values As, calculated fields, grouping** — % of Grand Total / Column / Row / Parent, Difference From,
    Running Total In, Rank; Calculated Field; Group dates (Years, Quarters, Months, Days) and numbers (by ranges),
    Group Selection for text items. `GETPIVOTDATA`, and Generate GetPivotData when clicking a PivotTable cell in a

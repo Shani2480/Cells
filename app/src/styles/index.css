@@ -3936,3 +3936,179 @@ html.is-phone .forecast-options {
     grid-template-columns: 1fr;
   }
 }
+
+/* PivotTable Fields pane: the field list above, the four areas below (two by two, as in Excel). */
+.pivot-fields-pane {
+  width: 320px;
+  overflow: hidden;
+}
+
+.pivot-fields-lead {
+  margin: 8px 12px 4px;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+}
+
+.pivot-fields-search {
+  margin: 0 12px 6px;
+}
+
+.pivot-fields-list {
+  min-height: 96px;
+  flex: 1 1 40%;
+  margin: 0 12px;
+  padding: 4px 0;
+  overflow: auto;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+  list-style: none;
+}
+
+.pivot-fields-list li {
+  padding: 1px 8px;
+}
+
+.pivot-fields-list li:hover {
+  background: var(--app-hover);
+}
+
+.pivot-fields-list .is-used {
+  font-weight: 600;
+}
+
+.pivot-areas {
+  display: grid;
+  flex: 1 1 50%;
+  min-height: 0;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  margin: 0 12px 12px;
+}
+
+.pivot-area {
+  display: flex;
+  min-height: 88px;
+  flex-direction: column;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.pivot-area.is-over {
+  border-color: var(--app-theme-primary);
+  box-shadow: 0 0 0 1px var(--app-theme-primary);
+}
+
+.pivot-area h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--app-divider);
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.pivot-area ul {
+  flex: 1;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  list-style: none;
+}
+
+.pivot-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 3px;
+  border: 1px solid var(--app-popover-border);
+  border-radius: 3px;
+  background: var(--app-popover-bg);
+  cursor: grab;
+}
+
+.pivot-chip.is-over {
+  box-shadow: 0 -2px 0 var(--app-theme-primary);
+}
+
+.pivot-chip-name {
+  min-width: 0;
+  flex: 1;
+  padding: 3px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pivot-chip-button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pivot-chip-button:hover {
+  background: var(--app-hover);
+}
+
+.pivot-chip-menu {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  right: 0;
+  display: flex;
+  min-width: 190px;
+  flex-direction: column;
+  padding: 4px 0;
+  border: 1px solid var(--app-popover-border);
+  border-radius: 4px;
+  background: var(--app-popover-bg);
+  box-shadow: var(--app-popover-shadow);
+}
+
+.pivot-chip-menu button {
+  padding: 5px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pivot-chip-menu button:hover:not(:disabled) {
+  background: var(--app-hover);
+}
+
+.pivot-chip-menu button:disabled {
+  color: var(--app-ribbon-disabled);
+  cursor: default;
+}
+
+.pivot-chip-menu hr {
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--app-divider);
+}
+
+html.is-phone .pivot-chip-button,
+html.is-phone .pivot-chip-menu button {
+  min-height: 40px;
+}
+
+html.is-phone .pivot-chip-button {
+  width: 40px;
+}

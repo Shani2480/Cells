@@ -181,6 +181,17 @@ describe("PivotTables in xlsx", () => {
     expect(again.pivots[0].showDrill).toBe(false)
   })
 
+  it("reads and writes Autofit column widths on update (useAutoFormatting)", async () => {
+    const read = await openXlsx(fixture("pivot-basic.xlsx"), "pivot-basic.xlsx")
+    const sheet = read.workbook.sheets.find((s) => s.name === "Compact")!
+    expect(sheet.pivots[0].autoFit).toBeUndefined()
+    sheet.pivots = [{ ...sheet.pivots[0], autoFit: false }]
+    const saved = await saveXlsx(read.workbook, { source: read.source })
+    expect((await parts(saved)).get("xl/pivotTables/pivotTable1.xml")).not.toContain("useAutoFormatting")
+    const again = (await openXlsx(saved)).workbook.sheets.find((s) => s.name === "Compact")!
+    expect(again.pivots[0].autoFit).toBe(false)
+  })
+
   it("writes Enable show details off, and reads it back", async () => {
     const read = await openXlsx(fixture("pivot-basic.xlsx"), "pivot-basic.xlsx")
     const sheet = read.workbook.sheets.find((s) => s.name === "Compact")!

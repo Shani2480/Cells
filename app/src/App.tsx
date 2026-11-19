@@ -75,6 +75,8 @@ import type { AlertAnswer, ValidationAlert, ValidationDialogInit } from "@/sheet
 import { FindReplaceDialog, GoToSpecialDialog } from "@/shell/FindDialogs"
 import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
 import { PivotFilterDialog } from "@/shell/PivotFilterDialogs"
+import { CreatePivotDialog } from "@/shell/CreatePivotDialog"
+import { PivotFieldsPane } from "@/shell/PivotFieldsPane"
 import type { PivotFilterRequest } from "@/sheet/pivots"
 import type { FilterDialogRequest } from "@/sheet/data"
 import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
@@ -238,6 +240,7 @@ type DialogState =
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "pivotFilter"; request: PivotFilterRequest }
+  | { kind: "createPivot"; source?: string }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
   | { kind: "options"; page?: OptionsPage }
@@ -912,6 +915,7 @@ function WorkbookWindow({
   const openDialog = (name: string) => {
     const [kind, arg] = name.split(":")
     if (kind === "goto") setDialog({ kind: "goto" })
+    else if (kind === "createPivot") setDialog({ kind: "createPivot", source: arg })
     else if (kind === "insert" || kind === "delete") setDialog({ kind })
     else if (kind === "size") sizeDialog(arg as "rows" | "cols")
     else if (kind === "autofit") controller.autofit?.(arg as "rows" | "cols")
@@ -1209,6 +1213,9 @@ function WorkbookWindow({
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
               {controller.data.linksOpen ? linksPane : null}
+              {controller.pivots.fieldsShown(false) ? (
+                <PivotFieldsPane controller={controller} onDone={focusGrid} />
+              ) : null}
             </div>
             <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
             <StatusBar controller={controller} onZoomDialog={() => openDialog("zoom")} />
@@ -1227,6 +1234,9 @@ function WorkbookWindow({
         ) : null}
         {shell === "phone" && controller.thesaurusOpen ? (
           <ThesaurusPane controller={controller} onDone={focusGrid} />
+        ) : null}
+        {shell === "phone" && controller.pivots.fieldsShown(true) ? (
+          <PivotFieldsPane controller={controller} onDone={focusGrid} />
         ) : null}
         {shell === "phone" && controller.annotations.paneOpen ? (
           <CommentsPane controller={controller} onDone={focusGrid} />
@@ -1345,6 +1355,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "filter" && dialog.request.kind === "top10" ? (
           <Top10Dialog controller={controller} col={dialog.request.col} onClose={closeFilterDialog} />
+        ) : null}
+        {dialog?.kind === "createPivot" ? (
+          <CreatePivotDialog controller={controller} source={dialog.source} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotFilter" ? (
           <PivotFilterDialog controller={controller} request={dialog.request} onClose={closeDialog} />
