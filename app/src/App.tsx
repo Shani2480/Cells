@@ -821,6 +821,14 @@ function WorkbookWindow({
                 onSelect: () => controller.pivots.refresh(),
               },
               ...pivotDrillItems(),
+              ...(controller.pivots.canShowDetails(controller.selection.active.row, controller.selection.active.col)
+                ? [
+                    act("Show Details", () => {
+                      const { row, col } = controller.selection.active
+                      controller.pivots.showDetails(row, col)
+                    }),
+                  ]
+                : []),
               { kind: "separator" },
             ] as MenuItem[])
           : []),

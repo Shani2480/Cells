@@ -1,5 +1,9 @@
 import {
   innerFields,
+  nextSheetName,
+  nextTableId,
+  nextTableName,
+  pivotDetailRecords,
   outerField,
   displayText,
   pivotAt,
@@ -18,6 +22,7 @@ import {
   refreshedCache,
   refreshedTable,
   withCollapsed,
+  type CellWrite,
   type Op,
   type PivotCache,
   type PivotCell,
@@ -26,6 +31,7 @@ import {
   type PivotFilterTarget,
   type PivotSort,
   type PivotTable,
+  type Table,
 } from "@cells/core"
 import type { SheetController } from "./controller"
 
@@ -142,6 +148,79 @@ export class PivotCommands {
     const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
     if (!table || !cache) return null
     return { table, cache, cell: pivotCellAt(table, cache, row, col) }
+  }
+
+  // ── Show Details ──
+
+  /** The cell is a value of a PivotTable whose details can be shown (the cell menu's Show Details). */
+  canShowDetails(row: number, col: number): boolean {
+    return Boolean(this.cellAt(row, col)?.cell?.lines)
+  }
+
+  /**
+   * Show Details (double-clicking a value): the source rows it sums up, as a table on a new sheet before the
+   * PivotTable's (Excel's SheetN, TableN in TableStyleMedium2, dates in their format, columns fitted), as one undo
+   * step. Rows come in the source's order (Excel's own order follows its internal index). False off a value.
+   */
+  showDetails(row: number, col: number): boolean {
+    const at = this.cellAt(row, col)
+    if (!at?.cell?.lines) return false
+    if (at.table.enableDrill === false) {
+      this.c.shell.alert("Cannot change this part of a PivotTable report.")
+      return true
+    }
+    const records = pivotDetailRecords(at.table, at.cache, at.cell)
+    if (!records) return false
+    const wb = this.c.wb
+    const index = this.c.sheetIndex
+    const name = nextSheetName(wb.sheets.map((s) => s.name))
+    const fields = at.cache.fields
+    const styleOf = fields.map((f) =>
+      f.numFmt && f.numFmt !== "General" ? wb.styles.intern({ ...wb.styles.get(0), numberFormat: f.numFmt }) : 0,
+    )
+    const cells: CellWrite[] = fields.map((f, col) => ({ row: 0, col, data: { value: f.name } }))
+    records.forEach((r, i) =>
+      at.cache.records[r].forEach((value, col) => {
+        if (value === null || value === "") return
+        cells.push({ row: i + 1, col, data: { value, ...(styleOf[col] ? { style: styleOf[col] } : {}) } })
+      }),
+    )
+    const range = { r0: 0, c0: 0, r1: records.length, c1: fields.length - 1 }
+    const table: Table = {
+      id: nextTableId(wb.sheets),
+      name: nextTableName(
+        wb.sheets,
+        wb.names.all().map((n) => n.name),
+      ),
+      range,
+      header: true,
+      totals: false,
+      columns: fields.map((f) => ({ name: f.name })),
+      style: "TableStyleMedium2",
+      firstColumn: false,
+      lastColumn: false,
+      rowStripes: true,
+      columnStripes: false,
+      autoFilter: { range: { ...range }, columns: {} },
+    }
+    const ops: Op[] = [
+      { kind: "addSheet", sheet: index, name },
+      { kind: "setCells", sheet: index, cells },
+      { kind: "tables", sheet: index, tables: [table] },
+    ]
+    if (this.c.edit) this.c.commitEdit()
+    const entry = this.c.transact(ops, { label: "Show Details", before: this.c.selection, sheetAfter: index })
+    if (!entry) return true
+    this.c.activate(index)
+    const fit = this.c.columnFit
+    const widths = []
+    for (let c = 0; fit && c < fields.length; c++) {
+      const size = fit(c, { r0: range.r0, r1: range.r1 })
+      if (size !== null && size > this.c.sheet.cols.size(c)) widths.push({ index: c, size, hidden: false })
+    }
+    if (widths.length) wb.amend(entry, [{ kind: "axis", sheet: index, axis: "cols", entries: widths }])
+    this.c.goTo(range)
+    return true
   }
 
   /** What the cell menu's Expand/Collapse can do at the active cell (null: not on a row or column label). */

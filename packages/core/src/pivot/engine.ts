@@ -44,6 +44,8 @@ export type PivotCell = {
   numFmt?: string
   /** A row or column label: the field and cache item it stands for, its axis and level on it. */
   item?: PivotCellItem
+  /** A value cell: its line on the row and column axes (what Show Details looks up). */
+  lines?: [number, number]
   /** The +/− button the label shows (an outer item with a field inside it, PivotTable Options › Show expand/collapse buttons). */
   button?: "collapse" | "expand"
 }
@@ -378,7 +380,8 @@ const ownFn = (t: PivotAxisItem["t"]): PivotFn | null =>
 
 // ── The layout ──
 
-export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
+/** The first half of the layout: the fields' items, the records that count and each axis' lines. */
+function prepare(table: PivotTable, cache: PivotCache) {
   const rowFields = table.rows
   const colFields = table.cols
   const items = new Map<number, FieldItems>()
@@ -404,6 +407,33 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
 
   const rowLines = axisLines(table, rowFields, items, filtered.rows, true)
   const colLines = axisLines(table, colFields, items, filtered.cols, false)
+  return { rowFields, colFields, items, filtered, rowLines, colLines }
+}
+
+/**
+ * Show Details (double-clicking a value): the cache records a value cell of the layout sums up, in the cache's order;
+ * null for a cell that isn't a value.
+ */
+export function pivotDetailRecords(table: PivotTable, cache: PivotCache, cell: PivotCell): number[] | null {
+  if (!cell.lines) return null
+  const { rowFields, colFields, items, filtered, rowLines, colLines } = prepare(table, cache)
+  const rowLine = rowLines[cell.lines[0]]
+  const colLine = colLines[cell.lines[1]]
+  if (!rowLine || !colLine) return null
+  const conditions: [FieldItems, number][] = []
+  const add = (line: Line, fields: number[]) => {
+    if (line.t === "grand") return
+    line.path.forEach((pos, j) => {
+      if (fields[j] !== VALUES_FIELD) conditions.push([items.get(fields[j])!, pos])
+    })
+  }
+  add(rowLine, rowFields)
+  add(colLine, colFields)
+  return filtered.both.filter((r) => conditions.every(([fi, pos]) => fi.ofRecord[r] === pos))
+}
+
+export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
+  const { rowFields, colFields, items, filtered, rowLines, colLines } = prepare(table, cache)
 
   // Label columns: a compact field shares its column with the field after it.
   const compactOf = (f: number) =>
@@ -547,7 +577,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
       if (value !== undefined && typeof value === "object" && table.showError && table.captions.error !== undefined)
         value = table.captions.error
       if (value === undefined && table.showMissing && table.captions.missing) value = table.captions.missing
-      put(row, col, role, value, df.numFmt ? { numFmt: df.numFmt } : undefined)
+      put(row, col, role, value, { lines: [ri, ci], ...(df.numFmt ? { numFmt: df.numFmt } : {}) })
     })
   })
 

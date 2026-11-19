@@ -186,6 +186,8 @@ export type PivotTable = {
   hideValuesRow?: true
   /** Label Filters, Value Filters and Top 10, in the order they were set. */
   filters?: PivotFilter[]
+  /** PivotTable Options › Data › Enable show details (Excel's enableDrill); false only when off. */
+  enableDrill?: false
   /** PivotTable Options › Display › Show expand/collapse buttons (Excel's showDrill); false only when off. */
   showDrill?: false
   style: PivotTableStyle

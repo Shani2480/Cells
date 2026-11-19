@@ -769,9 +769,10 @@ export function GridView({
     const { x, y } = localPoint(event)
     const hit = hitTest(controller, layout, x, y)
     if (hit.zone === "cell") {
-      // A PivotTable's outer item opens or closes; elsewhere in it Excel's message says why it can't be typed in.
+      // A PivotTable's outer item opens or closes, a value shows its details; elsewhere in it Excel's message says
+      // why it can't be typed in.
       const { row, col } = controller.selection.active
-      if (controller.pivots.toggle(row, col)) return
+      if (controller.pivots.toggle(row, col) || controller.pivots.showDetails(row, col)) return
       controller.beginEdit("edit")
     } else if (hit.zone === "split") {
       // A double-click on a split bar takes it away (Excel).

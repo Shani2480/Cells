@@ -305,6 +305,7 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
     showError: truthy(at(root, "showError"), false),
     showMissing: truthy(at(root, "showMissing"), true),
     ...(truthy(at(root, "showDrill"), true) ? {} : { showDrill: false as const }),
+    ...(truthy(at(root, "enableDrill"), true) ? {} : { enableDrill: false as const }),
     ...(filters.length ? { filters } : {}),
     ...(hideValuesRow(root) ? { hideValuesRow: true as const } : {}),
     style: {
@@ -777,6 +778,7 @@ export function pivotTableXml(
     compactData: table.compactData ? undefined : 0,
     outline: table.outline ? 1 : undefined,
     outlineData: table.outline ? 1 : undefined,
+    enableDrill: table.enableDrill === false ? 0 : undefined,
     showDrill: table.showDrill === false ? 0 : undefined,
     multipleFieldFilters: 0,
     rowHeaderCaption: c.rowHeader,

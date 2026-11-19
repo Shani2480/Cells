@@ -56,7 +56,7 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    `grid/PivotFilterMenu.tsx`, buttons in `grid/PivotButtons.tsx` (funnel when filtered, arrow when sorted), Alt+Down.
    Checked: every PivotTable of both reference files with an item hidden, fields sorted and report filters picked
    (one item, several) opens in Excel 365 without repair and Excel's Refresh gives the same cells for all 12. Still to
-   come in step 3: Show Details. _Label Filters, Value Filters and Top 10 done:_ `PivotTable.filters` (Excel's
+   come in step 3: nothing (see Show Details below). _Label Filters, Value Filters and Top 10 done:_ `PivotTable.filters` (Excel's
    `<filters>`, written as Excel writes them, `measureFilter` on the field) and `hideValuesRow` (Excel 365's Show the
    Values row off, read from the x14 extension); the engine applies label filters to the records everywhere (like
    unticked items: label text compared as text, numbers too, wildcards in Equals), and value filters and Top 10
@@ -67,7 +67,12 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    PivotTables made in Excel 365 with every kind of filter) lays out as Excel saved it, its filters are written back
    as Excel wrote them, and Excel's Refresh gives the same cells for all 27 PivotTables of the three reference files
    with filters set in Cells. Kept as read: date filters (they come with date grouping in step 5) and "Allow multiple
-   filters per field". Not checked against Excel: Top 10 by count when items tie at the cut.
+   filters per field". Not checked against Excel: Top 10 by count when items tie at the cut. _Show Details done:_ core
+   `pivotDetailRecords` (value cells carry their row and column line; the records counted in them), app
+   `PivotCommands.showDetails` (double-click, the cell menu): a new sheet before the PivotTable's with the rows as
+   TableN in TableStyleMedium2, dates in their format, columns fitted, the table selected, one undo step; Enable show
+   details off (`enableDrill="0"`, read and written) gives Excel's message. As checked in Excel 365, except the rows'
+   order: Cells keeps the source's, Excel's follows its internal index. **Step 3 done.**
    — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
    and column labels (Label Filters, Value Filters, Top 10, item checkboxes, Sort), the report filter dropdowns,
    expand / collapse (+/− buttons, Expand / Collapse Entire Field), double-click a value to see its rows on a new

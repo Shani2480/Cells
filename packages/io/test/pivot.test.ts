@@ -106,13 +106,15 @@ describe("PivotTables in xlsx", () => {
     const wb = read.workbook
     const before = wb.sheets.flatMap((s) => s.pivots.map((t) => t.filters))
     // Every PivotTable changed a little, so all are written anew.
-    for (const sheet of wb.sheets) sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    for (const sheet of wb.sheets)
+      sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
     const saved = await saveXlsx(wb, { source: read.source })
     const xml = [...(await parts(saved))].filter(([n]) => /^xl\/pivotTables\/[^/]+\.xml$/.test(n)).map(([, x]) => x)
     expect(xml).toHaveLength(15)
     // All but AxisHidden (unticked items only) have filters.
     expect(xml.filter((x) => x.includes("<filters"))).toHaveLength(14)
-    for (const x of xml.filter((x) => x.includes("<filters"))) expect(x).toMatch(/<filters count="\d"><filter fld="\d" type="\w+" evalOrder="-1" id="\d"/)
+    for (const x of xml.filter((x) => x.includes("<filters")))
+      expect(x).toMatch(/<filters count="\d"><filter fld="\d" type="\w+" evalOrder="-1" id="\d"/)
     const again = (await openXlsx(saved)).workbook
     expect(again.sheets.flatMap((s) => s.pivots.map((t) => t.filters))).toEqual(before)
     expect(again.sheets.find((s) => s.name === "TwoValues")!.pivots[0].hideValuesRow).toBe(true)
@@ -177,6 +179,17 @@ describe("PivotTables in xlsx", () => {
     expect((await parts(saved)).get("xl/pivotTables/pivotTable1.xml")).toContain('showDrill="0"')
     const again = (await openXlsx(saved)).workbook.sheets.find((s) => s.name === "Compact")!
     expect(again.pivots[0].showDrill).toBe(false)
+  })
+
+  it("writes Enable show details off, and reads it back", async () => {
+    const read = await openXlsx(fixture("pivot-basic.xlsx"), "pivot-basic.xlsx")
+    const sheet = read.workbook.sheets.find((s) => s.name === "Compact")!
+    expect(sheet.pivots[0].enableDrill).toBeUndefined()
+    sheet.pivots = [{ ...sheet.pivots[0], enableDrill: false }]
+    const saved = await saveXlsx(read.workbook, { source: read.source })
+    expect((await parts(saved)).get("xl/pivotTables/pivotTable1.xml")).toContain('enableDrill="0"')
+    const again = (await openXlsx(saved)).workbook.sheets.find((s) => s.name === "Compact")!
+    expect(again.pivots[0].enableDrill).toBe(false)
   })
 
   it("writes a PivotTable made in Cells", async () => {

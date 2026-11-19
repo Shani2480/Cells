@@ -537,22 +537,27 @@ export class SheetController {
       this.shell.alert(SHEET_MESSAGES.structureLocked)
       return true
     }
-    const sheets = this.wb.sheets
-    if (ops.some((op) => "sheet" in op && sheets[op.sheet] !== undefined && breaksDataTable(sheets[op.sheet], op))) {
+    // The sheet each op works on: one added earlier in the same edit (Forecast Sheet, Show Details) is new and empty.
+    const now: (Sheet | undefined)[] = [...this.wb.sheets]
+    const targets = ops.map((op) => {
+      if (op.kind === "addSheet") {
+        now.splice(op.sheet, 0, undefined)
+        return undefined
+      }
+      return "sheet" in op ? now[op.sheet] : undefined
+    })
+    if (ops.some((op, i) => targets[i] !== undefined && breaksDataTable(targets[i]!, op))) {
       this.shell.alert(DATA_TABLE_MESSAGE)
       return true
     }
     // A PivotTable's own changes (a "pivots" op rewrites its cells) are fine.
     const pivotEdit = ops.some((op) => op.kind === "pivots")
-    if (
-      !pivotEdit &&
-      ops.some((op) => "sheet" in op && sheets[op.sheet] !== undefined && breaksPivot(sheets[op.sheet], op))
-    ) {
+    if (!pivotEdit && ops.some((op, i) => targets[i] !== undefined && breaksPivot(targets[i]!, op))) {
       this.shell.alert(PIVOT_MESSAGE)
       return true
     }
-    const blocked = ops.some((op) => {
-      const sheet = "sheet" in op ? sheets[op.sheet] : undefined
+    const blocked = ops.some((op, i) => {
+      const sheet = targets[i]
       return sheet !== undefined && sheet.protection !== null && protectionBlocks(sheet, this.wb.styles, op)
     })
     if (blocked) {
