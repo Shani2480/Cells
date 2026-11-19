@@ -2,7 +2,7 @@ import type { Range } from "../address"
 import { OFFICE_THEME, sameLook, type Theme } from "../theme"
 import { rethemeStyleDef, type TableCellLook, type TableStyleElement } from "../table/styles"
 import { BUILT_IN_PIVOT_STYLES } from "./built-in-styles"
-import { pivotLayout, type PivotLayout } from "./engine"
+import { pivotLayout, type PivotCell, type PivotLayout } from "./engine"
 import type { PivotCache, PivotTable } from "./model"
 
 /**
@@ -64,7 +64,10 @@ export function pivotStyleDef(name: string | null, theme?: Theme): PivotStyleDef
   return out
 }
 
-const layouts = new WeakMap<PivotTable, { cache: PivotCache; layout: PivotLayout; lines: Lines }>()
+const layouts = new WeakMap<
+  PivotTable,
+  { cache: PivotCache; layout: PivotLayout; lines: Lines; cells: Map<string, PivotCell> }
+>()
 
 /** What each row and column of the layout is, for the style. */
 type Lines = {
@@ -82,6 +85,11 @@ type Lines = {
 /** The engine's layout of a PivotTable, kept while the table and its cache are the same objects. */
 export function pivotLayoutOf(table: PivotTable, cache: PivotCache): PivotLayout {
   return memo(table, cache).layout
+}
+
+/** The engine's cell of a PivotTable at a sheet cell (what it shows and stands for), if the table has one there. */
+export function pivotCellAt(table: PivotTable, cache: PivotCache, row: number, col: number): PivotCell | undefined {
+  return memo(table, cache).cells.get(`${row},${col}`)
 }
 
 function memo(table: PivotTable, cache: PivotCache) {
@@ -117,7 +125,7 @@ function memo(table: PivotTable, cache: PivotCache) {
       k = end
     }
   }
-  const out = { cache, layout, lines }
+  const out = { cache, layout, lines, cells: new Map(layout.cells.map((c) => [`${c.row},${c.col}`, c])) }
   layouts.set(table, out)
   return out
 }

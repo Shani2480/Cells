@@ -224,8 +224,20 @@ export function pivotCellsPlan(
   t.location = { ...layout.range }
   t.at = { row: layout.range.r0, col: layout.range.c0 }
   const writes = new Map<string, CellWrite>()
+  /**
+   * A cell's style with the indent the layout gives it (Excel saves compact labels' indent in the cells' formats, so
+   * a label moving to another line takes its indent along, and what's left behind loses it).
+   */
+  const indented = (style: number, indent: number | undefined) => {
+    const now = styles.get(style)
+    if ((now.indent ?? 0) === (indent ?? 0)) return style
+    const next = { ...now }
+    if (indent) next.indent = indent
+    else delete next.indent
+    return styles.intern(next)
+  }
   const keep = (row: number, col: number) => {
-    const style = sheet.cells.style(row, col)
+    const style = indented(sheet.cells.style(row, col), undefined)
     return style ? { style } : undefined
   }
   if (before) {
@@ -253,7 +265,7 @@ export function pivotCellsPlan(
     }
   for (const cell of layout.cells) {
     if (cell.value === undefined) continue
-    let style = sheet.cells.style(cell.row, cell.col)
+    let style = indented(sheet.cells.style(cell.row, cell.col), cell.indent)
     if (cell.numFmt) style = styles.intern({ ...styles.get(style), numberFormat: cell.numFmt })
     writes.set(`${cell.row},${cell.col}`, {
       row: cell.row,

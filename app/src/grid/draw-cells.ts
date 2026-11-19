@@ -1,6 +1,7 @@
 import {
   hasFormatMarks,
   pivotAt,
+  pivotCellAt,
   pivotCellLook,
   pivotStyleDef,
   tableAt,
@@ -74,6 +75,10 @@ export type CellDrawOptions = {
 
 /** Horizontal padding inside a cell. */
 export const PAD = 3
+/** A PivotTable's expand / collapse button: 9 px square at 100%, at the start of the label (Excel's). */
+export const PIVOT_BUTTON = 9
+/** The room the button takes before the label's text. */
+export const PIVOT_BUTTON_ROOM = PIVOT_BUTTON + 3
 
 type Rect = { x: number; y: number; w: number; h: number }
 
@@ -113,7 +118,17 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
     const cache = t && controller.wb.pivotCaches.find((x) => x.id === t.cacheId)
     return t && cache ? pivotCellLook(t, cache, r, c, pivotStyleDef(t.style.name, controller.wb.theme)) : null
   }
+  /** A PivotTable label with a +/− button: its text starts after the button. */
+  const buttonAt = (r: number, c: number) => {
+    const t = pivotAt(sheet, r, c)
+    const cache = t && controller.wb.pivotCaches.find((x) => x.id === t.cacheId)
+    return Boolean(t && cache && pivotCellAt(t, cache, r, c)?.button)
+  }
   const lookAt = (r: number, c: number, cf: CFResult | null = cfOf(r, c)): CellLook => {
+    const look = baseLookAt(r, c, cf)
+    return pivotsOn && buttonAt(r, c) ? { ...look, indent: look.indent + PIVOT_BUTTON_ROOM } : look
+  }
+  const baseLookAt = (r: number, c: number, cf: CFResult | null): CellLook => {
     const id = sheet.styleAt(r, c)
     const table = tablesOn ? tableAt(sheet, r, c) : null
     const tableLook = table

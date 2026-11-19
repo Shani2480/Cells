@@ -1,19 +1,25 @@
 import {
+  innerFields,
+  outerField,
   pivotAt,
+  pivotCellAt,
   pivotCellsPlan,
   pivotOverwriteMessage,
   readPivotSource,
   refreshedCache,
   refreshedTable,
+  withCollapsed,
   type Op,
   type PivotCache,
+  type PivotCell,
   type PivotTable,
 } from "@cells/core"
 import type { SheetController } from "./controller"
 
 /**
  * PivotTables in the window: the one at the active cell, and Refresh (PivotTable Analyze › Refresh, Alt+F5, the cell
- * menu) and Refresh All (Data tab, Ctrl+Alt+F5), each one undo step.
+ * menu) and Refresh All (Data tab, Ctrl+Alt+F5), and expand / collapse (the +/− buttons, double-clicking an item,
+ * the cell menu's Expand/Collapse), each one undo step.
  */
 export class PivotCommands {
   constructor(private readonly c: SheetController) {}
@@ -104,5 +110,74 @@ export class PivotCommands {
   refreshAll(): boolean {
     const used = new Set(this.c.wb.sheets.flatMap((s) => s.pivots.map((t) => t.cacheId)))
     return used.size ? this.run([...used], "Refresh All") : false
+  }
+
+  /** The PivotTable at a cell, its cache, and the engine's cell there. */
+  cellAt(row: number, col: number): { table: PivotTable; cache: PivotCache; cell: PivotCell | undefined } | null {
+    const table = pivotAt(this.c.sheet, row, col)
+    const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
+    if (!table || !cache) return null
+    return { table, cache, cell: pivotCellAt(table, cache, row, col) }
+  }
+
+  /** What the cell menu's Expand/Collapse can do at the active cell (null: not on a row or column label). */
+  drillState(): { expand: boolean; collapse: boolean; expandField: boolean; collapseField: boolean } | null {
+    const { row, col } = this.c.selection.active
+    const at = this.cellAt(row, col)
+    const item = at?.cell?.item
+    if (!at || !item) return null
+    const f = at.table.fields[item.field]
+    const own = f.items.find((i) => i.x === item.x)
+    const inner = innerFields(at.table, item).length > 0
+    const fieldOf = inner ? item.field : outerField(at.table, item)
+    const anyCollapsed = (field: number) => at.table.fields[field].items.some((i) => i.collapsed)
+    const anyOpen = (field: number) =>
+      at.table.fields[field].items.length < (at.cache.fields[field].items?.length ?? 0) ||
+      at.table.fields[field].items.some((i) => !i.collapsed)
+    return {
+      expand: inner && Boolean(own?.collapsed),
+      collapse: inner && !own?.collapsed,
+      expandField: inner && anyCollapsed(item.field),
+      collapseField: fieldOf !== null && anyOpen(fieldOf),
+    }
+  }
+
+  /** The +/− button of the label at a cell, or double-clicking it: the item opens or closes. */
+  toggle(row: number, col: number): boolean {
+    const at = this.cellAt(row, col)
+    const cell = at?.cell
+    if (!at || !cell?.item || !cell.button) return false
+    const collapse = cell.button === "collapse"
+    return this.relayout(at, withCollapsed(at.table, at.cache, cell.item.field, [cell.item.x], collapse), collapse)
+  }
+
+  /**
+   * The cell menu's Expand/Collapse at the active cell: the item, or every item of its field. Collapse Entire Field on
+   * the innermost field closes the field above it, as in Excel.
+   */
+  drill(scope: "item" | "field", collapse: boolean): boolean {
+    const { row, col } = this.c.selection.active
+    const at = this.cellAt(row, col)
+    const item = at?.cell?.item
+    if (!at || !item) return false
+    const inner = innerFields(at.table, item).length > 0
+    if (scope === "item")
+      return inner && this.relayout(at, withCollapsed(at.table, at.cache, item.field, [item.x], collapse), collapse)
+    const field = inner ? item.field : collapse ? outerField(at.table, item) : null
+    return field !== null && this.relayout(at, withCollapsed(at.table, at.cache, field, null, collapse), collapse)
+  }
+
+  private relayout(at: { table: PivotTable; cache: PivotCache }, next: PivotTable, collapse: boolean): boolean {
+    if (next === at.table) return false
+    const s = this.c.wb.sheets.indexOf(this.c.sheet)
+    const plan = pivotCellsPlan(this.c.wb.sheets, this.c.wb.styles, s, at.table, next, at.cache)
+    const tables = this.c.sheet.pivots.map((t) => (t === at.table ? plan.table : t))
+    const ops: Op[] = [...plan.ops, { kind: "pivots", sheet: s, tables }]
+    const go = () => {
+      this.c.transact(ops, { label: collapse ? "Collapse" : "Expand", before: this.c.selection })
+    }
+    if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, this.c.sheet.name), go)
+    else go()
+    return true
   }
 }

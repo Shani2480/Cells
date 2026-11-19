@@ -136,6 +136,8 @@ const PICTURES: Record<string, LucideIcon> = {
   PowerQueryRecentSources: L.History,
   GetTransformExistingConnections: L.Cable,
   RefreshAllMenu: L.RefreshCw,
+  PivotExpandField: L.SquarePlus,
+  PivotCollapseField: L.SquareMinus,
   ShowQueriesAndConnections: L.ListTree,
   DataRangeProperties: L.Settings,
   WorkbookLinks: L.FileSpreadsheet,

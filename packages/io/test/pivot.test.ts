@@ -145,6 +145,17 @@ describe("PivotTables in xlsx", () => {
     expect(after.get("xl/pivotTables/pivotTable1.xml")).not.toContain('t="grand"')
   })
 
+  it("writes Show expand/collapse buttons off, and reads it back", async () => {
+    const read = await openXlsx(fixture("pivot-basic.xlsx"), "pivot-basic.xlsx")
+    const sheet = read.workbook.sheets.find((s) => s.name === "Compact")!
+    expect(sheet.pivots[0].showDrill).toBeUndefined()
+    sheet.pivots = [{ ...sheet.pivots[0], showDrill: false }]
+    const saved = await saveXlsx(read.workbook, { source: read.source })
+    expect((await parts(saved)).get("xl/pivotTables/pivotTable1.xml")).toContain('showDrill="0"')
+    const again = (await openXlsx(saved)).workbook.sheets.find((s) => s.name === "Compact")!
+    expect(again.pivots[0].showDrill).toBe(false)
+  })
+
   it("writes a PivotTable made in Cells", async () => {
     const wb = new Workbook(["Data", "Report"])
     const data = wb.sheets[0]

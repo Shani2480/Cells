@@ -141,6 +141,8 @@ export type PivotTable = {
   }
   showError: boolean
   showMissing: boolean
+  /** PivotTable Options › Display › Show expand/collapse buttons (Excel's showDrill); false only when off. */
+  showDrill?: false
   style: PivotTableStyle
 }
 

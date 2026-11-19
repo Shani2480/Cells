@@ -40,7 +40,13 @@ export type PivotCell = {
   /** Compact form: how far the label is indented (levels sharing its column before it). */
   indent?: number
   numFmt?: string
+  /** A row or column label: the field and cache item it stands for, its axis and level on it. */
+  item?: PivotCellItem
+  /** The +/− button the label shows (an outer item with a field inside it, PivotTable Options › Show expand/collapse buttons). */
+  button?: "collapse" | "expand"
 }
+
+export type PivotCellItem = { field: number; x: number; axis: "row" | "col"; level: number }
 
 /** One line of the row or column area, as Excel's rowItems / colItems keep it. */
 export type PivotAxisItem = {
@@ -189,6 +195,8 @@ export function summarize(s: Stats, fn: PivotFn): CellValue | undefined {
 type FieldItems = {
   /** The value of each item position. */
   values: PivotValue[]
+  /** The cache's shared item of each position. */
+  xs: number[]
   /** Item positions in the order shown (hidden ones left out). */
   order: number[]
   hidden: Set<number>
@@ -252,7 +260,7 @@ function fieldItems(table: PivotTable, cache: PivotCache, f: number): FieldItems
       return blanks || sign * comparePivotValues(va, vb)
     })
   }
-  return { values, order, hidden, collapsed, names, ofRecord }
+  return { values, xs, order, hidden, collapsed, names, ofRecord }
 }
 
 /** An item's label: its typed name, or its value ("(blank)" for empty). */
@@ -421,6 +429,17 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
       ? `Total ${dataName(line.data)}`
       : (table.captions.grandTotal ?? "Grand Total")
 
+  /** What a label cell of field `f` at `level` stands for, and its button. */
+  const itemOf = (axis: "row" | "col", fields: number[], level: number, pos: number, first: boolean) => {
+    const f = fields[level]
+    if (f === VALUES_FIELD) return undefined
+    const fi = items.get(f)!
+    const extra: Partial<PivotCell> = { item: { field: f, x: fi.xs[pos], axis, level } }
+    if (first && table.showDrill !== false && fields.slice(level + 1).some((g) => g !== VALUES_FIELD))
+      extra.button = fi.collapsed.has(pos) ? "expand" : "collapse"
+    return extra
+  }
+
   // ── The header rows ──
   const dataInRows = rowFields.includes(VALUES_FIELD)
   const dataInCols = colFields.includes(VALUES_FIELD)
@@ -466,7 +485,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     line.path.forEach((pos, j) => {
       const same =
         prev !== undefined && prev.path.length > j && prev.path.slice(0, j + 1).every((p, k) => p === line.path[k])
-      if (!same) put(colLevelRow(j), col, "colItem", label(colFields[j], pos))
+      if (!same) put(colLevelRow(j), col, "colItem", label(colFields[j], pos), itemOf("col", colFields, j, pos, true))
     })
   })
 
@@ -499,7 +518,10 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
           j === own ||
           (labelCol[j] !== labelCol[own] && ((field && !field.outline && started) || (field?.repeatLabels ?? false)))
         if (show)
-          put(row, labelCol[j], "rowItem", label(rowFields[j], pos), indentOf(j) ? { indent: indentOf(j) } : undefined)
+          put(row, labelCol[j], "rowItem", label(rowFields[j], pos), {
+            ...(indentOf(j) ? { indent: indentOf(j) } : {}),
+            ...itemOf("row", rowFields, j, pos, started || j === own),
+          })
       })
     }
     // The values of the line.

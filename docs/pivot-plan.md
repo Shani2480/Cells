@@ -43,7 +43,12 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    subheadings, across the row in compact and outline form and down their label column in tabular form; only real
    subtotal lines get the subtotal-row element), drawn by the grid under the cells' own formats. Checked against
    Excel's pictures of `pivot-styles.xlsx` (Light16, Light20, Medium2, Medium9, Dark2, Dark8). The style gallery
-   comes with the Design tab in step 4. — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
+   comes with the Design tab in step 4. _Expand / collapse done:_ the engine's label cells carry their field, cache item,
+   axis, level and +/− button (outer items with a field inside, where the label first shows, unless `showDrill` is
+   off); core `pivot/drill.ts` (`withCollapsed`), app `PivotCommands.toggle` / `drill` / `drillState`,
+   `grid/PivotButtons.tsx`, double-click, the cell menu's Expand/Collapse. Labels keep their indent in the cells'
+   formats, as Excel saves it. Checked: Excel's Refresh of files Cells collapsed gives the same cells for all 12
+   PivotTables. — Refresh / Refresh All (Data tab, Analyze tab, the cell menu), the filter buttons on the row
    and column labels (Label Filters, Value Filters, Top 10, item checkboxes, Sort), the report filter dropdowns,
    expand / collapse (+/− buttons, Expand / Collapse Entire Field), double-click a value to see its rows on a new
    sheet (Show Details), and the PivotTable styles drawn from the theme (Excel's 85 built-in styles).

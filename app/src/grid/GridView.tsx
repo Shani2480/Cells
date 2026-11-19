@@ -10,6 +10,7 @@ import { Ruler, RULER, rulerShown } from "./Ruler"
 import { pagePartAt } from "./page-layout"
 import { OutlineBar, outlineBarSize } from "./OutlineBar"
 import { FilterButtons } from "./FilterButtons"
+import { PivotButtons } from "./PivotButtons"
 import { ValidationLayer } from "./ValidationLayer"
 import { QuickAnalysisLayer } from "./QuickAnalysis"
 import { autofitColumnWidth, columnWidthLabel, fittedRowHeight, lineHeightOf, rowHeightLabel } from "./autofit"
@@ -768,6 +769,9 @@ export function GridView({
     const { x, y } = localPoint(event)
     const hit = hitTest(controller, layout, x, y)
     if (hit.zone === "cell") {
+      // A PivotTable's outer item opens or closes; elsewhere in it Excel's message says why it can't be typed in.
+      const { row, col } = controller.selection.active
+      if (controller.pivots.toggle(row, col)) return
       controller.beginEdit("edit")
     } else if (hit.zone === "split") {
       // A double-click on a split bar takes it away (Excel).
@@ -1115,6 +1119,7 @@ export function GridView({
         {layout ? <ObjectLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? <TraceLayer controller={controller} layout={layout} zoom={zoom} /> : null}
         {layout ? <FilterButtons controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
+        {layout ? <PivotButtons controller={controller} layout={layout} zoom={zoom} /> : null}
         {layout ? <ValidationLayer controller={controller} layout={layout} zoom={zoom} onDone={focusInput} /> : null}
         {layout ? (
           <QuickAnalysisLayer

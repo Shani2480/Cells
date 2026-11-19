@@ -2046,6 +2046,27 @@
   }
 }
 
+/* ── PivotTables: the expand / collapse buttons on outer items ──────────────────────────────────────────── */
+
+.pivot-drill-button {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--filter-button-border);
+  border-radius: 1px;
+  background: var(--filter-button-bg);
+  color: var(--filter-button-glyph);
+  shape-rendering: crispEdges;
+}
+
+.pivot-drill-button:hover {
+  border-color: var(--app-theme-primary);
+  background: var(--filter-button-hover);
+}
+
 /* ── AutoFilter: the header buttons, the dropdown, Custom AutoFilter and Top 10 ─────────────────────────── */
 
 .filter-button {

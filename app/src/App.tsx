@@ -776,6 +776,31 @@ function WorkbookWindow({
         act("Custom Sort...", () => data.openSortDialog()),
       ]
     }
+    // A PivotTable's row or column label: Expand/Collapse (Excel's submenu).
+    const pivotDrillItems = (): MenuItem[] => {
+      const can = controller.pivots.drillState()
+      if (!can) return []
+      const drill = (scope: "item" | "field", collapse: boolean) => () => void controller.pivots.drill(scope, collapse)
+      return [
+        {
+          kind: "item",
+          label: "Expand/Collapse",
+          onSelect: () => undefined,
+          items: [
+            act("Expand", drill("item", false), !can.expand, pictureFor("PivotExpandField", 16)),
+            act("Collapse", drill("item", true), !can.collapse, pictureFor("PivotCollapseField", 16)),
+            { kind: "separator" },
+            act("Expand Entire Field", drill("field", false), !can.expandField, pictureFor("PivotExpandField", 16)),
+            act(
+              "Collapse Entire Field",
+              drill("field", true),
+              !can.collapseField,
+              pictureFor("PivotCollapseField", 16),
+            ),
+          ],
+        },
+      ]
+    }
     // Excel's lists (en-US), with what isn't built yet shown disabled.
     if (target === "cells") {
       items.push(
@@ -791,6 +816,7 @@ function WorkbookWindow({
                 icon: pictureFor("RefreshAll", 16),
                 onSelect: () => controller.pivots.refresh(),
               },
+              ...pivotDrillItems(),
               { kind: "separator" },
             ] as MenuItem[])
           : []),

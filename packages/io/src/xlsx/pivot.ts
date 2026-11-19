@@ -299,6 +299,7 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
     captions,
     showError: truthy(at(root, "showError"), false),
     showMissing: truthy(at(root, "showMissing"), true),
+    ...(truthy(at(root, "showDrill"), true) ? {} : { showDrill: false as const }),
     style: {
       name: at(style, "name") ?? null,
       rowHeaders: truthy(at(style, "showRowHeaders"), false),
@@ -629,6 +630,7 @@ export function pivotTableXml(
     compactData: table.compactData ? undefined : 0,
     outline: table.outline ? 1 : undefined,
     outlineData: table.outline ? 1 : undefined,
+    showDrill: table.showDrill === false ? 0 : undefined,
     multipleFieldFilters: 0,
     rowHeaderCaption: c.rowHeader,
     colHeaderCaption: c.colHeader,
