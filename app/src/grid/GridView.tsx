@@ -59,6 +59,8 @@ type Drag =
       scrollX: number
       scrollY: number
       moved: boolean
+      /** What a tap selects: a cell, a whole row or column (a header), or everything (the corner). */
+      target: "cell" | "row" | "col" | "all" | null
       row: number
       col: number
       /** Where the finger went down (client px), for the long-press menu. */
@@ -503,7 +505,17 @@ export function GridView({
         pointerRef.current = { x, y, ctrl: false }
         return
       }
-      const cell = hit.zone === "cell" ? hit : { row: 0, col: 0 }
+      // A tap selects what is under the finger: a header (or its edge) its row or column, the corner everything.
+      const target =
+        hit.zone === "cell"
+          ? "cell"
+          : hit.zone === "rowHeader" || hit.zone === "rowResize"
+            ? "row"
+            : hit.zone === "colHeader" || hit.zone === "colResize"
+              ? "col"
+              : hit.zone === "corner"
+                ? "all"
+                : null
       const pan: Drag = {
         kind: "pan",
         startX: x,
@@ -511,8 +523,9 @@ export function GridView({
         scrollX: controller.scrollX,
         scrollY: controller.scrollY,
         moved: false,
-        row: "row" in cell ? cell.row : 0,
-        col: "col" in cell ? cell.col : 0,
+        target,
+        row: "row" in hit ? hit.row : 0,
+        col: "col" in hit ? hit.col : 0,
         clientX: event.clientX,
         clientY: event.clientY,
         pressed: false,
@@ -732,6 +745,17 @@ export function GridView({
       const v =
         event.type === "pointerup" && !touchesRef.current.size ? flingRef.current.release(performance.now()) : null
       if (v) glide(v)
+    } else if (
+      drag.kind === "pan" &&
+      !drag.moved &&
+      !drag.pressed &&
+      event.type === "pointerup" &&
+      drag.target !== "cell"
+    ) {
+      tapsRef.current.reset()
+      if (drag.target === "row") controller.pointerRowHeader(drag.row, { shift: false, ctrl: false })
+      else if (drag.target === "col") controller.pointerColHeader(drag.col, { shift: false, ctrl: false })
+      else if (drag.target === "all") controller.selectEverything()
     } else if (drag.kind === "pan" && !drag.moved && !drag.pressed && event.type === "pointerup") {
       controller.pointerCell({ row: drag.row, col: drag.col }, { shift: false, ctrl: false })
       // A tap on a link follows it (a long press opens the menu, with Edit Hyperlink).
