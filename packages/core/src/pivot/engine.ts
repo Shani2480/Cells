@@ -12,6 +12,7 @@ import {
   type PivotValue,
 } from "./model"
 import { showAsNumFmt, showValueAs, type ShowAsContext } from "./show-as"
+import { calcFieldInputs, calcFieldValue } from "./calculated"
 
 /**
  * The PivotTable engine: the cells a PivotTable shows, worked out from its cache and settings the way Excel lays them
@@ -576,6 +577,11 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   const statsFor = makeStats(table, cache, items, filtered.both)
   const realRowFields = rowFields.filter((f) => f !== VALUES_FIELD)
   const realColFields = colFields.filter((f) => f !== VALUES_FIELD)
+  /** A value field's figure for row items `rows` × column items `cols` (a calculated field's formula on the sums). */
+  const measure = (field: number, fn: PivotFn, rows: readonly number[], cols: readonly number[]) =>
+    cache.fields[field]?.formula
+      ? calcFieldValue(cache, field, (g) => statsFor.at(rows, cols, g).sum)
+      : summarize(statsFor.at(rows, cols, field), fn)
   const showAsContext = (field: number, fn: PivotFn): ShowAsContext => ({
     rowFields: realRowFields,
     colFields: realColFields,
@@ -584,7 +590,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
       const pos = items.get(f)?.xs.indexOf(x) ?? -1
       return pos >= 0 ? pos : undefined
     },
-    raw: (rows, cols) => summarize(statsFor.at(rows, cols, field), fn),
+    raw: (rows, cols) => measure(field, fn, rows, cols),
   })
   rowLines.forEach((line, ri) => {
     const row = headerRows + ri
@@ -632,11 +638,10 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
       const df = table.values[data]
       if (!df) return put(row, col, role)
       const fn: PivotFn = ownFn(line.t) ?? ownFn(colLine.t) ?? df.fn
-      let value = summarize(statsFor(line, rowFields, colLine, colFields, df.field), fn)
-      if (df.showAs) {
-        const ctx = showAsContext(df.field, df.fn)
-        value = showValueAs(df, ctx, statsFor.realPath(line, rowFields), statsFor.realPath(colLine, colFields), value)
-      }
+      const rowPath = statsFor.realPath(line, rowFields)
+      const colPath = statsFor.realPath(colLine, colFields)
+      let value = measure(df.field, fn, rowPath, colPath)
+      if (df.showAs) value = showValueAs(df, showAsContext(df.field, df.fn), rowPath, colPath, value)
       if (value !== undefined && typeof value === "object" && table.showError && table.captions.error !== undefined)
         value = table.captions.error
       if (value === undefined && table.showMissing && table.captions.missing) value = table.captions.missing
@@ -823,21 +828,24 @@ function measureFilter(
   const outer = real.slice(0, real.indexOf(filter.field))
   const parentOf = (r: number) => outer.map((f) => items.get(f)!.ofRecord[r]).join(",")
   // Each item's total under its parent items.
-  const groups = new Map<string, Map<number, Stats>>()
+  const inputs = calcFieldInputs(cache, df.field)
+  const groups = new Map<string, Map<number, Map<number, Stats>>>()
   for (const r of records) {
     const key = parentOf(r)
     let g = groups.get(key)
     if (!g) groups.set(key, (g = new Map()))
     const pos = fi.ofRecord[r]
     let st = g.get(pos)
-    if (!st) g.set(pos, (st = newStats()))
-    addValue(st, cache.records[r][df.field] ?? null)
+    if (!st) g.set(pos, (st = new Map(inputs.map((f) => [f, newStats()]))))
+    for (const f of inputs) addValue(st.get(f)!, cache.records[r][f] ?? null)
   }
   const keep = new Set<string>()
   for (const [key, g] of groups) {
     const totals: { pos: number; v: number }[] = []
     for (const [pos, st] of g) {
-      const v = summarize(st, df.fn)
+      const v = cache.fields[df.field]?.formula
+        ? calcFieldValue(cache, df.field, (g) => st.get(g)?.sum ?? 0)
+        : summarize(st.get(df.field)!, df.fn)
       if (typeof v === "number") totals.push({ pos, v })
     }
     if (filter.kind === "value") {
@@ -872,7 +880,8 @@ function measureFilter(
 function makeStats(table: PivotTable, cache: PivotCache, items: Map<number, FieldItems>, records: number[]) {
   const realRows = table.rows.filter((f) => f !== VALUES_FIELD)
   const realCols = table.cols.filter((f) => f !== VALUES_FIELD)
-  const sources = [...new Set(table.values.map((v) => v.field))]
+  // A calculated field reads the fields its formula names.
+  const sources = [...new Set(table.values.flatMap((v) => calcFieldInputs(cache, v.field)))]
   const groups = new Map<string, Map<number, Stats>>()
   for (const r of records) {
     const rowPos = realRows.map((f) => items.get(f)!.ofRecord[r])

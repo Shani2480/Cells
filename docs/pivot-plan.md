@@ -138,6 +138,18 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    pointing at a value cell writes the call; cells it can't name (custom subtotals: Excel itself returns #REF! for
    every form) keep a reference. 306 generated calls, one per value cell of two fixtures, give the cell's own value
    in Excel 365.
+   _Calculated fields done:_ core `pivot/calculated.ts`. A calculated field is a cache field with a `formula` and no
+   records (the file: `<cacheField formula="…" databaseField="0"/>` after the source's columns; its pivotField has
+   `dragToRow/Col/Page="0"` and no subtotal), so every PivotTable on the cache shares it. Excel works it out on the
+   sums of the fields it names in every cell, subtotal and grand total, whatever the value field's function (Count of
+   Price is the price), and a cell whose sums divide by 0 is #DIV/0! (`fixtures/excel/pivot-calc.xlsx`: a ratio, a
+   factor, IF, a quoted 'Unit Cost', Count and Average of one). Fields are replaced by placeholders and the formula
+   runs through the normal evaluator without cells; references, other names and arrays get Excel's message. Insert
+   Calculated Field (Name with Add/Modify, Formula, Delete, Fields with Insert Field); a new field goes into the
+   active PivotTable's values. Refresh keeps calculated fields after the source's columns; Show Details leaves them
+   out; they can only be values. A file where Cells modified one and added another opens in Excel 365 without
+   repairs, Excel reads the five formulas and refreshes all three PivotTables to the same cells. Not yet: calculated
+   items, Solve Order, List Formulas.
 6. **PivotCharts** — Insert › PivotChart and PivotChart from the Analyze tab: a chart that follows its PivotTable
    (field buttons on the chart, filtering from the chart), written with `c:pivotSource`.
 7. **Recommended PivotTables, Quick Analysis, Slicers and Timelines** — Recommended PivotTables (Insert tab), the

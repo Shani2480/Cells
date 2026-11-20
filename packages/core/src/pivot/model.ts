@@ -22,6 +22,8 @@ export type PivotCacheField = {
   numFmt?: string
   /** The column holds dates (written as dates in the cache). */
   dates?: boolean
+  /** A calculated field's formula over the other fields (=Amount/Units); it has no values in the records. */
+  formula?: string
 }
 
 /** Where the cache reads its data: a range on a sheet, or a table or defined name. */

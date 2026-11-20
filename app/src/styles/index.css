@@ -4258,3 +4258,27 @@ html.is-phone .pivot-fields-foot {
   gap: 10px;
   align-items: center;
 }
+
+/* Insert Calculated Field: Name and Formula with their buttons, the field list with Insert Field. */
+.pivot-calc-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.pivot-calc-grid .dialog-btn,
+.pivot-calc-fields .dialog-btn {
+  min-width: 96px;
+}
+
+.pivot-calc-fields {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.pivot-calc-fields .pivot-base-list {
+  height: 170px;
+}

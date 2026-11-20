@@ -1,6 +1,9 @@
 import {
   chartRefRange,
   clearContentsOp,
+  withCalcField,
+  withFieldIn,
+  withoutCalcField,
   getPivotDataFormula,
   PIVOT_MESSAGE,
   currentRegion,
@@ -116,6 +119,7 @@ export class PivotCommands {
   refreshOps(
     cacheIds: readonly number[],
     sources?: ReadonlyMap<number, PivotCacheSource>,
+    replace?: { cache: PivotCache; edit?: (t: PivotTable, sheet: number) => PivotTable },
   ): { ops: Op[]; overwrites: string[] } | string {
     const wb = this.c.wb
     const caches: PivotCache[] = [...wb.pivotCaches]
@@ -126,16 +130,22 @@ export class PivotCommands {
       const index = caches.findIndex((c) => c.id === id)
       if (index < 0) continue
       const old = caches[index]
-      const source = sources?.get(id) ?? old.source
-      const data = readPivotSource(wb.sheets, wb.styles, source)
-      if (typeof data === "string") return data
-      const next = { ...refreshedCache(old, data), source }
+      let next: PivotCache
+      if (replace?.cache.id === id) next = replace.cache
+      else {
+        const source = sources?.get(id) ?? old.source
+        const data = readPivotSource(wb.sheets, wb.styles, source)
+        if (typeof data === "string") return data
+        next = { ...refreshedCache(old, data), source }
+      }
       caches[index] = next
       wb.sheets.forEach((sheet, s) => {
         const list = tables.get(s)!
         list.forEach((t, k) => {
           if (t.cacheId !== id) return
-          const plan = pivotCellsPlan(wb.sheets, wb.styles, s, t, refreshedTable(t, old, next), next)
+          let laid = refreshedTable(t, old, next)
+          if (replace?.edit) laid = replace.edit(laid, s)
+          const plan = pivotCellsPlan(wb.sheets, wb.styles, s, t, laid, next)
           if (plan.overwrites && !overwrites.includes(sheet.name)) overwrites.push(sheet.name)
           cellOps.push(...plan.ops)
           list[k] = plan.table
@@ -149,8 +159,13 @@ export class PivotCommands {
     return { ops, overwrites }
   }
 
-  private run(cacheIds: number[], label: string, sources?: ReadonlyMap<number, PivotCacheSource>): boolean {
-    const result = this.refreshOps(cacheIds, sources)
+  private run(
+    cacheIds: number[],
+    label: string,
+    sources?: ReadonlyMap<number, PivotCacheSource>,
+    replace?: Parameters<PivotCommands["refreshOps"]>[2],
+  ): boolean {
+    const result = this.refreshOps(cacheIds, sources, replace)
     if (typeof result === "string") {
       this.c.shell.alert(result)
       return false
@@ -178,6 +193,39 @@ export class PivotCommands {
     if (typeof result === "string") return 0
     this.c.wb.transact(result.ops, { label: "Refresh", history: false })
     return due.length
+  }
+
+  /** The active PivotTable's calculated fields (Calculated Field's Name list). */
+  calcFields(): { name: string; formula: string }[] {
+    const at = this.activeWithCache()
+    return (at?.cache.fields ?? []).flatMap((f) =>
+      f.formula !== undefined ? [{ name: f.name, formula: f.formula }] : [],
+    )
+  }
+
+  /**
+   * Calculated Field's Add / Modify: the field on the active PivotTable's cache, shared by every PivotTable on it; a
+   * new one goes into the active PivotTable's values, as Excel adds it. Excel's message when it can't.
+   */
+  setCalcField(name: string, formula: string): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const next = withCalcField(at.cache, name, formula)
+    if (typeof next === "string") return next
+    const isNew = next.fields.length > at.cache.fields.length
+    const activeSheet = this.c.sheetIndex
+    const activeName = at.table.name
+    const edit = (t: PivotTable, s: number) =>
+      isNew && s === activeSheet && t.name === activeName ? withFieldIn(t, next, next.fields.length - 1, "values") : t
+    this.run([at.cache.id], "Calculated Field", undefined, { cache: next, edit })
+    return null
+  }
+
+  /** Calculated Field's Delete: the field leaves the cache and every PivotTable on it. */
+  deleteCalcField(name: string) {
+    const at = this.activeWithCache()
+    if (!at) return
+    this.run([at.cache.id], "Calculated Field", undefined, { cache: withoutCalcField(at.cache, name) })
   }
 
   /** Refresh: the active PivotTable's cache, and so every PivotTable that shares it. */
@@ -713,14 +761,15 @@ export class PivotCommands {
     const wb = this.c.wb
     const index = this.c.sheetIndex
     const name = nextSheetName(wb.sheets.map((s) => s.name))
-    const fields = at.cache.fields
+    // The source's columns only: calculated fields have no records (Excel leaves them out too).
+    const fields = at.cache.fields.filter((f) => f.formula === undefined)
     const styleOf = fields.map((f) =>
       f.numFmt && f.numFmt !== "General" ? wb.styles.intern({ ...wb.styles.get(0), numberFormat: f.numFmt }) : 0,
     )
     const cells: CellWrite[] = fields.map((f, col) => ({ row: 0, col, data: { value: f.name } }))
     records.forEach((r, i) =>
       at.cache.records[r].forEach((value, col) => {
-        if (value === null || value === "") return
+        if (value === null || value === "" || col >= fields.length) return
         cells.push({ row: i + 1, col, data: { value, ...(styleOf[col] ? { style: styleOf[col] } : {}) } })
       }),
     )

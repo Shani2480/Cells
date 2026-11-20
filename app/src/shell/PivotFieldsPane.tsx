@@ -59,6 +59,8 @@ export function movedChip(table: PivotTable, cache: PivotCache, c: Chip, area: P
     return withFieldIn(table, cache, c.f, area, to)
   }
   if (c.f === VALUES_FIELD && area !== "rows" && area !== "cols") return table
+  // A calculated field stays a value.
+  if (c.f !== VALUES_FIELD && cache.fields[c.f]?.formula !== undefined && area !== "values") return table
   // Out of Values first (that value field only); Filters, Columns and Rows give the field up on their own.
   const base = c.area === "values" ? withoutField(table, c.f, "values", c.index) : table
   return withFieldIn(base, cache, c.f, area, index)
@@ -168,7 +170,11 @@ export function PivotFieldsPane({
             key={m.area}
             type="button"
             role="menuitem"
-            disabled={m.area === c.area || (c.f === VALUES_FIELD && (m.area === "filters" || m.area === "values"))}
+            disabled={
+              m.area === c.area ||
+              (c.f === VALUES_FIELD && (m.area === "filters" || m.area === "values")) ||
+              (c.f !== VALUES_FIELD && cache.fields[c.f]?.formula !== undefined)
+            }
             onClick={() => change((t, k) => movedChip(t, k, c, m.area))}
           >
             {m.label}
@@ -283,7 +289,10 @@ export function PivotFieldsPane({
                       key={m.area}
                       type="button"
                       role="menuitem"
-                      disabled={m.area !== "values" && pivotFieldAreas(table, f).includes(m.area)}
+                      disabled={
+                        m.area !== "values" &&
+                        (pivotFieldAreas(table, f).includes(m.area) || cache.fields[f]?.formula !== undefined)
+                      }
                       onClick={() => change((t, c) => withFieldIn(t, c, f, m.area))}
                     >
                       {m.label}

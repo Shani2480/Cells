@@ -187,3 +187,40 @@ describe("Generate GetPivotData", () => {
     c.pivots.generateGetPivotData = true
   })
 })
+
+describe("Calculated Field", () => {
+  it("adds a field to the active PivotTable's values, modifies and deletes it, each one undo step", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 6, r1: 1, c1: 6 })
+    expect(c.pivots.setCalcField("Price", "=Amount/Units")).toBeNull()
+    expect(c.pivots.calcFields()).toEqual([{ name: "Price", formula: "Amount/Units" }])
+    // F1 Row Labels | Sum of Units | Sum of Price; North (90/9) first, East (10/1) on row 7.
+    expect(c.sheet.cells.get(0, 7)?.value).toBe("Sum of Price")
+    expect(c.sheet.cells.get(6, 7)?.value).toBe(10)
+    expect(c.pivots.setCalcField("price", "=Amount*2")).toBeNull()
+    expect(c.sheet.cells.get(6, 7)?.value).toBe(20)
+    expect(c.pivots.setCalcField("Units", "=1")).toBe("PivotTable field name already exists.")
+    expect(c.pivots.setCalcField("Cost", "=Amount+A1")).toBe(
+      "References, names, and arrays are not supported in PivotTable formulas.",
+    )
+    c.pivots.deleteCalcField("Price")
+    expect(c.pivots.calcFields()).toEqual([])
+    expect(c.sheet.cells.get(0, 7)).toBeUndefined()
+    c.undo()
+    expect(c.sheet.cells.get(6, 7)?.value).toBe(20)
+    c.undo()
+    expect(c.sheet.cells.get(6, 7)?.value).toBe(10)
+    c.undo()
+    expect(c.wb.pivotCaches[0].fields).toHaveLength(4)
+    expect(c.sheet.cells.get(0, 7)).toBeUndefined()
+  })
+
+  it("follows a refresh of its data", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 6, r1: 1, c1: 6 })
+    c.pivots.setCalcField("Price", "=Amount/Units")
+    c.wb.sheets[0].cells.set(4, 3, { value: 30 })
+    c.pivots.refresh()
+    expect(c.sheet.cells.get(6, 7)?.value).toBe(30)
+  })
+})

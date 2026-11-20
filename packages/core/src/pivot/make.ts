@@ -77,6 +77,7 @@ export function pivotFieldAreas(table: PivotTable, f: number): PivotArea[] {
 
 /** A field's records hold only numbers (and blanks): ticking it sums it. */
 function numeric(cache: PivotCache, f: number): boolean {
+  if (cache.fields[f]?.formula !== undefined) return true
   if (cache.fields[f]?.dates) return false
   let any = false
   for (const r of cache.records) {
@@ -178,6 +179,8 @@ export function withFieldIn(
     return withFlags(withValuesField({ ...table, values: put(table.values, value) }))
   }
   if (f === VALUES_FIELD && area === "filters") return table
+  // A calculated field can only be a value (Excel won't drag one to rows, columns or filters).
+  if (f !== VALUES_FIELD && cache.fields[f]?.formula !== undefined) return table
   // Out of the axis areas first (a move within one keeps its place in the count).
   const rows = table.rows.filter((x) => x !== f)
   const cols = table.cols.filter((x) => x !== f)

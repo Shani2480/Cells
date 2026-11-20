@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { withFieldIn, Workbook, type Selection } from "@cells/core"
 import { SheetController } from "@/sheet/controller"
 import {
+  CalculatedFieldDialog,
   FieldSettingsDialog,
   PivotOptionsDialog,
   ShowValuesAsDialog,
@@ -120,5 +121,42 @@ describe("PivotTable settings", () => {
     c.undo()
     expect(c.sheet.pivots[0].name).toBe("PivotTable1")
     expect(c.wb.pivotCaches[0].refreshOnLoad).toBe(false)
+  })
+})
+
+describe("Insert Calculated Field", () => {
+  it("inserts fields into the formula, adds with Add and OK, and shows Excel's message", () => {
+    const c = setup()
+    c.goTo({ r0: 2, c0: 6, r1: 2, c1: 6 })
+    const onClose = vi.fn()
+    render(<CalculatedFieldDialog controller={c} onClose={onClose} />)
+    const name = screen.getByLabelText("Name:") as HTMLInputElement
+    const formula = screen.getByLabelText("Formula:") as HTMLInputElement
+    expect(name.value).toBe("Field1")
+    expect(formula.value).toBe("= 0")
+    fireEvent.change(formula, { target: { value: "=" } })
+    formula.setSelectionRange(1, 1)
+    fireEvent.click(screen.getByRole("option", { name: "Units" }))
+    fireEvent.click(screen.getByRole("button", { name: "Insert Field" }))
+    expect(formula.value).toBe("=Units")
+    fireEvent.change(formula, { target: { value: "=Units*A1" } })
+    fireEvent.click(screen.getByRole("button", { name: "Add" }))
+    expect(c.shell.alert).toHaveBeenCalledWith(
+      "References, names, and arrays are not supported in PivotTable formulas.",
+    )
+    fireEvent.change(name, { target: { value: "Double" } })
+    fireEvent.change(formula, { target: { value: "=Units*2" } })
+    fireEvent.click(screen.getByRole("button", { name: "Add" }))
+    expect(c.pivots.calcFields()).toEqual([{ name: "Double", formula: "Units*2" }])
+    expect(onClose).not.toHaveBeenCalled()
+    // The name is taken now: Modify and Delete.
+    expect(screen.getByRole("button", { name: "Modify" })).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }))
+    expect(c.pivots.calcFields()).toEqual([])
+    fireEvent.change(name, { target: { value: "Triple" } })
+    fireEvent.change(formula, { target: { value: "=Units*3" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    expect(onClose).toHaveBeenCalled()
+    expect(c.sheet.pivots[0].values.map((v) => v.name)).toEqual(["Sum of Units", "Sum of Triple"])
   })
 })

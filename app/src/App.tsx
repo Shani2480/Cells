@@ -88,6 +88,7 @@ import {
   FieldSettingsDialog,
   PivotOptionsDialog,
   ShowValuesAsDialog,
+  CalculatedFieldDialog,
   ValueFieldSettingsDialog,
 } from "@/shell/PivotSettingsDialogs"
 import { Check } from "lucide-react"
@@ -260,6 +261,7 @@ type DialogState =
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
   | { kind: "pivotField"; field: number }
   | { kind: "pivotOptions" }
+  | { kind: "pivotCalcField" }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
   | { kind: "options"; page?: OptionsPage }
@@ -1004,6 +1006,7 @@ function WorkbookWindow({
       setDialog({ kind: "pivotShowAs", index: Number(index), as: as as PivotShowAs })
     } else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
+    else if (kind === "pivotCalcField") setDialog({ kind: "pivotCalcField" })
     else if (kind === "insert" || kind === "delete") setDialog({ kind })
     else if (kind === "size") sizeDialog(arg as "rows" | "cols")
     else if (kind === "autofit") controller.autofit?.(arg as "rows" | "cols")
@@ -1456,6 +1459,9 @@ function WorkbookWindow({
           <FieldSettingsDialog controller={controller} field={dialog.field} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotOptions" ? <PivotOptionsDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "pivotCalcField" ? (
+          <CalculatedFieldDialog controller={controller} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "createPivot" ? (
           <CreatePivotDialog controller={controller} source={dialog.source} mode={dialog.mode} onClose={closeDialog} />
         ) : null}

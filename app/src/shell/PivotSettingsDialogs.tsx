@@ -16,7 +16,7 @@ import {
   type PivotOptions,
   type PivotSubtotal,
 } from "@cells/core"
-import { useState, type ReactNode } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import type { SheetController } from "@/sheet/controller"
 import { Dialog } from "./Dialog"
 import { NumberTab } from "./format-cells/FormatCellsDialog"
@@ -217,7 +217,9 @@ function BaseLists({
         <p className="dialog-label">Base field:</p>
         <ChoiceList
           label="Base field"
-          options={cache.fields.map((_, f) => ({ value: f, label: pivotFieldName(table, cache, f) }))}
+          options={cache.fields.flatMap((k, f) =>
+            k.formula === undefined ? [{ value: f, label: pivotFieldName(table, cache, f) }] : [],
+          )}
           value={baseField}
           pick={(f) => set({ ...show, baseField: f, baseItem: show.baseItem === "next" ? "next" : "previous" })}
           disabled={!usesField}
@@ -295,11 +297,13 @@ export function ShowValuesAsDialog({
           value={show.baseField}
           onChange={(e) => setShow({ ...show, baseField: Number(e.target.value), baseItem: "previous" })}
         >
-          {at.cache.fields.map((_, f) => (
-            <option key={f} value={f}>
-              {pivotFieldName(at.table, at.cache, f)}
-            </option>
-          ))}
+          {at.cache.fields.map((k, f) =>
+            k.formula === undefined ? (
+              <option key={f} value={f}>
+                {pivotFieldName(at.table, at.cache, f)}
+              </option>
+            ) : null,
+          )}
         </select>
         {usesItem ? (
           <>
@@ -693,6 +697,131 @@ export function PivotOptionsDialog({ controller, onClose }: { controller: SheetC
           </fieldset>
         ) : null}
       </Tabs>
+    </Dialog>
+  )
+}
+
+/** A field as a calculated field's formula names it: bare when it is one word, else in single quotes. */
+export function formulaFieldName(name: string): string {
+  return /^[A-Za-z_][\w.]*$/.test(name) ? name : `'${name.replace(/'/g, "''")}'`
+}
+
+/**
+ * Insert Calculated Field (Analyze › Fields, Items, & Sets › Calculated Field): a name and a formula over the
+ * fields. Add (Modify for an existing name) keeps the dialog open, OK adds and closes, Delete removes the one named.
+ * The fields are shared by every PivotTable on the same data.
+ */
+export function CalculatedFieldDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
+  const pivots = controller.pivots
+  const at = pivots.activeWithCache()
+  const [name, setName] = useState(() => {
+    const used = new Set(at?.cache.fields.map((f) => f.name.toLowerCase()))
+    let n = 1
+    while (used.has(`field${n}`)) n++
+    return `Field${n}`
+  })
+  const [formula, setFormula] = useState("= 0")
+  const [picked, setPicked] = useState(0)
+  // Bumped after Add and Delete: the fields live on the workbook, not in this dialog.
+  const [, setChanges] = useState(0)
+  const formulaRef = useRef<HTMLInputElement>(null)
+  if (!at) return null
+  const { cache } = at
+  const existing = pivots.calcFields()
+  const current = existing.find((f) => f.name.toLowerCase() === name.trim().toLowerCase())
+  const apply = (): boolean => {
+    const problem = pivots.setCalcField(name, formula)
+    if (problem) {
+      controller.shell.alert(problem)
+      return false
+    }
+    setChanges((n) => n + 1)
+    return true
+  }
+  const insertField = () => {
+    const f = cache.fields[picked]
+    const input = formulaRef.current
+    if (!f || !input) return
+    const text = formulaFieldName(f.name)
+    const start = input.selectionStart ?? formula.length
+    const end = input.selectionEnd ?? formula.length
+    const next = formula.slice(0, start) + text + formula.slice(end)
+    setFormula(next)
+    requestAnimationFrame(() => {
+      input.focus()
+      input.setSelectionRange(start + text.length, start + text.length)
+    })
+  }
+  return (
+    <Dialog
+      title="Insert Calculated Field"
+      onCancel={onClose}
+      onAccept={() => {
+        if (apply()) onClose()
+      }}
+      width={460}
+    >
+      <div className="pivot-calc-grid">
+        <label className="dialog-label" htmlFor="pivot-calc-name">
+          Name:
+        </label>
+        <input
+          id="pivot-calc-name"
+          className="dialog-field"
+          list="pivot-calc-names"
+          autoFocus
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value)
+            const known = existing.find((f) => f.name.toLowerCase() === e.target.value.trim().toLowerCase())
+            if (known) setFormula(`=${known.formula}`)
+          }}
+        />
+        <datalist id="pivot-calc-names">
+          {existing.map((f) => (
+            <option key={f.name} value={f.name} />
+          ))}
+        </datalist>
+        <button type="button" className="dialog-btn" onClick={() => apply()}>
+          {current ? "Modify" : "Add"}
+        </button>
+        <label className="dialog-label" htmlFor="pivot-calc-formula">
+          Formula:
+        </label>
+        <input
+          id="pivot-calc-formula"
+          ref={formulaRef}
+          className="dialog-field"
+          value={formula}
+          onChange={(e) => setFormula(e.target.value)}
+        />
+        <button
+          type="button"
+          className="dialog-btn"
+          disabled={!current}
+          onClick={() => {
+            if (!current) return
+            pivots.deleteCalcField(current.name)
+            setChanges((n) => n + 1)
+            setName("Field1")
+            setFormula("= 0")
+          }}
+        >
+          Delete
+        </button>
+      </div>
+      <p className="dialog-label">Fields:</p>
+      <div className="pivot-calc-fields">
+        <ChoiceList
+          label="Fields"
+          options={cache.fields.map((f, i) => ({ value: i, label: f.name }))}
+          value={picked}
+          pick={setPicked}
+        />
+        <button type="button" className="dialog-btn" onClick={insertField}>
+          Insert Field
+        </button>
+      </div>
     </Dialog>
   )
 }

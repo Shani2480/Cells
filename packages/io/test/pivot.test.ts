@@ -113,6 +113,40 @@ describe("PivotTables in xlsx", () => {
     expect(value("PctTotal").baseField).toBeUndefined()
   })
 
+  it("reads calculated fields, and the engine shows Excel's cells (pivot-calc.xlsx)", async () => {
+    const { workbook: wb } = await openXlsx(fixture("pivot-calc.xlsx"), "pivot-calc.xlsx")
+    expect(expectCellsAsExcel(wb)).toBe(3)
+    const fields = wb.pivotCaches[0].fields
+    expect(fields.slice(7).map((f) => [f.name, f.formula])).toEqual([
+      ["Price", "Amount/Units"],
+      ["Tax", "Amount*0.2"],
+      ["Big", "IF(Units>10,Amount,0)"],
+      ["Per Cost", "Amount/'Unit Cost'"],
+    ])
+    expect(wb.pivotCaches[0].records[0]).toHaveLength(7)
+  })
+
+  it("writes calculated fields as Excel does, and reads them back the same", async () => {
+    const read = await openXlsx(fixture("pivot-calc.xlsx"), "pivot-calc.xlsx")
+    const wb = read.workbook
+    for (const sheet of wb.sheets)
+      sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    // The cache written anew too.
+    wb.pivotCaches = wb.pivotCaches.map((c) => ({ ...c, refreshOnLoad: !c.refreshOnLoad }))
+    const saved = await saveXlsx(wb, { source: read.source })
+    const files = await parts(saved)
+    const def = [...files].find(([n]) => /pivotCacheDefinition\d+\.xml$/.test(n))![1]
+    expect(def).toContain('<cacheField name="Price" numFmtId="0" formula="Amount/Units" databaseField="0"/>')
+    expect(def).toContain(`formula="Amount/'Unit Cost'"`)
+    const records = [...files].find(([n]) => /pivotCacheRecords\d+\.xml$/.test(n))![1]
+    expect(records.match(/<r>(.*?)<\/r>/)![1].match(/<[xnsmdbe] /g)).toHaveLength(7)
+    const again = await openXlsx(saved)
+    expect(again.workbook.pivotCaches[0].fields.map((f) => f.formula)).toEqual(
+      wb.pivotCaches[0].fields.map((f) => f.formula),
+    )
+    expect(expectCellsAsExcel(again.workbook)).toBe(3)
+  })
+
   it("writes Show Values As as Excel does, and reads it back the same", async () => {
     const read = await openXlsx(fixture("pivot-showas.xlsx"), "pivot-showas.xlsx")
     const wb = read.workbook

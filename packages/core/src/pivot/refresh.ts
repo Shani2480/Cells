@@ -123,6 +123,9 @@ export function refreshedCache(old: PivotCache, data: Exclude<ReturnType<typeof 
     for (const [k, v] of present) if (!seen.has(k)) items.push(v)
     return { ...f, items }
   })
+  // Calculated fields stay, after the source's columns (one named like a new column gives way to it).
+  const taken = new Set(fields.map((f) => f.name.toLowerCase()))
+  for (const f of old.fields) if (f.formula !== undefined && !taken.has(f.name.toLowerCase())) fields.push({ ...f })
   return { ...old, fields, records: data.records }
 }
 
@@ -155,7 +158,12 @@ export function refreshedTable(table: PivotTable, old: PivotCache, next: PivotCa
     const i = [...fieldMap].find(([, to]) => to === j)?.[0]
     const before = i !== undefined ? table.fields[i] : undefined
     const nextValues = itemValues(next, j)
-    if (!before) return newPivotField(next.fields[j].items ? nextValues.length : 0, t)
+    if (!before) {
+      const field = newPivotField(next.fields[j].items ? nextValues.length : 0, t)
+      // A calculated field is only ever a value: Excel gives it no subtotals.
+      if (next.fields[j].formula !== undefined) field.subtotals = []
+      return field
+    }
     const oldValues = itemValues(old, i!)
     const index = new Map<string, number>()
     nextValues.forEach((v, x) => index.set(keyOf(v), x))
@@ -177,7 +185,29 @@ export function refreshedTable(table: PivotTable, old: PivotCache, next: PivotCa
     return { ...before, items, subtotals: [...before.subtotals] }
   })
   const map = (f: number) => (f === VALUES_FIELD ? f : (fieldMap.get(f) ?? -1))
-  t.values = table.values.filter((v) => fieldMap.has(v.field)).map((v) => ({ ...v, field: fieldMap.get(v.field)! }))
+  t.values = table.values
+    .filter((v) => fieldMap.has(v.field))
+    .map((v) => {
+      const moved = { ...v, field: fieldMap.get(v.field)! }
+      // Show Values As' base field follows its column; gone, the value shows plainly again.
+      if (v.baseField !== undefined) {
+        const base = fieldMap.get(v.baseField)
+        if (base !== undefined) {
+          moved.baseField = base
+          if (typeof v.baseItem === "number") {
+            // The base item by its value (-1, shown as #N/A, when it is gone).
+            const value = itemValues(old, v.baseField)[v.baseItem]
+            const k = keyOf(value ?? null)
+            moved.baseItem = itemValues(next, base).findIndex((n) => keyOf(n) === k)
+          }
+        } else {
+          delete moved.showAs
+          delete moved.baseField
+          delete moved.baseItem
+        }
+      }
+      return moved
+    })
   t.rows = table.rows.map(map).filter((f) => f !== -1)
   t.cols = table.cols.map(map).filter((f) => f !== -1)
   if (t.values.length < 2) {

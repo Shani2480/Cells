@@ -105,7 +105,18 @@ export function readPivotCache(
   }
   const fields: PivotCacheField[] = []
   for (const f of kids(kid(root, "cacheFields"), "cacheField")) {
-    if (at(f, "formula") !== undefined || kid(f, "fieldGroup") || at(f, "databaseField") === "0") return null
+    if (kid(f, "fieldGroup")) return null
+    // A calculated field: a formula and no data. Excel puts them after the source's columns, as the records need.
+    const formula = at(f, "formula")
+    if (formula !== undefined || at(f, "databaseField") === "0") {
+      if (formula === undefined) return null
+      const calc: PivotCacheField = { name: at(f, "name") ?? "", items: null, formula }
+      const fmt = numberFormat(Number(at(f, "numFmtId") ?? 0))
+      if (fmt && fmt !== "General") calc.numFmt = fmt
+      fields.push(calc)
+      continue
+    }
+    if (fields.some((x) => x.formula !== undefined)) return null
     const shared = kid(f, "sharedItems")
     const listed = shared?.children.filter((c) => "snbdem".includes(c.local) && c.local.length === 1) ?? []
     const items = listed.length ? listed.map((c) => valueOf(c.local, at(c, "v")) ?? null) : null
@@ -552,7 +563,7 @@ export function cacheForWriting(cache: PivotCache, tables: readonly PivotTable[]
       if (f.axis || f.items.length) needed.add(i)
     })
   const fields = cache.fields.map((f, i) => {
-    if (!needed.has(i) && !f.items) return f
+    if ((!needed.has(i) && !f.items) || f.formula !== undefined) return f
     const items = f.items ? [...f.items] : []
     const seen = new Set(items.map(valueKey))
     for (const rec of cache.records) {
@@ -631,6 +642,7 @@ export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId:
   const fields = cache.fields.map((f, i) => {
     const dates = f.dates ?? false
     const attrs = attrText({ name: f.name, numFmtId: numFmtId(f.numFmt) })
+    if (f.formula !== undefined) return `<cacheField${attrs}${attrText({ formula: f.formula, databaseField: 0 })}/>`
     if (!f.items) {
       const values = (function* () {
         for (const r of cache.records) yield r[i] ?? null
@@ -670,6 +682,7 @@ export function pivotRecordsXml(cache: PivotCache): string {
   for (const rec of cache.records) {
     let row = "<r>"
     cache.fields.forEach((f, i) => {
+      if (f.formula !== undefined) return
       const v = rec[i] ?? null
       const x = index[i]?.get(valueKey(v))
       row += x !== undefined ? `<x v="${x}"/>` : valueXml(v, f.dates ?? false)
@@ -730,6 +743,8 @@ export function pivotTableXml(
       name: f.name,
       axis: f.axis ? AXIS_ATTR[f.axis] : undefined,
       dataField: f.dataField ? 1 : undefined,
+      // A calculated field can only be a value.
+      ...(cache.fields[i]?.formula !== undefined ? { dragToRow: 0, dragToCol: 0, dragToPage: 0 } : {}),
       compact: f.compact ? undefined : 0,
       numFmtId: f.numFmt ? numFmtId(f.numFmt) : undefined,
       outline: f.outline ? undefined : 0,
