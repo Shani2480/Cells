@@ -126,7 +126,7 @@ export function FormatCellsDialog({
   )
 }
 
-type TabProps = { style: CellStyle; set: (fields: StylePatch) => void; theme?: Theme }
+export type TabProps = { style: CellStyle; set: (fields: StylePatch) => void; theme?: Theme }
 
 function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
@@ -181,7 +181,7 @@ function List<T extends string>({
 
 // ── Number ───────────────────────────────────────────────────────────────────────────────────────────────────
 
-function NumberTab({ controller, style, set }: TabProps & { controller: SheetController }) {
+export function NumberTab({ controller, style, set }: TabProps & { controller: SheetController }) {
   // What the dialog opened with (style changes while it is open come from the dialog itself).
   const [opened] = useState(() => readCode(style.numberFormat))
   const [category, setCategory] = useState<Category>(opened.category)

@@ -196,6 +196,11 @@ export type PivotTable = {
   /** PivotTable Options › Display › Show expand/collapse buttons (Excel's showDrill); false only when off. */
   showDrill?: false
   style: PivotTableStyle
+  /**
+   * The file part the PivotTable was read from: saving finds what Cells keeps unread there by it, so a renamed
+   * PivotTable keeps it too.
+   */
+  part?: string
 }
 
 export const PIVOT_FN_LABEL: Record<PivotFn, string> = {

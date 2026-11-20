@@ -77,6 +77,7 @@ import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
 import { PivotFilterDialog } from "@/shell/PivotFilterDialogs"
 import { CreatePivotDialog } from "@/shell/CreatePivotDialog"
 import { PivotFieldsPane } from "@/shell/PivotFieldsPane"
+import { FieldSettingsDialog, PivotOptionsDialog, ValueFieldSettingsDialog } from "@/shell/PivotSettingsDialogs"
 import type { PivotFilterRequest } from "@/sheet/pivots"
 import type { FilterDialogRequest } from "@/sheet/data"
 import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
@@ -241,6 +242,9 @@ type DialogState =
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "pivotFilter"; request: PivotFilterRequest }
   | { kind: "createPivot"; source?: string }
+  | { kind: "pivotValue"; index: number }
+  | { kind: "pivotField"; field: number }
+  | { kind: "pivotOptions" }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
   | { kind: "options"; page?: OptionsPage }
@@ -808,6 +812,23 @@ function WorkbookWindow({
         },
       ]
     }
+    // Value Field Settings or Field Settings for the cell's field, then PivotTable Options, as Excel's cell menu has.
+    function pivotSettingsItems(): MenuItem[] {
+      const { row, col } = controller.selection.active
+      const t = controller.pivots.settingsTargetAt(row, col)
+      return [
+        { kind: "separator" },
+        ...(t?.kind === "value"
+          ? [act("Value Field Settings...", () => openDialog(`pivotValue:${t.index}`))]
+          : t?.kind === "field"
+            ? [act("Field Settings...", () => openDialog(`pivotField:${t.field}`))]
+            : []),
+        act("PivotTable Options...", () => openDialog("pivotOptions")),
+        act(controller.pivots.fieldsOpen ? "Hide Field List" : "Show Field List", () =>
+          controller.pivots.setFieldsOpen(!controller.pivots.fieldsOpen),
+        ),
+      ]
+    }
     // Excel's lists (en-US), with what isn't built yet shown disabled.
     if (target === "cells") {
       items.push(
@@ -832,6 +853,7 @@ function WorkbookWindow({
                     }),
                   ]
                 : []),
+              ...pivotSettingsItems(),
               { kind: "separator" },
             ] as MenuItem[])
           : []),
@@ -916,6 +938,9 @@ function WorkbookWindow({
     const [kind, arg] = name.split(":")
     if (kind === "goto") setDialog({ kind: "goto" })
     else if (kind === "createPivot") setDialog({ kind: "createPivot", source: arg })
+    else if (kind === "pivotValue") setDialog({ kind: "pivotValue", index: Number(arg) })
+    else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
+    else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
     else if (kind === "insert" || kind === "delete") setDialog({ kind })
     else if (kind === "size") sizeDialog(arg as "rows" | "cols")
     else if (kind === "autofit") controller.autofit?.(arg as "rows" | "cols")
@@ -1214,7 +1239,7 @@ function WorkbookWindow({
               {controller.data.queriesOpen ? queriesPane : null}
               {controller.data.linksOpen ? linksPane : null}
               {controller.pivots.fieldsShown(false) ? (
-                <PivotFieldsPane controller={controller} onDone={focusGrid} />
+                <PivotFieldsPane controller={controller} onDone={focusGrid} onDialog={openDialog} />
               ) : null}
             </div>
             <SheetTabs controller={controller} onDialog={openDialog} onFocusGrid={focusGrid} />
@@ -1236,7 +1261,7 @@ function WorkbookWindow({
           <ThesaurusPane controller={controller} onDone={focusGrid} />
         ) : null}
         {shell === "phone" && controller.pivots.fieldsShown(true) ? (
-          <PivotFieldsPane controller={controller} onDone={focusGrid} />
+          <PivotFieldsPane controller={controller} onDone={focusGrid} onDialog={openDialog} />
         ) : null}
         {shell === "phone" && controller.annotations.paneOpen ? (
           <CommentsPane controller={controller} onDone={focusGrid} />
@@ -1356,6 +1381,13 @@ function WorkbookWindow({
         {dialog?.kind === "filter" && dialog.request.kind === "top10" ? (
           <Top10Dialog controller={controller} col={dialog.request.col} onClose={closeFilterDialog} />
         ) : null}
+        {dialog?.kind === "pivotValue" ? (
+          <ValueFieldSettingsDialog controller={controller} index={dialog.index} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "pivotField" ? (
+          <FieldSettingsDialog controller={controller} field={dialog.field} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "pivotOptions" ? <PivotOptionsDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "createPivot" ? (
           <CreatePivotDialog controller={controller} source={dialog.source} onClose={closeDialog} />
         ) : null}

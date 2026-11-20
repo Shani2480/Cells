@@ -3,6 +3,10 @@ import {
   currentRegion,
   newPivotTable,
   pivotIsEmpty,
+  pivotSettingsTarget,
+  withFieldSettings,
+  withPivotOptions,
+  withValueSettings,
   pivotLayout,
   nextPivotCacheId,
   nextPivotName,
@@ -40,6 +44,10 @@ import {
   type CellAddress,
   type PivotCache,
   type PivotCacheSource,
+  type PivotFieldSettings,
+  type PivotOptions,
+  type PivotSettingsTarget,
+  type PivotValueSettings,
   type PivotCell,
   type PivotChoices,
   type PivotFilterSpec,
@@ -323,6 +331,66 @@ export class PivotCommands {
     if (entries.length) this.c.wb.amend(entry, [{ kind: "axis", sheet: s, axis: "cols", entries }])
   }
 
+  // ── Value Field Settings, Field Settings, PivotTable Options ──
+
+  /** The value field or field the cell menu's settings commands work on at a cell (null: none). */
+  settingsTargetAt(row: number, col: number): PivotSettingsTarget | null {
+    const table = pivotAt(this.c.sheet, row, col)
+    const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
+    return table && cache ? pivotSettingsTarget(table, cache, row, col) : null
+  }
+
+  /**
+   * A double-click on a header opens its settings, as in Excel: a value field's name opens Value Field Settings, a
+   * field's header or report filter label Field Settings. False elsewhere (items toggle, values show details).
+   */
+  openSettingsAt(row: number, col: number): boolean {
+    const table = pivotAt(this.c.sheet, row, col)
+    const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
+    const cell = table && cache ? pivotCellAt(table, cache, row, col) : undefined
+    if (!cell || cell.item || cell.lines) return false
+    if (!["dataHeader", "corner", "rowHeader", "colHeader", "pageLabel", "colItem", "rowItem"].includes(cell.role))
+      return false
+    const t = this.settingsTargetAt(row, col)
+    if (!t) return false
+    this.c.shell.openDialog?.(t.kind === "value" ? `pivotValue:${t.index}` : `pivotField:${t.field}`)
+    return true
+  }
+
+  /** Value Field Settings' OK for value field `index` of the active PivotTable; Excel's message when it can't. */
+  setValueSettings(index: number, settings: PivotValueSettings): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const next = withValueSettings(at.table, at.cache, index, settings)
+    if (typeof next === "string") return next
+    this.relayout(at, next, "Value Field Settings")
+    return null
+  }
+
+  /** Field Settings' OK for field `f` of the active PivotTable. */
+  setFieldSettings(f: number, settings: PivotFieldSettings): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const next = withFieldSettings(at.table, at.cache, f, settings)
+    if (typeof next === "string") return next
+    this.relayout(at, next, "Field Settings")
+    return null
+  }
+
+  /** PivotTable Options' OK for the active PivotTable (Refresh data when opening the file goes to its cache). */
+  setOptions(options: PivotOptions): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const next = withPivotOptions(at.table, this.c.sheet, options)
+    if (typeof next === "string") return next
+    const caches = this.c.wb.pivotCaches.map((x) =>
+      x === at.cache && x.refreshOnLoad !== options.refreshOnLoad ? { ...x, refreshOnLoad: options.refreshOnLoad } : x,
+    )
+    const extra: Op[] = caches.some((x, i) => x !== this.c.wb.pivotCaches[i]) ? [{ kind: "pivotCaches", caches }] : []
+    this.relayout(at, next, "PivotTable Options", extra)
+    return null
+  }
+
   // ── Show Details ──
 
   /** The cell is a value of a PivotTable whose details can be shown (the cell menu's Show Details). */
@@ -513,12 +581,17 @@ export class PivotCommands {
     return at ? this.relayout(at, withSort(at.table, at.cache, field, sort), "Sort") : false
   }
 
-  private relayout(at: { table: PivotTable; cache: PivotCache }, next: PivotTable, label: string): boolean {
-    if (next === at.table) return false
+  private relayout(
+    at: { table: PivotTable; cache: PivotCache },
+    next: PivotTable,
+    label: string,
+    extra: Op[] = [],
+  ): boolean {
+    if (next === at.table && !extra.length) return false
     const s = this.c.wb.sheets.indexOf(this.c.sheet)
     const plan = pivotCellsPlan(this.c.wb.sheets, this.c.wb.styles, s, at.table, next, at.cache)
     const tables = this.c.sheet.pivots.map((t) => (t === at.table ? plan.table : t))
-    const ops: Op[] = [...plan.ops, { kind: "pivots", sheet: s, tables }]
+    const ops: Op[] = [...extra, ...plan.ops, { kind: "pivots", sheet: s, tables }]
     const go = () => {
       const entry = this.c.transact(ops, { label, before: this.c.selection })
       if (entry) this.fitColumns(entry, ops)

@@ -88,8 +88,16 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    `PivotFieldsPane` (ticks, search, drag and drop, the chips' Move menus), the empty PivotTable's placeholder, and
    Autofit column widths on update (`useAutoFormatting`, read and written; room for filter buttons). Seven
    PivotTables made in Cells open in Excel 365 without repairs and refresh to the same cells. Not yet: Defer Layout
-   Update, the field and value settings dialogs, the Analyze and Design tabs, the pane's phone layout beyond full
-   screen, autofit of PivotTables on other sheets when a refresh changes them.
+   Update, the Analyze and Design tabs, the pane's phone layout beyond full screen, autofit of PivotTables on other
+   sheets when a refresh changes them.
+   _Settings dialogs done:_ core `pivot/settings.ts` (`withValueSettings`, `withFieldSettings`, `withPivotOptions`,
+   `pivotSettingsTarget`; Excel's name rules: a value field's name can't be a source field's or another value
+   field's, a trailing space can; PivotTables on different sheets may share a name), app Value Field Settings (with
+   Format Cells' Number tab), Field Settings, PivotTable Options, from the pane's chip menus, the cell menu and a
+   header's double-click. `PivotTable.part` keeps what Cells leaves unread with a renamed PivotTable. Five
+   PivotTables using every setting open in Excel 365 without repairs, refresh to the same cells, and show the formats,
+   names, captions and flags as set. Not yet: Show Values As (step 5), the Print options, Merge and center labels,
+   Classic layout, Alt Text.
 5. **Show Values As, calculated fields, grouping** — % of Grand Total / Column / Row / Parent, Difference From,
    Running Total In, Rank; Calculated Field; Group dates (Years, Quarters, Months, Days) and numbers (by ranges),
    Group Selection for text items. `GETPIVOTDATA`, and Generate GetPivotData when clicking a PivotTable cell in a

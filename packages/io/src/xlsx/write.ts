@@ -454,7 +454,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       const def = cachePart.get(t.cacheId)
       const cache = wb.pivotCaches.find((c) => c.id === t.cacheId)
       if (!def || !cache) continue
-      const was = pivotsRead?.get(t.name)
+      const was = t.part ? pivotsRead?.get(t.part) : undefined
       const rewritten = cacheWritten.get(t.cacheId)
       const part =
         was && !taken.has(partKey(was.partName)) ? was.partName : freeName((n) => `/xl/pivotTables/pivotTable${n}.xml`)

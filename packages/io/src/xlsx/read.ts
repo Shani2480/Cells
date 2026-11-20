@@ -109,7 +109,7 @@ export type XlsxSource = {
 export type PivotSource = {
   /** Modelled caches by id: their parts, and what they were when read. */
   caches: Map<number, { partName: string; recordsPart: string | null; key: string; records: PivotValue[][] }>
-  /** Modelled PivotTables by sheet and name. */
+  /** Modelled PivotTables by sheet and the part each was read from (PivotTable.part). */
   tables: WeakMap<Sheet, Map<string, { partName: string; xml: string; key: string; place: string }>>
   /** The workbook's `<pivotCache>` entries for caches kept as read (their relationships stay). */
   kept: string[]
@@ -522,10 +522,11 @@ export async function openXlsx(
     for (const t of tables) {
       const table = t.table!
       table.cacheId = cache.id
+      table.part = t.partName
       t.sheet.pivots.push(table)
-      let byName = pivots.tables.get(t.sheet)
-      if (!byName) pivots.tables.set(t.sheet, (byName = new Map()))
-      byName.set(table.name, {
+      let byPart = pivots.tables.get(t.sheet)
+      if (!byPart) pivots.tables.set(t.sheet, (byPart = new Map()))
+      byPart.set(t.partName, {
         partName: t.partName,
         xml: t.xml,
         key: pivotTableKey(table),

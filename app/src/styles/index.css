@@ -4112,3 +4112,31 @@ html.is-phone .pivot-chip-menu button {
 html.is-phone .pivot-chip-button {
   width: 40px;
 }
+
+/* Value Field Settings, Field Settings and PivotTable Options. */
+.fc-page.pivot-settings-page {
+  min-height: 0;
+  height: auto;
+}
+
+.pivot-fn-list {
+  height: 140px;
+  margin-top: 4px;
+}
+
+.pivot-fn-list.is-disabled {
+  opacity: 0.55;
+}
+
+.pivot-settings-indent {
+  display: flex;
+  flex-direction: column;
+  padding-left: 22px;
+}
+
+.pivot-settings-row {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 1fr 140px;
+  gap: 8px;
+}

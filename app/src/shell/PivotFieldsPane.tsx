@@ -62,7 +62,16 @@ export function movedChip(table: PivotTable, cache: PivotCache, c: Chip, area: P
  * Rows and Values areas below. Ticking adds a field where Excel would (numbers to Values, the rest to Rows), dragging
  * puts it in an area or moves it within one, and each chip's menu moves or removes it. Every change is one undo step.
  */
-export function PivotFieldsPane({ controller, onDone }: { controller: SheetController; onDone: () => void }) {
+export function PivotFieldsPane({
+  controller,
+  onDone,
+  onDialog,
+}: {
+  controller: SheetController
+  onDone: () => void
+  /** Opens Value Field Settings ("pivotValue:i") or Field Settings ("pivotField:f"). */
+  onDialog?: (name: string) => void
+}) {
   const pivots = controller.pivots
   const [search, setSearch] = useState("")
   const [menu, setMenu] = useState<string | null>(null)
@@ -149,6 +158,18 @@ export function PivotFieldsPane({ controller, onDone }: { controller: SheetContr
           onClick={() => change((t) => withoutField(t, c.f, c.area, values ? c.index : undefined))}
         >
           Remove Field
+        </button>
+        <hr />
+        <button
+          type="button"
+          role="menuitem"
+          disabled={c.f === VALUES_FIELD}
+          onClick={() => {
+            setMenu(null)
+            onDialog?.(values ? `pivotValue:${c.index}` : `pivotField:${c.f}`)
+          }}
+        >
+          {values ? "Value Field Settings..." : "Field Settings..."}
         </button>
       </div>
     )

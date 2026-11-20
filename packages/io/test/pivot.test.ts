@@ -121,6 +121,18 @@ describe("PivotTables in xlsx", () => {
     expect(expectCellsAsExcel(again)).toBe(15)
   })
 
+  it("a renamed PivotTable keeps what Cells keeps unread (Excel 365's no-Values-row extension)", async () => {
+    const read = await openXlsx(fixture("pivot-filters.xlsx"), "pivot-filters.xlsx")
+    const sheet = read.workbook.sheets.find((s) => s.name === "TwoValues")!
+    sheet.pivots = [{ ...sheet.pivots[0], name: "Sales by Region" }]
+    const saved = await saveXlsx(read.workbook, { source: read.source })
+    const xml = [...(await parts(saved))].find(([, x]) => x.includes('name="Sales by Region"'))![1]
+    expect(xml).toContain('hideValuesRow="1"')
+    expect(xml).toContain("pivotTableDefinition16")
+    const again = (await openXlsx(saved)).workbook.sheets.find((s) => s.name === "TwoValues")!
+    expect(again.pivots[0]).toMatchObject({ name: "Sales by Region", hideValuesRow: true })
+  })
+
   it("moves a PivotTable with rows inserted above it, patching only its location", async () => {
     const read = await openXlsx(fixture("pivot-basic.xlsx"), "pivot-basic.xlsx")
     const wb = read.workbook
