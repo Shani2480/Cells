@@ -1,6 +1,7 @@
 import type { Node } from "./ast"
 import type { Area, Scalar, Value } from "./types"
 import type { Table } from "../table/table"
+import type { PivotCache, PivotTable } from "../pivot/model"
 
 /** What the evaluator needs from the workbook. The calc engine implements it; tests use a small in-memory one. */
 export interface EvalContext {
@@ -39,6 +40,8 @@ export interface EvalContext {
   isHiddenRow?(sheet: number, row: number): boolean
   /** The workbook's tables, for structured references (Table1[Qty], [@Qty]). */
   tables?(): readonly { sheet: number; table: Table }[]
+  /** The PivotTable whose cells (its report filters too) hold a cell, for GETPIVOTDATA. */
+  pivotAt?(sheet: number, row: number, col: number): { table: PivotTable; cache: PivotCache } | null
   /** Names bound by LET (and LAMBDA parameters). */
   bound?: Map<string, Value>
 }

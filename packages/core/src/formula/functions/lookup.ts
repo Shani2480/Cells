@@ -10,6 +10,7 @@ import { isMatrix, isRef, matrix, type Area, type Matrix, type RefValue, type Sc
 import { wildcardPattern } from "./criteria"
 import { int, num } from "./helpers"
 import { define } from "./registry"
+import { pivotDataCell, pivotTableRange } from "../../pivot/getpivotdata"
 
 // ── Searching ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -826,5 +827,37 @@ define("LET", {
       bound.set(n.name.toUpperCase(), evaluate(nodes[i + 1], inner))
     }
     return evaluate(nodes[nodes.length - 1], inner)
+  },
+})
+
+// ── GETPIVOTDATA ─────────────────────────────────────────────────────────────────────────────────────────────
+
+define("GETPIVOTDATA", {
+  min: 2,
+  max: 254,
+  params: ["scalar", "any", "scalar"],
+  call: (a, ctx) => {
+    const name = toText(a[0] as Scalar)
+    if (isError(name)) return name
+    const ref = a[1]
+    if (!isRef(ref)) return REF
+    const area = ref.areas[0]
+    const sheet = area.sheet
+    const found = ctx.pivotAt?.(sheet, area.r0, area.c0)
+    if (!found || a.length % 2 !== 0) return REF
+    const pairs: [string, string | number | boolean][] = []
+    for (let i = 2; i < a.length; i += 2) {
+      const field = toText(a[i] as Scalar)
+      if (isError(field)) return field
+      const item = a[i + 1] as Scalar
+      if (isError(item)) return item
+      pairs.push([field, item === null ? "" : item])
+    }
+    const cell = pivotDataCell(found.table, found.cache, name, pairs)
+    // The formula follows the whole PivotTable: a change to it can move the cell it reads.
+    const range = pivotTableRange(found.table, found.cache)
+    ctx.dynamicReference?.({ sheet, ...range })
+    if (!cell) return REF
+    return ctx.cell(sheet, cell.row, cell.col)
   },
 })

@@ -137,3 +137,53 @@ describe("Delete on a PivotTable", () => {
     expect(col(c, 5)[0]).toBe("Row Labels")
   })
 })
+
+describe("GETPIVOTDATA", () => {
+  it("follows its PivotTable: a refresh and a change of layout recalculate it", () => {
+    const c = setup()
+    const formula = (input: string) =>
+      c.transact([{ kind: "setCells", sheet: 0, cells: [{ row: 15, col: 0, data: { input, value: 0 } }] }], {
+        label: "Formula",
+      })
+    formula('=GETPIVOTDATA("Sum of Units",F1,"Region","North")')
+    expect(c.sheet.cells.get(15, 0)?.value).toBe(9)
+    // A source change shows once the PivotTable is refreshed.
+    c.transact([{ kind: "setCells", sheet: 0, cells: [{ row: 1, col: 2, data: { value: 14 } }] }], { label: "Edit" })
+    expect(c.sheet.cells.get(15, 0)?.value).toBe(9)
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    c.pivots.refresh()
+    expect(c.sheet.cells.get(15, 0)?.value).toBe(19)
+    // Region subtotals off: the North line holds no value any more.
+    c.pivots.layout((t) => withSubtotalsShown(t, "none"), "Subtotals")
+    expect(c.sheet.cells.get(15, 0)?.value).toEqual({ error: "#REF!" })
+    c.undo()
+    expect(c.sheet.cells.get(15, 0)?.value).toBe(19)
+  })
+})
+
+describe("Generate GetPivotData", () => {
+  it("pointing at a value cell writes GETPIVOTDATA; at a label, or with it off, a reference", () => {
+    const c = setup()
+    localStorage.removeItem("cells.generateGetPivotData")
+    c.goTo({ r0: 15, c0: 0, r1: 15, c1: 0 })
+    c.beginEdit("enter", "=")
+    // G2: North's subtotal; G3: North / Shop; G9: the grand total.
+    c.pointAt({ row: 1, col: 6 })
+    expect(c.edit?.text).toBe('=GETPIVOTDATA("Sum of Units",$F$1,"Region","North")')
+    c.pointAt({ row: 2, col: 6 })
+    expect(c.edit?.text).toBe('=GETPIVOTDATA("Sum of Units",$F$1,"Region","North","Channel","Shop")')
+    c.pointAt({ row: 8, col: 6 })
+    expect(c.edit?.text).toBe('=GETPIVOTDATA("Sum of Units",$F$1)')
+    c.pointAt({ row: 2, col: 5 })
+    expect(c.edit?.text).toBe("=F3")
+    c.pointAt({ row: 2, col: 6 })
+    c.commitEdit()
+    expect(c.sheet.cells.get(15, 0)?.value).toBe(4)
+    c.pivots.generateGetPivotData = false
+    c.goTo({ r0: 16, c0: 0, r1: 16, c1: 0 })
+    c.beginEdit("enter", "=")
+    c.pointAt({ row: 2, col: 6 })
+    expect(c.edit?.text).toBe("=G3")
+    c.pivots.generateGetPivotData = true
+  })
+})

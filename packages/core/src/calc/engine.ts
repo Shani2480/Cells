@@ -12,6 +12,8 @@ import { parseFormula } from "../formula/parser"
 import { isMatrix, isRef, type Area, type Scalar, type Value } from "../formula/types"
 import type { Change } from "../ops"
 import { BOOK_SCOPE, externalIndexOf, externalSheetOf, linkKey, type ExternalBook } from "../links"
+import { pivotTableRange } from "../pivot/getpivotdata"
+import type { PivotCache, PivotTable } from "../pivot/model"
 
 /** A formula cell as the engine knows it. */
 type Formula = {
@@ -70,6 +72,8 @@ export interface CalcHost {
   definedName?(name: string, sheet: number): Node | null
   /** Other workbooks that formulas link to, with the values last read from them. */
   readonly links?: { list: ExternalBook[] }
+  /** The PivotTables' caches (GETPIVOTDATA reads PivotTables). */
+  readonly pivotCaches?: readonly PivotCache[]
 }
 
 /**
@@ -108,6 +112,17 @@ export class CalcEngine {
   private readonly evalStack: Formula[] = []
   /** The workbook's tables, read again on rebuild (a table change is structural). */
   tableList: { sheet: number; table: Table }[] = []
+
+  /** The PivotTable whose cells (its report filters too) hold a cell, with its cache. */
+  pivotAt(sheet: number, row: number, col: number): { table: PivotTable; cache: PivotCache } | null {
+    for (const table of this.host.sheets[sheet]?.pivots ?? []) {
+      const cache = this.host.pivotCaches?.find((c) => c.id === table.cacheId)
+      if (!cache) continue
+      const r = pivotTableRange(table, cache)
+      if (row >= r.r0 && row <= r.r1 && col >= r.c0 && col <= r.c1) return { table, cache }
+    }
+    return null
+  }
 
   constructor(private readonly host: CalcHost) {
     this.rebuild()
@@ -1137,6 +1152,9 @@ class WhatIfContext implements EvalContext {
   tables() {
     return this.base.tables()
   }
+  pivotAt(sheet: number, row: number, col: number) {
+    return this.base.pivotAt(sheet, row, col)
+  }
 }
 
 const toScalar = (v: CellValue | undefined): Scalar => (v === undefined ? null : v)
@@ -1168,6 +1186,10 @@ class FormulaContext implements EvalContext {
 
   tables() {
     return this.engine.tableList
+  }
+
+  pivotAt(sheet: number, row: number, col: number) {
+    return this.engine.pivotAt(sheet, row, col)
   }
 
   cell(sheet: number, row: number, col: number): Scalar {

@@ -933,7 +933,9 @@ export class SheetController {
       c0: Math.min(anchor.col, focus.col),
       c1: Math.max(anchor.col, focus.col),
     }
-    const ref = pointedText(range)
+    // A single value cell of a PivotTable: GETPIVOTDATA (Generate GetPivotData), as Excel writes.
+    const single = range.r0 === range.r1 && range.c0 === range.c1
+    const ref = (single && this.pivots.pointedFormula(range.r0, range.c0)) || pointedText(range)
     const start = edit.point ? edit.point.start : edit.selStart
     const end = edit.point ? edit.point.end : edit.selEnd
     const text = edit.text.slice(0, start) + ref + edit.text.slice(end)

@@ -1,6 +1,7 @@
 import {
   chartRefRange,
   clearContentsOp,
+  getPivotDataFormula,
   PIVOT_MESSAGE,
   currentRegion,
   newPivotTable,
@@ -69,6 +70,9 @@ import type { SheetController } from "./controller"
 
 /** The width autofit adds for a cell's filter button (17 px and a gap). */
 const FILTER_BUTTON_ROOM = 19
+
+/** Where Generate GetPivotData's "off" is kept. */
+const GETPIVOTDATA_KEY = "cells.generateGetPivotData"
 
 /** Excel's message when a new PivotTable would sit over another. */
 export const PIVOT_OVERLAP_MESSAGE = "A PivotTable report cannot overlap another PivotTable report."
@@ -289,6 +293,36 @@ export class PivotCommands {
     this.fieldsOpen = open
     this.fieldsAsked = open
     this.c.changed()
+  }
+
+  /**
+   * Generate GetPivotData (Analyze › Options, Excel's "Use GetPivotData functions for PivotTable references"): a
+   * formula pointing at a value cell gets a GETPIVOTDATA call instead of a reference. On unless turned off; kept on
+   * this device.
+   */
+  get generateGetPivotData(): boolean {
+    try {
+      return localStorage.getItem(GETPIVOTDATA_KEY) !== "off"
+    } catch {
+      return true
+    }
+  }
+
+  set generateGetPivotData(on: boolean) {
+    try {
+      if (on) localStorage.removeItem(GETPIVOTDATA_KEY)
+      else localStorage.setItem(GETPIVOTDATA_KEY, "off")
+    } catch {
+      // Storage blocked: the option stays as it was.
+    }
+    this.c.changed()
+  }
+
+  /** The GETPIVOTDATA call for a value cell of a PivotTable on the active sheet, when the option is on. */
+  pointedFormula(row: number, col: number): string | null {
+    if (!this.generateGetPivotData) return null
+    const at = this.cellAt(row, col)
+    return at ? getPivotDataFormula(at.table, at.cache, row, col) : null
   }
 
   /** The window shows the phone layout (App sets it). */

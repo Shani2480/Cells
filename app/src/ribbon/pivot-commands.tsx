@@ -113,12 +113,16 @@ export function pivotCommands(): Command[] {
       "Make a sheet for each report filter item.",
       "P",
     ),
-    later(
-      "PivotTableGetPivotData",
-      "Generate GetPivotData",
-      "Write GETPIVOTDATA when you click a PivotTable cell in a formula.",
-      "G",
-    ),
+    {
+      id: "PivotTableGetPivotData",
+      label: "Generate GetPivotData",
+      description: "Write GETPIVOTDATA when you click a PivotTable value in a formula, instead of a cell reference.",
+      keytip: "G",
+      pressed: (env) => env.c.pivots.generateGetPivotData,
+      run: (env) => {
+        env.c.pivots.generateGetPivotData = !env.c.pivots.generateGetPivotData
+      },
+    },
     {
       id: "PivotActiveField",
       label: "Active Field",

@@ -92,6 +92,8 @@ const TABLE: Record<string, string> = {
   FV: "rate, nper, pmt, [pv], [type]|The future value of an investment.",
   GCD: "number1, [number2], ...|The greatest common divisor.",
   GEOMEAN: "number1, [number2], ...|The geometric mean.",
+  GETPIVOTDATA:
+    "data_field, pivot_table, [field1, item1], ...|A value from a PivotTable, by its value field and items.",
   HARMEAN: "number1, [number2], ...|The harmonic mean.",
   HYPERLINK: "link_location, [friendly_name]|A link that opens a web page, a file or a place in the workbook.",
   HLOOKUP:

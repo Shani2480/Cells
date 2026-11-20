@@ -128,6 +128,16 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    Show Values As tab, the cell menu's Show Values As and Summarize Values By submenus, and the Show Values As
    dialog. Excel reads every setting Cells writes and refreshes all 23 PivotTables of the check file to the same
    cells.
+   _GETPIVOTDATA done:_ core `pivot/getpivotdata.ts` (`pivotDataCell`, `getPivotDataFormula`), the function in
+   `formula/functions/lookup.ts` (it reads the cell it finds and depends on the whole PivotTable, so a refresh or a
+   change of layout recalculates it), `EvalContext.pivotAt`. Excel's rules, from 46 formulas typed into Excel over
+   the fixtures (`io/test/getpivotdata.test.ts`): names ignore case, a value field by its own or its source's name;
+   the items must pick out one shown line per axis (an outer field may be left out when that is unambiguous); a
+   report filter counts only when it shows that item; the reference may be any cell of the table or its filters;
+   an empty value reads as blank. Generate GetPivotData (Analyze › Options, on by default, kept on the device):
+   pointing at a value cell writes the call; cells it can't name (custom subtotals: Excel itself returns #REF! for
+   every form) keep a reference. 306 generated calls, one per value cell of two fixtures, give the cell's own value
+   in Excel 365.
 6. **PivotCharts** — Insert › PivotChart and PivotChart from the Analyze tab: a chart that follows its PivotTable
    (field buttons on the chart, filtering from the chart), written with `c:pivotSource`.
 7. **Recommended PivotTables, Quick Analysis, Slicers and Timelines** — Recommended PivotTables (Insert tab), the

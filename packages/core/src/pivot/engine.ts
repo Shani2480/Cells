@@ -411,6 +411,52 @@ function prepare(table: PivotTable, cache: PivotCache) {
   return { rowFields, colFields, items, filtered, rowLines, colLines }
 }
 
+/** One line of an axis, for GETPIVOTDATA: its kind, the value field it is for and its items on the real fields. */
+export type PivotAxisLine = { t: PivotAxisItem["t"]; data: number; values: boolean; items: number[] }
+
+/**
+ * A PivotTable's axes as GETPIVOTDATA reads them: each axis' real fields and lines, and a way to find an item of a
+ * field by its value or label (`match` compares a label text, ignoring case, or a number).
+ */
+export function pivotAxes(table: PivotTable, cache: PivotCache) {
+  const { rowFields, colFields, items, rowLines, colLines } = prepare(table, cache)
+  const lines = (list: Line[], fields: number[]): PivotAxisLine[] =>
+    list.map((l) => ({
+      t: l.t,
+      data: l.data,
+      values: l.values,
+      items: l.t === "grand" ? [] : l.path.filter((_, j) => fields[j] !== VALUES_FIELD),
+    }))
+  /** The item position of field `f` that `want` names (shown items only), or -1. */
+  const itemOf = (f: number, want: string | number | boolean): number => {
+    const fi = items.get(f)
+    if (!fi) return -1
+    // A report filter's picked item counts even when the field has other items hidden.
+    const candidates = table.pages.some((p) => p.field === f) ? fi.xs.map((_, pos) => pos) : fi.order
+    return (
+      candidates.find((pos) => {
+        const name = fi.names[pos]
+        const v = fi.values[pos]
+        if (name === undefined && typeof want === "number" && typeof v === "number") return v === want
+        const label = labelText(itemLabel(fi, pos)).toLowerCase()
+        return label === String(want).toLowerCase()
+      }) ?? -1
+    )
+  }
+  return {
+    rowFields: rowFields.filter((f) => f !== VALUES_FIELD),
+    colFields: colFields.filter((f) => f !== VALUES_FIELD),
+    rowLines: lines(rowLines, rowFields),
+    colLines: lines(colLines, colFields),
+    itemOf,
+    /** An item's typed name, or its value. */
+    itemValue: (f: number, pos: number): PivotValue => {
+      const fi = items.get(f)
+      return fi ? (fi.names[pos] ?? fi.values[pos] ?? null) : null
+    },
+  }
+}
+
 /**
  * Show Details (double-clicking a value): the cache records a value cell of the layout sums up, in the cache's order;
  * null for a cell that isn't a value.
