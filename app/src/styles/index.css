@@ -3969,8 +3969,10 @@ html.is-phone .forecast-options {
   padding: 1px 8px;
 }
 
-.pivot-fields-list li:hover {
-  background: var(--app-hover);
+@media (hover: hover) {
+  .pivot-fields-list li:hover {
+    background: var(--app-hover);
+  }
 }
 
 .pivot-fields-list .is-used {
@@ -4066,7 +4068,7 @@ html.is-phone .forecast-options {
 
 .pivot-chip-menu {
   position: absolute;
-  z-index: 5;
+  z-index: 60;
   top: 100%;
   right: 0;
   display: flex;
@@ -4139,4 +4141,87 @@ html.is-phone .pivot-chip-button {
   align-items: center;
   grid-template-columns: 1fr 140px;
   gap: 8px;
+}
+
+.pivot-fields-list .pivot-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-right: 2px;
+}
+
+.pivot-fields-list .pivot-field > label {
+  min-width: 0;
+  flex: 1;
+}
+
+/* The field's menu button shows on hover or when open (always on touch). */
+.pivot-fields-list .pivot-field > .pivot-chip-button {
+  opacity: 0;
+}
+
+.pivot-fields-list .pivot-field:hover > .pivot-chip-button,
+.pivot-fields-list .pivot-field > .pivot-chip-button[aria-expanded="true"],
+.pivot-fields-list .pivot-field > .pivot-chip-button:focus-visible {
+  opacity: 1;
+}
+
+.pivot-fields-foot .dialog-btn {
+  flex: none;
+  width: auto;
+}
+
+.pivot-fields-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--app-divider);
+}
+
+/* Fingers (phones and tablets): bigger rows and buttons, menu buttons always shown. */
+@media (pointer: coarse) {
+  .pivot-fields-list li {
+    min-height: 40px;
+  }
+
+  .pivot-fields-list .pivot-field > .pivot-chip-button {
+    opacity: 1;
+  }
+
+  .pivot-chip {
+    min-height: 40px;
+  }
+
+  .pivot-chip-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .pivot-chip-menu button {
+    min-height: 44px;
+  }
+
+  .pivot-fields-foot {
+    min-height: 52px;
+  }
+}
+
+/* The phone: the pane covers the screen; the list takes what the areas leave. */
+html.is-phone .pivot-fields-pane .pivot-fields-list {
+  flex: 1 1 30%;
+}
+
+html.is-phone .pivot-areas {
+  flex: 1 1 auto;
+  grid-template-rows: auto auto;
+}
+
+html.is-phone .pivot-area {
+  min-height: 112px;
+}
+
+html.is-phone .pivot-fields-foot {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
 }

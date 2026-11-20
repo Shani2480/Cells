@@ -105,7 +105,14 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    (thumbnails drawn by the grid's own style code). Five PivotTables laid out by the Design tab open in Excel 365
    without repairs and refresh to the same cells. Greyed out until their steps: grouping (5), calculated fields (5),
    PivotChart (6), slicers, timelines and Recommended PivotTables (7); not built: Show Report Filter Pages, Generate
-   GetPivotData, Field Headers, New PivotTable Style, Defer Layout Update, deleting a whole PivotTable with Delete.
+   GetPivotData, Field Headers, New PivotTable Style.
+   _Touch, Defer Layout Update and Delete done:_ a menu on every field of the list (Add to Report Filter / Row
+   Labels / Column Labels / Values, also on right-click), menus placed on the window above or below their row,
+   finger-sized rows and buttons on coarse pointers, the pane over the whole phone screen (Field List in the phone's
+   PivotTable Analyze sheet opens it); Defer Layout Update with Update (changes wait on the pane and lay out as one
+   undo step; Update after a change elsewhere drops them); Delete over a selection that holds whole PivotTables
+   deletes them, their cells and unused caches, as one undo step (part of one still gets Excel's message). Files
+   with one PivotTable deleted, and with all of them deleted, open in Excel 365 without repairs. **Step 4 done.**
 5. **Show Values As, calculated fields, grouping** — % of Grand Total / Column / Row / Parent, Difference From,
    Running Total In, Rank; Calculated Field; Group dates (Years, Quarters, Months, Days) and numbers (by ranges),
    Group Selection for text items. `GETPIVOTDATA`, and Generate GetPivotData when clicking a PivotTable cell in a

@@ -268,8 +268,8 @@ export function pivotCommands(): Command[] {
       description: "Show or hide the PivotTable Fields pane.",
       keytip: "L",
       enabled: inPivot,
-      pressed: (env) => env.c.pivots.fieldsOpen,
-      run: (env) => env.c.pivots.setFieldsOpen(!env.c.pivots.fieldsOpen),
+      pressed: (env) => env.c.pivots.fieldsOn(),
+      run: (env) => env.c.pivots.toggleFields(),
     },
     {
       id: "PivotButtons",

@@ -561,7 +561,8 @@ function WorkbookWindow({
   // Dialogs, menus and the File view take the whole screen on a phone (phone.css).
   useEffect(() => {
     document.documentElement.classList.toggle("is-phone", shell === "phone")
-  }, [shell])
+    controller.pivots.phone = shell === "phone"
+  }, [shell, controller])
 
   useEffect(() => {
     const shell: SheetController["shell"] = {
@@ -827,8 +828,8 @@ function WorkbookWindow({
             ? [act("Field Settings...", () => openDialog(`pivotField:${t.field}`))]
             : []),
         act("PivotTable Options...", () => openDialog("pivotOptions")),
-        act(controller.pivots.fieldsOpen ? "Hide Field List" : "Show Field List", () =>
-          controller.pivots.setFieldsOpen(!controller.pivots.fieldsOpen),
+        act(controller.pivots.fieldsOn() ? "Hide Field List" : "Show Field List", () =>
+          controller.pivots.toggleFields(),
         ),
       ]
     }

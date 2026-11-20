@@ -108,9 +108,51 @@ describe("PivotTable Fields pane", () => {
     expect(c.sheet.pivots[0].values).toHaveLength(1)
   })
 
+  it("a field's menu in the list adds it to an area", () => {
+    const { chipsIn, rerender } = open()
+    act(() => void fireEvent.click(screen.getByRole("button", { name: "Channel field menu" })))
+    rerender()
+    act(() => void fireEvent.click(screen.getByRole("menuitem", { name: "Add to Column Labels" })))
+    rerender()
+    expect(chipsIn("Columns")).toEqual(["Channel"])
+    // Right-click opens the same menu.
+    act(() => void fireEvent.contextMenu(screen.getByRole("checkbox", { name: "Units" }).closest("li")!))
+    rerender()
+    act(() => void fireEvent.click(screen.getByRole("menuitem", { name: "Add to Values" })))
+    rerender()
+    expect(chipsIn("Values")).toEqual(["Sum of Units"])
+  })
+
+  it("Defer Layout Update keeps changes for Update, laid out as one step", () => {
+    const { c, chipsIn, tick, rerender } = open()
+    act(() => void fireEvent.click(screen.getByRole("checkbox", { name: "Defer Layout Update" })))
+    rerender()
+    tick("Region")
+    tick("Units")
+    // The pane shows them; the sheet doesn't yet.
+    expect(chipsIn("Rows")).toEqual(["Region"])
+    expect(c.sheet.cells.get(0, 5)).toBeUndefined()
+    act(() => void fireEvent.click(screen.getByRole("button", { name: "Update" })))
+    rerender()
+    expect(c.sheet.cells.get(1, 5)?.value).toBe("North")
+    expect(screen.getByRole("button", { name: "Update" })).toHaveProperty("disabled", true)
+    c.undo()
+    expect(c.sheet.cells.get(1, 5)).toBeUndefined()
+    // Turning it off lays out what waits.
+    tick("Channel")
+    act(() => void fireEvent.click(screen.getByRole("checkbox", { name: "Defer Layout Update" })))
+    rerender()
+    expect(c.sheet.cells.get(1, 5)?.value).toBe("Shop")
+  })
+
   it("the search box narrows the list", () => {
     open()
     fireEvent.change(screen.getByRole("searchbox", { name: "Search" }), { target: { value: "ni" } })
-    expect(screen.getAllByRole("checkbox").map((b) => b.closest("label")?.textContent)).toEqual(["Units"])
+    const list = screen.getByRole("list", { name: "Fields" })
+    expect(
+      within(list)
+        .getAllByRole("checkbox")
+        .map((b) => b.closest("label")?.textContent),
+    ).toEqual(["Units"])
   })
 })

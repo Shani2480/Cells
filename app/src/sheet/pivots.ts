@@ -1,5 +1,7 @@
 import {
   chartRefRange,
+  clearContentsOp,
+  PIVOT_MESSAGE,
   currentRegion,
   newPivotTable,
   pivotIsEmpty,
@@ -288,9 +290,22 @@ export class PivotCommands {
     this.c.changed()
   }
 
+  /** The window shows the phone layout (App sets it). */
+  phone = false
+
   /** Whether the Fields pane shows now, in the window's layout. */
-  fieldsShown(phone: boolean): boolean {
-    return this.fieldsOpen && (!phone || this.fieldsAsked) && this.active() !== null
+  fieldsShown(phone = this.phone): boolean {
+    return this.fieldsOn(phone) && this.active() !== null
+  }
+
+  /** Field List is on: the pane shows whenever the active cell is in a PivotTable. */
+  fieldsOn(phone = this.phone): boolean {
+    return this.fieldsOpen && (!phone || this.fieldsAsked)
+  }
+
+  /** Analyze › Field List, and the cell menu's Show/Hide Field List. */
+  toggleFields() {
+    this.setFieldsOpen(!this.fieldsOn())
   }
 
   /** The active PivotTable and its cache, for the Fields pane. */
@@ -298,6 +313,47 @@ export class PivotCommands {
     const table = this.active()
     const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
     return table && cache ? { table, cache } : null
+  }
+
+  /**
+   * The Fields pane's Defer Layout Update: its changes wait in `pending` (for the PivotTable they started from) until
+   * Update lays them out as one step. Changes from anywhere else apply at once, as in Excel.
+   */
+  deferred = false
+  private pending: { base: PivotTable; next: PivotTable } | null = null
+
+  /** The PivotTable as the pane shows it: with the changes waiting for Update. */
+  paneTable(): { table: PivotTable; cache: PivotCache; waiting: boolean } | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const pending = this.pending?.base === at.table ? this.pending.next : null
+    return { table: pending ?? at.table, cache: at.cache, waiting: pending !== null }
+  }
+
+  /** A change from the Fields pane: laid out now, or kept for Update while layout updates are deferred. */
+  paneChange(make: (table: PivotTable, cache: PivotCache) => PivotTable): void {
+    const at = this.paneTable()
+    if (!at) return
+    if (!this.deferred) return void this.change(make)
+    const base = this.activeWithCache()!.table
+    this.pending = { base, next: make(at.table, at.cache) }
+    this.c.changed()
+  }
+
+  /** The pane's Update button: the waiting changes laid out as one undo step. */
+  update(): boolean {
+    const at = this.activeWithCache()
+    const pending = this.pending?.base === at?.table ? this.pending : null
+    this.pending = null
+    if (!at || !pending) return false
+    return this.relayout(at, pending.next, "PivotTable Field")
+  }
+
+  /** Defer Layout Update on or off (off lays out what is waiting). */
+  setDeferred(on: boolean) {
+    if (!on) this.update()
+    this.deferred = on
+    this.c.changed()
   }
 
   /** A change to the active PivotTable (the Fields pane, the field menus), laid out again as one undo step. */
@@ -543,6 +599,36 @@ export class PivotCommands {
     if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, sheets[to].name), go)
     else go()
     return null
+  }
+
+  /**
+   * Delete over a selection that holds a whole PivotTable (its report filters too) deletes it, as in Excel, with the
+   * rest of the selection cleared and its cache dropped when nothing else uses it. False when no PivotTable is wholly
+   * selected; a PivotTable only partly selected still gets Excel's message.
+   */
+  deleteCovered(ranges: readonly Range[]): boolean {
+    const sheet = this.c.sheet
+    const inside = (a: Range) => ranges.some((r) => a.r0 >= r.r0 && a.r1 <= r.r1 && a.c0 >= r.c0 && a.c1 <= r.c1)
+    const touches = (a: Range) => ranges.some((r) => a.r0 <= r.r1 && a.r1 >= r.r0 && a.c0 <= r.c1 && a.c1 >= r.c0)
+    const gone = sheet.pivots.filter((t) => inside(pivotArea(t)))
+    if (!gone.length) return false
+    if (sheet.pivots.some((t) => !gone.includes(t) && touches(pivotArea(t)))) {
+      this.c.shell.alert(PIVOT_MESSAGE)
+      return true
+    }
+    const s = this.c.sheetIndex
+    const wb = this.c.wb
+    const left = sheet.pivots.filter((t) => !gone.includes(t))
+    const used = new Set(wb.sheets.flatMap((x) => (x === sheet ? left : x.pivots).map((t) => t.cacheId)))
+    const caches = wb.pivotCaches.filter((c) => used.has(c.id))
+    const clear = clearContentsOp(s, sheet, ranges)
+    const ops: Op[] = [
+      { kind: "pivots", sheet: s, tables: left },
+      ...(clear ? [clear] : []),
+      ...(caches.length !== wb.pivotCaches.length ? [{ kind: "pivotCaches" as const, caches }] : []),
+    ]
+    this.c.transact(ops, { label: "Clear", before: this.c.selection, after: this.c.selection })
+    return true
   }
 
   /** Design › Layout and PivotTable Style Options, and the style gallery. */

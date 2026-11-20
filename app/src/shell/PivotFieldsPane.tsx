@@ -12,7 +12,7 @@ import {
   type PivotTable,
 } from "@cells/core"
 import { ChevronDown, Columns3, Filter, Rows3, Sigma, X } from "lucide-react"
-import { useState, type DragEvent, type ReactNode } from "react"
+import { useState, type CSSProperties, type DragEvent, type ReactNode } from "react"
 import type { SheetController } from "@/sheet/controller"
 
 /** A field chip in one of the four areas: its field and its place there. */
@@ -26,6 +26,13 @@ const AREAS: { area: PivotArea; label: string; icon: ReactNode }[] = [
   { area: "cols", label: "Columns", icon: <Columns3 size={14} strokeWidth={1.75} /> },
   { area: "rows", label: "Rows", icon: <Rows3 size={14} strokeWidth={1.75} /> },
   { area: "values", label: "Values", icon: <Sigma size={14} strokeWidth={1.75} /> },
+]
+
+const ADD_TO: { area: PivotArea; label: string }[] = [
+  { area: "filters", label: "Add to Report Filter" },
+  { area: "rows", label: "Add to Row Labels" },
+  { area: "cols", label: "Add to Column Labels" },
+  { area: "values", label: "Add to Values" },
 ]
 
 const MOVE_TO: { area: PivotArea; label: string }[] = [
@@ -75,17 +82,34 @@ export function PivotFieldsPane({
   const pivots = controller.pivots
   const [search, setSearch] = useState("")
   const [menu, setMenu] = useState<string | null>(null)
+  // Menus sit on the window (the list and the areas scroll and would cut them off), below their row or above it.
+  const [place, setPlace] = useState<CSSProperties>({})
+  const openMenu = (key: string, row: Element | null) => {
+    if (menu === key) return setMenu(null)
+    const r = row?.getBoundingClientRect()
+    if (r) {
+      const right = Math.max(4, window.innerWidth - r.right)
+      setPlace(
+        window.innerHeight - r.bottom > 280
+          ? { position: "fixed", top: r.bottom, bottom: "auto", left: "auto", right }
+          : { position: "fixed", top: "auto", bottom: window.innerHeight - r.top, left: "auto", right },
+      )
+    }
+    setMenu(key)
+  }
   const [over, setOver] = useState<string | null>(null)
-  const at = pivots.activeWithCache()
+  // Fingers can't drag here (HTML drag and drop is mouse-only in most browsers): the lead says to use the menus.
+  const [coarse] = useState(() => typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches)
+  const at = pivots.paneTable()
   if (!at) return null
-  const { table, cache } = at
+  const { table, cache, waiting } = at
   const close = () => {
     pivots.setFieldsOpen(false)
     onDone()
   }
   const change = (make: (t: PivotTable, c: PivotCache) => PivotTable) => {
     setMenu(null)
-    pivots.change(make)
+    pivots.paneChange(make)
   }
   const name = (f: number) => (f === VALUES_FIELD ? "Σ Values" : pivotFieldName(table, cache, f))
   const query = search.trim().toLowerCase()
@@ -125,7 +149,7 @@ export function PivotFieldsPane({
     const values = c.area === "values"
     const move = (index: number) => change((t, k) => movedChip(t, k, c, c.area, index))
     return (
-      <div className="pivot-chip-menu" role="menu" aria-label={name(c.f)}>
+      <div className="pivot-chip-menu" role="menu" aria-label={name(c.f)} style={place}>
         <button type="button" role="menuitem" disabled={c.index === 0} onClick={() => move(c.index - 1)}>
           Move Up
         </button>
@@ -179,6 +203,11 @@ export function PivotFieldsPane({
     <aside
       className="comments-pane pivot-fields-pane"
       aria-label="PivotTable Fields"
+      onPointerDown={(e) => {
+        // A press outside the open menu (and its button) closes it.
+        const t = e.target as HTMLElement
+        if (menu && !t.closest(".pivot-chip-menu, .pivot-chip-button")) setMenu(null)
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault()
@@ -217,7 +246,17 @@ export function PivotFieldsPane({
         {fields.map((f) => {
           const used = pivotFieldAreas(table, f).length > 0
           return (
-            <li key={f} draggable onDragStart={(e) => startDrag(e, { from: "list", f })}>
+            <li
+              key={f}
+              className="pivot-field"
+              draggable
+              onDragStart={(e) => startDrag(e, { from: "list", f })}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setMenu(null)
+                openMenu(`field:${f}`, e.currentTarget)
+              }}
+            >
               <label className="dialog-radio">
                 <input
                   type="checkbox"
@@ -226,11 +265,39 @@ export function PivotFieldsPane({
                 />
                 <span className={used ? "is-used" : undefined}>{pivotFieldName(table, cache, f)}</span>
               </label>
+              <button
+                type="button"
+                className="pivot-chip-button"
+                aria-label={`${pivotFieldName(table, cache, f)} field menu`}
+                aria-haspopup="menu"
+                aria-expanded={menu === `field:${f}`}
+                onClick={(e) => openMenu(`field:${f}`, e.currentTarget.closest("li"))}
+              >
+                <ChevronDown size={14} strokeWidth={1.75} />
+              </button>
+              {menu === `field:${f}` ? (
+                // Excel's menu on a field of the list: where to add it.
+                <div className="pivot-chip-menu" role="menu" aria-label={pivotFieldName(table, cache, f)} style={place}>
+                  {ADD_TO.map((m) => (
+                    <button
+                      key={m.area}
+                      type="button"
+                      role="menuitem"
+                      disabled={m.area !== "values" && pivotFieldAreas(table, f).includes(m.area)}
+                      onClick={() => change((t, c) => withFieldIn(t, c, f, m.area))}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </li>
           )
         })}
       </ul>
-      <p className="pivot-fields-lead">Drag fields between areas below:</p>
+      <p className="pivot-fields-lead">
+        {coarse ? "Move fields between areas below with their menus:" : "Drag fields between areas below:"}
+      </p>
       <div className="pivot-areas">
         {AREAS.map(({ area, label, icon }) => {
           const list = chips(table, area)
@@ -268,7 +335,7 @@ export function PivotFieldsPane({
                         aria-label={`${text} options`}
                         aria-haspopup="menu"
                         aria-expanded={menu === key}
-                        onClick={() => setMenu(menu === key ? null : key)}
+                        onClick={(e) => openMenu(key, e.currentTarget.closest("li"))}
                       >
                         <ChevronDown size={14} strokeWidth={1.75} />
                       </button>
@@ -281,6 +348,15 @@ export function PivotFieldsPane({
           )
         })}
       </div>
+      <footer className="pivot-fields-foot">
+        <label className="dialog-radio">
+          <input type="checkbox" checked={pivots.deferred} onChange={(e) => pivots.setDeferred(e.target.checked)} />
+          <span>Defer Layout Update</span>
+        </label>
+        <button type="button" className="dialog-btn" disabled={!waiting} onClick={() => pivots.update()}>
+          Update
+        </button>
+      </footer>
     </aside>
   )
 }

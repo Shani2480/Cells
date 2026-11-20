@@ -1330,6 +1330,7 @@ export class SheetController {
   /** Delete: clears contents, keeps formats. */
   clearContents() {
     const ranges = this.selection.ranges
+    if (!this.group.active && this.pivots.deleteCovered(ranges)) return
     const ops = this.group.each((index, sheet) => clearContentsOp(index, sheet, ranges))
     if (ops.length)
       this.transact(ops, { label: "Clear", before: this.selection, after: this.selection, perSheet: true })

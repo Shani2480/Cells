@@ -118,3 +118,22 @@ describe("Design", () => {
     expect(c.sheet.pivots[0].style.name).toBe("PivotStyleMedium9")
   })
 })
+
+describe("Delete on a PivotTable", () => {
+  it("deletes a wholly selected PivotTable; part of one gets Excel's message", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 5, r1: 3, c1: 6 })
+    c.clearContents()
+    expect(c.shell.alert).toHaveBeenCalledWith(expect.stringMatching(/affect a PivotTable/))
+    expect(c.sheet.pivots).toHaveLength(1)
+    c.goTo({ r0: 0, c0: 4, r1: 20, c1: 8 })
+    c.clearContents()
+    expect(c.sheet.pivots).toEqual([])
+    expect(c.wb.pivotCaches).toEqual([])
+    expect(col(c, 5).filter((v) => v !== undefined)).toEqual([])
+    c.undo()
+    expect(c.sheet.pivots).toHaveLength(1)
+    expect(c.wb.pivotCaches).toHaveLength(1)
+    expect(col(c, 5)[0]).toBe("Row Labels")
+  })
+})
