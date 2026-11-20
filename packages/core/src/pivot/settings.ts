@@ -2,6 +2,7 @@ import type { Sheet } from "../sheet"
 import { pivotFieldName, pivotLayout } from "./engine"
 import { pivotFilterTarget } from "./filter"
 import {
+  newPivotField,
   PIVOT_FN_LABEL,
   type PivotCache,
   type PivotField,
@@ -214,5 +215,88 @@ export function withPivotOptions(table: PivotTable, sheet: Sheet, options: Pivot
   flag("enableDrill", options.enableDrill)
   if (options.valuesRow) delete next.hideValuesRow
   else next.hideValuesRow = true
+  return next
+}
+
+// ── The Design tab's Layout group, and Analyze › Clear ──
+
+/** The row and column fields (not Σ Values). */
+const axisFields = (t: PivotTable) => [...t.rows, ...t.cols].filter((f) => f >= 0)
+
+/** Every field (not only those in use), as Excel's layout commands change them all. */
+function withEveryField(t: PivotTable, patch: (f: PivotField) => Partial<PivotField>): PivotTable {
+  return { ...t, fields: t.fields.map((f) => ({ ...f, ...patch(f) })) }
+}
+
+/** Design › Subtotals: Do Not Show, Show all Subtotals at Bottom / at Top of Group. */
+export function withSubtotalsShown(t: PivotTable, place: "none" | "bottom" | "top"): PivotTable {
+  return withEveryField(t, (f) =>
+    place === "none"
+      ? { subtotals: [] }
+      : { subtotals: f.subtotals.length ? f.subtotals : ["default"], subtotalTop: place === "top" },
+  )
+}
+
+/** Which Design › Subtotals choice the table shows now (null: mixed). */
+export function pivotSubtotalsShown(t: PivotTable): "none" | "bottom" | "top" | null {
+  const used = axisFields(t).map((f) => t.fields[f])
+  if (!used.length) return null
+  if (used.every((f) => !f.subtotals.length)) return "none"
+  if (used.every((f) => f.subtotals.length && f.subtotalTop)) return "top"
+  if (used.every((f) => f.subtotals.length && !f.subtotalTop)) return "bottom"
+  return null
+}
+
+/** Design › Grand Totals ("for rows" is the Grand Total column, Excel's colGrandTotals). */
+export function withGrandTotals(t: PivotTable, rows: boolean, cols: boolean): PivotTable {
+  return { ...t, colGrandTotals: rows, rowGrandTotals: cols }
+}
+
+export type PivotReportLayout = "compact" | "outline" | "tabular"
+
+/** Design › Report Layout: compact, outline or tabular form, for the table and every field. */
+export function withReportLayout(t: PivotTable, layout: PivotReportLayout): PivotTable {
+  const compact = layout === "compact"
+  const outline = layout !== "tabular"
+  return { ...withEveryField(t, () => ({ compact, outline })), compact, outline, compactData: compact }
+}
+
+/** The report layout the table shows now (null: its fields differ). */
+export function pivotReportLayout(t: PivotTable): PivotReportLayout | null {
+  const used = t.rows.filter((f) => f >= 0).map((f) => t.fields[f])
+  const of = (f: { compact: boolean; outline: boolean }): PivotReportLayout =>
+    !f.outline ? "tabular" : f.compact ? "compact" : "outline"
+  if (!used.length) return of(t)
+  const first = of(used[0])
+  return used.every((f) => of(f) === first) ? first : null
+}
+
+/** Design › Report Layout › Repeat All Item Labels / Do Not Repeat Item Labels. */
+export const withRepeatAllLabels = (t: PivotTable, on: boolean) => withEveryField(t, () => ({ repeatLabels: on }))
+
+/** Design › Blank Rows › Insert Blank Line after Each Item / Remove Blank Line after Each Item. */
+export const withBlankLines = (t: PivotTable, on: boolean) => withEveryField(t, () => ({ insertBlankRow: on }))
+
+/** Analyze › Clear › Clear Filters: every item ticked, no label or value filters, report filters back to (All). */
+export function withFiltersCleared(t: PivotTable): PivotTable {
+  const next: PivotTable = {
+    ...withEveryField(t, (f) => ({ items: f.items.map(({ hidden: _hidden, ...i }) => i) })),
+    pages: t.pages.map((p) => ({ ...p, item: null })),
+  }
+  delete next.filters
+  return next
+}
+
+/** Analyze › Clear › Clear All: no fields, filters, sorts or names left; the name, place, style and options stay. */
+export function withAllCleared(t: PivotTable, cache: PivotCache): PivotTable {
+  const next: PivotTable = {
+    ...t,
+    fields: cache.fields.map((f) => newPivotField(f.items?.length ?? 0, t)),
+    rows: [],
+    cols: [],
+    pages: [],
+    values: [],
+  }
+  delete next.filters
   return next
 }

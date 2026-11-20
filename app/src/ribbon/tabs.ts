@@ -758,6 +758,103 @@ export const TABLE_DESIGN: Tab = {
   ],
 }
 
+/**
+ * PivotTable Analyze, while the active cell is in a PivotTable. As Excel 365 at a wide window, with what isn't built
+ * yet (grouping, slicers, calculated fields, PivotCharts) greyed out; OLAP Tools and Relationships (Data Model only)
+ * are left out.
+ */
+export const PIVOT_ANALYZE: Tab = {
+  id: "TabPivotTableAnalyze",
+  label: "PivotTable Analyze",
+  keytip: "JT",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupPivotTable",
+      label: "PivotTable",
+      columns: [smalls({ kind: "label", text: "PivotTable Name:" }, F("PivotTableName"), S("PivotTableOptionsMenu"))],
+    },
+    {
+      id: "GroupPivotActiveField",
+      label: "Active Field",
+      columns: [
+        smalls({ kind: "label", text: "Active Field:" }, F("PivotActiveField"), S("PivotFieldSettings")),
+        L("PivotDrillDown"),
+        L("PivotDrillUp"),
+        smalls(S("PivotExpandField"), S("PivotCollapseField")),
+      ],
+    },
+    {
+      id: "GroupPivotGroup",
+      label: "Group",
+      columns: [smalls(S("PivotGroupSelection"), S("PivotUngroup"), S("PivotGroupField"))],
+    },
+    {
+      id: "GroupPivotFilter",
+      label: "Filter",
+      columns: [smalls(S("PivotInsertSlicer"), S("PivotInsertTimeline"), S("PivotFilterConnections"))],
+    },
+    {
+      id: "GroupPivotData",
+      label: "Data",
+      columns: [L("PivotRefreshMenu"), L("PivotChangeDataSource")],
+    },
+    {
+      id: "GroupPivotActions",
+      label: "Actions",
+      columns: [smalls(S("PivotClearMenu"), S("PivotSelectMenu"), S("PivotMove"))],
+    },
+    {
+      id: "GroupPivotCalculations",
+      label: "Calculations",
+      columns: [L("PivotCalculatedFields")],
+    },
+    {
+      id: "GroupPivotTools",
+      label: "Tools",
+      columns: [L("PivotChartInsert", "PivotChart"), L("PivotTableSuggestion")],
+    },
+    {
+      id: "GroupPivotShow",
+      label: "Show",
+      columns: [L("PivotFieldList"), L("PivotButtons"), L("PivotFieldHeaders")],
+    },
+  ],
+}
+
+/** Design (PivotTable Tools), while the active cell is in a PivotTable. */
+export const PIVOT_DESIGN: Tab = {
+  id: "TabPivotTableDesign",
+  label: "Design",
+  keytip: "JY",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupPivotLayout",
+      label: "Layout",
+      columns: [
+        L("PivotSubtotalsMenu"),
+        L("PivotGrandTotalsMenu"),
+        L("PivotReportLayoutMenu"),
+        L("PivotBlankRowsMenu"),
+      ],
+    },
+    {
+      id: "GroupPivotStyleOptions",
+      label: "PivotTable Style Options",
+      columns: [
+        smalls(C("PivotStyleRowHeaders"), C("PivotStyleColumnHeaders")),
+        smalls(C("PivotStyleBandedRows"), C("PivotStyleBandedColumns")),
+      ],
+    },
+    {
+      id: "GroupPivotStyles",
+      label: "PivotTable Styles",
+      columns: [L("PivotStylesGallery")],
+    },
+  ],
+}
+
 /** Every command id a tab shows, in order (for KeyTips, tests and Tell Me). */
 export function controlIds(tab: Tab): string[] {
   const out: string[] = []

@@ -3,6 +3,12 @@ import {
   currentRegion,
   newPivotTable,
   pivotIsEmpty,
+  parseRange,
+  pivotFieldName,
+  pivotOptions,
+  withAllCleared,
+  withFiltersCleared,
+  type Range,
   pivotSettingsTarget,
   withFieldSettings,
   withPivotOptions,
@@ -100,7 +106,10 @@ export class PivotCommands {
    * The ops that refresh these caches and lay out every PivotTable on them; a message when a source can't be read.
    * `ask` collects the sheets where a PivotTable would grow over other data.
    */
-  refreshOps(cacheIds: readonly number[]): { ops: Op[]; overwrites: string[] } | string {
+  refreshOps(
+    cacheIds: readonly number[],
+    sources?: ReadonlyMap<number, PivotCacheSource>,
+  ): { ops: Op[]; overwrites: string[] } | string {
     const wb = this.c.wb
     const caches: PivotCache[] = [...wb.pivotCaches]
     const tables = new Map<number, PivotTable[]>(wb.sheets.map((s, i) => [i, [...s.pivots]]))
@@ -110,9 +119,10 @@ export class PivotCommands {
       const index = caches.findIndex((c) => c.id === id)
       if (index < 0) continue
       const old = caches[index]
-      const data = readPivotSource(wb.sheets, wb.styles, old.source)
+      const source = sources?.get(id) ?? old.source
+      const data = readPivotSource(wb.sheets, wb.styles, source)
       if (typeof data === "string") return data
-      const next = refreshedCache(old, data)
+      const next = { ...refreshedCache(old, data), source }
       caches[index] = next
       wb.sheets.forEach((sheet, s) => {
         const list = tables.get(s)!
@@ -132,8 +142,8 @@ export class PivotCommands {
     return { ops, overwrites }
   }
 
-  private run(cacheIds: number[], label: string): boolean {
-    const result = this.refreshOps(cacheIds)
+  private run(cacheIds: number[], label: string, sources?: ReadonlyMap<number, PivotCacheSource>): boolean {
+    const result = this.refreshOps(cacheIds, sources)
     if (typeof result === "string") {
       this.c.shell.alert(result)
       return false
@@ -389,6 +399,173 @@ export class PivotCommands {
     const extra: Op[] = caches.some((x, i) => x !== this.c.wb.pivotCaches[i]) ? [{ kind: "pivotCaches", caches }] : []
     this.relayout(at, next, "PivotTable Options", extra)
     return null
+  }
+
+  // ── The PivotTable Analyze and Design tabs ──
+
+  /** Analyze › PivotTable Name. */
+  rename(name: string): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const next = withPivotOptions(at.table, this.c.sheet, { ...pivotOptions(at.table, at.cache), name })
+    if (typeof next === "string") return next
+    this.relayout(at, next, "Rename PivotTable")
+    return null
+  }
+
+  /** The Active Field box: the value field's or field's name at the active cell (null: none there). */
+  activeField(): { target: PivotSettingsTarget; name: string } | null {
+    const at = this.activeWithCache()
+    const { row, col } = this.c.selection.active
+    const target = at && this.settingsTargetAt(row, col)
+    if (!at || !target) return null
+    const name =
+      target.kind === "value"
+        ? (at.table.values[target.index]?.name ?? "")
+        : pivotFieldName(at.table, at.cache, target.field)
+    return { target, name }
+  }
+
+  /** The Active Field box's new name, for the value field or field at the active cell. */
+  renameActiveField(name: string): string | null {
+    const at = this.activeWithCache()
+    const active = this.activeField()
+    if (!at || !active || name === active.name) return null
+    const { target } = active
+    if (target.kind === "value") {
+      const v = at.table.values[target.index]
+      return this.setValueSettings(target.index, { name, fn: v.fn, numFmt: v.numFmt })
+    }
+    const f = at.table.fields[target.field]
+    return this.setFieldSettings(target.field, { ...f, name })
+  }
+
+  /** Analyze › Change Data Source: the active PivotTable's cache reads another table or range. */
+  changeSource(text: string): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const source = this.parseSource(text)
+    if (!source) return "Reference isn't valid."
+    const data = readPivotSource(this.c.wb.sheets, this.c.wb.styles, source)
+    if (typeof data === "string") return data
+    this.run([at.cache.id], "Change Data Source", new Map([[at.cache.id, source]]))
+    return null
+  }
+
+  /** The active PivotTable's source as the Table/Range box shows it. */
+  sourceText(): string {
+    const source = this.activeWithCache()?.cache.source
+    if (!source) return ""
+    if (source.kind === "name") return source.name
+    return `${quoteSheet(source.sheet)}!${absolute(parseRange(source.ref) ?? { r0: 0, c0: 0, r1: 0, c1: 0 })}`
+  }
+
+  /** Analyze › Clear › Clear All and Clear Filters. */
+  clear(what: "all" | "filters"): boolean {
+    return this.change(
+      (t, cache) => (what === "all" ? withAllCleared(t, cache) : withFiltersCleared(t)),
+      what === "all" ? "Clear All" : "Clear Filters",
+    )
+  }
+
+  /**
+   * Analyze › Select: the entire PivotTable (report filters too), its labels and values (the table), its values, or
+   * its labels.
+   */
+  select(what: "entire" | "labelsAndValues" | "values" | "labels"): boolean {
+    const at = this.activeWithCache()
+    if (!at) return false
+    const { table, cache } = at
+    const layout = pivotLayout(table, cache)
+    const r = layout.range
+    const data = { r0: r.r0 + layout.firstDataRow, c0: r.c0 + layout.firstDataCol, r1: r.r1, c1: r.c1 }
+    let ranges: Range[]
+    if (what === "entire") ranges = [pivotArea(table)]
+    else if (what === "labelsAndValues") ranges = [r]
+    else if (what === "values") ranges = [data]
+    else
+      ranges = [
+        ...(data.c0 > r.c0 ? [{ r0: r.r0, c0: r.c0, r1: r.r1, c1: data.c0 - 1 }] : []),
+        ...(data.r0 > r.r0 ? [{ r0: r.r0, c0: data.c0, r1: data.r0 - 1, c1: r.c1 }] : []),
+      ]
+    ranges = ranges.filter((x) => x.r1 >= x.r0 && x.c1 >= x.c0)
+    if (!ranges.length) return false
+    const first = ranges[0]
+    const corner = { row: first.r0, col: first.c0 }
+    const far = { row: first.r1, col: first.c1 }
+    this.c.setSelection({ ranges, active: corner, activeRange: 0, anchor: corner, focus: far }, null)
+    return true
+  }
+
+  /**
+   * Analyze › Move PivotTable: to a cell of this or another sheet (its report filters' top left), or a new sheet.
+   * A message when it can't.
+   */
+  move(dest: PivotDestination): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const wb = this.c.wb
+    const from = this.c.sheetIndex
+    const newSheet = dest.kind === "newSheet"
+    const sheets = [...wb.sheets]
+    const name = nextSheetName(wb.sheets.map((s) => s.name))
+    const to = newSheet ? from : dest.sheet
+    if (newSheet) sheets.splice(to, 0, new Sheet(name))
+    const fromAfter = newSheet ? from + 1 : from
+    const top = newSheet ? { row: 2, col: 0 } : dest.at
+    const pagesRows = at.table.pages.length ? at.table.pages.length + 1 : 0
+    const moved = { ...at.table, at: { row: top.row + pagesRows, col: top.col } }
+    const before = to === fromAfter ? at.table : null
+    const others = sheets[to].pivots.filter((t) => t !== at.table)
+    const area = pivotArea({ ...moved, location: pivotLayout(moved, at.cache).range })
+    const hits = (r: Range) => r.r0 <= area.r1 && r.r1 >= area.r0 && r.c0 <= area.c1 && r.c1 >= area.c0
+    if (others.some((t) => hits(pivotArea(t)))) return PIVOT_OVERLAP_MESSAGE
+    const plan = pivotCellsPlan(sheets, wb.styles, to, before, moved, at.cache)
+    const ops: Op[] = newSheet ? [{ kind: "addSheet", sheet: to, name }] : []
+    if (!before) {
+      // Off its old sheet: its cells there are cleared and it leaves that sheet's list.
+      const old = pivotArea(at.table)
+      const cells = []
+      for (let r = old.r0; r <= old.r1; r++)
+        for (let c = old.c0; c <= old.c1; c++)
+          if (wb.sheets[from].cells.get(r, c)) cells.push({ row: r, col: c, data: undefined })
+      ops.push({ kind: "setCells", sheet: fromAfter, cells })
+      ops.push({ kind: "pivots", sheet: fromAfter, tables: wb.sheets[from].pivots.filter((t) => t !== at.table) })
+    }
+    ops.push(...plan.ops, { kind: "pivots", sheet: to, tables: [...others, plan.table] })
+    const go = () => {
+      const entry = this.c.transact(ops, { label: "Move PivotTable", before: this.c.selection, sheetAfter: to })
+      if (!entry) return
+      if (to !== this.c.sheetIndex) this.c.activate(to)
+      this.fitColumns(entry, ops)
+      this.c.goTo({ r0: plan.table.at.row, c0: plan.table.at.col, r1: plan.table.at.row, c1: plan.table.at.col })
+    }
+    if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, sheets[to].name), go)
+    else go()
+    return null
+  }
+
+  /** Design › Layout and PivotTable Style Options, and the style gallery. */
+  layout(make: (t: PivotTable) => PivotTable, label: string): boolean {
+    return this.change((t) => make(t), label)
+  }
+
+  setStyle(name: string | null): boolean {
+    return this.change((t) => ({ ...t, style: { ...t.style, name } }), "PivotTable Style")
+  }
+
+  setStyleOption(key: "rowHeaders" | "colHeaders" | "rowStripes" | "colStripes", on: boolean): boolean {
+    return this.change((t) => ({ ...t, style: { ...t.style, [key]: on } }), "PivotTable Style Options")
+  }
+
+  /** Analyze › Show › +/- Buttons. */
+  setButtons(on: boolean): boolean {
+    return this.change((t) => {
+      const next = { ...t }
+      if (on) delete next.showDrill
+      else next.showDrill = false
+      return next
+    }, "+/- Buttons")
   }
 
   // ── Show Details ──

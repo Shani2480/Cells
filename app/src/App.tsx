@@ -55,6 +55,8 @@ import {
   SLICER,
   SPARKLINE,
   TABLE_DESIGN,
+  PIVOT_ANALYZE,
+  PIVOT_DESIGN,
   TABS,
 } from "@/ribbon/tabs"
 import {
@@ -163,6 +165,7 @@ import type { TextImport } from "@cells/io"
 
 const NOT_BUILT = "Not built yet."
 const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
+const TABS_IN_PIVOT = [...TABS, PIVOT_ANALYZE, PIVOT_DESIGN]
 const TABS_IN_SPARKLINE = [...TABS, SPARKLINE]
 const TABS_IN_SLICER = [...TABS, SLICER]
 const TABS_IN_TABLE_SPARKLINE = [...TABS, TABLE_DESIGN, SPARKLINE]
@@ -241,7 +244,7 @@ type DialogState =
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "pivotFilter"; request: PivotFilterRequest }
-  | { kind: "createPivot"; source?: string }
+  | { kind: "createPivot"; source?: string; mode?: "source" | "move" }
   | { kind: "pivotValue"; index: number }
   | { kind: "pivotField"; field: number }
   | { kind: "pivotOptions" }
@@ -938,6 +941,8 @@ function WorkbookWindow({
     const [kind, arg] = name.split(":")
     if (kind === "goto") setDialog({ kind: "goto" })
     else if (kind === "createPivot") setDialog({ kind: "createPivot", source: arg })
+    else if (kind === "pivotSource") setDialog({ kind: "createPivot", mode: "source" })
+    else if (kind === "pivotMove") setDialog({ kind: "createPivot", mode: "move" })
     else if (kind === "pivotValue") setDialog({ kind: "pivotValue", index: Number(arg) })
     else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
@@ -1148,7 +1153,9 @@ function WorkbookWindow({
                   : TABS_IN_SPARKLINE
                 : controller.tables.active()
                   ? TABS_IN_TABLE
-                  : TABS
+                  : controller.pivots.active()
+                    ? TABS_IN_PIVOT
+                    : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 
@@ -1389,7 +1396,7 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "pivotOptions" ? <PivotOptionsDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "createPivot" ? (
-          <CreatePivotDialog controller={controller} source={dialog.source} onClose={closeDialog} />
+          <CreatePivotDialog controller={controller} source={dialog.source} mode={dialog.mode} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotFilter" ? (
           <PivotFilterDialog controller={controller} request={dialog.request} onClose={closeDialog} />

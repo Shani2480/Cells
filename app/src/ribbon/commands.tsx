@@ -1,4 +1,5 @@
 import { slicerCommands } from "./slicer-commands"
+import { pivotCommands } from "./pivot-commands"
 import { sparklineCommands } from "./sparkline-commands"
 import { linkCommands } from "./link-commands"
 import { pageLayoutCommands } from "./page-layout-commands"
@@ -29,6 +30,8 @@ import {
   SLICER,
   SPARKLINE,
   TABLE_DESIGN,
+  PIVOT_ANALYZE,
+  PIVOT_DESIGN,
   TABS,
   controlIds,
 } from "./tabs"
@@ -377,6 +380,7 @@ export function allCommands(): Command[] {
     ...dataToolCommands(),
     ...qatCommands(),
     ...tableCommands(),
+    ...pivotCommands(),
     ...chartCommands(),
     ...objectCommands(),
     ...pageLayoutCommands(),
@@ -395,7 +399,18 @@ export function allCommands(): Command[] {
 
 export function buildRegistry(): CommandRegistry {
   const registry = new CommandRegistry().add(...allCommands())
-  for (const tab of [...TABS, TABLE_DESIGN, CHART_DESIGN, SHAPE_FORMAT, PICTURE_FORMAT, EQUATION, SPARKLINE, SLICER]) {
+  for (const tab of [
+    ...TABS,
+    TABLE_DESIGN,
+    PIVOT_ANALYZE,
+    PIVOT_DESIGN,
+    CHART_DESIGN,
+    SHAPE_FORMAT,
+    PICTURE_FORMAT,
+    EQUATION,
+    SPARKLINE,
+    SLICER,
+  ]) {
     for (const id of controlIds(tab)) {
       if (!registry.get(id)) registry.add({ id, label: LABELS[id] ?? excelLabel(id) ?? id })
     }

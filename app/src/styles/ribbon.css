@@ -3877,3 +3877,8 @@
 .pivot-placeholder strong {
   font-weight: 600;
 }
+
+/* Design › PivotTable Styles: room under the gallery for New PivotTable Style and Clear, in one scroll. */
+.table-style-gallery.pivot-style-gallery {
+  max-height: calc(100vh - 380px);
+}

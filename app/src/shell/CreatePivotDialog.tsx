@@ -1,7 +1,14 @@
 import { useState } from "react"
 import type { SheetController } from "@/sheet/controller"
+import type { PivotDestination } from "@/sheet/pivots"
 import { parseSheetRange } from "./AdvancedFilterDialog"
 import { Dialog } from "./Dialog"
+
+const TITLES = {
+  create: "PivotTable from table or range",
+  source: "Change PivotTable Data Source",
+  move: "Move PivotTable",
+}
 
 /**
  * Insert › PivotTable (and Table Design › Summarize with PivotTable): Excel 365's "PivotTable from table or range".
@@ -11,36 +18,50 @@ import { Dialog } from "./Dialog"
 export function CreatePivotDialog({
   controller,
   source: initial,
+  mode = "create",
   onClose,
 }: {
   controller: SheetController
   /** The Table/Range box's starting text (Summarize with PivotTable gives its table's name). */
   source?: string
+  /**
+   * "source": Analyze › Change Data Source (the Table/Range box only); "move": Analyze › Move PivotTable (where to
+   * only).
+   */
+  mode?: "create" | "source" | "move"
   onClose: () => void
 }) {
-  const [source, setSource] = useState(() => initial ?? controller.pivots.defaultSource())
+  const [source, setSource] = useState(
+    () => initial ?? (mode === "source" ? controller.pivots.sourceText() : controller.pivots.defaultSource()),
+  )
   const [existing, setExisting] = useState(false)
   const [location, setLocation] = useState("")
 
   const accept = () => {
-    let problem: string | null
+    if (mode === "source") {
+      const problem = controller.pivots.changeSource(source)
+      if (problem) return controller.shell.alert(problem)
+      return onClose()
+    }
+    let dest: PivotDestination = { kind: "newSheet" }
     if (existing) {
       const at = parseSheetRange(controller, location)
       if (!at) return controller.shell.alert("Reference isn't valid.")
-      problem = controller.pivots.create(source, {
-        kind: "existing",
-        sheet: at.sheet,
-        at: { row: at.range.r0, col: at.range.c0 },
-      })
-    } else problem = controller.pivots.create(source, { kind: "newSheet" })
+      dest = { kind: "existing", sheet: at.sheet, at: { row: at.range.r0, col: at.range.c0 } }
+    }
+    const problem = mode === "move" ? controller.pivots.move(dest) : controller.pivots.create(source, dest)
     if (problem) return controller.shell.alert(problem)
     onClose()
   }
 
   return (
-    <Dialog title="PivotTable from table or range" onCancel={onClose} onAccept={accept} width={400}>
-      <p className="dialog-label">Select a table or range</p>
-      <div className="goal-seek-fields">
+    <Dialog title={TITLES[mode]} onCancel={onClose} onAccept={accept} width={400}>
+      {mode === "move" ? null : (
+        <p className="dialog-label">
+          {mode === "source" ? "Choose the data that you want to analyze" : "Select a table or range"}
+        </p>
+      )}
+      <div className="goal-seek-fields" hidden={mode === "move"}>
         <label className="dialog-label" htmlFor="pivot-source">
           Table/Range:
         </label>
@@ -52,7 +73,7 @@ export function CreatePivotDialog({
           onChange={(e) => setSource(e.target.value)}
         />
       </div>
-      <fieldset className="dialog-group">
+      <fieldset className="dialog-group" hidden={mode === "source"}>
         <legend>Choose where you want the PivotTable to be placed</legend>
         <label className="dialog-radio">
           <input type="radio" name="pivot-place" checked={!existing} onChange={() => setExisting(false)} />

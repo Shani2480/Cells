@@ -98,6 +98,14 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    PivotTables using every setting open in Excel 365 without repairs, refresh to the same cells, and show the formats,
    names, captions and flags as set. Not yet: Show Values As (step 5), the Print options, Merge and center labels,
    Classic layout, Alt Text.
+   _Analyze and Design tabs done:_ core `withSubtotalsShown`, `withGrandTotals`, `withReportLayout`,
+   `withRepeatAllLabels`, `withBlankLines`, `withFiltersCleared`, `withAllCleared`; app `PivotCommands` rename,
+   active field, Change Data Source, Clear, Select, Move PivotTable (on its sheet, to another or a new one), style and
+   style options; `ribbon/pivot-commands.tsx`, `PIVOT_ANALYZE` / `PIVOT_DESIGN`, the PivotTable style gallery
+   (thumbnails drawn by the grid's own style code). Five PivotTables laid out by the Design tab open in Excel 365
+   without repairs and refresh to the same cells. Greyed out until their steps: grouping (5), calculated fields (5),
+   PivotChart (6), slicers, timelines and Recommended PivotTables (7); not built: Show Report Filter Pages, Generate
+   GetPivotData, Field Headers, New PivotTable Style, Defer Layout Update, deleting a whole PivotTable with Delete.
 5. **Show Values As, calculated fields, grouping** — % of Grand Total / Column / Row / Parent, Difference From,
    Running Total In, Rank; Calculated Field; Group dates (Years, Quarters, Months, Days) and numbers (by ranges),
    Group Selection for text items. `GETPIVOTDATA`, and Generate GetPivotData when clicking a PivotTable cell in a
