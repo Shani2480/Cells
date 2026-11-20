@@ -101,6 +101,36 @@ describe("PivotTables in xlsx", () => {
     expect(expectCellsAsExcel(wb)).toBe(15)
   })
 
+  it("reads Show Values As, and the engine shows Excel's cells (pivot-showas.xlsx)", async () => {
+    const { workbook: wb } = await openXlsx(fixture("pivot-showas.xlsx"), "pivot-showas.xlsx")
+    expect(expectCellsAsExcel(wb)).toBe(22)
+    const all = wb.sheets.flatMap((s) => s.pivots)
+    const value = (n: string) => all.find((t) => t.name === `PT${n}`)!.values[0]
+    expect(value("PctOf")).toMatchObject({ showAs: "percent", baseField: 0, baseItem: 0, numFmt: "0.00%" })
+    expect(value("PctDiffPrev")).toMatchObject({ showAs: "percentDiff", baseField: 1, baseItem: "previous" })
+    expect(value("DiffNext").baseItem).toBe("next")
+    expect(value("RankDesc")).toMatchObject({ showAs: "rankDescending", baseField: 1 })
+    expect(value("PctTotal").baseField).toBeUndefined()
+  })
+
+  it("writes Show Values As as Excel does, and reads it back the same", async () => {
+    const read = await openXlsx(fixture("pivot-showas.xlsx"), "pivot-showas.xlsx")
+    const wb = read.workbook
+    const before = wb.sheets.flatMap((s) => s.pivots.map((t) => t.values))
+    for (const sheet of wb.sheets)
+      sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    const saved = await saveXlsx(wb, { source: read.source })
+    const xml = [...(await parts(saved))].filter(([n]) => /^xl\/pivotTables\/[^/]+\.xml$/.test(n)).map(([, x]) => x)
+    const pick = (name: string) => xml.find((x) => x.includes(`name="PT${name}"`))!
+    expect(pick("PctOfEmpty")).toMatch(/showDataAs="percent" baseField="0" baseItem="2"/)
+    expect(pick("PctDiffPrev")).toContain('baseItem="1048828"')
+    expect(pick("PctParent")).toContain('<x14:dataField pivotShowAs="percentOfParent"/>')
+    expect(pick("PctParent")).not.toContain("showDataAs")
+    const again = await openXlsx(saved)
+    expect(again.workbook.sheets.flatMap((s) => s.pivots.map((t) => t.values))).toEqual(before)
+    expect(expectCellsAsExcel(again.workbook)).toBe(22)
+  })
+
   it("writes the filters anew as Excel does, and reads them back the same", async () => {
     const read = await openXlsx(fixture("pivot-filters.xlsx"), "pivot-filters.xlsx")
     const wb = read.workbook

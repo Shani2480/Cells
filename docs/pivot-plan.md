@@ -117,6 +117,17 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    Running Total In, Rank; Calculated Field; Group dates (Years, Quarters, Months, Days) and numbers (by ranges),
    Group Selection for text items. `GETPIVOTDATA`, and Generate GetPivotData when clicking a PivotTable cell in a
    formula.
+   _Show Values As done:_ all 14 choices (core `pivot/show-as.ts`, applied to each value cell from the summaries of
+   the cells it compares with). Excel's rules for empty cells, read from `fixtures/excel/pivot-showas.xlsx` (22
+   PivotTables Excel made): the percentages and Index count an empty cell as 0 and leave it blank when the total
+   they divide by is empty; % Of and % Difference From give `#NULL!` for an empty cell and blank for an empty base;
+   Difference From counts both as 0; running totals show 0; ranks skip empty cells, ties share a rank (1, 1, 2); a
+   line that doesn't reach the base field (grand totals, outer levels) is blank. The file keeps them in
+   `showDataAs`, or for Excel 2010's choices in the dataField's x14 extension, with `baseItem` a position in the
+   base field's items (1048828/1048829 for previous/next; the model keeps the cache item). Value Field Settings'
+   Show Values As tab, the cell menu's Show Values As and Summarize Values By submenus, and the Show Values As
+   dialog. Excel reads every setting Cells writes and refreshes all 23 PivotTables of the check file to the same
+   cells.
 6. **PivotCharts** — Insert › PivotChart and PivotChart from the Analyze tab: a chart that follows its PivotTable
    (field buttons on the chart, filtering from the chart), written with `c:pivotSource`.
 7. **Recommended PivotTables, Quick Analysis, Slicers and Timelines** — Recommended PivotTables (Insert tab), the

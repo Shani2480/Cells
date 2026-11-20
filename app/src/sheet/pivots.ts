@@ -55,6 +55,7 @@ import {
   type PivotFieldSettings,
   type PivotOptions,
   type PivotSettingsTarget,
+  type PivotShowAsSetting,
   type PivotValueSettings,
   type PivotCell,
   type PivotChoices,
@@ -796,6 +797,22 @@ export class PivotCommands {
   filterTargetAt(row: number, col: number): PivotFilterTarget | null {
     const at = this.cellAt(row, col)
     return at ? pivotFilterTarget(at.table, at.cache, at.cell) : null
+  }
+
+  /** Show Values As' Base Item list for field `f` of the active PivotTable: its items as shown, labels formatted. */
+  baseItems(f: number): { x: number; label: string }[] {
+    const at = this.activeWithCache()
+    if (!at || !at.table.fields[f]) return []
+    return pivotChoices(at.table, at.cache, f, (v, numFmt) => displayText(v, numFmt ?? "General")).items.map(
+      ({ x, label }) => ({ x, label }),
+    )
+  }
+
+  /** The cell menu's Show Values As for the value field of the active cell (one undo step). */
+  setShowAs(index: number, show: PivotShowAsSetting): string | null {
+    const v = this.activeWithCache()?.table.values[index]
+    if (!v) return null
+    return this.setValueSettings(index, { name: v.name, fn: v.fn, numFmt: v.numFmt, show })
   }
 
   /** A dropdown's list for one of its fields, labels in the field's number format. */

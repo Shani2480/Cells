@@ -1,8 +1,11 @@
 import {
   errorValue,
+  fullItems,
   parseRange,
   pivotLayout,
   rangeName,
+  SHOW_AS_BASE_FIELD,
+  SHOW_AS_BASE_ITEM,
   VALUES_FIELD,
   type ErrorCode,
   type PivotAxisItem,
@@ -13,6 +16,7 @@ import {
   type PivotLabelOp,
   type PivotValueOp,
   type PivotFn,
+  type PivotShowAs,
   type PivotSort,
   type PivotSubtotal,
   type PivotTable,
@@ -188,6 +192,33 @@ const DATA_FN: Record<string, PivotFn> = {
 }
 const AXIS: Record<string, PivotField["axis"]> = { axisRow: "row", axisCol: "col", axisPage: "page" }
 const X14_FIELD = "{2946ED86-A175-432a-8AC1-64E0C546D7DE}"
+const NS_X14 = "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"
+
+/** The x14 extension of a dataField (Show Values As choices added in Excel 2010). */
+const X14_DATA = "{E15A36E0-9728-4e99-A89B-3F7291B0FE68}"
+/** baseItem's (previous) and (next). */
+const BASE_PREVIOUS = 1048828
+const BASE_NEXT = 1048829
+/** The showDataAs values of the file format; the rest go in the x14 extension. */
+const SHOW_DATA_AS = new Set([
+  "difference",
+  "percent",
+  "percentDiff",
+  "runTotal",
+  "percentOfRow",
+  "percentOfCol",
+  "percentOfTotal",
+  "index",
+])
+const SHOW_AS = new Set([
+  ...SHOW_DATA_AS,
+  "percentOfParentRow",
+  "percentOfParentCol",
+  "percentOfParent",
+  "percentOfRunningTotal",
+  "rankAscending",
+  "rankDescending",
+])
 
 /** A PivotTable definition; null when it uses what Cells doesn't model. */
 export function readPivotTable(xml: string, numberFormat: (id: number) => string | undefined): PivotTable | null {
@@ -258,16 +289,36 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
   }
   const list = (local: string) => kids(kid(root, local), "field").map((n) => Number(at(n, "x") ?? 0))
   const values: PivotTable["values"] = []
+  const baseItems: [PivotTable["values"][number], number][] = []
   for (const d of kids(kid(root, "dataFields"), "dataField")) {
-    const show = at(d, "showDataAs")
-    if (show && show !== "normal") return null
-    if (kid(d, "extLst")) return null
+    // Show Values As: showDataAs, or for Excel 2010's choices the x14 extension (any other extension isn't known).
+    const exts = kids(kid(d, "extLst"), "ext")
+    const x14 = exts.find((e) => at(e, "uri") === X14_DATA)
+    if (exts.length > (x14 ? 1 : 0)) return null
+    const x14As = at(kid(x14, "dataField"), "pivotShowAs")
+    const show = x14As ?? at(d, "showDataAs") ?? "normal"
+    if (show !== "normal" && !SHOW_AS.has(show)) return null
     const fn = DATA_FN[at(d, "subtotal") ?? "sum"]
     if (!fn) return null
     const v: PivotTable["values"][number] = { name: at(d, "name") ?? "", field: Number(at(d, "fld") ?? 0), fn }
     const numFmt = fmt(d)
     if (numFmt) v.numFmt = numFmt
+    if (show !== "normal") {
+      v.showAs = show as PivotShowAs
+      if (SHOW_AS_BASE_FIELD.includes(v.showAs)) v.baseField = Number(at(d, "baseField") ?? 0)
+      if (SHOW_AS_BASE_ITEM.includes(v.showAs)) baseItems.push([v, Number(at(d, "baseItem") ?? 0)])
+    }
     values.push(v)
+  }
+  // A base item is a position in the base field's items (the cache item it shows), or Excel's previous / next.
+  for (const [v, item] of baseItems) {
+    if (item === BASE_PREVIOUS) v.baseItem = "previous"
+    else if (item === BASE_NEXT) v.baseItem = "next"
+    else {
+      const x = fields[v.baseField ?? 0]?.items[item]?.x
+      if (x === undefined) return null
+      v.baseItem = x
+    }
   }
   const pages = kids(kid(root, "pageFields"), "pageField").map((p) => {
     const item = at(p, "item")
@@ -661,6 +712,17 @@ export function pivotTableXml(
   kept: readonly Kept[] = [],
 ): string {
   const layout = pivotLayout(table, cache)
+  /** A base item as the file keeps it: its position in the base field's written items. */
+  const baseItemAttr = (v: PivotTable["values"][number]): number => {
+    if (v.baseItem === "previous") return BASE_PREVIOUS
+    if (v.baseItem === "next") return BASE_NEXT
+    if (v.baseItem === undefined) return 0
+    const f = v.baseField ?? 0
+    const field = table.fields[f]
+    if (!field || (field.axis === null && !field.items.length)) return v.baseItem
+    const pos = fullItems(field, cache.fields[f]?.items?.length ?? 0).findIndex((it) => it.x === v.baseItem)
+    return Math.max(pos, 0)
+  }
   const fields = table.fields.map((f, i) => {
     const custom = f.subtotals.filter((s) => s !== "default") as PivotFn[]
     const hasDefault = f.subtotals.includes("default")
@@ -684,10 +746,7 @@ export function pivotTableXml(
     const listed = f.axis !== null || f.items.length > 0
     if (listed) {
       // Every shared item, once: the field's own order, then any it doesn't list yet.
-      const count = cache.fields[i]?.items?.length ?? 0
-      const seen = new Set<number>()
-      const items = f.items.filter((it) => it.x >= 0 && it.x < count && !seen.has(it.x) && seen.add(it.x))
-      for (let x = 0; x < count; x++) if (!seen.has(x)) items.push({ x })
+      const items = fullItems(f, cache.fields[i]?.items?.length ?? 0)
       const xml = items.map(
         (it) =>
           `<item${attrText({ n: it.name, h: it.hidden ? 1 : undefined, sd: it.collapsed ? 0 : undefined, x: it.x })}/>`,
@@ -731,10 +790,15 @@ export function pivotTableXml(
                 name: v.name,
                 fld: v.field,
                 subtotal: v.fn === "sum" ? undefined : v.fn,
-                baseField: 0,
-                baseItem: 0,
+                showDataAs: v.showAs && SHOW_DATA_AS.has(v.showAs) ? v.showAs : undefined,
+                baseField: v.baseField ?? 0,
+                baseItem: baseItemAttr(v),
                 numFmtId: v.numFmt ? numFmtId(v.numFmt) : undefined,
-              })}/>`,
+              })}${
+                v.showAs && !SHOW_DATA_AS.has(v.showAs)
+                  ? `><extLst><ext uri="${X14_DATA}" xmlns:x14="${NS_X14}"><x14:dataField pivotShowAs="${v.showAs}"/></ext></extLst></dataField>`
+                  : "/>"
+              }`,
           )
           .join("")}</dataFields>`
       : "",

@@ -2,6 +2,11 @@ import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
 import {
   isChart,
   isEquation,
+  PIVOT_FN_LABEL,
+  SHOW_AS_BASE_FIELD,
+  SHOW_AS_CHOICES,
+  type PivotFn,
+  type PivotShowAs,
   parseCell,
   rangeName,
   regionalFrom,
@@ -79,7 +84,13 @@ import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
 import { PivotFilterDialog } from "@/shell/PivotFilterDialogs"
 import { CreatePivotDialog } from "@/shell/CreatePivotDialog"
 import { PivotFieldsPane } from "@/shell/PivotFieldsPane"
-import { FieldSettingsDialog, PivotOptionsDialog, ValueFieldSettingsDialog } from "@/shell/PivotSettingsDialogs"
+import {
+  FieldSettingsDialog,
+  PivotOptionsDialog,
+  ShowValuesAsDialog,
+  ValueFieldSettingsDialog,
+} from "@/shell/PivotSettingsDialogs"
+import { Check } from "lucide-react"
 import type { PivotFilterRequest } from "@/sheet/pivots"
 import type { FilterDialogRequest } from "@/sheet/data"
 import { SortDialog, SortWarningDialog } from "@/shell/SortDialog"
@@ -246,6 +257,7 @@ type DialogState =
   | { kind: "pivotFilter"; request: PivotFilterRequest }
   | { kind: "createPivot"; source?: string; mode?: "source" | "move" }
   | { kind: "pivotValue"; index: number }
+  | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
   | { kind: "pivotField"; field: number }
   | { kind: "pivotOptions" }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
@@ -816,6 +828,44 @@ function WorkbookWindow({
         },
       ]
     }
+    // A value cell's Summarize Values By and Show Values As (Excel's submenus, the current choice ticked).
+    const pivotValueMenus = (index: number): MenuItem[] => {
+      const v = controller.pivots.activeWithCache()?.table.values[index]
+      if (!v) return []
+      const tick = (on: boolean) => (on ? <Check size={15} strokeWidth={1.75} /> : undefined)
+      const fns: PivotFn[] = ["sum", "count", "average", "max", "min", "product"]
+      const summarize = (fn: PivotFn) => () =>
+        void controller.pivots.setValueSettings(index, { name: v.name, fn, numFmt: v.numFmt })
+      return [
+        {
+          kind: "item",
+          label: "Summarize Values By",
+          onSelect: () => undefined,
+          items: [
+            ...fns.map((fn) => act(PIVOT_FN_LABEL[fn], summarize(fn), false, tick(v.fn === fn))),
+            { kind: "separator" },
+            act("More Options...", () => openDialog(`pivotValue:${index}`)),
+          ],
+        },
+        {
+          kind: "item",
+          label: "Show Values As",
+          onSelect: () => undefined,
+          items: SHOW_AS_CHOICES.map((c) => {
+            const needsBase = c.as !== null && SHOW_AS_BASE_FIELD.includes(c.as)
+            return act(
+              needsBase ? `${c.label}...` : c.label,
+              () =>
+                needsBase
+                  ? openDialog(`pivotShowAs:${index}/${c.as}`)
+                  : void controller.pivots.setShowAs(index, { as: c.as }),
+              false,
+              tick((v.showAs ?? null) === c.as),
+            )
+          }),
+        },
+      ]
+    }
     // Value Field Settings or Field Settings for the cell's field, then PivotTable Options, as Excel's cell menu has.
     function pivotSettingsItems(): MenuItem[] {
       const { row, col } = controller.selection.active
@@ -823,7 +873,11 @@ function WorkbookWindow({
       return [
         { kind: "separator" },
         ...(t?.kind === "value"
-          ? [act("Value Field Settings...", () => openDialog(`pivotValue:${t.index}`))]
+          ? [
+              ...pivotValueMenus(t.index),
+              { kind: "separator" as const },
+              act("Value Field Settings...", () => openDialog(`pivotValue:${t.index}`)),
+            ]
           : t?.kind === "field"
             ? [act("Field Settings...", () => openDialog(`pivotField:${t.field}`))]
             : []),
@@ -945,7 +999,10 @@ function WorkbookWindow({
     else if (kind === "pivotSource") setDialog({ kind: "createPivot", mode: "source" })
     else if (kind === "pivotMove") setDialog({ kind: "createPivot", mode: "move" })
     else if (kind === "pivotValue") setDialog({ kind: "pivotValue", index: Number(arg) })
-    else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
+    else if (kind === "pivotShowAs") {
+      const [index, as] = arg.split("/")
+      setDialog({ kind: "pivotShowAs", index: Number(index), as: as as PivotShowAs })
+    } else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
     else if (kind === "insert" || kind === "delete") setDialog({ kind })
     else if (kind === "size") sizeDialog(arg as "rows" | "cols")
@@ -1391,6 +1448,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "pivotValue" ? (
           <ValueFieldSettingsDialog controller={controller} index={dialog.index} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "pivotShowAs" ? (
+          <ShowValuesAsDialog controller={controller} index={dialog.index} as={dialog.as} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotField" ? (
           <FieldSettingsDialog controller={controller} field={dialog.field} onClose={closeDialog} />

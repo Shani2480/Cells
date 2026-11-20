@@ -86,7 +86,51 @@ export type PivotField = {
 }
 
 /** A value field (the Values area). */
-export type PivotDataField = { name: string; field: number; fn: PivotFn; numFmt?: string }
+export type PivotDataField = {
+  name: string
+  field: number
+  fn: PivotFn
+  numFmt?: string
+  /** Show Values As (left out: No Calculation). */
+  showAs?: PivotShowAs
+  /** The field Show Values As compares within (an index into the cache's fields). */
+  baseField?: number
+  /** The item it compares with: a cache item of `baseField`, or the one before or after each item. */
+  baseItem?: number | "previous" | "next"
+}
+
+/**
+ * Value Field Settings › Show Values As: Excel's showDataAs choices and the four Excel 2010 added (percentOfParent*,
+ * percentOfRunningTotal, rank*), which a file keeps in an x14 extension.
+ */
+export type PivotShowAs =
+  | "percentOfTotal"
+  | "percentOfCol"
+  | "percentOfRow"
+  | "percent"
+  | "percentOfParentRow"
+  | "percentOfParentCol"
+  | "percentOfParent"
+  | "difference"
+  | "percentDiff"
+  | "runTotal"
+  | "percentOfRunningTotal"
+  | "rankAscending"
+  | "rankDescending"
+  | "index"
+
+/** The choices that compare with a base field, and those that also need a base item. */
+export const SHOW_AS_BASE_FIELD: readonly PivotShowAs[] = [
+  "percent",
+  "percentOfParent",
+  "difference",
+  "percentDiff",
+  "runTotal",
+  "percentOfRunningTotal",
+  "rankAscending",
+  "rankDescending",
+]
+export const SHOW_AS_BASE_ITEM: readonly PivotShowAs[] = ["percent", "difference", "percentDiff"]
 
 /** A report filter: the item picked (an index into its field's items), or null for (All) / several items. */
 export type PivotPage = { field: number; item: number | null }

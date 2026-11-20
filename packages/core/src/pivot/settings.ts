@@ -1,11 +1,17 @@
 import type { Sheet } from "../sheet"
 import { pivotFieldName, pivotLayout } from "./engine"
 import { pivotFilterTarget } from "./filter"
+import { showAsNumFmt } from "./show-as"
 import {
   newPivotField,
   PIVOT_FN_LABEL,
+  SHOW_AS_BASE_FIELD,
+  SHOW_AS_BASE_ITEM,
+  VALUES_FIELD,
   type PivotCache,
+  type PivotDataField,
   type PivotField,
+  type PivotShowAs,
   type PivotFn,
   type PivotSubtotal,
   type PivotTable,
@@ -68,8 +74,58 @@ export const PIVOT_FNS: PivotFn[] = [
 export const autoDataFieldName = (table: PivotTable, cache: PivotCache, field: number, fn: PivotFn) =>
   `${PIVOT_FN_LABEL[fn]} of ${pivotFieldName(table, cache, field)}`
 
-/** What Value Field Settings changes. */
-export type PivotValueSettings = { name: string; fn: PivotFn; numFmt?: string }
+/** What Value Field Settings changes; `show` left out keeps Show Values As as it is. */
+export type PivotValueSettings = { name: string; fn: PivotFn; numFmt?: string; show?: PivotShowAsSetting }
+
+/** Show Values As with its base field and item (`as` null: No Calculation). */
+export type PivotShowAsSetting = {
+  as: PivotShowAs | null
+  baseField?: number
+  baseItem?: number | "previous" | "next"
+}
+
+/** Show Values As in Excel's order, with Excel's names. */
+export const SHOW_AS_CHOICES: readonly { as: PivotShowAs | null; label: string }[] = [
+  { as: null, label: "No Calculation" },
+  { as: "percentOfTotal", label: "% of Grand Total" },
+  { as: "percentOfCol", label: "% of Column Total" },
+  { as: "percentOfRow", label: "% of Row Total" },
+  { as: "percent", label: "% Of" },
+  { as: "percentOfParentRow", label: "% of Parent Row Total" },
+  { as: "percentOfParentCol", label: "% of Parent Column Total" },
+  { as: "percentOfParent", label: "% of Parent Total" },
+  { as: "difference", label: "Difference From" },
+  { as: "percentDiff", label: "% Difference From" },
+  { as: "runTotal", label: "Running Total In" },
+  { as: "percentOfRunningTotal", label: "% Running Total In" },
+  { as: "rankAscending", label: "Rank Smallest to Largest" },
+  { as: "rankDescending", label: "Rank Largest to Smallest" },
+  { as: "index", label: "Index" },
+]
+
+/** The base field Show Values As starts on: the first row field, else the first column field. */
+export function defaultBaseField(table: PivotTable): number {
+  return [...table.rows, ...table.cols].find((f) => f !== VALUES_FIELD) ?? 0
+}
+
+/** A value field with Show Values As set; a percentage gets Excel's 0.00% unless it has a format of its own. */
+function withShowAs(v: PivotDataField, show: PivotShowAsSetting): PivotDataField {
+  const next: PivotDataField = { ...v }
+  delete next.showAs
+  delete next.baseField
+  delete next.baseItem
+  const before = showAsNumFmt(v.showAs)
+  if (next.numFmt === undefined || next.numFmt === before) {
+    const after = show.as ? showAsNumFmt(show.as) : undefined
+    if (after) next.numFmt = after
+    else delete next.numFmt
+  }
+  if (!show.as) return next
+  next.showAs = show.as
+  if (SHOW_AS_BASE_FIELD.includes(show.as)) next.baseField = show.baseField ?? 0
+  if (SHOW_AS_BASE_ITEM.includes(show.as)) next.baseItem = show.baseItem ?? "previous"
+  return next
+}
 
 /**
  * Value field `index` with new settings. A name is unique among the value fields and differs from every source
@@ -92,9 +148,10 @@ export function withValueSettings(
     table.values.some((o, i) => i !== index && o.name.toLowerCase() === lower) ||
     cache.fields.some((f, i) => f.name.toLowerCase() === lower || table.fields[i]?.name?.toLowerCase() === lower)
   if (taken) return PIVOT_FIELD_NAME_TAKEN
-  const next = { ...v, name, fn: settings.fn }
+  let next: PivotDataField = { ...v, name, fn: settings.fn }
   if (settings.numFmt && settings.numFmt !== "General") next.numFmt = settings.numFmt
   else delete next.numFmt
+  if (settings.show) next = withShowAs(next, settings.show)
   const values = table.values.map((o, i) => (i === index ? next : o))
   return { ...table, values }
 }

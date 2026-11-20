@@ -1,5 +1,11 @@
 import {
   autoDataFieldName,
+  defaultBaseField,
+  SHOW_AS_BASE_FIELD,
+  SHOW_AS_BASE_ITEM,
+  SHOW_AS_CHOICES,
+  type PivotShowAs,
+  type PivotShowAsSetting,
   PIVOT_FN_LABEL,
   PIVOT_FNS,
   pivotFieldName,
@@ -150,6 +156,180 @@ function FnList({
  * Value Field Settings: the value field's Custom Name and how it summarizes (picking a function renames an automatic
  * name as Excel does), and its Number Format. Show Values As comes with step 5.
  */
+/** A list box of plain choices (Base field, Base item). */
+function ChoiceList<T>({
+  label,
+  options,
+  value,
+  pick,
+  disabled,
+}: {
+  label: string
+  options: { value: T; label: string }[]
+  value: T | undefined
+  pick: (v: T) => void
+  disabled?: boolean
+}) {
+  return (
+    <div
+      className={`dialog-list pivot-base-list${disabled ? " is-disabled" : ""}`}
+      role="listbox"
+      aria-label={label}
+      aria-disabled={disabled || undefined}
+    >
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          role="option"
+          aria-selected={!disabled && o.value === value}
+          disabled={disabled}
+          className={`dialog-list-item${!disabled && o.value === value ? " is-selected" : ""}`}
+          onClick={() => pick(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** The base field and item lists of Show Values As (greyed out when the choice doesn't use them). */
+function BaseLists({
+  controller,
+  show,
+  set,
+}: {
+  controller: SheetController
+  show: PivotShowAsSetting
+  set: (s: PivotShowAsSetting) => void
+}) {
+  const at = controller.pivots.activeWithCache()
+  if (!at) return null
+  const { table, cache } = at
+  const usesField = show.as !== null && SHOW_AS_BASE_FIELD.includes(show.as)
+  const usesItem = show.as !== null && SHOW_AS_BASE_ITEM.includes(show.as)
+  const baseField = show.baseField ?? defaultBaseField(table)
+  const items = usesItem ? controller.pivots.baseItems(baseField) : []
+  return (
+    <div className="pivot-base-lists">
+      <div>
+        <p className="dialog-label">Base field:</p>
+        <ChoiceList
+          label="Base field"
+          options={cache.fields.map((_, f) => ({ value: f, label: pivotFieldName(table, cache, f) }))}
+          value={baseField}
+          pick={(f) => set({ ...show, baseField: f, baseItem: show.baseItem === "next" ? "next" : "previous" })}
+          disabled={!usesField}
+        />
+      </div>
+      <div>
+        <p className="dialog-label">Base item:</p>
+        <ChoiceList<number | "previous" | "next">
+          label="Base item"
+          options={[
+            { value: "previous", label: "(previous)" },
+            { value: "next", label: "(next)" },
+            ...items.map((i) => ({ value: i.x, label: i.label })),
+          ]}
+          value={show.baseItem ?? "previous"}
+          pick={(item) => set({ ...show, baseField, baseItem: item })}
+          disabled={!usesItem}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** A value field's Show Values As as the dialogs edit it (base field and item filled in). */
+function showOf(controller: SheetController, index: number): PivotShowAsSetting {
+  const at = controller.pivots.activeWithCache()
+  const v = at?.table.values[index]
+  return {
+    as: v?.showAs ?? null,
+    baseField: v?.baseField ?? (at ? defaultBaseField(at.table) : 0),
+    baseItem: v?.baseItem ?? "previous",
+  }
+}
+
+/**
+ * The cell menu's Show Values As for a choice that needs a base: "Show Values As (Sum of Amount)", with the choice,
+ * the base field and, for % Of and the differences, the base item.
+ */
+export function ShowValuesAsDialog({
+  controller,
+  index,
+  as,
+  onClose,
+}: {
+  controller: SheetController
+  index: number
+  as: PivotShowAs
+  onClose: () => void
+}) {
+  const at = controller.pivots.activeWithCache()
+  const v = at?.table.values[index]
+  const [show, setShow] = useState<PivotShowAsSetting>(() => ({ ...showOf(controller, index), as }))
+  if (!at || !v) return null
+  const label = SHOW_AS_CHOICES.find((c) => c.as === as)?.label ?? ""
+  const usesItem = SHOW_AS_BASE_ITEM.includes(as)
+  return (
+    <Dialog
+      title={`Show Values As (${v.name})`}
+      onCancel={onClose}
+      onAccept={() => {
+        const problem = controller.pivots.setShowAs(index, show)
+        if (problem) return controller.shell.alert(problem)
+        onClose()
+      }}
+      width={340}
+    >
+      <p className="dialog-label">Calculation: {label}</p>
+      <div className="pivot-base-single">
+        <label className="dialog-label" htmlFor="pivot-base-field">
+          Base Field:
+        </label>
+        <select
+          id="pivot-base-field"
+          className="dialog-field"
+          value={show.baseField}
+          onChange={(e) => setShow({ ...show, baseField: Number(e.target.value), baseItem: "previous" })}
+        >
+          {at.cache.fields.map((_, f) => (
+            <option key={f} value={f}>
+              {pivotFieldName(at.table, at.cache, f)}
+            </option>
+          ))}
+        </select>
+        {usesItem ? (
+          <>
+            <label className="dialog-label" htmlFor="pivot-base-item">
+              Base Item:
+            </label>
+            <select
+              id="pivot-base-item"
+              className="dialog-field"
+              value={String(show.baseItem)}
+              onChange={(e) => {
+                const t = e.target.value
+                setShow({ ...show, baseItem: t === "previous" || t === "next" ? t : Number(t) })
+              }}
+            >
+              <option value="previous">(previous)</option>
+              <option value="next">(next)</option>
+              {controller.pivots.baseItems(show.baseField ?? 0).map((i) => (
+                <option key={i.x} value={i.x}>
+                  {i.label}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : null}
+      </div>
+    </Dialog>
+  )
+}
+
 export function ValueFieldSettingsDialog({
   controller,
   index,
@@ -165,6 +345,8 @@ export function ValueFieldSettingsDialog({
   const [fn, setFn] = useState<PivotFn>(v?.fn ?? "sum")
   const [numFmt, setNumFmt] = useState(v?.numFmt)
   const [formatting, setFormatting] = useState(false)
+  const [tab, setTab] = useState<"summarize" | "show">("summarize")
+  const [show, setShow] = useState<PivotShowAsSetting>(() => showOf(controller, index))
   if (!at || !v) return null
   const { table, cache } = at
   const pick = (next: PivotFn) => {
@@ -173,7 +355,7 @@ export function ValueFieldSettingsDialog({
     setFn(next)
   }
   const accept = () => {
-    const problem = controller.pivots.setValueSettings(index, { name, fn, numFmt })
+    const problem = controller.pivots.setValueSettings(index, { name, fn, numFmt, show })
     if (problem) return controller.shell.alert(problem)
     onClose()
   }
@@ -200,15 +382,43 @@ export function ValueFieldSettingsDialog({
           />
         </div>
         <Tabs
-          tabs={[{ id: "summarize" as const, label: "Summarize Values By" }]}
-          tab="summarize"
-          setTab={() => undefined}
+          tabs={[
+            { id: "summarize" as const, label: "Summarize Values By" },
+            { id: "show" as const, label: "Show Values As" },
+          ]}
+          tab={tab}
+          setTab={setTab}
         >
-          <p className="dialog-label">Summarize value field by</p>
-          <p className="dialog-hint">
-            Choose the type of calculation that you want to use to summarize data from the selected field
-          </p>
-          <FnList label="Summarize value field by" picked={[fn]} pick={pick} />
+          {tab === "summarize" ? (
+            <>
+              <p className="dialog-label">Summarize value field by</p>
+              <p className="dialog-hint">
+                Choose the type of calculation that you want to use to summarize data from the selected field
+              </p>
+              <FnList label="Summarize value field by" picked={[fn]} pick={pick} />
+            </>
+          ) : (
+            <>
+              <div className="pivot-show-as-row">
+                <label className="dialog-label" htmlFor="pivot-show-as">
+                  Show values as
+                </label>
+                <select
+                  id="pivot-show-as"
+                  className="dialog-field"
+                  value={show.as ?? ""}
+                  onChange={(e) => setShow({ ...show, as: (e.target.value || null) as PivotShowAs | null })}
+                >
+                  {SHOW_AS_CHOICES.map((c) => (
+                    <option key={c.as ?? ""} value={c.as ?? ""}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <BaseLists controller={controller} show={show} set={setShow} />
+            </>
+          )}
         </Tabs>
       </Dialog>
       {formatting ? (

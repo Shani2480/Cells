@@ -41,6 +41,34 @@ const values = (t: ReturnType<typeof make>) =>
     .map((c) => c.value)
 
 describe("Value Field Settings", () => {
+  it("Show Values As: a percentage gets 0.00%, No Calculation takes it off; a rename keeps the choice", () => {
+    let t = withValueSettings(make(), cache, 0, { name: "Sum of Units", fn: "sum", show: { as: "percentOfTotal" } })
+    if (typeof t === "string") throw new Error(t)
+    expect(t.values[0]).toEqual({
+      name: "Sum of Units",
+      field: 2,
+      fn: "sum",
+      numFmt: "0.00%",
+      showAs: "percentOfTotal",
+    })
+    // North 10 of 12, South 2 of 12.
+    expect(values(t)).toEqual(["Sum of Units", 10 / 12, 2 / 12, 1])
+    const renamed = withValueSettings(t, cache, 0, { name: "Share", fn: "sum", numFmt: "0.00%" })
+    expect(renamed).toMatchObject({ values: [{ name: "Share", showAs: "percentOfTotal" }] })
+    t = withValueSettings(t, cache, 0, { name: "Sum of Units", fn: "sum", numFmt: "0.00%", show: { as: null } })
+    if (typeof t === "string") throw new Error(t)
+    expect(t.values[0]).toEqual({ name: "Sum of Units", field: 2, fn: "sum" })
+    // Difference From keeps its base field and item; a format of its own stays.
+    const diff = withValueSettings(make(), cache, 0, {
+      name: "Sum of Units",
+      fn: "sum",
+      numFmt: "0.0",
+      show: { as: "difference", baseField: 0, baseItem: 0 },
+    })
+    expect(diff).toMatchObject({ values: [{ numFmt: "0.0", showAs: "difference", baseField: 0, baseItem: 0 }] })
+    if (typeof diff !== "string") expect(values(diff)).toEqual(["Sum of Units", undefined, -8, undefined])
+  })
+
   it("changing the function renames an automatic name, and keeps a typed one", () => {
     const t = withValueSettings(make(), cache, 0, { name: "Sum of Units", fn: "count" })
     if (typeof t === "string") throw new Error(t)

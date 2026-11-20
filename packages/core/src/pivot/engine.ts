@@ -11,6 +11,7 @@ import {
   type PivotTable,
   type PivotValue,
 } from "./model"
+import { showAsNumFmt, showValueAs, type ShowAsContext } from "./show-as"
 
 /**
  * The PivotTable engine: the cells a PivotTable shows, worked out from its cache and settings the way Excel lays them
@@ -527,6 +528,18 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   // ── Rows ──
   const indentOf = (j: number) => labelCol.slice(0, j).filter((c) => c === labelCol[j]).length
   const statsFor = makeStats(table, cache, items, filtered.both)
+  const realRowFields = rowFields.filter((f) => f !== VALUES_FIELD)
+  const realColFields = colFields.filter((f) => f !== VALUES_FIELD)
+  const showAsContext = (field: number, fn: PivotFn): ShowAsContext => ({
+    rowFields: realRowFields,
+    colFields: realColFields,
+    order: (f) => items.get(f)?.order ?? [],
+    posOf: (f, x) => {
+      const pos = items.get(f)?.xs.indexOf(x) ?? -1
+      return pos >= 0 ? pos : undefined
+    },
+    raw: (rows, cols) => summarize(statsFor.at(rows, cols, field), fn),
+  })
   rowLines.forEach((line, ri) => {
     const row = headerRows + ri
     if (line.t === "blank") return
@@ -574,10 +587,15 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
       if (!df) return put(row, col, role)
       const fn: PivotFn = ownFn(line.t) ?? ownFn(colLine.t) ?? df.fn
       let value = summarize(statsFor(line, rowFields, colLine, colFields, df.field), fn)
+      if (df.showAs) {
+        const ctx = showAsContext(df.field, df.fn)
+        value = showValueAs(df, ctx, statsFor.realPath(line, rowFields), statsFor.realPath(colLine, colFields), value)
+      }
       if (value !== undefined && typeof value === "object" && table.showError && table.captions.error !== undefined)
         value = table.captions.error
       if (value === undefined && table.showMissing && table.captions.missing) value = table.captions.missing
-      put(row, col, role, value, { lines: [ri, ci], ...(df.numFmt ? { numFmt: df.numFmt } : {}) })
+      const numFmt = df.numFmt ?? showAsNumFmt(df.showAs)
+      put(row, col, role, value, { lines: [ri, ci], ...(numFmt ? { numFmt } : {}) })
     })
   })
 
@@ -830,8 +848,10 @@ function makeStats(table: PivotTable, cache: PivotCache, items: Map<number, Fiel
   /** A line's items on the real fields (the Values level left out); a grand total line has none. */
   const realPath = (line: Line, fields: number[]) =>
     line.t === "grand" ? [] : line.path.filter((_, j) => fields[j] !== VALUES_FIELD)
-  return (row: Line, rowFields: number[], col: Line, colFields: number[], field: number): Stats => {
-    const key = `${realPath(row, rowFields).join(",")}|${realPath(col, colFields).join(",")}`
-    return groups.get(key)?.get(field) ?? newStats()
-  }
+  /** The figures for row items `rows` × column items `cols` (positions per real field). */
+  const at = (rows: readonly number[], cols: readonly number[], field: number): Stats =>
+    groups.get(`${rows.join(",")}|${cols.join(",")}`)?.get(field) ?? newStats()
+  const forLines = (row: Line, rowFields: number[], col: Line, colFields: number[], field: number): Stats =>
+    at(realPath(row, rowFields), realPath(col, colFields), field)
+  return Object.assign(forLines, { at, realPath })
 }

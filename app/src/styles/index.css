@@ -4225,3 +4225,36 @@ html.is-phone .pivot-area {
 html.is-phone .pivot-fields-foot {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
+
+/* Show Values As: the base field and item lists side by side in Value Field Settings. */
+.pivot-base-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.pivot-base-list {
+  height: 150px;
+  overflow-y: auto;
+}
+
+.pivot-base-list.is-disabled {
+  opacity: 0.55;
+}
+
+/* The cell menu's Show Values As dialog: labels left, choices right. */
+.pivot-base-single {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.pivot-show-as-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}

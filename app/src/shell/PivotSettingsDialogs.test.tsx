@@ -2,7 +2,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { withFieldIn, Workbook, type Selection } from "@cells/core"
 import { SheetController } from "@/sheet/controller"
-import { FieldSettingsDialog, PivotOptionsDialog, ValueFieldSettingsDialog } from "./PivotSettingsDialogs"
+import {
+  FieldSettingsDialog,
+  PivotOptionsDialog,
+  ShowValuesAsDialog,
+  ValueFieldSettingsDialog,
+} from "./PivotSettingsDialogs"
 
 afterEach(cleanup)
 
@@ -54,6 +59,27 @@ describe("PivotTable settings", () => {
     expect(c.sheet.pivots[0].values[0]).toMatchObject({ fn: "max" })
     c.undo()
     expect(at(c, 0, 5)).toBe("Sum of Units")
+  })
+
+  it("Show Values As: % of Column Total, then % Of the item North of Region", () => {
+    const c = setup()
+    render(<ValueFieldSettingsDialog controller={c} index={0} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole("tab", { name: "Show Values As" }))
+    expect(screen.getByRole("listbox", { name: "Base field" })).toHaveAttribute("aria-disabled", "true")
+    fireEvent.change(screen.getByLabelText("Show values as"), { target: { value: "percentOfCol" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    // F3 North: Shop 4 of 4, Online 5 of 7.
+    expect([at(c, 2, 6), at(c, 2, 7)]).toEqual([1, 5 / 7])
+    expect(c.sheet.pivots[0].values[0].numFmt).toBe("0.00%")
+    cleanup()
+    render(<ShowValuesAsDialog controller={c} index={0} as="percent" onClose={vi.fn()} />)
+    expect(screen.getByRole("dialog", { name: "Show Values As (Sum of Units)" })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText("Base Item:"), { target: { value: "0" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    // South Online 2 against North's 5; South has no Shop units: #NULL!.
+    expect(at(c, 3, 6)).toEqual({ error: "#NULL!" })
+    expect(at(c, 3, 7)).toBe(2 / 5)
+    expect(c.sheet.pivots[0].values[0]).toMatchObject({ showAs: "percent", baseField: 0, baseItem: 0 })
   })
 
   it("Value Field Settings says when the name is taken", () => {
