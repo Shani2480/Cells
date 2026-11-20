@@ -1,3 +1,4 @@
+import { fieldShared } from "./group"
 import type { PivotCellItem } from "./engine"
 import { VALUES_FIELD, type PivotCache, type PivotTable } from "./model"
 
@@ -46,7 +47,7 @@ export function withCollapsed(
   if (collapsed) {
     // Items the field doesn't list yet (shared items added since) join it, collapsed.
     const listed = new Set(items.map((i) => i.x))
-    const count = cache.fields[field]?.items?.length ?? 0
+    const count = cache.fields[field]?.items || cache.fields[field]?.group ? fieldShared(cache, field).length : 0
     const add = wanted ? [...wanted] : Array.from({ length: count }, (_, x) => x)
     for (const x of add)
       if (!listed.has(x) && x >= 0 && x < count) {

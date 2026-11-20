@@ -4,6 +4,7 @@ import { withFieldIn, Workbook, type Selection } from "@cells/core"
 import { SheetController } from "@/sheet/controller"
 import {
   CalculatedFieldDialog,
+  GroupingDialog,
   FieldSettingsDialog,
   PivotOptionsDialog,
   ShowValuesAsDialog,
@@ -158,5 +159,36 @@ describe("Insert Calculated Field", () => {
     fireEvent.click(screen.getByRole("button", { name: "OK" }))
     expect(onClose).toHaveBeenCalled()
     expect(c.sheet.pivots[0].values.map((v) => v.name)).toEqual(["Sum of Units", "Sum of Triple"])
+  })
+})
+
+describe("Grouping", () => {
+  it("groups numbers from the start, end and size typed (Auto unticked for the start)", () => {
+    const c = setup()
+    // Units in rows under Region (its values 4, 2, 5).
+    c.pivots.change((t, k) => withFieldIn(withFieldIn(t, k, 1, "filters"), k, 2, "rows"))
+    const t = c.sheet.pivots[0]
+    // F1 Row Labels, F2 North, F3 4 (its first Units label).
+    expect(at(c, t.location.r0 + 2, 5)).toBe(4)
+    c.goTo({ r0: t.location.r0 + 2, c0: 5, r1: t.location.r0 + 2, c1: 5 })
+    const onClose = vi.fn()
+    render(<GroupingDialog controller={c} onClose={onClose} />)
+    const start = screen.getByLabelText("Starting at") as HTMLInputElement
+    expect(start.value).toBe("2")
+    expect(start.disabled).toBe(true)
+    expect((screen.getByLabelText("Ending at") as HTMLInputElement).value).toBe("5")
+    fireEvent.click(screen.getByLabelText("Starting at:"))
+    fireEvent.change(start, { target: { value: "0" } })
+    fireEvent.change(screen.getByLabelText("By"), { target: { value: "3" } })
+    fireEvent.click(screen.getByRole("button", { name: "OK" }))
+    expect(onClose).toHaveBeenCalled()
+    expect(c.wb.pivotCaches[0].fields[2].group).toMatchObject({
+      start: 0,
+      end: 5,
+      interval: 3,
+      autoStart: false,
+      autoEnd: true,
+      items: ["<0", "0-2", "3-5", ">6"],
+    })
   })
 })

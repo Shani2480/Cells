@@ -224,3 +224,120 @@ describe("Calculated Field", () => {
     expect(c.sheet.cells.get(6, 7)?.value).toBe(30)
   })
 })
+
+describe("Grouping", () => {
+  /** Units by Day (rows) at F1, from Data!A1:C7: dates over two years, a product, units. */
+  function dated() {
+    const c = new SheetController(new Workbook<Selection>(["Data"]))
+    c.shell.alert = vi.fn()
+    c.shell.openDialog = vi.fn()
+    const rows: (string | number)[][] = [
+      ["Day", "Product", "Units"],
+      [45658, "Apples", 1], // 2025-01-01
+      [45700, "Pears", 2], // 2025-02-12
+      [45720, "Plums", 3], // 2025-03-04
+      [46037, "Apples", 4], // 2026-01-15
+      [46083, "Pears", 5], // 2026-03-02
+      [46174, "Plums", 6], // 2026-06-01
+    ]
+    rows.forEach((r, row) =>
+      r.forEach((value, col) =>
+        c.sheet.cells.set(row, col, row > 0 && col === 0 ? { value, style: dateStyle(c) } : { value }),
+      ),
+    )
+    c.pivots.create("A1:C7", { kind: "existing", sheet: 0, at: { row: 0, col: 5 } })
+    c.pivots.change((t, k) => withFieldIn(withFieldIn(t, k, 0, "rows"), k, 2, "values"))
+    return c
+  }
+  const dateStyle = (c: SheetController) => c.wb.styles.intern({ ...c.wb.styles.get(0), numberFormat: "m/d/yyyy" })
+
+  it("groups dates by years and months: the Day field gives its place to Years (Day) and Months (Day)", () => {
+    const c = dated()
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    expect(c.pivots.groupDialogField()).toBe(0)
+    expect(c.pivots.groupDialog()).toMatchObject({ dates: true, start: null, end: null, parts: ["months"] })
+    c.pivots.groupSelection()
+    expect(c.shell.openDialog).toHaveBeenCalledWith("pivotGroup")
+    expect(c.pivots.setGroup({ start: null, end: null, by: 1, parts: ["months", "years"] })).toBeNull()
+    const names = c.wb.pivotCaches[0].fields.map((f) => f.name)
+    expect(names).toEqual(["Day", "Product", "Units", "Months (Day)", "Years (Day)"])
+    expect(c.sheet.pivots[0].rows).toEqual([4, 3])
+    expect(col(c, 5, 10)).toEqual([
+      "Row Labels",
+      "2025",
+      "Jan",
+      "Feb",
+      "Mar",
+      "2026",
+      "Jan",
+      "Mar",
+      "Jun",
+      "Grand Total",
+    ])
+    expect(col(c, 6, 10)).toEqual(["Sum of Units", 6, 1, 2, 3, 15, 4, 5, 6, 21])
+    // Ungroup from a month: Day comes back in their place.
+    c.goTo({ r0: 2, c0: 5, r1: 2, c1: 5 })
+    expect(c.pivots.canUngroup()).toBe(true)
+    c.pivots.ungroup()
+    expect(c.wb.pivotCaches[0].fields).toHaveLength(3)
+    expect(c.sheet.pivots[0].rows).toEqual([0])
+    c.undo()
+    expect(c.sheet.pivots[0].rows).toEqual([4, 3])
+    c.undo()
+    expect(c.sheet.pivots[0].rows).toEqual([0])
+    expect(c.wb.pivotCaches[0].fields).toHaveLength(3)
+  })
+
+  it("groups numbers in ranges on the field itself, and ungroups them", () => {
+    const c = dated()
+    c.pivots.change((t, k) => withFieldIn(withFieldIn(t, k, 0, "filters"), k, 2, "rows"))
+    // Units in rows (and values): F4 is its first label under the report filter.
+    const at = c.sheet.pivots[0]
+    c.goTo({ r0: at.location.r0 + 1, c0: 5, r1: at.location.r0 + 1, c1: 5 })
+    expect(c.pivots.groupDialog()).toMatchObject({
+      dates: false,
+      start: null,
+      end: null,
+      by: 10,
+      autoStart: 1,
+      autoEnd: 6,
+    })
+    expect(c.pivots.setGroup({ start: 1, end: 6, by: 2 })).toBeNull()
+    const rows = (k: SheetController) => col(k, 5, 14).filter((v) => typeof v === "string" && /^\d/.test(v))
+    expect(rows(c)).toEqual(["1-2", "3-4", "5-6"])
+    expect(c.pivots.setGroup({ start: 0, end: 10, by: 5 })).toBeNull()
+    // As Excel: the last range reaches the end (its 13-17).
+    expect(rows(c)).toEqual(["0-4", "5-10"])
+    c.pivots.ungroup()
+    expect(c.wb.pivotCaches[0].fields[2].group).toBeUndefined()
+    expect(rows(c)).toEqual([])
+    expect(col(c, 5, 14).filter((v) => typeof v === "number")).toEqual([1, 2, 3, 4, 5, 6])
+  })
+
+  it("Group Selection gathers text items into Product2, and Ungroup splits them again", () => {
+    const c = dated()
+    c.pivots.change((t, k) => withFieldIn(withFieldIn(t, k, 0, "rows", 99), k, 1, "rows", 0))
+    // F2.. Apples, its days, Pears …: select the Apples and Pears labels.
+    const labels = col(c, 5, 20)
+    const apples = labels.indexOf("Apples")
+    const pears = labels.indexOf("Pears")
+    c.selection = {
+      ...c.selection,
+      ranges: [
+        { r0: apples, c0: 5, r1: apples, c1: 5 },
+        { r0: pears, c0: 5, r1: pears, c1: 5 },
+      ],
+    }
+    expect(c.pivots.groupTarget()?.xs.sort()).toEqual([0, 1])
+    expect(c.pivots.groupSelection()).toBe(true)
+    const k = c.wb.pivotCaches[0]
+    expect(k.fields[3]).toMatchObject({ name: "Product2", group: { kind: "discrete", items: ["Plums", "Group1"] } })
+    expect(c.sheet.pivots[0].rows.slice(0, 2)).toEqual([3, 1])
+    expect(col(c, 5, 3)).toEqual(["Row Labels", "Group1", "Apples"])
+    // Ungroup on Group1: Product2 goes.
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    c.pivots.ungroup()
+    expect(c.wb.pivotCaches[0].fields).toHaveLength(3)
+    expect(c.sheet.pivots[0].rows.slice(0, 1)).toEqual([1])
+  })
+})

@@ -11,6 +11,7 @@ import {
   pivotLayout,
   pivotStyleDef,
   PIVOT_STYLE_GROUPS,
+  rangeGroupItems,
   Workbook,
   type PivotCache,
   type PivotTable,
@@ -124,6 +125,52 @@ describe("PivotTables in xlsx", () => {
       ["Per Cost", "Amount/'Unit Cost'"],
     ])
     expect(wb.pivotCaches[0].records[0]).toHaveLength(7)
+  })
+
+  it("reads grouped fields, and the engine shows Excel's cells (pivot-group.xlsx)", async () => {
+    const { workbook: wb } = await openXlsx(fixture("pivot-group.xlsx"), "pivot-group.xlsx")
+    expect(wb.pivotCaches).toHaveLength(8)
+    expect(expectCellsAsExcel(wb)).toBe(8)
+    // Cells makes the same group items as Excel from the same settings.
+    for (const cache of wb.pivotCaches)
+      cache.fields.forEach((f) => {
+        const g = f.group
+        if (g?.kind !== "range") return
+        const base = cache.records.map((r) => r[g.base] ?? null)
+        const whole =
+          Number.isInteger(g.start) &&
+          Number.isInteger(g.interval) &&
+          base.every((v) => typeof v !== "number" || Number.isInteger(v))
+        const blank = base.some((v) => v === null || v === "")
+        const made = rangeGroupItems(g.by, g.start, g.end, g.interval, g.by === "range" && whole, blank)
+        expect(made, f.name).toEqual(g.items)
+      })
+    const text = wb.pivotCaches[6].fields[6]
+    expect(text).toEqual({
+      name: "Product2",
+      items: null,
+      group: { kind: "discrete", base: 1, map: [1, 0, 1], items: ["Plums", "Group1"] },
+    })
+  })
+
+  it("writes grouped fields as Excel does, and reads them back the same", async () => {
+    const read = await openXlsx(fixture("pivot-group.xlsx"), "pivot-group.xlsx")
+    const wb = read.workbook
+    for (const sheet of wb.sheets)
+      sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    wb.pivotCaches = wb.pivotCaches.map((c) => ({ ...c, refreshOnLoad: !c.refreshOnLoad }))
+    const saved = await saveXlsx(wb, { source: read.source })
+    const before = await parts(fixture("pivot-group.xlsx"))
+    const after = await parts(saved)
+    const groups = (files: Map<string, string>) =>
+      [...files]
+        .filter(([n]) => /pivotCacheDefinition\d+\.xml$/.test(n))
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+        .map(([, x]) => x.match(/<fieldGroup.*?(?:<\/fieldGroup>|\/>)/g))
+    expect(groups(after)).toEqual(groups(before))
+    const again = await openXlsx(saved)
+    expect(again.workbook.pivotCaches.map((c) => c.fields)).toEqual(wb.pivotCaches.map((c) => c.fields))
+    expect(expectCellsAsExcel(again.workbook)).toBe(8)
   })
 
   it("writes calculated fields as Excel does, and reads them back the same", async () => {

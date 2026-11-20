@@ -1,3 +1,4 @@
+import { fieldShared, inRecords, refreshedDiscrete } from "./group"
 import type { Range } from "../address"
 import { chartRefRange } from "../chart"
 import { quoteSheet } from "../formula/print"
@@ -123,27 +124,43 @@ export function refreshedCache(old: PivotCache, data: Exclude<ReturnType<typeof 
     for (const [k, v] of present) if (!seen.has(k)) items.push(v)
     return { ...f, items }
   })
-  // Calculated fields stay, after the source's columns (one named like a new column gives way to it).
+  const indexOf = (name: string) => fields.findIndex((f) => f.name.toLowerCase() === name.toLowerCase())
+  // Number ranges stay on their column, with the same start, end and labels (new values outside go to < and >).
+  old.fields.forEach((f, i) => {
+    if (f.group?.kind !== "range" || f.group.base !== i) return
+    const j = indexOf(f.name)
+    if (j >= 0) fields[j] = { ...fields[j], group: { ...f.group, base: j } }
+  })
+  // Calculated fields and group fields stay, after the source's columns, in their order (one named like a new column
+  // gives way to it; a group field whose base is gone goes too).
   const taken = new Set(fields.map((f) => f.name.toLowerCase()))
-  for (const f of old.fields) if (f.formula !== undefined && !taken.has(f.name.toLowerCase())) fields.push({ ...f })
+  old.fields.forEach((f, i) => {
+    if (inRecords(f, i) || taken.has(f.name.toLowerCase())) return
+    if (!f.group) {
+      fields.push({ ...f })
+      return
+    }
+    const base = indexOf(old.fields[f.group.base]?.name ?? "")
+    if (base < 0) return
+    if (f.group.kind === "range") fields.push({ ...f, group: { ...f.group, base } })
+    else {
+      const sofar: PivotCache = { ...old, fields: [...fields], records: data.records }
+      const oldBase = fieldShared(old, f.group.base)
+      fields.push({ ...f, group: refreshedDiscrete(f.group, oldBase, fieldShared(sofar, base), base) })
+    }
+  })
+  // A discrete group points at its base's shared items: keep them.
+  fields.forEach((f) => {
+    if (f.group?.kind !== "discrete") return
+    const base = f.group.base
+    if (!fields[base].items && !fields[base].group && inRecords(fields[base], base))
+      fields[base] = { ...fields[base], items: fieldShared({ ...old, fields, records: data.records }, base) }
+  })
   return { ...old, fields, records: data.records }
 }
 
-/** A field's item values (the cache's shared items, or its column's distinct values as the engine finds them). */
-function itemValues(cache: PivotCache, f: number): PivotValue[] {
-  const items = cache.fields[f]?.items
-  if (items) return items
-  const out: PivotValue[] = []
-  const seen = new Set<string>()
-  for (const r of cache.records) {
-    const k = keyOf(r[f] ?? null)
-    if (!seen.has(k)) {
-      seen.add(k)
-      out.push(r[f] ?? null)
-    }
-  }
-  return out
-}
+/** A field's item values (its group items, the cache's shared items, or its column's distinct values). */
+const itemValues = fieldShared
 
 /** The PivotTable on the refreshed cache: fields matched by name, items by value, the rest as Excel makes them. */
 export function refreshedTable(table: PivotTable, old: PivotCache, next: PivotCache): PivotTable {
@@ -159,7 +176,7 @@ export function refreshedTable(table: PivotTable, old: PivotCache, next: PivotCa
     const before = i !== undefined ? table.fields[i] : undefined
     const nextValues = itemValues(next, j)
     if (!before) {
-      const field = newPivotField(next.fields[j].items ? nextValues.length : 0, t)
+      const field = newPivotField(next.fields[j].items || next.fields[j].group ? nextValues.length : 0, t)
       // A calculated field is only ever a value: Excel gives it no subtotals.
       if (next.fields[j].formula !== undefined) field.subtotals = []
       return field

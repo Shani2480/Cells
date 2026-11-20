@@ -2,6 +2,17 @@ import {
   chartRefRange,
   clearContentsOp,
   withCalcField,
+  withItemsGrouped,
+  VALUES_FIELD,
+  withRangeGroup,
+  withUngrouped,
+  withFieldRemoved,
+  groupKind,
+  groupSettings,
+  derivedDateGroups,
+  type GroupKind,
+  type GroupSettings,
+  fieldShared,
   withFieldIn,
   withoutCalcField,
   getPivotDataFormula,
@@ -193,6 +204,200 @@ export class PivotCommands {
     if (typeof result === "string") return 0
     this.c.wb.transact(result.ops, { label: "Refresh", history: false })
     return due.length
+  }
+
+  /**
+   * What grouping acts on: the field of the active cell's label (or header), how it groups, and the items of that
+   * field the selection covers.
+   */
+  groupTarget(): { table: PivotTable; cache: PivotCache; field: number; kind: GroupKind; xs: number[] } | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const { row, col } = this.c.selection.active
+    const cell = pivotCellAt(at.table, at.cache, row, col)
+    const target = this.settingsTargetAt(row, col)
+    const field = cell?.item?.field ?? (target?.kind === "field" ? target.field : -1)
+    if (field < 0 || field === VALUES_FIELD) return null
+    const xs = new Set<number>()
+    for (const r of this.c.selection.ranges) {
+      // Labels only: a selection bigger than the table is cut to it.
+      const area = at.table.location
+      for (let y = Math.max(r.r0, area.r0); y <= Math.min(r.r1, area.r1); y++)
+        for (let x = Math.max(r.c0, area.c0); x <= Math.min(r.c1, area.c1); x++) {
+          const item = pivotCellAt(at.table, at.cache, y, x)?.item
+          if (item?.field === field) xs.add(item.x)
+        }
+    }
+    return { ...at, field, kind: groupKind(at.cache, field), xs: [...xs] }
+  }
+
+  /** The field whose Grouping dialog the active cell opens (a date part field opens its date's), or -1. */
+  groupDialogField(): number {
+    const t = this.groupTarget()
+    if (!t) return -1
+    const g = t.cache.fields[t.field]?.group
+    if (g?.kind === "range") return g.base
+    return t.kind === "items" ? -1 : t.field
+  }
+
+  /** Group Selection: dates and numbers open the Grouping dialog; other items become one group. */
+  groupSelection(): boolean {
+    const t = this.groupTarget()
+    if (!t) return false
+    if (this.groupDialogField() >= 0) {
+      this.c.shell.openDialog?.("pivotGroup")
+      return true
+    }
+    if (!t.xs.length) return false
+    const made = withItemsGrouped(t.cache, t.field, t.xs)
+    if (typeof made === "string") {
+      this.c.shell.alert(made)
+      return true
+    }
+    const isNew = made.cache.fields.length > t.cache.fields.length
+    const name = made.cache.fields[made.field].name
+    const baseName = t.cache.fields[t.field].name
+    const edit = (laid: PivotTable) => {
+      if (!isNew) return laid
+      // The new field goes just outside the one it groups, its items in label order (Group1, Plums).
+      const find = (n: string) => made.cache.fields.findIndex((f) => f.name === n)
+      const base = find(baseName)
+      const p = find(name)
+      const area = laid.rows.includes(base) ? "rows" : laid.cols.includes(base) ? "cols" : null
+      if (!area) return laid
+      let next = withFieldIn(laid, made.cache, p, area, laid[area].indexOf(base))
+      const labels = fieldShared(made.cache, p)
+      const order = labels.map((_, x) => x).sort((a, b) => String(labels[a]).localeCompare(String(labels[b])))
+      const fields = [...next.fields]
+      fields[p] = { ...fields[p], items: order.map((x) => ({ x })) }
+      next = { ...next, fields }
+      return next
+    }
+    this.run([t.cache.id], "Group", undefined, { cache: made.cache, edit })
+    return true
+  }
+
+  /** The Grouping dialog's values for the field it opens on. */
+  groupDialog(): (GroupSettings & { autoStart: number; autoEnd: number; dates: boolean; name: string }) | null {
+    const f = this.groupDialogField()
+    const at = this.activeWithCache()
+    if (f < 0 || !at) return null
+    return { ...groupSettings(at.cache, f), dates: groupKind(at.cache, f) === "dates", name: at.cache.fields[f].name }
+  }
+
+  /**
+   * Grouping dialog's OK: numbers in ranges on their field; dates by the parts chosen, those fields taking the date
+   * field's place (or its parts') on every PivotTable of the cache. Excel's message when it can't.
+   */
+  setGroup(settings: GroupSettings): string | null {
+    const f = this.groupDialogField()
+    const at = this.activeWithCache()
+    if (f < 0 || !at) return null
+    const next = withRangeGroup(at.cache, f, settings)
+    if (typeof next === "string") return next
+    const old = at.cache
+    const names = (c: PivotCache, base: number) => [
+      c.fields[base].name,
+      ...derivedDateGroups(c, base).map((d) => c.fields[d.index].name),
+    ]
+    const edit =
+      groupKind(old, f) === "dates"
+        ? this.placeFields(
+            names(old, f),
+            () => {
+              // The new parts, largest outermost.
+              const parts = derivedDateGroups(next, f).map((d) => d.index)
+              return parts.reverse()
+            },
+            next,
+          )
+        : undefined
+    this.run([old.id], "Group", undefined, { cache: next, edit })
+    return null
+  }
+
+  /**
+   * An edit for `refreshOps`: in each PivotTable, the first of the fields named `replaced` that sat on an axis gives
+   * its place to `fields()` (the others named leave).
+   */
+  private placeFields(replaced: string[], fields: () => number[], next: PivotCache) {
+    const sheets = this.c.wb.sheets
+    const lower = new Set(replaced.map((n) => n.toLowerCase()))
+    return (laid: PivotTable, s: number) => {
+      const before = sheets[s]?.pivots.find((t) => t.name === laid.name)
+      const cache = before && this.c.wb.pivotCaches.find((c) => c.id === before.cacheId)
+      if (!before || !cache) return laid
+      const isReplaced = (i: number) => i !== VALUES_FIELD && lower.has(cache.fields[i]?.name.toLowerCase() ?? "")
+      let area: "rows" | "cols" | "filters" | null = null
+      let index = 0
+      for (const a of ["rows", "cols"] as const) {
+        const i = before[a].findIndex(isReplaced)
+        if (i >= 0 && area === null) {
+          area = a
+          index = before[a].slice(0, i).filter((x) => !isReplaced(x)).length
+        }
+      }
+      if (area === null && before.pages.some((p) => isReplaced(p.field))) {
+        area = "filters"
+        index = before.pages.findIndex((p) => isReplaced(p.field))
+      }
+      if (area === null) return laid
+      let t = laid
+      for (const n of replaced) {
+        const i = next.fields.findIndex((k) => k.name.toLowerCase() === n.toLowerCase())
+        if (i >= 0) t = withFieldRemoved(t, i)
+      }
+      fields().forEach((i, k) => (t = withFieldIn(t, next, i, area!, index + k)))
+      return t
+    }
+  }
+
+  /** Ungroup: number ranges, a date's parts, or the selected groups of a field made by Group Selection. */
+  ungroup(): boolean {
+    const t = this.groupTarget()
+    if (!t) return false
+    const g = t.cache.fields[t.field].group
+    const xs = g?.kind === "discrete" ? t.xs : undefined
+    const done = withUngrouped(t.cache, t.field, xs)
+    if (!done) return false
+    const old = t.cache
+    let edit: ((laid: PivotTable, s: number) => PivotTable) | undefined
+    if (done.removed) {
+      const gone = old.fields.filter(
+        (_, i) => i !== done.base && !done.cache.fields.some((k) => k.name === old.fields[i].name),
+      )
+      const baseName = old.fields[done.base].name
+      edit = this.placeFields(
+        gone.map((k) => k.name),
+        () => {
+          const i = done.cache.fields.findIndex((k) => k.name === baseName)
+          return i >= 0 ? [i] : []
+        },
+        done.cache,
+      )
+      // The base already on the axis (Product under Product2) stays where it is.
+      const inner = edit
+      edit = (laid, s) => {
+        const i = done.cache.fields.findIndex((k) => k.name === baseName)
+        const onAxis = [...laid.rows, ...laid.cols].includes(i)
+        if (!onAxis) return inner(laid, s)
+        let next = laid
+        for (const k of gone) {
+          const j = done.cache.fields.findIndex((x) => x.name === k.name)
+          if (j >= 0) next = withFieldRemoved(next, j)
+        }
+        return next
+      }
+    }
+    this.run([old.id], "Ungroup", undefined, { cache: done.cache, edit })
+    return true
+  }
+
+  /** Ungroup is there: the active field is grouped, or is a date with parts. */
+  canUngroup(): boolean {
+    const t = this.groupTarget()
+    if (!t) return false
+    return !!t.cache.fields[t.field].group || derivedDateGroups(t.cache, t.field).length > 0
   }
 
   /** The active PivotTable's calculated fields (Calculated Field's Name list). */
@@ -823,7 +1028,8 @@ export class PivotCommands {
     const fieldOf = inner ? item.field : outerField(at.table, item)
     const anyCollapsed = (field: number) => at.table.fields[field].items.some((i) => i.collapsed)
     const anyOpen = (field: number) =>
-      at.table.fields[field].items.length < (at.cache.fields[field].items?.length ?? 0) ||
+      at.table.fields[field].items.length <
+        (at.cache.fields[field].items || at.cache.fields[field].group ? fieldShared(at.cache, field).length : 0) ||
       at.table.fields[field].items.some((i) => !i.collapsed)
     return {
       expand: inner && Boolean(own?.collapsed),

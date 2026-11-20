@@ -9,6 +9,29 @@ const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixture
 const REF = errorValue("#REF!")
 
 const CASES: Record<string, [string, CellValue][]> = {
+  "pivot-group.xlsx": [
+    ['=GETPIVOTDATA("Sum of Amount",Months!A3,"Months (Date)","Jan")', 305],
+    ['=GETPIVOTDATA("Sum of Amount",Months!A3,"Months","Jan")', REF],
+    ['=GETPIVOTDATA("Sum of Amount",Months!A3,"Date","Jan")', REF],
+    ['=GETPIVOTDATA("Sum of Amount",Months!A3,"Months (Date)",1)', 305],
+    ['=GETPIVOTDATA("Sum of Amount",Months!A3,"months (date)","jan")', 305],
+    [
+      '=GETPIVOTDATA("Sum of Amount",YQM!A3,"Years (Date)","2025","Quarters (Date)","Qtr1","Months (Date)","Feb")',
+      432.5,
+    ],
+    ['=GETPIVOTDATA("Sum of Amount",YQM!A3,"Years (Date)",2025,"Quarters (Date)","Qtr1","Months (Date)","Feb")', 432.5],
+    ['=GETPIVOTDATA("Sum of Amount",YQM!A3,"Years (Date)",2026)', 330],
+    ['=GETPIVOTDATA("Sum of Amount",YQM!A3,"Quarters (Date)","Qtr1")', REF],
+    ['=GETPIVOTDATA("Sum of Units",Weeks!A3,"Days (Date)","1/1/2025 - 1/7/2025")', 1],
+    ['=GETPIVOTDATA("Sum of Amount",UnitsBy5!A3,"Units","1-5")', 2007.5],
+    ['=GETPIVOTDATA("Sum of Amount",UnitsBy5!A3,"Units","1-5","Channel","Shop")', 1075],
+    ['=GETPIVOTDATA("Sum of Amount",UnitsBy5!A3,"Units",3)', REF],
+    ['=GETPIVOTDATA("Sum of Units",AmountRange!A3,"Amount","<0 or (blank)")', 28],
+    ['=GETPIVOTDATA("Sum of Units",Text!A3,"Product2","Group1")', 130],
+    ['=GETPIVOTDATA("Sum of Units",Text!A3,"Product2","Group1","Product","Apples")', 63],
+    ['=GETPIVOTDATA("Sum of Units",Text!A3,"Product2","Plums")', 82],
+    ['=GETPIVOTDATA("Sum of Units",Text!A3,"Product","Plums")', 82],
+  ],
   "pivot-basic.xlsx": [
     ['=GETPIVOTDATA("Sum of Amount",Compact!A3)', 6630],
     ['=GETPIVOTDATA("Amount",Compact!A3)', 6630],

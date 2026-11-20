@@ -24,7 +24,39 @@ export type PivotCacheField = {
   dates?: boolean
   /** A calculated field's formula over the other fields (=Amount/Units); it has no values in the records. */
   formula?: string
+  /**
+   * Grouping: number ranges on the field itself (`base` its own index), or a field of its own made from `base` — dates
+   * by Months, Quarters and so on, or items gathered by Group Selection. A field of its own has no values in the
+   * records.
+   */
+  group?: PivotFieldGroup
 }
+
+/** What a range group gathers by: numbers, or a part of a date. */
+export type PivotGroupBy = "range" | "seconds" | "minutes" | "hours" | "days" | "months" | "quarters" | "years"
+
+export type PivotFieldGroup =
+  | {
+      kind: "range"
+      base: number
+      by: PivotGroupBy
+      /** Numbers, or date serials. */
+      start: number
+      end: number
+      /** The size of each range (numbers), or days per item (`by` "days"). */
+      interval: number
+      autoStart: boolean
+      autoEnd: boolean
+      /** The group items: "<start", the ranges, ">end". */
+      items: PivotValue[]
+    }
+  | {
+      kind: "discrete"
+      base: number
+      /** The group item of each of the base field's shared items. */
+      map: number[]
+      items: PivotValue[]
+    }
 
 /** Where the cache reads its data: a range on a sheet, or a table or defined name. */
 export type PivotCacheSource = { kind: "range"; sheet: string; ref: string } | { kind: "name"; name: string }

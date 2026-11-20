@@ -13,6 +13,7 @@ import {
 } from "./model"
 import { showAsNumFmt, showValueAs, type ShowAsContext } from "./show-as"
 import { calcFieldInputs, calcFieldValue } from "./calculated"
+import { fieldShared, recordXs } from "./group"
 
 /**
  * The PivotTable engine: the cells a PivotTable shows, worked out from its cache and settings the way Excel lays them
@@ -93,17 +94,6 @@ type Line = {
 }
 
 // ── Values ──
-
-const keyOf = (v: PivotValue): string =>
-  v === null || v === ""
-    ? "blank"
-    : typeof v === "number"
-      ? `n:${v}`
-      : typeof v === "string"
-        ? `s:${v.toLowerCase()}`
-        : typeof v === "boolean"
-          ? `b:${v}`
-          : `e:${v.error}`
 
 /** Excel's sort order for items: numbers, text, logical values, errors, blanks. */
 function rank(v: PivotValue): number {
@@ -215,20 +205,8 @@ type FieldItems = {
 function fieldItems(table: PivotTable, cache: PivotCache, f: number): FieldItems {
   const field = table.fields[f]
   const cacheField = cache.fields[f]
-  // The cache's shared items, or the column's distinct values when it keeps none.
-  let shared = cacheField.items
-  const sharedKey = new Map<string, number>()
-  if (shared) shared.forEach((v, x) => sharedKey.has(keyOf(v)) || sharedKey.set(keyOf(v), x))
-  else {
-    shared = []
-    for (const rec of cache.records) {
-      const k = keyOf(rec[f] ?? null)
-      if (!sharedKey.has(k)) {
-        sharedKey.set(k, shared.length)
-        shared.push(rec[f] ?? null)
-      }
-    }
-  }
+  // The cache's shared items (a grouped field's group items), or the column's distinct values when it keeps none.
+  const shared = fieldShared(cache, f)
   // Item positions follow the field's items; shared items it doesn't list yet go after them.
   const posOfShared = new Map<number, number>()
   const xs: number[] = []
@@ -251,14 +229,16 @@ function fieldItems(table: PivotTable, cache: PivotCache, f: number): FieldItems
       names.push(undefined)
     }
   const values = xs.map((x) => shared[x])
-  const ofRecord = new Int32Array(cache.records.length)
-  cache.records.forEach((rec, i) => {
-    ofRecord[i] = posOfShared.get(sharedKey.get(keyOf(rec[f] ?? null)) ?? -1) ?? -1
-  })
+  const xsOfRecord = recordXs(cache, f)
+  const ofRecord = new Int32Array(xsOfRecord.length)
+  for (let i = 0; i < xsOfRecord.length; i++) ofRecord[i] = posOfShared.get(xsOfRecord[i]) ?? -1
   let order = xs.map((_, pos) => pos).filter((pos) => !hidden.has(pos))
   if (field?.sort === "ascending" || field?.sort === "descending") {
     const sign = field.sort === "ascending" ? 1 : -1
+    // Ranges and date parts sort in their own order (Jan before Feb), not by their labels.
+    const ranged = cacheField.group?.kind === "range"
     order = order.sort((a, b) => {
+      if (ranged) return sign * (xs[a] - xs[b])
       const va = names[a] ?? values[a]
       const vb = names[b] ?? values[b]
       // Blanks stay last either way.
@@ -439,6 +419,9 @@ export function pivotAxes(table: PivotTable, cache: PivotCache) {
         const name = fi.names[pos]
         const v = fi.values[pos]
         if (name === undefined && typeof want === "number" && typeof v === "number") return v === want
+        // A month or quarter by its number (1 is Jan), as Excel takes it.
+        const by = (cache.fields[f]?.group as { by?: string } | undefined)?.by
+        if (typeof want === "number" && (by === "months" || by === "quarters")) return fi.xs[pos] === want
         const label = labelText(itemLabel(fi, pos)).toLowerCase()
         return label === String(want).toLowerCase()
       }) ?? -1
@@ -518,6 +501,9 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     if (f === VALUES_FIELD) return undefined
     const fi = items.get(f)!
     const extra: Partial<PivotCell> = { item: { field: f, x: fi.xs[pos], axis, level } }
+    // A number item shows in its field's format (a date column's, when the field has none of its own).
+    const fmt = table.fields[f]?.numFmt ?? (cache.fields[f]?.dates ? cache.fields[f].numFmt : undefined)
+    if (fmt && fi.names[pos] === undefined && typeof fi.values[pos] === "number") extra.numFmt = fmt
     if (first && table.showDrill !== false && fields.slice(level + 1).some((g) => g !== VALUES_FIELD))
       extra.button = fi.collapsed.has(pos) ? "expand" : "collapse"
     return extra

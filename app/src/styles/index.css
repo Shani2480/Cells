@@ -4282,3 +4282,13 @@ html.is-phone .pivot-fields-foot {
 .pivot-calc-fields .pivot-base-list {
   height: 170px;
 }
+
+/* Grouping: the date parts to group by, and Number of days. */
+.pivot-group-parts {
+  height: 166px;
+  margin-bottom: 8px;
+}
+
+.pivot-group-days {
+  width: 80px;
+}

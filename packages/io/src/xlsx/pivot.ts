@@ -1,6 +1,8 @@
 import {
   errorValue,
+  discreteLevels,
   fullItems,
+  inRecords,
   parseRange,
   pivotLayout,
   rangeName,
@@ -15,7 +17,9 @@ import {
   type PivotFilter,
   type PivotLabelOp,
   type PivotValueOp,
+  type PivotFieldGroup,
   type PivotFn,
+  type PivotGroupBy,
   type PivotShowAs,
   type PivotSort,
   type PivotSubtotal,
@@ -104,19 +108,26 @@ export function readPivotCache(
     source = { kind: "range", sheet, ref }
   }
   const fields: PivotCacheField[] = []
-  for (const f of kids(kid(root, "cacheFields"), "cacheField")) {
-    if (kid(f, "fieldGroup")) return null
-    // A calculated field: a formula and no data. Excel puts them after the source's columns, as the records need.
+  const cacheFields = kids(kid(root, "cacheFields"), "cacheField")
+  for (const f of cacheFields) {
+    const group = readFieldGroup(kid(f, "fieldGroup"), fields.length)
+    if (group === null) return null
+    // A calculated field: a formula and no data; a group field of its own: no data either. Excel puts them after the
+    // source's columns, as the records need.
     const formula = at(f, "formula")
     if (formula !== undefined || at(f, "databaseField") === "0") {
-      if (formula === undefined) return null
-      const calc: PivotCacheField = { name: at(f, "name") ?? "", items: null, formula }
+      if (formula === undefined && (!group || group.base === fields.length)) return null
+      const calc: PivotCacheField =
+        formula !== undefined
+          ? { name: at(f, "name") ?? "", items: null, formula }
+          : { name: at(f, "name") ?? "", items: null, group: group! }
       const fmt = numberFormat(Number(at(f, "numFmtId") ?? 0))
       if (fmt && fmt !== "General") calc.numFmt = fmt
       fields.push(calc)
       continue
     }
-    if (fields.some((x) => x.formula !== undefined)) return null
+    if (fields.some((x, i) => !inRecords(x, i))) return null
+    if (group && group.base !== fields.length) return null
     const shared = kid(f, "sharedItems")
     const listed = shared?.children.filter((c) => "snbdem".includes(c.local) && c.local.length === 1) ?? []
     const items = listed.length ? listed.map((c) => valueOf(c.local, at(c, "v")) ?? null) : null
@@ -124,10 +135,45 @@ export function readPivotCache(
     const fmt = numberFormat(Number(at(f, "numFmtId") ?? 0))
     if (fmt && fmt !== "General") field.numFmt = fmt
     if (truthy(at(shared, "containsDate"), false)) field.dates = true
+    if (group) field.group = group
     fields.push(field)
   }
   const records = recordsXml ? readRecords(recordsXml, fields) : []
   return { id, source, fields, records, refreshOnLoad: truthy(at(root, "refreshOnLoad"), false) }
+}
+
+const GROUP_BY = new Set(["range", "seconds", "minutes", "hours", "days", "months", "quarters", "years"])
+
+/**
+ * A cache field's grouping: undefined when it has none of its own (no fieldGroup, or only `par`, which points at the
+ * field grouped from it); null when it is one Cells can't read.
+ */
+function readFieldGroup(fg: XNode | undefined, index: number): PivotFieldGroup | undefined | null {
+  if (!fg) return undefined
+  const range = kid(fg, "rangePr")
+  const discrete = kid(fg, "discretePr")
+  if (!range && !discrete) return at(fg, "base") === undefined ? undefined : null
+  const base = Number(at(fg, "base") ?? index)
+  const items = (kid(fg, "groupItems")?.children ?? []).map((c) => valueOf(c.local, at(c, "v")) ?? null)
+  if (discrete) return { kind: "discrete", base, map: kids(discrete, "x").map((x) => Number(at(x, "v") ?? 0)), items }
+  const by = at(range, "groupBy") ?? "range"
+  if (!GROUP_BY.has(by)) return null
+  const dates = by !== "range"
+  const bound = (name: string, fallback: number) => {
+    const v = dates ? valueOf("d", at(range, `${name}Date`)) : Number(at(range, `${name}Num`) ?? NaN)
+    return typeof v === "number" && Number.isFinite(v) ? v : fallback
+  }
+  return {
+    kind: "range",
+    base,
+    by: by as PivotGroupBy,
+    start: bound("start", 0),
+    end: bound("end", 0),
+    interval: Number(at(range, "groupInterval") ?? 1),
+    autoStart: truthy(at(range, "autoStart"), true),
+    autoEnd: truthy(at(range, "autoEnd"), true),
+    items,
+  }
 }
 
 /** The records, streamed (a cache can hold many thousands of rows). */
@@ -562,8 +608,10 @@ export function cacheForWriting(cache: PivotCache, tables: readonly PivotTable[]
     t.fields.forEach((f, i) => {
       if (f.axis || f.items.length) needed.add(i)
     })
+  // A grouped field's base lists its shared items, as Excel writes it.
+  cache.fields.forEach((f) => f.group && needed.add(f.group.base))
   const fields = cache.fields.map((f, i) => {
-    if ((!needed.has(i) && !f.items) || f.formula !== undefined) return f
+    if ((!needed.has(i) && !f.items) || !inRecords(f, i)) return f
     const items = f.items ? [...f.items] : []
     const seen = new Set(items.map(valueKey))
     for (const rec of cache.records) {
@@ -577,6 +625,53 @@ export function cacheForWriting(cache: PivotCache, tables: readonly PivotTable[]
     return f.items && items.length === f.items.length ? f : { ...f, items }
   })
   return { ...cache, fields }
+}
+
+/**
+ * A cache field's fieldGroup: `par` the last field grouped from it (Excel's choice), and its own grouping — number or
+ * date ranges (rangePr) or items gathered by Group Selection (discretePr) — with the group items.
+ */
+function fieldGroupXml(cache: PivotCache, f: number): string {
+  let par: number | undefined
+  // A date's part fields: the last one. Group Selection's levels: the source points at the first, each at the next.
+  cache.fields.forEach((k, i) => {
+    if (i !== f && k.group?.kind === "range" && k.group.base === f) par = i
+  })
+  const own = cache.fields[f].group
+  const root = own?.kind === "discrete" ? own.base : f
+  const levels = discreteLevels(cache, root)
+  const next = root === f ? levels[0] : levels[levels.indexOf(f) + 1]
+  if (next !== undefined) par = next
+  const g = cache.fields[f].group
+  if (!g) return par === undefined ? "" : `<fieldGroup par="${par}"/>`
+  const items = g.items.map((v) => valueXml(v, false)).join("")
+  const groupItems = `<groupItems count="${g.items.length}">${items}</groupItems>`
+  let inner: string
+  if (g.kind === "discrete")
+    inner = `<discretePr count="${g.map.length}">${g.map.map((x) => `<x v="${Math.max(x, 0)}"/>`).join("")}</discretePr>`
+  else {
+    const dates = g.by !== "range"
+    inner =
+      `<rangePr` +
+      attrText({
+        autoStart: g.autoStart ? undefined : 0,
+        autoEnd: g.autoEnd ? undefined : 0,
+        groupBy: dates ? g.by : undefined,
+        startNum: dates ? undefined : g.start,
+        endNum: dates ? undefined : g.end,
+        startDate: dates ? serialToIso(g.start) : undefined,
+        endDate: dates ? serialToIso(g.end) : undefined,
+        groupInterval: !dates || g.interval !== 1 ? g.interval : undefined,
+      }) +
+      `/>`
+  }
+  return `<fieldGroup${attrText({ par, base: g.base })}>${inner}${groupItems}</fieldGroup>`
+}
+
+/** How many items a field's indexes can point at: its group items, or the cache's shared items it keeps. */
+const sharedCount = (cache: PivotCache, f: number) => {
+  const field = cache.fields[f]
+  return field?.group ? field.group.items.length : (field?.items?.length ?? 0)
 }
 
 /** The value element for a cache value. */
@@ -643,16 +738,18 @@ export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId:
     const dates = f.dates ?? false
     const attrs = attrText({ name: f.name, numFmtId: numFmtId(f.numFmt) })
     if (f.formula !== undefined) return `<cacheField${attrs}${attrText({ formula: f.formula, databaseField: 0 })}/>`
+    const group = fieldGroupXml(cache, i)
+    if (!inRecords(f, i)) return `<cacheField${attrs}${attrText({ databaseField: 0 })}>${group}</cacheField>`
     if (!f.items) {
       const values = (function* () {
         for (const r of cache.records) yield r[i] ?? null
       })()
-      return `<cacheField${attrs}><sharedItems${sharedItemsAttrs(values, dates)}/></cacheField>`
+      return `<cacheField${attrs}><sharedItems${sharedItemsAttrs(values, dates)}/>${group}</cacheField>`
     }
     const items = f.items.map((v) => valueXml(v, dates)).join("")
     return (
       `<cacheField${attrs}><sharedItems${sharedItemsAttrs(f.items, dates)} count="${f.items.length}">` +
-      `${items}</sharedItems></cacheField>`
+      `${items}</sharedItems>${group}</cacheField>`
     )
   })
   return (
@@ -682,7 +779,7 @@ export function pivotRecordsXml(cache: PivotCache): string {
   for (const rec of cache.records) {
     let row = "<r>"
     cache.fields.forEach((f, i) => {
-      if (f.formula !== undefined) return
+      if (!inRecords(f, i)) return
       const v = rec[i] ?? null
       const x = index[i]?.get(valueKey(v))
       row += x !== undefined ? `<x v="${x}"/>` : valueXml(v, f.dates ?? false)
@@ -733,7 +830,7 @@ export function pivotTableXml(
     const f = v.baseField ?? 0
     const field = table.fields[f]
     if (!field || (field.axis === null && !field.items.length)) return v.baseItem
-    const pos = fullItems(field, cache.fields[f]?.items?.length ?? 0).findIndex((it) => it.x === v.baseItem)
+    const pos = fullItems(field, sharedCount(cache, f)).findIndex((it) => it.x === v.baseItem)
     return Math.max(pos, 0)
   }
   const fields = table.fields.map((f, i) => {
@@ -761,7 +858,7 @@ export function pivotTableXml(
     const listed = f.axis !== null || f.items.length > 0
     if (listed) {
       // Every shared item, once: the field's own order, then any it doesn't list yet.
-      const items = fullItems(f, cache.fields[i]?.items?.length ?? 0)
+      const items = fullItems(f, sharedCount(cache, i))
       const xml = items.map(
         (it) =>
           `<item${attrText({ n: it.name, h: it.hidden ? 1 : undefined, sd: it.collapsed ? 0 : undefined, x: it.x })}/>`,

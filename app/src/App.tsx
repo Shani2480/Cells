@@ -89,6 +89,7 @@ import {
   PivotOptionsDialog,
   ShowValuesAsDialog,
   CalculatedFieldDialog,
+  GroupingDialog,
   ValueFieldSettingsDialog,
 } from "@/shell/PivotSettingsDialogs"
 import { Check } from "lucide-react"
@@ -262,6 +263,7 @@ type DialogState =
   | { kind: "pivotField"; field: number }
   | { kind: "pivotOptions" }
   | { kind: "pivotCalcField" }
+  | { kind: "pivotGroup" }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
   | { kind: "options"; page?: OptionsPage }
@@ -881,7 +883,12 @@ function WorkbookWindow({
               act("Value Field Settings...", () => openDialog(`pivotValue:${t.index}`)),
             ]
           : t?.kind === "field"
-            ? [act("Field Settings...", () => openDialog(`pivotField:${t.field}`))]
+            ? [
+                act("Group...", () => void controller.pivots.groupSelection(), !controller.pivots.groupTarget()),
+                act("Ungroup...", () => void controller.pivots.ungroup(), !controller.pivots.canUngroup()),
+                { kind: "separator" as const },
+                act("Field Settings...", () => openDialog(`pivotField:${t.field}`)),
+              ]
             : []),
         act("PivotTable Options...", () => openDialog("pivotOptions")),
         act(controller.pivots.fieldsOn() ? "Hide Field List" : "Show Field List", () =>
@@ -1007,6 +1014,7 @@ function WorkbookWindow({
     } else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
     else if (kind === "pivotCalcField") setDialog({ kind: "pivotCalcField" })
+    else if (kind === "pivotGroup") setDialog({ kind: "pivotGroup" })
     else if (kind === "insert" || kind === "delete") setDialog({ kind })
     else if (kind === "size") sizeDialog(arg as "rows" | "cols")
     else if (kind === "autofit") controller.autofit?.(arg as "rows" | "cols")
@@ -1459,6 +1467,7 @@ function WorkbookWindow({
           <FieldSettingsDialog controller={controller} field={dialog.field} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotOptions" ? <PivotOptionsDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "pivotGroup" ? <GroupingDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "pivotCalcField" ? (
           <CalculatedFieldDialog controller={controller} onClose={closeDialog} />
         ) : null}

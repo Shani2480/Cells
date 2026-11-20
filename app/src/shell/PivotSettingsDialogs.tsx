@@ -1,4 +1,8 @@
 import {
+  DATE_GROUP_NAMES,
+  DATE_PARTS,
+  parseInput,
+  serialToDate,
   autoDataFieldName,
   defaultBaseField,
   SHOW_AS_BASE_FIELD,
@@ -822,6 +826,152 @@ export function CalculatedFieldDialog({ controller, onClose }: { controller: She
           Insert Field
         </button>
       </div>
+    </Dialog>
+  )
+}
+
+/** A date serial as the Grouping dialog shows it (m/d/yyyy), or a number as typed. */
+function boundText(v: number, dates: boolean): string {
+  if (!dates) return String(Number(v.toPrecision(15)))
+  const d = serialToDate(Math.floor(v))
+  return `${d.month}/${d.day}/${d.year}`
+}
+
+/** A typed start or end: a number, or a date read as Excel reads typed dates. */
+function readBound(text: string): number | null {
+  const parsed = parseInput(text.trim())
+  return parsed && typeof parsed.value === "number" ? parsed.value : null
+}
+
+/**
+ * Grouping (Analyze › Group Field, or Group Selection on dates and numbers): Auto start and end, and By — the size of
+ * each range for numbers; for dates the parts (Seconds … Years) and, with Days alone, the number of days.
+ */
+export function GroupingDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
+  const [init] = useState(() => controller.pivots.groupDialog())
+  const dates = init?.dates ?? false
+  const [autoStart, setAutoStart] = useState(init?.start === null)
+  const [autoEnd, setAutoEnd] = useState(init?.end === null)
+  const [start, setStart] = useState(() => (init ? boundText(init.start ?? init.autoStart, dates) : ""))
+  const [end, setEnd] = useState(() => (init ? boundText(init.end ?? init.autoEnd, dates) : ""))
+  const [by, setBy] = useState(() => String(init?.by ?? 10))
+  const [parts, setParts] = useState<Set<string>>(() => new Set(init?.parts ?? ["months"]))
+  if (!init) return null
+  const onlyDays = parts.size === 1 && parts.has("days")
+  const accept = () => {
+    const s = autoStart ? null : readBound(start)
+    const e = autoEnd ? null : readBound(end)
+    const step = Number(by)
+    if (dates && parts.size === 0) {
+      controller.shell.alert("Select at least one way to group by.")
+      return
+    }
+    if (
+      (!autoStart && s === null) ||
+      (!autoEnd && e === null) ||
+      (!dates && !(step > 0)) ||
+      (dates && onlyDays && !(step >= 1))
+    ) {
+      controller.shell.alert("Enter a number.")
+      return
+    }
+    const problem = controller.pivots.setGroup({
+      start: s,
+      end: e,
+      by: dates ? (onlyDays ? Math.round(step) : 1) : step,
+      parts: dates ? DATE_PARTS.filter((p) => parts.has(p)) : undefined,
+    })
+    if (problem) controller.shell.alert(problem)
+    else onClose()
+  }
+  return (
+    <Dialog title="Grouping" onCancel={onClose} onAccept={accept} width={300}>
+      <fieldset className="dialog-group">
+        <legend>Auto</legend>
+        <div className="pivot-settings-row">
+          <Check
+            label="Starting at:"
+            checked={autoStart}
+            set={(on) => {
+              setAutoStart(on)
+              if (on) setStart(boundText(init.autoStart, dates))
+            }}
+          />
+          <input
+            className="dialog-field"
+            aria-label="Starting at"
+            disabled={autoStart}
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+          />
+        </div>
+        <div className="pivot-settings-row">
+          <Check
+            label="Ending at:"
+            checked={autoEnd}
+            set={(on) => {
+              setAutoEnd(on)
+              if (on) setEnd(boundText(init.autoEnd, dates))
+            }}
+          />
+          <input
+            className="dialog-field"
+            aria-label="Ending at"
+            disabled={autoEnd}
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+          />
+        </div>
+      </fieldset>
+      <fieldset className="dialog-group">
+        <legend>By</legend>
+        {dates ? (
+          <>
+            <div
+              className="dialog-list pivot-base-list pivot-group-parts"
+              role="listbox"
+              aria-label="By"
+              aria-multiselectable="true"
+            >
+              {DATE_PARTS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  role="option"
+                  aria-selected={parts.has(p)}
+                  className={`dialog-list-item${parts.has(p) ? " is-selected" : ""}`}
+                  onClick={() =>
+                    setParts((was) => {
+                      const next = new Set(was)
+                      if (next.has(p)) next.delete(p)
+                      else next.add(p)
+                      return next
+                    })
+                  }
+                >
+                  {DATE_GROUP_NAMES[p]}
+                </button>
+              ))}
+            </div>
+            <div className="pivot-settings-row">
+              <label className="dialog-label" htmlFor="pivot-group-days">
+                Number of days:
+              </label>
+              <input
+                id="pivot-group-days"
+                className="dialog-field pivot-group-days"
+                type="number"
+                min={1}
+                disabled={!onlyDays}
+                value={onlyDays ? by : "1"}
+                onChange={(e) => setBy(e.target.value)}
+              />
+            </div>
+          </>
+        ) : (
+          <input className="dialog-field" aria-label="By" value={by} onChange={(e) => setBy(e.target.value)} />
+        )}
+      </fieldset>
     </Dialog>
   )
 }

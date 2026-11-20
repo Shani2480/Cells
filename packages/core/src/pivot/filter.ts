@@ -1,3 +1,4 @@
+import { fieldShared } from "./group"
 import type { CellValue } from "../values"
 import { comparePivotValues, pivotFieldName, type PivotCell } from "./engine"
 import {
@@ -7,7 +8,6 @@ import {
   type PivotFilter,
   type PivotSort,
   type PivotTable,
-  type PivotValue,
 } from "./model"
 
 /**
@@ -77,22 +77,8 @@ export type PivotChoices = {
   filtered: boolean
 }
 
-/** The cache's shared items of a field (a column that keeps none: its distinct values, as the engine finds them). */
-function sharedItems(cache: PivotCache, f: number): PivotValue[] {
-  const kept = cache.fields[f]?.items
-  if (kept) return kept
-  const seen = new Set<string>()
-  const out: PivotValue[] = []
-  for (const rec of cache.records) {
-    const v = rec[f] ?? null
-    const k = v === null ? "" : typeof v === "object" ? `e${v.error}` : `${typeof v}:${String(v).toLowerCase()}`
-    if (!seen.has(k)) {
-      seen.add(k)
-      out.push(v)
-    }
-  }
-  return out
-}
+/** The items a field's indexes point at (its group items when grouped; a column that keeps none: its values). */
+const sharedItems = fieldShared
 
 const textOf = (v: CellValue | null): string =>
   v === null || v === ""

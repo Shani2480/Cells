@@ -215,7 +215,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - Timelines go with Part 10 (Excel only links them to PivotTables)
 - [ ] Part 10 — PivotTables, PivotCharts and Timelines: plan in `docs/pivot-plan.md` (all steps decided 2026-11-17)
   - [x] 1 Model and engine (core) · [x] 2 Open and keep (io) · [x] 3 Refresh and use · [x] 4 Make and change
-        (Fields pane, phone layout too) · [ ] 5 Show Values As, calculated fields, grouping, GETPIVOTDATA
+        (Fields pane, phone layout too) · [x] 5 Show Values As, calculated fields, grouping, GETPIVOTDATA
         · [ ] 6 PivotCharts · [ ] 7 Recommended PivotTables, Quick Analysis, Slicers, Timelines · [ ] 8 AI
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
       GitHub issue the person reviews), Show Training

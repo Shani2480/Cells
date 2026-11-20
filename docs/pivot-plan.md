@@ -28,8 +28,8 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    and anew (cache, records, definition with the engine's row and column items) once changed. Checked: the engine's
    layout of every read PivotTable equals the cells Excel saved; all 12 written anew, a changed one, a moved one and
    one made in Cells open in Excel 365 without repair, and Excel's own Refresh leaves every cell as written. Kept as
-   read for now (with all PivotTables of that cache): OLAP and external sources, grouped fields, calculated fields
-   and items, Show Values As, label and value filters, Top 10 and sort by value — each comes with its step.
+   read for now (with all PivotTables of that cache): OLAP and external sources, grouped fields (read since step 5),
+   calculated fields (since step 5) and items, Show Values As, label and value filters, Top 10 and sort by value — each comes with its step.
    Typing, clearing, pasting or inserting cells through a PivotTable is refused with Excel's message; whole rows and
    columns before it move it, deleting all of its rows or columns deletes it.
 3. **Refresh and use**
@@ -150,6 +150,23 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    out; they can only be values. A file where Cells modified one and added another opens in Excel 365 without
    repairs, Excel reads the five formulas and refreshes all three PivotTables to the same cells. Not yet: calculated
    items, Solve Order, List Formulas.
+   _Grouping done:_ core `pivot/group.ts`; `PivotCacheField.group` (range or discrete). Excel 365's model, from
+   `fixtures/excel/pivot-group.xlsx` (8 PivotTables, each on its own cache): numbers are grouped on the field itself
+   (`rangePr` with startNum/endNum/groupInterval); dates by Seconds … Years go to new fields "Months (Date)" etc.
+   (`databaseField="0"`, `fieldGroup base`, the date leaves the axis, the largest part outermost); Group Selection
+   makes "Product2" (`discretePr`: a group item per source item), and grouping its items makes "Product3" — also
+   based on Product itself, the group numbers going on across levels (Group2); `par` links the source to its first
+   level, each level to the next, a date to its last part. Excel's labels: ceil((end − start)/by) ranges, whole-number
+   labels (1-5, 6-10) only when the data, start and by are whole, the last range stretched to the end (13-17), "<start"
+   (" or (blank)" with empty cells) and ">start + n·by"; dates "12 AM", ":00", "1-Jan" (a leap year's 366), "Jan",
+   "Qtr1", "2025", day ranges "1/1/2025 - 1/7/2025"; Auto dates run from the first day to the day after the last.
+   Excel refuses to group a single item. GETPIVOTDATA takes group labels and a month or quarter by number (18 formulas
+   checked). The engine reads a record's item through `recordXs` (group-aware), so filters, Show Details, refresh
+   (groups kept, new items their own) and GETPIVOTDATA follow. Analyze › Group Selection / Ungroup / Group Field and
+   the cell menu's Group... / Ungroup...; the Grouping dialog (Auto start/end, By, the date parts, Number of days).
+   Cells' groups equal Excel's for every fixture case; a file with four groupings made in Cells (years/quarters/months,
+   numbers by 5, Product2 and Product3, weeks) opens in Excel 365 without repairs and all ten PivotTables refresh to
+   the same cells. Also fixed: a PivotTable's date labels show in their column's format. **Step 5 done.**
 6. **PivotCharts** — Insert › PivotChart and PivotChart from the Analyze tab: a chart that follows its PivotTable
    (field buttons on the chart, filtering from the chart), written with `c:pivotSource`.
 7. **Recommended PivotTables, Quick Analysis, Slicers and Timelines** — Recommended PivotTables (Insert tab), the

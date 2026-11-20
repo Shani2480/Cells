@@ -78,6 +78,7 @@ export function pivotFieldAreas(table: PivotTable, f: number): PivotArea[] {
 /** A field's records hold only numbers (and blanks): ticking it sums it. */
 function numeric(cache: PivotCache, f: number): boolean {
   if (cache.fields[f]?.formula !== undefined) return true
+  if (cache.fields[f]?.group) return false
   if (cache.fields[f]?.dates) return false
   let any = false
   for (const r of cache.records) {
