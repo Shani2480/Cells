@@ -85,6 +85,23 @@ export function OptionsDialog({
               <PersonalFields value={draft} onChange={change} />
               <span className="dialog-label">Office Theme:</span>
               <ThemeField value={draft} onChange={change} />
+              <h3 className="options-heading">Feature hints</h3>
+              <label className="dialog-radio">
+                <input
+                  type="checkbox"
+                  checked={draft.hintsEnabled}
+                  onChange={(e) => change({ hintsEnabled: e.target.checked })}
+                />
+                Show hints about new features
+              </label>
+              <button
+                type="button"
+                className="dialog-btn options-setup"
+                disabled={draft.hintsEnabled && draft.hintsDismissed.length === 0}
+                onClick={() => change({ hintsEnabled: true, hintsDismissed: [] })}
+              >
+                Show hints again
+              </button>
               <h3 className="options-heading">Start up options</h3>
               <button type="button" className="dialog-btn options-setup" onClick={onRunSetup}>
                 Run setup again…

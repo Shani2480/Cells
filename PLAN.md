@@ -390,7 +390,10 @@ The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables h
   signature lines, embedded files), sparklines, slicers and Quick Analysis.
 - ✅ Part 10: PivotTables, PivotCharts, slicers and Timelines for PivotTables, Recommended PivotTables, and
   "Describe the PivotTable you want" (AI, opt-in), with sorting by a value.
-- ⬜ Next: feature hints ("New: …", the house rule; Cells has none yet), then the Help tab.
+- ✅ Feature hints ("New: …", the house rule): `app/src/hints/`, one at a time beside the feature's control, on by
+  default, File › Options › General turns them off or shows them again; kept in `apps.cells` of the shared settings.
+  Each new special feature adds its hint to `feature-hints.ts`.
+- ⬜ Next: the Help tab.
 - ⬜ Then: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project.
 - ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: a More Sort Options dialog for PivotTables,
   Field Headers, Show Report Filter Pages, calculated items, new PivotTable styles).

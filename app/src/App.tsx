@@ -38,6 +38,7 @@ import { DescribePivotDialog } from "@/ai/DescribePivotDialog"
 import type { AiTool } from "@/ai/prompts"
 import { OptionsDialog, type OptionsPage } from "@/settings/OptionsDialog"
 import { FirstRunSetup } from "@/settings/FirstRunSetup"
+import { FeatureHints } from "@/hints/FeatureHints"
 import { parseOpenRequest } from "@/links/link"
 import { LiveLinks } from "@/links/live"
 import { SheetController } from "@/sheet/controller"
@@ -1646,6 +1647,7 @@ function WorkbookWindow({
             }}
           />
         ) : null}
+        <FeatureHints />
         {settingsLoaded && (!setupDone || setupAgain) && !backstage ? (
           <FirstRunSetup
             onDone={() => {

@@ -231,7 +231,12 @@ export function PivotFieldsPane({
         </button>
       </header>
       {aiReady && onDialog ? (
-        <button type="button" className="dialog-btn pivot-describe" onClick={() => onDialog("describePivot")}>
+        <button
+          type="button"
+          className="dialog-btn pivot-describe"
+          aria-label="Describe the PivotTable you want…"
+          onClick={() => onDialog("describePivot")}
+        >
           <Sparkles size={14} strokeWidth={1.75} aria-hidden />
           Describe the PivotTable you want…
         </button>

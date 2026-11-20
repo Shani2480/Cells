@@ -26,6 +26,8 @@ describe("the settings file shared with Inkspire", () => {
       aiModels: {},
       aiAddresses: {},
       dictionaryWords: [],
+      hintsEnabled: true,
+      hintsDismissed: [],
     })
     expect(hasSharedValues(inkspire)).toBe(true)
   })
@@ -48,6 +50,21 @@ describe("the settings file shared with Inkspire", () => {
     })
     expect(merged.ai).toEqual({ provider: "builtin" })
     expect(merged.version).toBe(1)
+  })
+
+  it("keeps feature hints on by default, and Cells' dismissed hints and switch under apps.cells", () => {
+    expect(parseShared(null)).toMatchObject({ hintsEnabled: true, hintsDismissed: [] })
+    const written = mergeShared('{"apps": {"inkspire": {"x": 1}}}', {
+      hintsEnabled: false,
+      hintsDismissed: ["ai-tools", "flash-fill"],
+    })
+    expect(JSON.parse(written).apps).toEqual({
+      inkspire: { x: 1 },
+      cells: { hints: false, hintsDismissed: ["ai-tools", "flash-fill"] },
+    })
+    expect(parseShared(written)).toMatchObject({ hintsEnabled: false, hintsDismissed: ["ai-tools", "flash-fill"] })
+    // Show hints again empties the list (it isn't merged like added words).
+    expect(parseShared(mergeShared(written, { hintsDismissed: [] })).hintsDismissed).toEqual([])
   })
 
   it("keeps a newer version number", () => {

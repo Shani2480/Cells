@@ -47,6 +47,10 @@ export type SharedSettings = {
   aiAddresses: Partial<Record<AddressedProvider, string>>
   /** Words added to the dictionary (Spelling › Add to Dictionary), shared by both apps (`proofing.customWords`). */
   dictionaryWords: string[]
+  /** Hints that introduce Cells' special features are shown (on by default; `apps.cells.hints`). */
+  hintsEnabled: boolean
+  /** The hints already dismissed, by id (`apps.cells.hintsDismissed`); emptied by Show hints again. */
+  hintsDismissed: string[]
 }
 
 export const SETTINGS_VERSION = 1
@@ -65,6 +69,8 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   aiModels: {},
   aiAddresses: {},
   dictionaryWords: [],
+  hintsEnabled: true,
+  hintsDismissed: [],
 }
 
 type Json = Record<string, unknown>
@@ -114,6 +120,10 @@ export function parseShared(source: string | null): SharedSettings {
     dictionaryWords: Array.isArray(proofing.customWords)
       ? proofing.customWords.filter((w): w is string => typeof w === "string" && w.trim() !== "")
       : [],
+    hintsEnabled: cells.hints !== false,
+    hintsDismissed: Array.isArray(cells.hintsDismissed)
+      ? cells.hintsDismissed.filter((id): id is string => typeof id === "string")
+      : [],
   }
 }
 
@@ -138,6 +148,8 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   aiModels: ["ai", "models"],
   aiAddresses: ["ai", "addresses"],
   dictionaryWords: ["proofing", "customWords"],
+  hintsEnabled: ["apps", "cells", "hints"],
+  hintsDismissed: ["apps", "cells", "hintsDismissed"],
 }
 
 /**

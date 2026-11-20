@@ -217,6 +217,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] 1 Model and engine (core) · [x] 2 Open and keep (io) · [x] 3 Refresh and use · [x] 4 Make and change
         (Fields pane, phone layout too) · [x] 5 Show Values As, calculated fields, grouping, GETPIVOTDATA
         · [x] 6 PivotCharts · [x] 7 Recommended PivotTables, Quick Analysis, Slicers, Timelines · [x] 8 AI
+- [x] Feature hints (house rule): `app/src/hints/feature-hints.ts` lists them; each new special feature gets one.
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
       GitHub issue the person reviews), Show Training
 - [ ] Then: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project

@@ -31,7 +31,7 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
   },
   "proofing": { "customWords": ["Zorbly", "Q-Ledger"] },
   "apps": {
-    "cells": { "setupDone": true, "ai": true },
+    "cells": { "setupDone": true, "ai": true, "hints": true, "hintsDismissed": ["quick-analysis", "ai-tools"] },
     "inkspire": { "setupDone": true }
   }
 }
@@ -47,7 +47,9 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
   (`docs/ai.md`).
 - `proofing.customWords`: words added to the dictionary (Spelling › Add to Dictionary) in either app, kept as
   typed. An app adds its words to the list in the file (never replaces it), so both apps' words stay.
-- `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on). An app never
+- `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on; Cells' `hints`:
+  feature hints are shown, missing means on; `hintsDismissed`: the ids of the hints already dismissed, replaced as a
+  whole, so Show hints again can empty it). An app never
   changes another app's entry.
 
 ## Rules for writing it
