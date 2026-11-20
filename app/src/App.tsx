@@ -83,6 +83,7 @@ import type { AlertAnswer, ValidationAlert, ValidationDialogInit } from "@/sheet
 import { FindReplaceDialog, GoToSpecialDialog } from "@/shell/FindDialogs"
 import { CustomFilterDialog, Top10Dialog } from "@/shell/FilterDialogs"
 import { PivotFilterDialog } from "@/shell/PivotFilterDialogs"
+import { RecommendedPivotsDialog } from "@/shell/RecommendedPivotsDialog"
 import { CreatePivotDialog } from "@/shell/CreatePivotDialog"
 import { PivotFieldsPane } from "@/shell/PivotFieldsPane"
 import {
@@ -259,6 +260,7 @@ type DialogState =
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "pivotFilter"; request: PivotFilterRequest }
+  | { kind: "recommendPivots"; source?: string }
   | { kind: "createPivot"; source?: string; mode?: "source" | "move" | "chart"; chartType?: string }
   | { kind: "pivotValue"; index: number }
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
@@ -1009,6 +1011,8 @@ function WorkbookWindow({
     else if (kind === "createPivot") setDialog({ kind: "createPivot", source: arg })
     else if (kind === "pivotSource") setDialog({ kind: "createPivot", mode: "source" })
     else if (kind === "pivotMove") setDialog({ kind: "createPivot", mode: "move" })
+    else if (kind === "recommendPivots")
+      setDialog({ kind: "recommendPivots", source: name.slice(kind.length + 1) || undefined })
     else if (kind === "createPivotChart") setDialog({ kind: "createPivot", mode: "chart", chartType: arg })
     else if (kind === "pivotValue") setDialog({ kind: "pivotValue", index: Number(arg) })
     else if (kind === "pivotShowAs") {
@@ -1484,6 +1488,9 @@ function WorkbookWindow({
             chartType={dialog.chartType}
             onClose={closeDialog}
           />
+        ) : null}
+        {dialog?.kind === "recommendPivots" ? (
+          <RecommendedPivotsDialog controller={controller} source={dialog.source} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotFilter" ? (
           <PivotFilterDialog controller={controller} request={dialog.request} onClose={closeDialog} />

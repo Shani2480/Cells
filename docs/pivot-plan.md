@@ -191,6 +191,15 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
 7. **Recommended PivotTables, Quick Analysis, Slicers and Timelines** — Recommended PivotTables (Insert tab), the
    PivotTable choices on Quick Analysis' Tables tab, slicers for PivotTables (today a file with them keeps them as
    read), and **Timelines** (Insert › Timeline, the Timeline tab, x15 timeline parts) for date fields.
+   _Part 1 done:_ core `recommendedPivots(cache)` (Excel's kinds of suggestion and titles: the first number summed
+   by each category, fewest items first; dates by months, with years when they span several; the other numbers;
+   two numbers side by side; two categories crossed; counts when there are no numbers; a column that is different in
+   every row, or numbers, is never a category) and `pivotFromRecipe` (dates grouped into Years/Months fields as
+   Grouping makes them). Excel picks its suggestions with a model of its own, so the list is Cells', not Excel's.
+   Recommended PivotTables dialog (pictures of each, the picked one large, Blank PivotTable; in a PivotTable it
+   suggests from that PivotTable's data) on Insert and PivotTable Analyze › Tools; Quick Analysis' Tables tab shows
+   the first three with a hover preview, and More. The 10 suggestions for pivot-basic's data, made by Cells, open in
+   Excel 365 without repairs and refresh to the same cells. Next: slicers for PivotTables, then Timelines.
 
 ## Staying out
 

@@ -45,16 +45,40 @@ describe("Quick Analysis gallery", () => {
     expect(c.wb.canUndo).toBe(false)
   })
 
-  it("shows PivotTable greyed out and Esc closes", () => {
-    const c = book()
+  it("offers recommended PivotTables, makes one on a new sheet, and Esc closes", () => {
+    const c = new SheetController()
+    const rows: (string | number)[][] = [
+      ["Region", "Units"],
+      ["North", 4],
+      ["South", 2],
+      ["North", 5],
+    ]
+    rows.forEach((row, r) => row.forEach((v, col) => c.sheet.cells.set(r, col, { value: v })))
+    c.goTo({ r0: 0, c0: 0, r1: 3, c1: 1 })
     const onClose = vi.fn()
-    render(<QuickGallery controller={c} left={10} top={10} onClose={onClose} />)
+    const { unmount } = render(<QuickGallery controller={c} left={10} top={10} onClose={onClose} />)
     fireEvent.click(screen.getByRole("tab", { name: "Tables" }))
-    expect(screen.getByRole("button", { name: "PivotTable" })).toHaveAttribute("aria-disabled", "true")
-    fireEvent.click(screen.getByRole("button", { name: "PivotTable" }))
-    expect(onClose).not.toHaveBeenCalled()
+    const pivot = screen.getByRole("button", { name: "PivotTable" })
+    fireEvent.mouseEnter(pivot)
+    expect(screen.getByText("Sum of Units by Region. PivotTables summarize data, on a new sheet.")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "More" })).toBeTruthy()
     fireEvent.keyDown(window, { key: "Escape" })
     expect(onClose).toHaveBeenCalled()
+    unmount()
+    c.quick.apply("pivot:0")
+    expect(c.wb.sheets).toHaveLength(2)
+    const [table] = c.sheet.pivots
+    expect(table.values.map((v) => v.name)).toEqual(["Sum of Units"])
+    expect(c.sheet.cells.get(3, 0)?.value).toBe("North")
+    expect(c.sheet.cells.get(3, 1)?.value).toBe(9)
+  })
+
+  it("has no PivotTables to recommend when every row is different, only More", () => {
+    const c = book()
+    render(<QuickGallery controller={c} left={10} top={10} onClose={() => undefined} />)
+    fireEvent.click(screen.getByRole("tab", { name: "Tables" }))
+    expect(screen.queryByRole("button", { name: "PivotTable" })).toBeNull()
+    expect(screen.getByRole("button", { name: "More" })).toBeTruthy()
   })
 
   it("moves along the tabs with the arrow keys and down into the choices", () => {

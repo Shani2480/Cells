@@ -4,6 +4,7 @@ import { renderChart } from "@cells/chart"
 import type { SheetController } from "@/sheet/controller"
 import { QUICK_TABS, type QuickItem, type QuickShape, type QuickTab } from "@/sheet/quick-analysis"
 import { rangeRect, type GridLayout } from "./layout"
+import { PivotPreview } from "@/shell/RecommendedPivotsDialog"
 import { QuickButtonIcon, QuickIcon } from "./quick-icons"
 
 /** Excel's button: 22 px at 100%, just outside the selection's bottom-right corner. */
@@ -164,6 +165,7 @@ export function QuickGallery({
   const info = tabs.find((t) => t.id === tab)!
   const hovered = list.find((i) => i.id === hover)
   const chart = hover?.startsWith("chart:") ? quick.chartSpec(hover.slice(6)) : null
+  const pivot = hover?.startsWith("pivot:") && shape ? quick.pivots(shape)?.items[Number(hover.slice(6))] : undefined
 
   // Left and Right move along the tabs or the choices; Down goes to the choices, Up back to the tabs.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -199,6 +201,12 @@ export function QuickGallery({
       {chart ? (
         <div className={`qa-chart${pos.top < 214 ? " is-below" : ""}`} data-keep-light aria-hidden>
           <ChartPicture spec={chart} />
+        </div>
+      ) : null}
+      {pivot ? (
+        <div className={`qa-chart qa-pivot${pos.top < 214 ? " is-below" : ""}`} aria-hidden>
+          <div className="recommend-preview-title">{pivot.recipe.title}</div>
+          <PivotPreview table={pivot.table} cache={pivot.cache} rows={12} />
         </div>
       ) : null}
       <div className="qa-tabs" role="tablist">

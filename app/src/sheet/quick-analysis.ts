@@ -5,6 +5,7 @@ import {
   DEFAULT_TABLE_STYLE,
   guessHeader,
   isDateFormat,
+  rangeName,
   type CellWrite,
   type CFRule,
   type Op,
@@ -401,13 +402,28 @@ export class QuickAnalysis {
         tip: "Tables help you sort, filter, and summarize data.",
         ...(inTable ? { disabled: "The data is already in a table." } : {}),
       },
-      {
-        id: "pivot",
+      // Excel's first recommended PivotTables, then More for the rest (Recommended PivotTables).
+      ...(this.pivots(shape)?.items.slice(0, 3) ?? []).map((item, i) => ({
+        id: `pivot:${i}`,
         label: "PivotTable",
-        tip: "PivotTables summarize data.",
-        disabled: "PivotTables aren't built yet.",
-      },
+        tip: `${item.recipe.title}. PivotTables summarize data, on a new sheet.`,
+      })),
+      { id: "more:pivot", label: "More", tip: "Click for more PivotTables." },
     ]
+  }
+
+  /** Quick Analysis stops suggesting PivotTables above this many rows (Recommended PivotTables still does). */
+  private static PIVOT_ROWS = 50_000
+  private pivotsFor: { key: string; found: ReturnType<SheetController["pivots"]["recommendations"]> } | null = null
+
+  /** The recommended PivotTables for the selection (kept while the workbook doesn't change). */
+  pivots(shape: QuickShape) {
+    if (shape.range.r1 - shape.range.r0 > QuickAnalysis.PIVOT_ROWS) return null
+    const source = rangeName(shape.range)
+    const key = `${this.c.sheetIndex}:${source}:${this.c.wb.version}`
+    if (this.pivotsFor?.key !== key) this.pivotsFor = { key, found: this.c.pivots.recommendations(source) }
+    const found = this.pivotsFor.found
+    return typeof found === "string" ? null : found
   }
 
   /** The data and cells of sparklines for each row (the numbers' columns; the sparklines in the column right). */
@@ -502,7 +518,15 @@ export class QuickAnalysis {
       return this.c.shell.openDialog?.(`cf:${a}`)
     }
     if (what === "chart") return void this.c.charts.insert(a)
+    if (what === "more" && a === "pivot") return this.c.shell.openDialog?.(`recommendPivots:${rangeName(shape.range)}`)
     if (what === "more") return this.c.shell.showTab?.("TabInsert")
+    if (what === "pivot") {
+      const item = this.pivots(shape)?.items[Number(a)]
+      if (!item) return
+      const problem = this.c.pivots.create(rangeName(shape.range), { kind: "newSheet" }, undefined, item.recipe)
+      if (problem) this.c.shell.alert(problem)
+      return
+    }
     if (what === "table") return void this.c.tables.create(shape.range, shape.header, DEFAULT_TABLE_STYLE)
     if (what === "total") {
       const { ops, cells } = this.totalOps(shape, a as TotalSide, b as TotalKind)

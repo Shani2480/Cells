@@ -183,10 +183,14 @@ describe("Quick Analysis", () => {
     expect(c.quick.charts(c.quick.shape()!)).toContain("pie")
   })
 
-  it("leaves Table out for data already in a table, and PivotTable for later", () => {
+  it("leaves Table out for data already in a table; More opens Recommended PivotTables", () => {
     const c = book()
+    c.shell.openDialog = vi.fn()
     c.quick.apply("table")
     const items = c.quick.tables(c.quick.shape()!)
-    expect(items.every((i) => i.disabled)).toBe(true)
+    expect(items[0]).toMatchObject({ id: "table", disabled: "The data is already in a table." })
+    expect(items.at(-1)?.id).toBe("more:pivot")
+    c.quick.apply("more:pivot")
+    expect(c.shell.openDialog).toHaveBeenCalledWith(expect.stringMatching(/^recommendPivots:A1:/))
   })
 })

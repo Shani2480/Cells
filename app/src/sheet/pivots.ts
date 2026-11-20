@@ -12,6 +12,9 @@ import {
   derivedDateGroups,
   type GroupKind,
   pivotChartButtons,
+  pivotFromRecipe,
+  recommendedPivots,
+  type PivotRecipe,
   pivotChartData,
   type PivotChartLink,
   type SheetChart,
@@ -97,6 +100,10 @@ const GETPIVOTDATA_KEY = "cells.generateGetPivotData"
 export const PIVOT_OVERLAP_MESSAGE = "A PivotTable report cannot overlap another PivotTable report."
 
 /** Where Create PivotTable puts the new PivotTable. */
+/** Recommended PivotTables with nothing to work from. */
+export const RECOMMEND_NO_DATA =
+  "Select a cell in a range of data with headings, or a table, to see recommended PivotTables."
+
 export type PivotDestination = { kind: "newSheet" } | { kind: "existing"; sheet: number; at: CellAddress }
 
 /** Which dialog a PivotTable filter dropdown opens, for the field at a filter button's cell. */
@@ -546,21 +553,49 @@ export class PivotCommands {
   }
 
   /**
+   * Recommended PivotTables for the data Insert › PivotTable would start from (`sourceText`, else the PivotTable's
+   * data, or the table or data at the active cell): each suggestion with the PivotTable it makes, for the previews. A message when there is no
+   * data to suggest from.
+   */
+  recommendations(
+    sourceText?: string,
+  ): { source: string; items: { recipe: PivotRecipe; table: PivotTable; cache: PivotCache }[] } | string {
+    // In a PivotTable: its own data, as Excel suggests from it.
+    const text = sourceText ?? (this.active() ? this.sourceText() : this.defaultSource())
+    const source = text ? this.parseSource(text) : null
+    if (!source) return RECOMMEND_NO_DATA
+    const wb = this.c.wb
+    const data = readPivotSource(wb.sheets, wb.styles, source)
+    if (typeof data === "string") return data
+    if (!data.records.length) return RECOMMEND_NO_DATA
+    const cache = pivotCacheFrom(nextPivotCacheId(wb.pivotCaches), source, data)
+    const items = recommendedPivots(cache).map((recipe) => ({
+      recipe,
+      ...pivotFromRecipe(nextPivotName(wb.sheets), cache, { row: 2, col: 0 }, recipe),
+    }))
+    return { source: text, items }
+  }
+
+  /**
    * Create PivotTable's OK: a new cache from the source and an empty PivotTable, on a new sheet before this one (at
    * A3, as Excel puts it) or at a cell, shown and selected so the Fields pane opens on it. A message when it can't.
    */
-  create(sourceText: string, dest: PivotDestination, then?: () => void): string | null {
+  create(sourceText: string, dest: PivotDestination, then?: () => void, recipe?: PivotRecipe): string | null {
     const source = this.parseSource(sourceText)
     if (!source) return "Reference isn't valid."
     const wb = this.c.wb
     const data = readPivotSource(wb.sheets, wb.styles, source)
     if (typeof data === "string") return data
     if (!data.records.length && source.kind === "range") return "Reference isn't valid."
-    const cache = pivotCacheFrom(nextPivotCacheId(wb.pivotCaches), source, data)
+    const raw = pivotCacheFrom(nextPivotCacheId(wb.pivotCaches), source, data)
     const newSheet = dest.kind === "newSheet"
     const index = newSheet ? this.c.sheetIndex : dest.sheet
     const at = newSheet ? { row: 2, col: 0 } : dest.at
-    const table = newPivotTable(nextPivotName(wb.sheets), cache, at)
+    // A recommended PivotTable comes with its fields placed (and its dates grouped in its cache).
+    const made = recipe
+      ? pivotFromRecipe(nextPivotName(wb.sheets), raw, at, recipe)
+      : { table: newPivotTable(nextPivotName(wb.sheets), raw, at), cache: raw }
+    const { table, cache } = made
     const sheets = [...wb.sheets]
     const name = nextSheetName(wb.sheets.map((s) => s.name))
     if (newSheet) sheets.splice(index, 0, new Sheet(name))

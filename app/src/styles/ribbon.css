@@ -3882,3 +3882,11 @@
 .table-style-gallery.pivot-style-gallery {
   max-height: calc(100vh - 380px);
 }
+
+/* Quick Analysis' PivotTable preview above the gallery. */
+.qa-chart.qa-pivot {
+  max-width: 420px;
+  padding: 8px;
+  background: var(--grid-bg);
+  line-height: normal;
+}

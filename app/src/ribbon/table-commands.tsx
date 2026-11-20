@@ -39,6 +39,13 @@ export function tableCommands(): Command[] {
       run: (env) => env.dialog("createPivot"),
     },
     {
+      id: "PivotTableSuggestion",
+      label: "Recommended PivotTables",
+      description: "Want us to recommend some PivotTables to summarize your data? Just select a cell in your data.",
+      keytip: "SP",
+      run: (env) => env.dialog("recommendPivots"),
+    },
+    {
       id: "FormatAsTableGallery",
       label: "Format as Table",
       description: "Quickly convert a range of cells to a table with its own style.",
