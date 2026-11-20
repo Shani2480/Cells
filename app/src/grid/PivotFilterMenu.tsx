@@ -20,20 +20,24 @@ export function PivotFilterMenu({
   target,
   left,
   top,
+  sheet,
   onClose,
 }: {
   controller: SheetController
   row: number
   col: number
+  /** The PivotTable's sheet when a PivotChart's button opened the dropdown (it may not be the sheet shown). */
+  sheet?: number
   target: PivotFilterTarget
   left: number
   top: number
   onClose: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const pivots = controller.pivots.on(sheet)
   const page = target.kind === "page"
   const [field, setField] = useState(target.fields[0])
-  const [choices, setChoices] = useState<PivotChoices | null>(() => controller.pivots.choices(row, col, field))
+  const [choices, setChoices] = useState<PivotChoices | null>(() => pivots.choices(row, col, field))
   const [ticked, setTicked] = useState<Set<number>>(() => tickedOf(choices))
   /** Report filters: the one item picked (null: (All)). */
   const [pick, setPick] = useState<number | null>(choices?.picked ?? null)
@@ -77,7 +81,7 @@ export function PivotFilterMenu({
 
   if (!choices) return null
   const changeField = (f: number) => {
-    const next = controller.pivots.choices(row, col, f)
+    const next = pivots.choices(row, col, f)
     setField(f)
     setChoices(next)
     setTicked(tickedOf(next))
@@ -97,12 +101,12 @@ export function PivotFilterMenu({
       const keep = new Set(matcher ? shown.filter((i) => ticked.has(i.x)).map((i) => i.x) : ticked)
       if (!keep.size) return
       const all = choices.items.every((i) => keep.has(i.x))
-      controller.pivots.showItems(row, col, field, all && !page ? null : keep)
-    } else controller.pivots.pickPage(row, col, field, pick)
+      pivots.showItems(row, col, field, all && !page ? null : keep)
+    } else pivots.pickPage(row, col, field, pick)
   }
   const sort = (descending: boolean) => {
     onClose()
-    controller.pivots.sortField(row, col, field, descending ? "descending" : "ascending")
+    pivots.sortField(row, col, field, descending ? "descending" : "ascending")
   }
   const sortLabels = {
     text: ["Sort A to Z", "Sort Z to A"],
@@ -113,7 +117,7 @@ export function PivotFilterMenu({
   // ── Label Filters and Value Filters ──
   const dialog = (kind: PivotFilterRequest["kind"], op?: string) => {
     onClose()
-    controller.shell.pivotFilterDialog?.({ kind, row, col, field, op })
+    controller.shell.pivotFilterDialog?.({ kind, row, col, field, op, sheet })
   }
   const current = choices.filter
   /** A label filter belongs to Label Filters; a value filter and Top 10 to Value Filters. */
@@ -127,7 +131,7 @@ export function PivotFilterMenu({
           label: "Clear Filter",
           run: () => {
             onClose()
-            controller.pivots.setFilter(row, col, field, null)
+            pivots.setFilter(row, col, field, null)
           },
         },
         { kind: "separator" },
@@ -146,7 +150,7 @@ export function PivotFilterMenu({
       )
     return out
   }
-  const hasValues = controller.pivots.valueNames(row, col).length > 0
+  const hasValues = pivots.valueNames(row, col).length > 0
   const subRow = (id: "label" | "value", label: string, disabled = false) => (
     <button
       type="button"
@@ -203,7 +207,7 @@ export function PivotFilterMenu({
           <select value={field} onChange={(event) => changeField(Number(event.target.value))}>
             {target.fields.map((f) => (
               <option key={f} value={f}>
-                {controller.pivots.choices(row, col, f)?.name ?? ""}
+                {pivots.choices(row, col, f)?.name ?? ""}
               </option>
             ))}
           </select>
@@ -244,7 +248,7 @@ export function PivotFilterMenu({
             onPointerEnter={() => setSubmenu(null)}
             onClick={() => {
               onClose()
-              controller.pivots.clearField(row, col, field)
+              pivots.clearField(row, col, field)
             }}
           >
             <span className="fm-row-icon">

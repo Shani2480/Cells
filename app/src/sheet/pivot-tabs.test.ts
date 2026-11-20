@@ -412,4 +412,52 @@ describe("PivotCharts", () => {
     expect(spec.categories).toEqual(["Shop", "Online"])
     expect(spec.series[0].values).toEqual([50, 70])
   })
+
+  it("shows its field buttons, which Field Buttons hides and shows again", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    const chart = c.pivots.insertChart()!
+    const names = () => {
+      const b = c.charts.liveSpec(c.sheet.charts[0]).pivotButtons!
+      return { values: b.values.map((x) => x.name), axis: b.axis.map((x) => x.name), filters: b.filters.length }
+    }
+    expect(names()).toEqual({ values: ["Sum of Units"], axis: ["Region", "Channel"], filters: 0 })
+    c.charts.select(chart.id)
+    expect(c.charts.setPivotButtons({ categories: false })).toBe(true)
+    expect(names().axis).toEqual([])
+    c.charts.setPivotButtons({ visible: false })
+    expect(names()).toEqual({ values: [], axis: [], filters: 0 })
+    // Showing one kind again brings the buttons back.
+    c.charts.setPivotButtons({ categories: true })
+    expect(names()).toEqual({ values: ["Sum of Units"], axis: ["Region", "Channel"], filters: 0 })
+    c.undo()
+    expect(c.charts.pivotButtons()).toMatchObject({ visible: false })
+  })
+
+  it("an axis button's dropdown filters the PivotTable, also from a chart on another sheet", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    const chart = c.pivots.insertChart()!
+    // The chart moves to Other; its PivotTable stays on Data.
+    c.transact(
+      [
+        { kind: "charts", sheet: 0, charts: [] },
+        { kind: "charts", sheet: 1, charts: [chart] },
+      ],
+      { label: "Move" },
+    )
+    c.activate(1)
+    const at = c.pivots.chartButtonTarget(chart.pivot!, "axis", 0)!
+    expect(at).toMatchObject({ sheet: 0, target: { kind: "row", fields: [0] } })
+    const pivots = c.pivots.on(at.sheet)
+    const choices = pivots.choices(at.row, at.col, 0)!
+    const north = choices.items.find((i) => i.label === "North")!.x
+    expect(pivots.showItems(at.row, at.col, 0, new Set([north]))).toBe(true)
+    expect(c.sheetIndex).toBe(1)
+    const spec = c.charts.liveSpec(c.sheet.charts[0])
+    expect(spec.levels).toEqual([["North", "North"]])
+    expect(spec.pivotButtons!.axis[0]).toEqual({ field: 0, name: "Region", filtered: true })
+    c.undo()
+    expect(c.charts.liveSpec(c.sheet.charts[0]).categories).toHaveLength(4)
+  })
 })

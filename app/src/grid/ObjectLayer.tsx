@@ -5,6 +5,7 @@ import {
   slicerLayout,
   slicerTarget,
   type DrawingObject,
+  type PivotFilterTarget,
   type SheetSlicer,
   type Model3D,
   type SheetChart,
@@ -18,6 +19,7 @@ import { canvasMeasure, objectAt, objectDocument } from "@/drawing/render"
 import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
 import { pngKey, preparePng, readyPng } from "./chart-png"
+import { PivotFilterMenu } from "./PivotFilterMenu"
 import { cellAt, colX, rowY, type GridLayout } from "./layout"
 
 /** Excel's handles: the four corners and the middle of each side. */
@@ -182,6 +184,30 @@ export function ObjectLayer({
   turnNow.current = turn
   const drawStart = useRef<{ x: number; y: number } | null>(null)
   const layer = useRef<HTMLDivElement>(null)
+  // A PivotChart field button's dropdown: the PivotTable's sheet and the cell whose filter button it stands for.
+  const [pivotMenu, setPivotMenu] = useState<{
+    sheet: number
+    row: number
+    col: number
+    target: PivotFilterTarget
+    left: number
+    top: number
+  } | null>(null)
+
+  /** A press on a PivotChart's filter, axis or legend field button opens that field's dropdown. */
+  const pivotButtonPress = (event: React.PointerEvent, chart: SheetChart): boolean => {
+    const part = (event.target as Element).closest?.("[data-chart-part^='pivotButton:']")
+    if (!part || !chart.pivot || event.button !== 0) return false
+    const [, area, index] = part.getAttribute("data-chart-part")!.split(":")
+    if (area !== "filters" && area !== "axis" && area !== "legend") return false
+    const at = controller.pivots.chartButtonTarget(chart.pivot, area, Number(index))
+    if (!at) return false
+    event.stopPropagation()
+    event.preventDefault()
+    const rect = part.getBoundingClientRect()
+    setPivotMenu({ ...at, left: rect.left, top: rect.bottom + 1 })
+    return true
+  }
 
   // Each object's picture, drawn again when the workbook changes (a chart's data may have).
   const pictures = useMemo(() => {
@@ -417,6 +443,7 @@ export function ObjectLayer({
             data-chart={isChart(o) ? o.id : undefined}
             onPointerDown={(event) => {
               if (!isChart(o) && o.kind === "slicer" && slicerPress(event, o, p.box)) return
+              if (isChart(o) && pivotButtonPress(event, o)) return
               begin(event, o, "move")
             }}
             onPointerMove={move}
@@ -547,6 +574,22 @@ export function ObjectLayer({
             />
           ) : null}
         </div>
+      ) : null}
+      {pivotMenu ? (
+        <PivotFilterMenu
+          key={`${pivotMenu.sheet}:${pivotMenu.row}:${pivotMenu.col}:${pivotMenu.target.fields[0]}`}
+          controller={controller}
+          sheet={pivotMenu.sheet}
+          row={pivotMenu.row}
+          col={pivotMenu.col}
+          target={pivotMenu.target}
+          left={pivotMenu.left}
+          top={pivotMenu.top}
+          onClose={() => {
+            setPivotMenu(null)
+            onDone()
+          }}
+        />
       ) : null}
     </div>
   )

@@ -24,6 +24,7 @@ import { reviewCommands } from "./review-commands"
 import { CommandRegistry, type Command, type RibbonEnv } from "./registry"
 import {
   CHART_DESIGN,
+  PIVOT_CHART_ANALYZE,
   EQUATION,
   PICTURE_FORMAT,
   SHAPE_FORMAT,
@@ -404,6 +405,7 @@ export function buildRegistry(): CommandRegistry {
     TABLE_DESIGN,
     PIVOT_ANALYZE,
     PIVOT_DESIGN,
+    PIVOT_CHART_ANALYZE,
     CHART_DESIGN,
     SHAPE_FORMAT,
     PICTURE_FORMAT,

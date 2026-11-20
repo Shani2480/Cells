@@ -822,6 +822,22 @@ export const PIVOT_ANALYZE: Tab = {
   ],
 }
 
+/**
+ * PivotChart Analyze, while a PivotChart is selected (before Chart Design, as in Excel 365): refreshing its
+ * PivotTable and its field buttons. Excel's PivotChart name box, Active Field, slicers and timelines, Change Data
+ * Source, Clear and Move Chart aren't built for PivotCharts yet.
+ */
+export const PIVOT_CHART_ANALYZE: Tab = {
+  id: "TabPivotChartAnalyze",
+  label: "PivotChart Analyze",
+  keytip: "JA",
+  contextual: true,
+  groups: [
+    { id: "GroupPivotChartData", label: "Data", columns: [L("PivotChartRefresh")] },
+    { id: "GroupPivotChartShowHide", label: "Show/Hide", columns: [L("PivotChartFieldButtons")] },
+  ],
+}
+
 /** Design (PivotTable Tools), while the active cell is in a PivotTable. */
 export const PIVOT_DESIGN: Tab = {
   id: "TabPivotTableDesign",

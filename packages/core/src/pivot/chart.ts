@@ -38,7 +38,11 @@ function leaves(lines: readonly PivotAxisLine[]): number[] {
 }
 
 const text = (v: PivotValue, fmt?: string): string =>
-  v === null || v === "" ? "(blank)" : typeof v === "number" ? displayText(v, fmt ?? "General") : displayText(v, "General")
+  v === null || v === ""
+    ? "(blank)"
+    : typeof v === "number"
+      ? displayText(v, fmt ?? "General")
+      : displayText(v, "General")
 
 /** What PivotTable `table` shows as a chart, and the refs to write for it on sheet `sheetName`. */
 export function pivotChartData(table: PivotTable, cache: PivotCache, sheetName: string): PivotChartData {
@@ -124,13 +128,24 @@ export function parsePivotSourceName(text: string): { sheet: string; name: strin
   return { sheet: (m[1] ?? m[2]).replace(/''/g, "'"), name: m[3] }
 }
 
-/** The field names a PivotChart's buttons show: report filters, values, axis (categories) and legend (series). */
+/**
+ * A PivotChart's field buttons: report filters, value fields, axis fields (the row fields) and legend fields (the
+ * column fields), each with its name and whether it filters the PivotTable (items hidden, a label or value filter,
+ * or a report filter's pick).
+ */
 export function pivotChartButtons(table: PivotTable, cache: PivotCache) {
   const name = (f: number) => pivotFieldName(table, cache, f)
+  const filtered = (f: number) =>
+    Boolean(
+      table.fields[f]?.items.some((i) => i.hidden) ||
+      table.pages.some((p) => p.field === f && p.item !== null) ||
+      table.filters?.some((x) => x.field === f),
+    )
+  const field = (f: number) => ({ field: f, name: name(f), filtered: filtered(f) })
   return {
-    filters: table.pages.map((p) => ({ field: p.field, name: name(p.field) })),
+    filters: table.pages.map((p) => field(p.field)),
     values: table.values.map((v, index) => ({ index, name: v.name })),
-    axis: table.rows.filter((f) => f !== VALUES_FIELD).map((f) => ({ field: f, name: name(f) })),
-    legend: table.cols.filter((f) => f !== VALUES_FIELD).map((f) => ({ field: f, name: name(f) })),
+    axis: table.rows.filter((f) => f !== VALUES_FIELD).map(field),
+    legend: table.cols.filter((f) => f !== VALUES_FIELD).map(field),
   }
 }

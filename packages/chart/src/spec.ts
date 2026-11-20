@@ -190,6 +190,16 @@ export type ChartSpec = {
    * row; the category is the innermost. A blank label is skipped, so a leaf can sit in an outer column as in Word.
    */
   levels?: string[][]
+  /**
+   * A PivotChart's field buttons (shown ones only): report filters and value fields at the top left, legend fields at
+   * the top right, axis fields at the bottom left. `filtered` shows a funnel in place of the arrow.
+   */
+  pivotButtons?: {
+    filters: ChartPivotButton[]
+    values: ChartPivotButton[]
+    axis: ChartPivotButton[]
+    legend: ChartPivotButton[]
+  }
   hiddenCategories: number[]
   series: ChartSeries[]
   title: { show: boolean; text: string }
@@ -1260,6 +1270,60 @@ function box3d(x: number, y: number, w: number, h: number, dx: number, dy: numbe
 }
 
 /** The chart, as the markup inside an `<svg viewBox="0 0 width height">`. */
+/** A PivotChart field button: the field's name, and whether it filters the PivotTable. */
+export type ChartPivotButton = { name: string; filtered?: boolean }
+
+const PIVOT_BUTTON_HEIGHT = 18
+
+/** A PivotChart field button's width for its name (with room for its arrow when it has one). */
+function pivotButtonWidth(button: ChartPivotButton, arrow: boolean) {
+  return Math.round(button.name.length * CHAR * 0.95 + (arrow ? 26 : 12))
+}
+
+/** The PivotChart's field buttons, and the room they take from the top and bottom of the chart. */
+function pivotButtonsSvg(spec: ChartSpec, width: number, height: number) {
+  const b = spec.pivotButtons
+  if (!b) return { svg: "", top: 0, bottom: 0 }
+  const out: string[] = []
+  const one = (area: string, index: number, button: ChartPivotButton, x: number, y: number, arrow: boolean) => {
+    const w = pivotButtonWidth(button, arrow)
+    const h = PIVOT_BUTTON_HEIGHT
+    const mark = !arrow
+      ? ""
+      : button.filtered
+        ? `<path d="M${n(x + w - 15)} ${n(y + 5)}h9l-3.5 4v4l-2-1v-3z" fill="#595959"/>`
+        : `<path d="M${n(x + w - 14)} ${n(y + 7.5)}h7l-3.5 4z" fill="#595959"/>`
+    out.push(
+      `<g data-chart-part="pivotButton:${area}:${index}" style="cursor:pointer">` +
+        `<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${n(w - 1)}" height="${n(h - 1)}" rx="2" fill="#f2f2f2" stroke="#bfbfbf" stroke-width="0.75"/>` +
+        `<text x="${n(x + 6)}" y="${n(y + 12.5)}" font-family="Aptos, Calibri, 'Segoe UI', Arial, sans-serif" font-size="11" fill="#404040">${escapeXml(button.name)}</text>` +
+        mark +
+        `</g>`,
+    )
+    return w
+  }
+  const row = (items: [string, ChartPivotButton[], boolean][], x: number, y: number) => {
+    for (const [area, list, arrow] of items) list.forEach((button, i) => (x += one(area, i, button, x, y, arrow) + 4))
+  }
+  let top = 0
+  const topLeft: [string, ChartPivotButton[], boolean][] = [
+    ["filters", b.filters, true],
+    ["values", b.values, false],
+  ]
+  if (b.filters.length || b.values.length || b.legend.length) {
+    row(topLeft, 6, 5)
+    const legendWidth = b.legend.reduce((sum, button) => sum + pivotButtonWidth(button, true) + 4, 0)
+    row([["legend", b.legend, true]], Math.max(6, width - 6 - legendWidth + 4), 5)
+    top = PIVOT_BUTTON_HEIGHT + 6
+  }
+  let bottom = 0
+  if (b.axis.length) {
+    row([["axis", b.axis, true]], 6, height - 5 - PIVOT_BUTTON_HEIGHT)
+    bottom = PIVOT_BUTTON_HEIGHT + 6
+  }
+  return { svg: out.join(""), top, bottom }
+}
+
 export function renderChart(source: ChartSpec, width: number, height: number) {
   // Box & Whisker, Treemap and Sunburst have their own painters; the other derived types are drawn as the chart they
   // expand to.
@@ -1271,6 +1335,9 @@ export function renderChart(source: ChartSpec, width: number, height: number) {
     `<rect data-chart-part="chartArea" x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" fill="${partFill(painter, "chartArea", look.background)}" stroke="${area.stroke}" stroke-width="${area.width}"/>`,
   )
   const box: Box = { x: 10, y: 8, w: width - 20, h: height - 16 }
+  const buttons = pivotButtonsSvg(spec, width, height)
+  box.y += buttons.top
+  box.h -= buttons.top + buttons.bottom
   if (spec.title.show) {
     const size = spec.format.title?.fontSize ? (spec.format.title.fontSize * 4) / 3 : TITLE_SIZE
     painter.out.push(
@@ -1343,7 +1410,7 @@ export function renderChart(source: ChartSpec, width: number, height: number) {
       ? `<filter id="chart-shadow" x="-10%" y="-10%" width="130%" height="130%"><feDropShadow dx="1.5" dy="1.5" stdDeviation="1.2" flood-opacity="0.35"/></filter>`
       : "",
   ].join("")
-  return `${defs ? `<defs>${defs}</defs>` : ""}${painter.out.join("")}`
+  return `${defs ? `<defs>${defs}</defs>` : ""}${painter.out.join("")}${buttons.svg}`
 }
 
 type LegendEntry = { name: string; color: string; line: boolean; bare?: boolean; tick?: boolean }

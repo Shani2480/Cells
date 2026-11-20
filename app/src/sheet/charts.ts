@@ -1,6 +1,9 @@
 import {
+  pivotChartButtons,
   pivotChartData,
+  type PivotCache,
   type PivotChartLink,
+  type PivotTable,
   copyChart,
   chartRefsBox,
   chartRefsFor,
@@ -109,6 +112,7 @@ export class ChartCommands {
       const data = pivotChartData(pivot.table, pivot.cache, chart.pivot!.sheet)
       const spec = withSheetData(look, data)
       spec.levels = data.levels.length ? data.levels : undefined
+      spec.pivotButtons = pivotButtonsShown(pivot.table, pivot.cache, chart.pivot!, spec.legend !== "none")
       return { ...spec, accents: themeAccents(this.c.wb.theme) }
     }
     const spec = chart.refs
@@ -129,6 +133,39 @@ export class ChartCommands {
   private replace(chart: SheetChart, next: SheetChart | null, label: string) {
     const charts = this.c.sheet.charts.map((x) => (x.id === chart.id ? next : x)).filter((x): x is SheetChart => !!x)
     return this.commit(charts, label)
+  }
+
+  // ── PivotChart Analyze ──
+
+  /** The selected chart when it is a PivotChart whose PivotTable is there. */
+  activePivot(): SheetChart | null {
+    const chart = this.active()
+    return chart?.pivot && this.c.pivots.byLink(chart.pivot) ? chart : null
+  }
+
+  /** The selected PivotChart's field buttons (all on unless turned off). */
+  pivotButtons(): NonNullable<PivotChartLink["buttons"]> | null {
+    const chart = this.activePivot()
+    if (!chart) return null
+    return chart.pivot!.buttons ?? { filter: true, categories: true, data: true, series: true, visible: true }
+  }
+
+  /** PivotChart Analyze › Field Buttons: some of them shown or hidden (`visible` false hides them all). */
+  setPivotButtons(change: Partial<NonNullable<PivotChartLink["buttons"]>>): boolean {
+    const chart = this.activePivot()
+    const now = this.pivotButtons()
+    if (!chart || !now) return false
+    let next = { ...now, ...change }
+    // Showing one kind brings the buttons back when Hide All had hidden them.
+    if (!("visible" in change) && Object.values(change).some(Boolean)) next = { ...next, visible: true }
+    return this.replace(chart, { ...chart, pivot: { ...chart.pivot!, buttons: next } }, "Field Buttons")
+  }
+
+  /** PivotChart Analyze › Refresh: its PivotTable's data read again. */
+  refreshPivot(): boolean {
+    const chart = this.activePivot()
+    const at = chart && this.c.pivots.byLink(chart.pivot!)
+    return at ? this.c.pivots.refreshCache(at.table.cacheId) : false
   }
 
   // ── Insert ──
@@ -380,5 +417,21 @@ function keepLook(spec: ChartSpec, fromCells: boolean): ChartSpec {
     ...spec,
     categories: [],
     series: spec.series.map((s) => ({ ...s, values: [], texts: undefined })),
+  }
+}
+
+/**
+ * The field buttons a PivotChart shows (PivotChart Analyze › Field Buttons; all of them unless turned off). The
+ * legend fields' buttons go with the legend, as in Excel.
+ */
+export function pivotButtonsShown(table: PivotTable, cache: PivotCache, link: PivotChartLink, legend: boolean) {
+  const on = link.buttons ?? { filter: true, categories: true, data: true, series: true, visible: true }
+  const all = pivotChartButtons(table, cache)
+  const shown = <T>(yes: boolean, list: T[]) => (on.visible && yes ? list : [])
+  return {
+    filters: shown(on.filter, all.filters),
+    values: shown(on.data, all.values),
+    axis: shown(on.categories, all.axis),
+    legend: shown(on.series && legend, all.legend),
   }
 }

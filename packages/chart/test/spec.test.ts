@@ -332,3 +332,37 @@ describe("multi-level category axis (a PivotChart's outer row fields)", () => {
     expect(texts(renderChart(plain, 480, 290))).toEqual(["Shop", "Online", "Online", "Shop"])
   })
 })
+
+describe("PivotChart field buttons", () => {
+  const base = {
+    ...defaultChartSpec("column"),
+    categories: ["North", "South"],
+    series: [{ name: "Total", values: [4, 2] }],
+  }
+  const parts = (svg: string) => [...svg.matchAll(/data-chart-part="(pivotButton:[^"]+)"/g)].map((m) => m[1])
+
+  it("draws filter, value, legend and axis buttons, and takes their room from the plot", () => {
+    const spec = {
+      ...base,
+      pivotButtons: {
+        filters: [{ name: "Product", filtered: true }],
+        values: [{ name: "Sum of Units" }],
+        axis: [{ name: "Region" }],
+        legend: [{ name: "Channel" }],
+      },
+    }
+    const svg = renderChart(spec, 480, 290)
+    expect(parts(svg)).toEqual([
+      "pivotButton:filters:0",
+      "pivotButton:values:0",
+      "pivotButton:legend:0",
+      "pivotButton:axis:0",
+    ])
+    const plot = (s: string) => Number(/data-chart-part="plotArea"[^>]*height="([\d.]+)"/.exec(s)![1])
+    expect(plot(svg)).toBeLessThan(plot(renderChart(base, 480, 290)) - 40)
+  })
+
+  it("draws none when there are none", () => {
+    expect(parts(renderChart(base, 480, 290))).toEqual([])
+  })
+})

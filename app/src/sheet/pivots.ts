@@ -11,6 +11,7 @@ import {
   groupSettings,
   derivedDateGroups,
   type GroupKind,
+  pivotChartButtons,
   pivotChartData,
   type PivotChartLink,
   type SheetChart,
@@ -101,6 +102,8 @@ export type PivotDestination = { kind: "newSheet" } | { kind: "existing"; sheet:
 /** Which dialog a PivotTable filter dropdown opens, for the field at a filter button's cell. */
 export type PivotFilterRequest = {
   kind: "label" | "value" | "top"
+  /** The PivotTable's sheet when a PivotChart's button asked (it may not be the sheet shown). */
+  sheet?: number
   row: number
   col: number
   field: number
@@ -404,6 +407,28 @@ export class PivotCommands {
     return !!t.cache.fields[t.field].group || derivedDateGroups(t.cache, t.field).length > 0
   }
 
+  /**
+   * A PivotChart field button's dropdown: the PivotTable's sheet, a cell of it whose filter button covers the field,
+   * and the field (null when the PivotTable is gone or shows no filter buttons).
+   */
+  chartButtonTarget(
+    link: PivotChartLink,
+    area: "filters" | "axis" | "legend",
+    index: number,
+  ): { sheet: number; row: number; col: number; target: PivotFilterTarget } | null {
+    const at = this.byLink(link)
+    if (!at) return null
+    const buttons = pivotChartButtons(at.table, at.cache)
+    const field = buttons[area][index]?.field
+    if (field === undefined) return null
+    for (const cell of pivotLayout(at.table, at.cache).cells) {
+      const target = pivotFilterTarget(at.table, at.cache, cell)
+      if (target?.fields.includes(field))
+        return { sheet: at.sheet, row: cell.row, col: cell.col, target: { kind: target.kind, fields: [field] } }
+    }
+    return null
+  }
+
   /** Insert › PivotChart in a PivotTable: a PivotChart of the active PivotTable (null when there is none). */
   insertChart(variant = "column") {
     const t = this.active()
@@ -467,6 +492,11 @@ export class PivotCommands {
     return t ? this.run([t.cacheId], "Refresh") : false
   }
 
+  /** Refresh the PivotTables of one cache (a PivotChart's, from PivotChart Analyze). */
+  refreshCache(cacheId: number): boolean {
+    return this.run([cacheId], "Refresh")
+  }
+
   /** Refresh All: every cache some PivotTable uses. */
   refreshAll(): boolean {
     const used = new Set(this.c.wb.sheets.flatMap((s) => s.pivots.map((t) => t.cacheId)))
@@ -475,7 +505,7 @@ export class PivotCommands {
 
   /** The PivotTable at a cell, its cache, and the engine's cell there. */
   cellAt(row: number, col: number): { table: PivotTable; cache: PivotCache; cell: PivotCell | undefined } | null {
-    const table = pivotAt(this.c.sheet, row, col)
+    const table = pivotAt(this.c.wb.sheets[this.via ?? this.c.sheetIndex] ?? this.c.sheet, row, col)
     const cache = table && this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
     if (!table || !cache) return null
     return { table, cache, cell: pivotCellAt(table, cache, row, col) }
@@ -1147,6 +1177,38 @@ export class PivotCommands {
     return this.setValueSettings(index, { name: v.name, fn: v.fn, numFmt: v.numFmt, show })
   }
 
+  /**
+   * The sheet the filter dropdown works on while a PivotChart's button drives it (its PivotTable may be on another
+   * sheet); null: the sheet shown.
+   */
+  private via: number | null = null
+
+  /**
+   * The filter dropdown's commands for the PivotTables of sheet `sheet` (a PivotChart's buttons: its PivotTable can be
+   * on another sheet than the chart); the sheet shown when undefined.
+   */
+  on(sheet?: number): PivotFilterCommands {
+    if (sheet === undefined || sheet === this.c.sheetIndex) return this
+    const at = <T>(run: () => T): T => {
+      const was = this.via
+      this.via = sheet
+      try {
+        return run()
+      } finally {
+        this.via = was
+      }
+    }
+    return {
+      choices: (r, c, f) => at(() => this.choices(r, c, f)),
+      showItems: (r, c, f, shown) => at(() => this.showItems(r, c, f, shown)),
+      setFilter: (r, c, f, spec) => at(() => this.setFilter(r, c, f, spec)),
+      clearField: (r, c, f) => at(() => this.clearField(r, c, f)),
+      valueNames: (r, c) => at(() => this.valueNames(r, c)),
+      pickPage: (r, c, f, x) => at(() => this.pickPage(r, c, f, x)),
+      sortField: (r, c, f, sort) => at(() => this.sortField(r, c, f, sort)),
+    }
+  }
+
   /** A dropdown's list for one of its fields, labels in the field's number format. */
   choices(row: number, col: number, field: number): PivotChoices | null {
     const at = this.cellAt(row, col)
@@ -1200,15 +1262,19 @@ export class PivotCommands {
     extra: Op[] = [],
   ): boolean {
     if (next === at.table && !extra.length) return false
-    const s = this.c.wb.sheets.indexOf(this.c.sheet)
+    // From a PivotChart's button the PivotTable may be on another sheet: its cells change, the selection stays.
+    const away = this.via !== null && this.via !== this.c.sheetIndex
+    const s = away ? this.via! : this.c.sheetIndex
+    const sheet = this.c.wb.sheets[s]
     const plan = pivotCellsPlan(this.c.wb.sheets, this.c.wb.styles, s, at.table, next, at.cache)
-    const tables = this.c.sheet.pivots.map((t) => (t === at.table ? plan.table : t))
+    const tables = sheet.pivots.map((t) => (t === at.table ? plan.table : t))
     const ops: Op[] = [...extra, ...plan.ops, { kind: "pivots", sheet: s, tables }]
     if (next.name !== at.table.name)
-      ops.push(...pivotChartLinkOps(this.c.wb.sheets, this.c.sheet.name, at.table.name, this.c.sheet.name, next.name))
+      ops.push(...pivotChartLinkOps(this.c.wb.sheets, sheet.name, at.table.name, sheet.name, next.name))
     const go = () => {
       const entry = this.c.transact(ops, { label, before: this.c.selection })
       if (entry) this.fitColumns(entry, ops)
+      if (away) return
       // The active cell stays in the PivotTable (at its top left) when the change shrinks the table away from it, so
       // the Fields pane stays open on it.
       const { row, col } = this.c.selection.active
@@ -1216,11 +1282,17 @@ export class PivotCommands {
       if (row < area.r0 || row > area.r1 || col < area.c0 || col > area.c1)
         this.c.goTo({ r0: plan.table.at.row, c0: plan.table.at.col, r1: plan.table.at.row, c1: plan.table.at.col })
     }
-    if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, this.c.sheet.name), go)
+    if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, sheet.name), go)
     else go()
     return true
   }
 }
+
+/** What a PivotTable filter dropdown asks of the PivotTables (PivotCommands.on gives them for another sheet). */
+export type PivotFilterCommands = Pick<
+  PivotCommands,
+  "choices" | "showItems" | "setFilter" | "clearField" | "valueNames" | "pickPage" | "sortField"
+>
 
 /** A range with $ signs, as Excel's Table/Range box shows it. */
 function absolute(r: { r0: number; c0: number; r1: number; c1: number }): string {
@@ -1234,7 +1306,13 @@ function absolute(r: { r0: number; c0: number; r1: number; c1: number }): string
  * The ops that point every PivotChart of PivotTable `name` on sheet `sheet` at its new sheet and name (`sheets` as
  * the ops number them).
  */
-function pivotChartLinkOps(sheets: readonly Sheet[], sheet: string, name: string, toSheet: string, toName: string): Op[] {
+function pivotChartLinkOps(
+  sheets: readonly Sheet[],
+  sheet: string,
+  name: string,
+  toSheet: string,
+  toName: string,
+): Op[] {
   return pivotChartOps(sheets, sheet, [name], (c) => ({ ...c, pivot: { ...c.pivot!, sheet: toSheet, name: toName } }))
 }
 

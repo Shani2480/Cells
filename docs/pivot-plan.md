@@ -179,8 +179,15 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    repairs, each a PivotChart of its PivotTable with the same values. The renderer draws multi-level category axes
    (columns and bars). Insert › PivotChart / Analyze › PivotChart is a split button (type gallery); outside a
    PivotTable it opens Create PivotChart (a PivotTable and its chart). Renaming or moving the PivotTable, or renaming
-   its sheet, carries the link; deleting the PivotTable leaves the chart static, as Excel does. Next (part 2): the
-   field buttons drawn on the chart with filtering and sorting from them, and the PivotChart Analyze tab.
+   its sheet, carries the link; deleting the PivotTable leaves the chart static, as Excel does.
+   _Part 2 done:_ field buttons drawn on the chart (`spec.pivotButtons`: filters and values top left, legend top
+   right only while the legend shows, as Excel ties them to it; axis bottom left; a funnel when filtered). Filter,
+   axis and legend buttons open the PivotTable's own dropdown (`PivotCommands.on(sheet)` runs it on the PivotTable's
+   sheet, so a chart on another sheet filters it too). PivotChart Analyze (before Chart Design): Refresh and Field
+   Buttons (report filter, legend, axis, value, Hide All), written as c14:pivotOptions; Excel 365 reads them back the
+   same. Not built on PivotCharts: the name box, Active Field, Change Data Source / Clear / Move Chart, the value
+   buttons' menu, the expand/collapse buttons (c16 showExpandCollapseFieldButtons is not written), the PivotChart
+   Fields pane, and a deleted PivotTable's static chart losing its multi-level labels on save. **Step 6 done.**
 7. **Recommended PivotTables, Quick Analysis, Slicers and Timelines** — Recommended PivotTables (Insert tab), the
    PivotTable choices on Quick Analysis' Tables tab, slicers for PivotTables (today a file with them keeps them as
    read), and **Timelines** (Insert › Timeline, the Timeline tab, x15 timeline parts) for date fields.

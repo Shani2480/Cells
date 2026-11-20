@@ -96,7 +96,11 @@ function multiLevelCache(ref: string, inner: string[], outer: string[][]) {
     `<c:lvl>` +
     labels
       .map((label, i) =>
-        !label || (runs && i > 0 && labels[i - 1] === label && outer.slice(0, outer.indexOf(labels)).every((o) => o[i - 1] === o[i]))
+        !label ||
+        (runs &&
+          i > 0 &&
+          labels[i - 1] === label &&
+          outer.slice(0, outer.indexOf(labels)).every((o) => o[i - 1] === o[i]))
           ? ""
           : `<c:pt idx="${i}"><c:v>${escapeXmlText(label)}</c:v></c:pt>`,
       )
@@ -105,7 +109,10 @@ function multiLevelCache(ref: string, inner: string[], outer: string[][]) {
   return (
     `<c:multiLvlStrRef><c:f>${ref}</c:f><c:multiLvlStrCache><c:ptCount val="${inner.length}"/>` +
     level(inner, false) +
-    [...outer].reverse().map((labels) => level(labels, true)).join("") +
+    [...outer]
+      .reverse()
+      .map((labels) => level(labels, true))
+      .join("") +
     `</c:multiLvlStrCache></c:multiLvlStrRef>`
   )
 }
@@ -303,8 +310,7 @@ function seriesXml(spec: ChartSpec, index: number, group: Group, rows: number) {
   const data =
     (categoriesRef
       ? `<c:cat>${levels ? multiLevelCache(categoriesRef, categories, levels) : stringCache(categoriesRef, categories)}</c:cat>`
-      : "") +
-    `<c:val>${numberCache(valuesRef, values, format, blanks)}</c:val>`
+      : "") + `<c:val>${numberCache(valuesRef, values, format, blanks)}</c:val>`
   switch (group) {
     case "bar":
       return `<c:ser>${head}<c:invertIfNegative val="0"/>${points}${trend}${bars}${data}</c:ser>`
@@ -660,7 +666,9 @@ function chartSpaceXmlNow(source: ChartSpec, workbookRelId?: string) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="${DRAWING_NS}" xmlns:r="${REL_NS}">` +
     `<c:date1904 val="0"/><c:lang val="en-US"/><c:roundedCorners val="0"/>` +
-    (sheetRefs?.pivot ? `<c:pivotSource><c:name>${escapeXmlText(sheetRefs.pivot.name)}</c:name><c:fmtId val="0"/></c:pivotSource>` : "") +
+    (sheetRefs?.pivot
+      ? `<c:pivotSource><c:name>${escapeXmlText(sheetRefs.pivot.name)}</c:name><c:fmtId val="0"/></c:pivotSource>`
+      : "") +
     `<c:chart>${title}<c:autoTitleDeleted val="${spec.title.show ? 0 : 1}"/>${view3d}${plot}${legend}<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>` +
     `<c:spPr>${solid(area?.fill || look.background)}<a:ln w="${Math.round((area?.lineWidth ?? 0.75) * 12700)}">${solid(areaLine)}</a:ln></c:spPr>` +
     `<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr/></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>` +

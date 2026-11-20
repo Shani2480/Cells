@@ -51,8 +51,9 @@ export function PivotFilterDialog({
   onClose: () => void
 }) {
   const { row, col, field } = request
-  const choices = controller.pivots.choices(row, col, field)
-  const measures = controller.pivots.valueNames(row, col)
+  const pivots = controller.pivots.on(request.sheet)
+  const choices = pivots.choices(row, col, field)
+  const measures = pivots.valueNames(row, col)
   const current = choices?.filter
   const same = current?.kind === request.kind ? current : null
   const [op, setOp] = useState<string>(request.op ?? (same && same.kind !== "top" ? same.op : "equal"))
@@ -86,7 +87,7 @@ export function PivotFilterDialog({
   const accept = () => {
     if (!spec) return
     onClose()
-    controller.pivots.setFilter(row, col, field, spec)
+    pivots.setFilter(row, col, field, spec)
   }
   const measureSelect = (
     <select

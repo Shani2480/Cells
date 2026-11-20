@@ -18,6 +18,30 @@ const alert = (env: RibbonEnv, problem: string | null) => {
   if (problem) env.c.shell.alert(problem)
 }
 
+const inPivotChart = (env: RibbonEnv) => env.c.charts.activePivot() !== null
+
+/** A Field Buttons menu item: one kind of the PivotChart's buttons shown or hidden (ticked while shown). */
+const buttonsChoice = (
+  id: string,
+  label: string,
+  key: "filter" | "series" | "categories" | "data",
+  keytip: string,
+): Command => ({
+  id,
+  label,
+  description: `${label.replace("Show", "Show or hide")} on the PivotChart.`,
+  keytip,
+  enabled: inPivotChart,
+  pressed: (env) => {
+    const b = env.c.charts.pivotButtons()
+    return Boolean(b?.visible && b[key])
+  },
+  run: (env) => {
+    const b = env.c.charts.pivotButtons()
+    if (b) env.c.charts.setPivotButtons({ [key]: !(b.visible && b[key]) })
+  },
+})
+
 /** A command the PivotTable tabs show that comes in a later step: disabled, as Cells' unbuilt commands are. */
 const later = (id: string, label: string, description: string, keytip: string): Command => ({
   id,
@@ -333,6 +357,45 @@ export function pivotCommands(): Command[] {
       run: (env) => void env.c.pivots.setButtons(table(env)?.showDrill === false),
     },
     later("PivotFieldHeaders", "Field Headers", "Show or hide the row and column field headers.", "D"),
+
+    // ── PivotChart Analyze ──
+    {
+      id: "PivotChartRefresh",
+      label: "Refresh",
+      description: "Get the latest data from the source of this PivotChart's PivotTable.",
+      keytip: "R",
+      enabled: inPivotChart,
+      run: (env) => void env.c.charts.refreshPivot(),
+    },
+    {
+      id: "PivotChartFieldButtons",
+      label: "Field Buttons",
+      description: "Show or hide the field buttons on the PivotChart: report filters, values, axis and legend fields.",
+      keytip: "B",
+      enabled: inPivotChart,
+      pressed: (env) => env.c.charts.pivotButtons()?.visible ?? false,
+      run: (env) => void env.c.charts.setPivotButtons({ visible: !(env.c.charts.pivotButtons()?.visible ?? true) }),
+      menu: [
+        "PivotChartFilterButtons",
+        "PivotChartLegendButtons",
+        "PivotChartAxisButtons",
+        "PivotChartValueButtons",
+        "PivotChartHideButtons",
+      ],
+    },
+    buttonsChoice("PivotChartFilterButtons", "Show Report Filter Field Buttons", "filter", "R"),
+    buttonsChoice("PivotChartLegendButtons", "Show Legend Field Buttons", "series", "L"),
+    buttonsChoice("PivotChartAxisButtons", "Show Axis Field Buttons", "categories", "A"),
+    buttonsChoice("PivotChartValueButtons", "Show Value Field Buttons", "data", "V"),
+    {
+      id: "PivotChartHideButtons",
+      label: "Hide All",
+      description: "Hide every field button on the PivotChart.",
+      keytip: "H",
+      enabled: inPivotChart,
+      pressed: (env) => env.c.charts.pivotButtons()?.visible === false,
+      run: (env) => void env.c.charts.setPivotButtons({ visible: env.c.charts.pivotButtons()?.visible === false }),
+    },
 
     // ── Design ──
     {

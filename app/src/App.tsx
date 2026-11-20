@@ -50,6 +50,7 @@ import { useShellKind } from "@/phone/shell-choice"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
 import {
   CHART_DESIGN,
+  PIVOT_CHART_ANALYZE,
   EQUATION,
   HELP,
   MODEL3D_FORMAT,
@@ -183,6 +184,7 @@ const TABS_IN_SPARKLINE = [...TABS, SPARKLINE]
 const TABS_IN_SLICER = [...TABS, SLICER]
 const TABS_IN_TABLE_SPARKLINE = [...TABS, TABLE_DESIGN, SPARKLINE]
 const TABS_IN_CHART = [...TABS, CHART_DESIGN]
+const TABS_IN_PIVOT_CHART = [...TABS, PIVOT_CHART_ANALYZE, CHART_DESIGN]
 const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
 const TABS_IN_EQUATION = [...TABS, SHAPE_FORMAT, EQUATION]
 const TABS_IN_PICTURE = [...TABS, PICTURE_FORMAT]
@@ -1203,29 +1205,31 @@ function WorkbookWindow({
     smartArt && controller.objects.textPaneOpen ? (
       <SmartArtTextPane key={smartArt.id} controller={controller} onDone={focusGrid} />
     ) : null
-  const ribbonTabs = controller.charts.active()
-    ? TABS_IN_CHART
-    : smartArt
-      ? TABS_IN_SMARTART
-      : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
-        ? TABS_IN_MODEL3D
-        : drawings.length && drawings.every((o) => o.kind === "slicer")
-          ? TABS_IN_SLICER
-          : drawings.length && drawings.every((o) => o.kind === "picture")
-            ? TABS_IN_PICTURE
-            : drawings.length
-              ? drawings.length === 1 && isEquation(drawings[0])
-                ? TABS_IN_EQUATION
-                : TABS_IN_SHAPE
-              : controller.sparklines.active()
-                ? controller.tables.active()
-                  ? TABS_IN_TABLE_SPARKLINE
-                  : TABS_IN_SPARKLINE
-                : controller.tables.active()
-                  ? TABS_IN_TABLE
-                  : controller.pivots.active()
-                    ? TABS_IN_PIVOT
-                    : TABS
+  const ribbonTabs = controller.charts.activePivot()
+    ? TABS_IN_PIVOT_CHART
+    : controller.charts.active()
+      ? TABS_IN_CHART
+      : smartArt
+        ? TABS_IN_SMARTART
+        : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
+          ? TABS_IN_MODEL3D
+          : drawings.length && drawings.every((o) => o.kind === "slicer")
+            ? TABS_IN_SLICER
+            : drawings.length && drawings.every((o) => o.kind === "picture")
+              ? TABS_IN_PICTURE
+              : drawings.length
+                ? drawings.length === 1 && isEquation(drawings[0])
+                  ? TABS_IN_EQUATION
+                  : TABS_IN_SHAPE
+                : controller.sparklines.active()
+                  ? controller.tables.active()
+                    ? TABS_IN_TABLE_SPARKLINE
+                    : TABS_IN_SPARKLINE
+                  : controller.tables.active()
+                    ? TABS_IN_TABLE
+                    : controller.pivots.active()
+                      ? TABS_IN_PIVOT
+                      : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 
