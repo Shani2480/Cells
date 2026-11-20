@@ -3923,6 +3923,36 @@ html.is-phone .forecast-options {
   background: var(--app-field-bg);
 }
 
+/* Report Connections / Filter Connections: a box, name and sheet per row, in a framed list. */
+.slicer-connections {
+  display: block;
+  max-height: 240px;
+  min-height: 140px;
+  overflow-y: auto;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.slicer-connections th {
+  position: sticky;
+  top: 0;
+  background: var(--app-panel-bg, var(--app-field-bg));
+  border-bottom: 1px solid var(--app-field-border);
+  font-weight: 600;
+  text-align: left;
+  padding: 3px 8px;
+}
+.slicer-connections td {
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.slicer-connections th:nth-child(2),
+.slicer-connections td:nth-child(2) {
+  width: 100%;
+}
+
 /* Slicer Settings: Header beside Item Sorting and Filtering. */
 .slicer-settings {
   display: grid;

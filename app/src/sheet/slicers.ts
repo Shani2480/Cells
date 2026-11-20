@@ -8,8 +8,15 @@ import {
   slicerFilter,
   slicerItems,
   slicerTarget,
+  pivotSlicerFiltered,
+  pivotSlicerItems,
+  pivotSlicerShown,
+  pivotSlicerTarget,
   tableFilterRange,
   type AutoFilter,
+  type Op,
+  type PivotCache,
+  type SheetObject,
   type SheetSlicer,
 } from "@cells/core"
 import { setSlicerSource, type SlicerView } from "@/drawing/slicer"
@@ -61,6 +68,15 @@ export class SlicerCommands {
     if (!this.cache || this.cache.version !== this.c.wb.version)
       this.cache = { version: this.c.wb.version, views: new Map() }
     let v = this.cache.views.get(o.id)
+    if (!v && o.pivot) {
+      const target = pivotSlicerTarget(this.c.wb.sheets, this.c.wb.pivotCaches, o)
+      v = {
+        items: target ? pivotSlicerItems(target, o) : [],
+        filtered: target ? pivotSlicerFiltered(target) : false,
+        multi: false,
+      }
+      this.cache.views.set(o.id, v)
+    }
     if (!v) {
       const target = slicerTarget(this.c.wb.sheets, o)
       const look = target?.sheet === this.c.sheetIndex ? this.c.data.look : undefined
@@ -108,13 +124,140 @@ export class SlicerCommands {
       picked = new Set([key])
       this.anchor.set(o.id, key)
     }
+    if (o.pivot) return this.applyPivot(o, pivotSlicerShown(items, picked))
     return this.apply(o, slicerFilter(items, picked))
   }
 
   /** The header's Clear Filter button (Alt+C). */
   clear(o: SheetSlicer): boolean {
     this.anchor.delete(o.id)
+    if (o.pivot) return this.applyPivot(o, null)
     return this.apply(o, null)
+  }
+
+  /** A PivotTable slicer's pick: the field's items shown in each PivotTable it is connected to. */
+  private applyPivot(o: SheetSlicer, shown: Set<number> | null): boolean {
+    const target = pivotSlicerTarget(this.c.wb.sheets, this.c.wb.pivotCaches, o)
+    if (!target) return false
+    const changes = target.tables.map((t) => ({ ...t, field: target.field, shown }))
+    return this.c.pivots.slicerPick(changes, target.cache, "Slicer")
+  }
+
+  /** The items a PivotTable slicer shows now (null: all), to give a PivotTable newly connected to it. */
+  private pivotShown(o: SheetSlicer): Set<number> | null {
+    const items = this.view(o).items
+    return pivotSlicerShown(items, new Set(items.filter((i) => i.selected).map((i) => i.key)))
+  }
+
+  // ── Report Connections (Slicer tab) and Filter Connections (PivotTable Analyze) ──
+
+  /** The PivotTables a PivotTable slicer can filter (those of its cache), ticked when connected. */
+  reportConnections(o: SheetSlicer): { key: string; name: string; sheet: string; on: boolean }[] {
+    const link = o.pivot
+    if (!link) return []
+    const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+    return this.c.wb.sheets.flatMap((s) =>
+      s.pivots
+        .filter((t) => t.cacheId === link.cacheId)
+        .map((t) => ({
+          key: `${s.name}!${t.name}`,
+          name: t.name,
+          sheet: s.name,
+          on: link.tables.some((x) => same(x.sheet, s.name) && x.name === t.name),
+        })),
+    )
+  }
+
+  /** Report Connections' OK: the slicer filters the PivotTables `keys` ("Sheet!Name"); new ones take its picks. */
+  setReportConnections(o: SheetSlicer, keys: readonly string[]): string | null {
+    if (!o.pivot) return null
+    const list = this.reportConnections(o)
+    const picked = list.filter((x) => keys.includes(x.key))
+    if (!picked.length) return "Select at least one PivotTable for the slicer to filter."
+    const tables = picked.map((x) => ({ sheet: x.sheet, name: x.name }))
+    this.connect([{ slicer: o, tables }], "Report Connections")
+    return null
+  }
+
+  /** The PivotTable slicers the active PivotTable can be filtered by (its cache's), ticked when connected. */
+  filterConnections(): { id: number; name: string; caption: string; sheet: string; on: boolean }[] {
+    const at = this.c.pivots.active()
+    if (!at) return []
+    const here = this.c.sheet.name.toLowerCase()
+    return this.all().flatMap(({ sheet, slicer }) =>
+      slicer.pivot && slicer.pivot.cacheId === at.cacheId
+        ? [
+            {
+              id: slicer.id,
+              name: slicer.name,
+              caption: slicer.caption,
+              sheet: this.c.wb.sheets[sheet].name,
+              on: slicer.pivot.tables.some((t) => t.sheet.toLowerCase() === here && t.name === at.name),
+            },
+          ]
+        : [],
+    )
+  }
+
+  /** Filter Connections' OK: the active PivotTable is filtered by the slicers `ids` (and no other of its cache's). */
+  setFilterConnections(ids: readonly number[]): boolean {
+    const at = this.c.pivots.active()
+    if (!at) return false
+    const here = { sheet: this.c.sheet.name, name: at.name }
+    const same = (t: { sheet: string; name: string }) =>
+      t.sheet.toLowerCase() === here.sheet.toLowerCase() && t.name === here.name
+    const changes = this.filterConnections().flatMap((x) => {
+      const slicer = this.all().find((s) => s.slicer.id === x.id)!.slicer
+      const want = ids.includes(x.id)
+      if (want === x.on) return []
+      const others = slicer.pivot!.tables.filter((t) => !same(t))
+      // A slicer keeps at least one PivotTable (as Excel's Report Connections asks).
+      if (!want && !others.length) return []
+      return [{ slicer, tables: want ? [...others, here] : others }]
+    })
+    return this.connect(changes, "Filter Connections")
+  }
+
+  /**
+   * Slicers connected to these PivotTables, as one undo step: each PivotTable newly connected takes the slicer's
+   * picks, and one let go shows all the field's items again, as in Excel.
+   */
+  private connect(
+    changes: readonly { slicer: SheetSlicer; tables: { sheet: string; name: string }[] }[],
+    label: string,
+  ) {
+    if (!changes.length) return false
+    const sheets = this.c.wb.sheets
+    const extra: Op[] = []
+    const picks: Parameters<SheetController["pivots"]["slicerPick"]>[0][number][] = []
+    let cache: PivotCache | null = null
+    const bySheet = new Map<number, SheetObject[]>()
+    for (const { slicer, tables } of changes) {
+      const target = pivotSlicerTarget(sheets, this.c.wb.pivotCaches, slicer)
+      const shown = this.pivotShown(slicer)
+      const had = (t: { sheet: string; name: string }) =>
+        slicer.pivot!.tables.some((x) => x.sheet.toLowerCase() === t.sheet.toLowerCase() && x.name === t.name)
+      const where = this.all().find((x) => x.slicer.id === slicer.id)!.sheet
+      const list = bySheet.get(where) ?? [...sheets[where].objects]
+      bySheet.set(
+        where,
+        list.map((x) => (x.id === slicer.id && !isChart(x) ? { ...slicer, pivot: { ...slicer.pivot!, tables } } : x)),
+      )
+      if (!target) continue
+      cache = target.cache
+      const kept = (t: { sheet: string; name: string }) =>
+        tables.some((x) => x.sheet.toLowerCase() === t.sheet.toLowerCase() && x.name === t.name)
+      const pick = (t: { sheet: string; name: string }, items: Set<number> | null) => {
+        const sheet = sheets.findIndex((s) => s.name.toLowerCase() === t.sheet.toLowerCase())
+        const table = sheets[sheet]?.pivots.find((p) => p.name === t.name)
+        if (table) picks.push({ sheet, table, field: target.field, shown: items })
+      }
+      for (const t of tables) if (!had(t)) pick(t, shown)
+      for (const t of slicer.pivot!.tables) if (!kept(t)) pick(t, null)
+    }
+    for (const [sheet, objects] of bySheet) extra.push({ kind: "objects", sheet, objects })
+    if (!cache) return this.c.transact(extra, { label, before: this.c.selection, after: this.c.selection }) !== null
+    return this.c.pivots.slicerPick(picks, cache, label, extra)
   }
 
   private apply(o: SheetSlicer, column: ReturnType<typeof slicerFilter>): boolean {
@@ -147,18 +290,24 @@ export class SlicerCommands {
 
   // ── Insert › Slicer and the Slicer tab ──
 
-  /** Insert › Slicer, Table Design › Insert Slicer: the Insert Slicers dialog for the active cell's table. */
+  /**
+   * Insert › Slicer, Table Design › Insert Slicer, PivotTable Analyze › Insert Slicer: the Insert Slicers dialog for
+   * the active cell's table or PivotTable.
+   */
   openInsert() {
-    if (!this.c.tables.active()) {
-      this.c.shell.alert("Select a cell in a table to insert a slicer for it.")
+    if (!this.c.tables.active() && !this.c.pivots.active()) {
+      this.c.shell.alert("Select a cell in a table or PivotTable to insert a slicer for it.")
       return
     }
     this.c.shell.openDialog?.("insertSlicers")
   }
 
-  /** The columns the Insert Slicers dialog lists (the active cell's table's). */
+  /** The columns the Insert Slicers dialog lists: the table's, or the PivotTable's fields (not calculated ones). */
   insertColumns(): string[] {
-    return this.c.tables.active()?.columns.map((c) => c.name) ?? []
+    const table = this.c.tables.active()
+    if (table) return table.columns.map((c) => c.name)
+    const pivot = this.c.pivots.activeWithCache()
+    return pivot?.cache.fields.filter((f) => f.formula === undefined).map((f) => f.name) ?? []
   }
 
   /** A slicer name not taken in the workbook: the column's, then "Region 1", "Region 2"… */
@@ -172,7 +321,8 @@ export class SlicerCommands {
   /** One slicer per column picked, in the middle of the window, each a little below and right of the last. */
   insert(columns: readonly string[]): SheetSlicer[] {
     const table = this.c.tables.active()
-    if (!table || !columns.length) return []
+    const pivot = table ? null : this.c.pivots.activeWithCache()
+    if ((!table && !pivot) || !columns.length) return []
     const taken = new Set(this.all().map((s) => s.slicer.name.toLowerCase()))
     let id = nextObjectId(this.c.wb.sheets)
     const start = this.c.objects.middle(SLICER_SIZE.w, SLICER_SIZE.h)
@@ -184,8 +334,17 @@ export class SlicerCommands {
         name: this.freeName(column, taken),
         anchor: anchorOf(this.c.sheet, box),
         placement: "fixed",
-        table: table.id,
+        table: table ? table.id : -1,
         column,
+        ...(pivot
+          ? {
+              pivot: {
+                cacheId: pivot.cache.id,
+                field: column,
+                tables: [{ sheet: this.c.sheet.name, name: pivot.table.name }],
+              },
+            }
+          : {}),
         caption: column,
         header: true,
         style: DEFAULT_SLICER_STYLE,

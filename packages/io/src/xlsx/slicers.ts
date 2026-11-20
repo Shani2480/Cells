@@ -33,28 +33,70 @@ const NS_MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
 const NS_XR10 = "http://schemas.microsoft.com/office/spreadsheetml/2016/revision10"
 const NS_SLE = "http://schemas.microsoft.com/office/drawing/2010/slicer"
 const NS_SLE15 = "http://schemas.microsoft.com/office/drawing/2012/slicer"
+const NS_A14 = "http://schemas.microsoft.com/office/drawing/2010/main"
 export const SLICER_GRAPHIC_URI = "http://schemas.microsoft.com/office/drawing/2010/slicer"
 
 const EMU = 9525
 const falsy = (v: string | undefined) => v === "0" || v === "false"
 const truthy = (v: string | undefined) => v === "1" || v === "true"
 
-/** A table slicer cache as read: which table column it follows, and how its items are listed. */
+/** A slicer cache as read: a table column's, or a PivotTable cache field's, and how its items are listed. */
 export type SlicerCacheRead = {
   name: string
-  tableId: number
-  /** The table column's id (1-based, as in the table part). */
-  columnId: number
   sort: SheetSlicer["sort"]
   customLists: boolean
   crossFilter: SheetSlicer["crossFilter"]
   hideNoData: boolean
   uid?: string
-}
+} & (
+  | {
+      kind: "table"
+      tableId: number
+      /** The table column's id (1-based, as in the table part). */
+      columnId: number
+    }
+  | {
+      kind: "pivot"
+      /** The cache field's name. */
+      field: string
+      /** The PivotTables it filters: their sheet's sheetId and name. */
+      tables: { tabId: number; name: string }[]
+      /** The x14 id of their PivotTable cache. */
+      pivotCacheId: number
+    }
+)
 
-/** A slicer cache part: a table one, or null (a PivotTable's, or unreadable). */
+const crossOf = (v: string | undefined): SheetSlicer["crossFilter"] =>
+  v === "none" || v === "showItemsWithNoData" ? v : "showItemsWithDataAtTop"
+
+/** A slicer cache part: a table's or a PivotTable's, or null (an OLAP one, or unreadable). */
 export function readSlicerCache(xml: string): SlicerCacheRead | null {
   const root = parseTree(xml).root
+  const common = {
+    name: at(root, "name") ?? "",
+    hideNoData: /slicerCacheHideItemsWithNoData\b/.test(xml),
+    uid: at(root, "xr10:uid") ?? at(root, "uid"),
+  }
+  const tabular = kid(kid(root, "data"), "tabular")
+  if (tabular) {
+    const pivotCacheId = Number(at(tabular, "pivotCacheId"))
+    const field = at(root, "sourceName")
+    if (!Number.isFinite(pivotCacheId) || !field) return null
+    const tables = kids(kid(root, "pivotTables"), "pivotTable").map((t) => ({
+      tabId: Number(at(t, "tabId") ?? 0),
+      name: at(t, "name") ?? "",
+    }))
+    return {
+      ...common,
+      kind: "pivot",
+      field,
+      tables,
+      pivotCacheId,
+      sort: at(tabular, "sortOrder") === "descending" ? "descending" : "ascending",
+      customLists: !falsy(at(tabular, "customListSort")),
+      crossFilter: crossOf(at(tabular, "crossFilter")),
+    }
+  }
   const table = kids(kid(root, "extLst"), "ext")
     .map((e) => kid(e, "tableSlicerCache"))
     .find(Boolean)
@@ -62,16 +104,14 @@ export function readSlicerCache(xml: string): SlicerCacheRead | null {
   const tableId = Number(at(table, "tableId"))
   const columnId = Number(at(table, "column"))
   if (!Number.isFinite(tableId) || !Number.isFinite(columnId)) return null
-  const cross = at(table, "crossFilter")
   return {
-    name: at(root, "name") ?? "",
+    ...common,
+    kind: "table",
     tableId,
     columnId,
     sort: at(table, "sortOrder") === "descending" ? "descending" : "ascending",
     customLists: !falsy(at(table, "customListSort")),
-    crossFilter: cross === "none" || cross === "showItemsWithNoData" ? cross : "showItemsWithDataAtTop",
-    hideNoData: /slicerCacheHideItemsWithNoData\b/.test(xml),
-    uid: at(root, "xr10:uid") ?? at(root, "uid"),
+    crossFilter: crossOf(at(table, "crossFilter")),
   }
 }
 
@@ -133,8 +173,15 @@ export function slicerFrameXml(
   const descr = o.altText ? ` descr="${esc(o.altText)}"` : ""
   const hidden = o.hidden ? ` hidden="1"` : ""
   const locks = o.locked ? `<a:graphicFrameLocks noMove="1" noResize="1"/>` : ""
+  // A PivotTable slicer is Excel 2010's (a14); a table slicer Excel 2013's (sle15).
+  const choice = o.pivot
+    ? `<mc:Choice xmlns:a14="${NS_A14}" Requires="a14">`
+    : `<mc:Choice xmlns:sle15="${NS_SLE15}" Requires="sle15">`
+  const fallback = o.pivot
+    ? "This shape represents a slicer. Slicers are supported in Excel 2010 or later."
+    : "This shape represents a table slicer. Table slicers are not supported in this version of Excel."
   return (
-    `<mc:AlternateContent xmlns:mc="${NS_MC}"><mc:Choice xmlns:sle15="${NS_SLE15}" Requires="sle15">` +
+    `<mc:AlternateContent xmlns:mc="${NS_MC}">${choice}` +
     `<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${id}" name="${esc(o.name)}"${descr}${hidden}/>` +
     `<xdr:cNvGraphicFramePr>${locks}</xdr:cNvGraphicFramePr></xdr:nvGraphicFramePr>` +
     `<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic>` +
@@ -145,7 +192,7 @@ export function slicerFrameXml(
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:prstClr val="white"/></a:solidFill>` +
     `<a:ln w="1"><a:solidFill><a:prstClr val="green"/></a:solidFill></a:ln></xdr:spPr>` +
     `<xdr:txBody><a:bodyPr vertOverflow="clip" horzOverflow="clip"/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" sz="1100"/>` +
-    `<a:t>This shape represents a table slicer. Table slicers are not supported in this version of Excel.</a:t>` +
+    `<a:t>${fallback}</a:t>` +
     `</a:r></a:p></xdr:txBody></xdr:sp></mc:Fallback></mc:AlternateContent>`
   )
 }
@@ -199,6 +246,49 @@ export function slicerCacheXml(c: {
     `</slicerCacheDefinition>`
   )
 }
+
+/** A PivotTable slicer cache part: its PivotTables (sheetId and name) and the field's items, picked or not. */
+export function pivotSlicerCacheXml(c: {
+  name: string
+  field: string
+  slicer: SheetSlicer
+  pivotCacheId: number
+  tables: readonly { tabId: number; name: string }[]
+  items: readonly { x: number; selected: boolean; data: boolean }[]
+}): string {
+  const s = c.slicer
+  const tabular = attrText({
+    pivotCacheId: c.pivotCacheId,
+    sortOrder: s.sort === "descending" ? "descending" : undefined,
+    customListSort: s.customLists ? undefined : "0",
+    crossFilter: s.crossFilter === "showItemsWithDataAtTop" ? undefined : s.crossFilter,
+  })
+  const items = c.items.map(
+    (i) => `<i${attrText({ x: i.x, s: i.selected ? 1 : undefined, nd: i.data ? undefined : 1 })}/>`,
+  )
+  const hide = s.hideNoData
+    ? `<extLst><x:ext uri="${URI_HIDE_NO_DATA}" xmlns:x15="${NS_X15}"><x15:slicerCacheHideItemsWithNoData/></x:ext></extLst>`
+    : ""
+  return (
+    `<slicerCacheDefinition xmlns="${NS_X14}" xmlns:mc="${NS_MC}" mc:Ignorable="x xr10" xmlns:x="${NS_X}" xmlns:xr10="${NS_XR10}"` +
+    `${attrText({ name: c.name, "xr10:uid": s.cacheUid, sourceName: c.field })}>` +
+    `<pivotTables>${c.tables.map((t) => `<pivotTable${attrText({ tabId: t.tabId, name: t.name })}/>`).join("")}</pivotTables>` +
+    `<data><tabular${tabular}><items count="${items.length}">${items.join("")}</items></tabular></data>${hide}` +
+    `</slicerCacheDefinition>`
+  )
+}
+
+/** The workbook's extLst entry listing the PivotTable slicer caches (x14). */
+export const workbookPivotSlicersExt = (relIds: readonly string[]) =>
+  relIds.length
+    ? `<ext uri="${URI_WB_PIVOT_SLICER_CACHES}" xmlns:x14="${NS_X14}"><x14:slicerCaches>` +
+      relIds.map((id) => `<x14:slicerCache r:id="${id}"/>`).join("") +
+      `</x14:slicerCaches></ext>`
+    : ""
+
+/** A sheet's extLst entry pointing at its PivotTable slicers part (x14). */
+export const sheetPivotSlicersExt = (relId: string) =>
+  `<ext uri="${URI_SHEET_PIVOT_SLICERS}" xmlns:x14="${NS_X14}"><x14:slicerList><x14:slicer r:id="${relId}"/></x14:slicerList></ext>`
 
 /** The workbook's extLst entry listing the slicer caches (by relationship id). */
 export const workbookSlicersExt = (relIds: readonly string[]) =>

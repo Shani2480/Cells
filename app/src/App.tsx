@@ -71,7 +71,7 @@ import {
   SparklineDateDialog,
   SparklineEmptyDialog,
 } from "@/shell/SparklineDialogs"
-import { InsertSlicersDialog, SlicerSettingsDialog } from "@/shell/SlicerDialogs"
+import { InsertSlicersDialog, SlicerConnectionsDialog, SlicerSettingsDialog } from "@/shell/SlicerDialogs"
 import type { SparklineDialogInit } from "@/sheet/sparklines"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
@@ -255,6 +255,7 @@ type DialogState =
   | { kind: "sparklineEmpty" }
   | { kind: "insertSlicers" }
   | { kind: "slicerSettings"; slicer: SheetSlicer }
+  | { kind: "slicerConnections"; slicer?: SheetSlicer }
   | { kind: "sparklineDates" }
   | { kind: "sparklineAxis"; which: "min" | "max" }
   | { kind: "textToColumns"; range: Range; texts: string[] }
@@ -1052,7 +1053,9 @@ function WorkbookWindow({
     else if (kind === "slicerSettings") {
       const slicer = controller.slicers.active()
       if (slicer) setDialog({ kind, slicer })
-    } else if (kind === "sparklineAxis" && (arg === "min" || arg === "max")) setDialog({ kind, which: arg })
+    } else if (kind === "slicerConnections") setDialog({ kind, slicer: controller.slicers.active() ?? undefined })
+    else if (kind === "pivotFilterConnections") setDialog({ kind: "slicerConnections" })
+    else if (kind === "sparklineAxis" && (arg === "min" || arg === "max")) setDialog({ kind, which: arg })
     else if (kind === "cf" && isQuickKind(arg)) setDialog({ kind: "cfQuick", quick: arg })
     else if (kind === "cfNew") setDialog({ kind: "cfNew", start: arg ?? "contains" })
     else if (kind === "cfManage") setDialog({ kind: "cfManage" })
@@ -1544,6 +1547,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "insertSlicers" ? (
           <InsertSlicersDialog controller={controller} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "slicerConnections" ? (
+          <SlicerConnectionsDialog controller={controller} slicer={dialog.slicer} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "slicerSettings" ? (
           <SlicerSettingsDialog controller={controller} slicer={dialog.slicer} onClose={closeDialog} />

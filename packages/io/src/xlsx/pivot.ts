@@ -139,7 +139,11 @@ export function readPivotCache(
     fields.push(field)
   }
   const records = recordsXml ? readRecords(recordsXml, fields) : []
-  return { id, source, fields, records, refreshOnLoad: truthy(at(root, "refreshOnLoad"), false) }
+  const cache: PivotCache = { id, source, fields, records, refreshOnLoad: truthy(at(root, "refreshOnLoad"), false) }
+  const x14 = kids(kid(root, "extLst"), "ext").find((e) => at(e, "uri") === X14_CACHE)
+  const slicerId = Number(at(kid(x14, "pivotCacheDefinition"), "pivotCacheId"))
+  if (x14 && Number.isFinite(slicerId)) cache.slicerId = slicerId
+  return cache
 }
 
 const GROUP_BY = new Set(["range", "seconds", "minutes", "hours", "days", "months", "quarters", "years"])
@@ -729,6 +733,9 @@ function sharedItemsAttrs(values: Iterable<PivotValue>, dates: boolean) {
   })
 }
 
+/** The x14 extension of a cache definition, which gives the cache the id PivotTable slicers name it by. */
+export const X14_CACHE = "{725AE2AE-9491-48be-B2B4-4EB974FC3084}"
+
 export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId: (code?: string) => number): string {
   const src =
     cache.source.kind === "name"
@@ -763,7 +770,11 @@ export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId:
       recordCount: cache.records.length,
     }) +
     `><cacheSource type="worksheet">${src}</cacheSource>` +
-    `<cacheFields count="${fields.length}">${fields.join("")}</cacheFields></pivotCacheDefinition>`
+    `<cacheFields count="${fields.length}">${fields.join("")}</cacheFields>` +
+    (cache.slicerId !== undefined
+      ? `<extLst><ext uri="${X14_CACHE}" xmlns:x14="${NS_X14}"><x14:pivotCacheDefinition pivotCacheId="${cache.slicerId}"/></ext></extLst>`
+      : "") +
+    `</pivotCacheDefinition>`
   )
 }
 

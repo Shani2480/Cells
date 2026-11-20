@@ -84,6 +84,22 @@ export function slicerCommands(): Command[] {
       enabled: (env) => env.c.tables.active() !== null,
       run: (env) => env.c.slicers.openInsert(),
     },
+    {
+      id: "PivotInsertSlicer",
+      label: "Insert Slicer",
+      description: "Use a slicer to filter the PivotTable's data visually, with a button for each item of a field.",
+      keytip: "SF",
+      enabled: (env) => env.c.pivots.active() !== null,
+      run: (env) => env.c.slicers.openInsert(),
+    },
+    {
+      id: "PivotFilterConnections",
+      label: "Filter Connections",
+      description: "Choose the slicers that filter this PivotTable.",
+      keytip: "FC",
+      enabled: (env) => env.c.pivots.active() !== null,
+      run: (env) => env.dialog("pivotFilterConnections"),
+    },
 
     // ── Slicer tab ──
     {
@@ -103,7 +119,8 @@ export function slicerCommands(): Command[] {
       label: "Report Connections",
       description: "Choose the PivotTables this slicer filters. A table's slicer filters only its table.",
       keytip: "RC",
-      enabled: () => false,
+      enabled: (env) => Boolean(env.c.slicers.active()?.pivot),
+      run: (env) => env.dialog("slicerConnections"),
     },
     {
       id: "SlicerSettings",

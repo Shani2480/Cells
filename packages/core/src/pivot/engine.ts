@@ -370,9 +370,18 @@ function prepare(table: PivotTable, cache: PivotCache) {
   for (const f of [...rowFields, ...colFields, ...table.pages.map((p) => p.field)])
     if (f !== VALUES_FIELD && !items.has(f) && cache.fields[f]) items.set(f, fieldItems(table, cache, f))
 
-  // The records that count: report filters' picks, and no hidden item on a row or column field.
+  // A field on no axis with items hidden: a slicer's (Excel keeps a slicer's picks as hidden items of each
+  // PivotTable it filters, whether the field is in the PivotTable or not).
+  const sliced: FieldItems[] = []
+  table.fields.forEach((field, f) => {
+    if (!field?.items.some((i) => i.hidden) || items.has(f) || !cache.fields[f]) return
+    sliced.push(fieldItems(table, cache, f))
+  })
+
+  // The records that count: report filters' picks, no hidden item on a row or column field, and a slicer's picks.
   const records: number[] = []
   next: for (let r = 0; r < cache.records.length; r++) {
+    for (const fi of sliced) if (fi.hidden.has(fi.ofRecord[r])) continue next
     for (const page of table.pages) {
       const fi = items.get(page.field)
       if (!fi) continue

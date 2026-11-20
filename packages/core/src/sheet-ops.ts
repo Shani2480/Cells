@@ -2,6 +2,7 @@ import { copyHyperlinks, type Hyperlink } from "./hyperlinks"
 import { copyEditRanges, type EditRange } from "./edit-ranges"
 import { copySparklineGroups, rewriteSparklineRefs, type SparklineGroup } from "./sparklines"
 import { copyPivotTables } from "./pivot/sheet"
+import { pivotSlicerRenamed } from "./pivot/slicer"
 import type { PivotTable } from "./pivot/model"
 import type { Range } from "./address"
 import { copyPageSetup, type PageSetup } from "./page-setup"
@@ -10,7 +11,7 @@ import { copyEntries, type CFEntry } from "./conditional"
 import { copyValidations, type ValidationEntry } from "./validation"
 import { copyTables, type Table } from "./table/table"
 import { copyCharts, rewriteChartRefs, type SheetChart } from "./chart"
-import { copyObjects, type SheetObject } from "./shapes"
+import { copyObjects, isChart, type SheetObject } from "./shapes"
 import { rewriteNames, type SheetList } from "./names"
 import { copyAutoFilter, type AutoFilter } from "./filter"
 import type { SheetProtection } from "./protection"
@@ -167,6 +168,20 @@ function renameRefs(sheets: Sheet[], from: string, to: string | null): Op[] {
         }
       }
       if (changed) undo.push({ kind: "charts", sheet: index, charts: before })
+    }
+    // PivotTable slicers name their PivotTables' sheets.
+    if (to !== null && sheet.objects.some((o) => !isChart(o) && o.kind === "slicer" && o.pivot)) {
+      const before = [...sheet.objects]
+      let changed = false
+      sheet.objects = sheet.objects.map((o) => {
+        if (isChart(o) || o.kind !== "slicer" || !o.pivot) return o
+        const pivot = pivotSlicerRenamed(o.pivot, { sheet: from }, { sheet: to })
+        if (!pivot) return o
+        changed = true
+        return { ...o, pivot }
+      })
+      if (changed) undo.push({ kind: "objects", sheet: index, objects: before })
+      else sheet.objects = before
     }
     if (sheet.sparklines.length) {
       const before = copySparklineGroups(sheet.sparklines)

@@ -199,7 +199,19 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    Recommended PivotTables dialog (pictures of each, the picked one large, Blank PivotTable; in a PivotTable it
    suggests from that PivotTable's data) on Insert and PivotTable Analyze › Tools; Quick Analysis' Tables tab shows
    the first three with a hover preview, and More. The 10 suggestions for pivot-basic's data, made by Cells, open in
-   Excel 365 without repairs and refresh to the same cells. Next: slicers for PivotTables, then Timelines.
+   Excel 365 without repairs and refresh to the same cells.
+   _Part 2 done:_ slicers for PivotTables. Core `pivot/slicer.ts` (`SheetSlicer.pivot`: cache, field and the PivotTables
+   by sheet and name; the picks are hidden items of the field in each PivotTable, as Excel keeps them, and the engine
+   now drops records hidden on a field that is on no axis, which Excel does too — its totals checked). io reads and
+   writes x14 PivotTable slicer caches (`<pivotTables>`, `<data><tabular>` items with s/nd), the cache's x14
+   pivotCacheId (made when a cache has none), the x14 workbook and sheet lists and the a14 frame. App: Insert Slicer
+   from a PivotTable (its cache's fields), clicks, Clear Filter and undo over every connected PivotTable at once,
+   Report Connections (Slicer tab) and Filter Connections (PivotTable Analyze) — connecting applies the slicer's picks,
+   disconnecting shows all again, as Excel does — and links follow PivotTable and sheet renames, moves and deletes (a
+   slicer left with no PivotTable goes). A new PivotTable from the same unchanged data shares its cache, as in Excel
+   (not one whose recommendation groups dates). Excel's fixture (pivot-slicer.xlsx) read, saved with a pick changed and
+   written afresh: 0 validator errors, no repairs in Excel 365, slicers, connections and picks as written, and they
+   still filter. Not yet: slicers on OLAP data (such files keep all slicers as read). Next: Timelines.
 
 ## Staying out
 

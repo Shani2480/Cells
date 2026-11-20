@@ -245,7 +245,8 @@ export async function openXlsx(
     return id
   }
 
-  // Table slicers: their caches (table and column); a file with PivotTable slicers keeps all slicers as read.
+  // Slicers: their caches (a table column, or a PivotTable cache field); a file with any Cells can't read (OLAP)
+  // keeps all slicers as read.
   const cacheRels = wbRels.filter((r) => r.type === REL_SLICER_CACHE && r.partName)
   const slicerCaches = new Map<string, SlicerCacheRead>()
   let slicersModelled = true
@@ -537,28 +538,39 @@ export async function openXlsx(
     }
   }
 
-  // Each slicer's table and column, from its cache; one whose table or column is gone is left out.
+  // Each slicer's table and column (or PivotTables and field), from its cache; one whose target is gone is left out.
+  const sheetIds = sheetNodes.map((n) => Number(at(n, "sheetId") ?? 0))
   for (const sheet of slicerSheets.keys()) {
     const lost: number[] = []
     for (const o of sheet.objects) {
       if (isChart(o) || o.kind !== "slicer") continue
       const cache = slicerCaches.get(o.cache ?? "")
-      const table = cache && wb.sheets.flatMap((s) => s.tables).find((t) => t.id === cache.tableId)
-      const index = cache && table ? (tableColumnIds.get(table.id) ?? []).indexOf(cache.columnId) : -1
-      const column = table?.columns[index]
-      if (!cache || !table || !column) {
-        lost.push(o.id)
-        continue
+      const settings = cache && { sort: cache.sort, customLists: cache.customLists, crossFilter: cache.crossFilter }
+      if (cache?.kind === "pivot") {
+        // A PivotTable slicer: its PivotTables by sheet name; its picks are their hidden items, read with them.
+        const pivotCache = wb.pivotCaches.find((c) => c.slicerId === cache.pivotCacheId)
+        const tables = cache.tables.flatMap((t) => {
+          const sheet = wb.sheets[sheetIds.indexOf(t.tabId)]
+          return sheet?.pivots.some((p) => p.name === t.name) ? [{ sheet: sheet.name, name: t.name }] : []
+        })
+        if (!pivotCache || !tables.length) {
+          lost.push(o.id)
+          continue
+        }
+        Object.assign(o, { table: -1, column: cache.field, ...settings })
+        o.pivot = { cacheId: pivotCache.id, field: cache.field, tables }
+      } else {
+        const table = cache && wb.sheets.flatMap((s) => s.tables).find((t) => t.id === cache.tableId)
+        const index = cache && table ? (tableColumnIds.get(table.id) ?? []).indexOf(cache.columnId) : -1
+        const column = table?.columns[index]
+        if (!cache || !table || !column) {
+          lost.push(o.id)
+          continue
+        }
+        Object.assign(o, { table: table.id, column: column.name, ...settings })
       }
-      Object.assign(o, {
-        table: table.id,
-        column: column.name,
-        sort: cache.sort,
-        customLists: cache.customLists,
-        crossFilter: cache.crossFilter,
-      })
-      if (cache.hideNoData) o.hideNoData = true
-      if (cache.uid) o.cacheUid = cache.uid
+      if (cache!.hideNoData) o.hideNoData = true
+      if (cache!.uid) o.cacheUid = cache!.uid
     }
     if (lost.length) {
       sheet.objects = sheet.objects.filter((o) => !lost.includes(o.id))

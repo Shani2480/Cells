@@ -69,6 +69,8 @@ export type PivotCache = {
   records: PivotValue[][]
   /** Refresh when the file opens (Excel's "Refresh data when opening the file"). */
   refreshOnLoad: boolean
+  /** Excel 2010's id for the cache, which PivotTable slicers name it by (x14 pivotCacheId). */
+  slicerId?: number
 }
 
 /** How a value field summarizes (Value Field Settings › Summarize Values By). */

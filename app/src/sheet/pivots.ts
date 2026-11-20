@@ -18,6 +18,10 @@ import {
   pivotChartData,
   type PivotChartLink,
   type SheetChart,
+  type SheetObject,
+  type SheetSlicer,
+  pivotSlicerRenamed,
+  isChart,
   type GroupSettings,
   fieldShared,
   withFieldIn,
@@ -587,7 +591,11 @@ export class PivotCommands {
     const data = readPivotSource(wb.sheets, wb.styles, source)
     if (typeof data === "string") return data
     if (!data.records.length && source.kind === "range") return "Reference isn't valid."
-    const raw = pivotCacheFrom(nextPivotCacheId(wb.pivotCaches), source, data)
+    const fresh = pivotCacheFrom(nextPivotCacheId(wb.pivotCaches), source, data)
+    // Excel shares the cache of a PivotTable made from the same data (so slicers can filter both); one that groups
+    // dates for a recommendation gets its own, so the others' fields stay as they are.
+    const shared = recipe?.dates ? undefined : wb.pivotCaches.find((c) => sameCacheData(c, fresh))
+    const raw = shared ?? fresh
     const newSheet = dest.kind === "newSheet"
     const index = newSheet ? this.c.sheetIndex : dest.sheet
     const at = newSheet ? { row: 2, col: 0 } : dest.at
@@ -608,7 +616,7 @@ export class PivotCommands {
     const plan = pivotCellsPlan(sheets, wb.styles, index, null, table, cache)
     const ops: Op[] = [
       ...(newSheet ? [{ kind: "addSheet" as const, sheet: index, name }] : []),
-      { kind: "pivotCaches", caches: [...wb.pivotCaches, cache] },
+      ...(cache === shared ? [] : [{ kind: "pivotCaches" as const, caches: [...wb.pivotCaches, cache] }]),
       ...plan.ops,
       { kind: "pivots", sheet: index, tables: [...sheets[index].pivots, plan.table] },
     ]
@@ -1021,6 +1029,14 @@ export class PivotCommands {
           const cache = wb.pivotCaches.find((x) => x.id === t.cacheId)
           return cache ? staticPivotChart(c, t, cache) : c
         },
+        // A slicer lets go of the PivotTables deleted; one left with none goes too.
+        (o) => {
+          const deleted = (t: { sheet: string; name: string }) =>
+            t.sheet.toLowerCase() === sheet.name.toLowerCase() &&
+            gone.some((g) => g.name.toLowerCase() === t.name.toLowerCase())
+          const tables = o.pivot!.tables.filter((t) => !deleted(t))
+          return tables.length ? { ...o, pivot: { ...o.pivot!, tables } } : null
+        },
       ),
     )
     this.c.transact(ops, { label: "Clear", before: this.c.selection, after: this.c.selection })
@@ -1290,6 +1306,47 @@ export class PivotCommands {
     return at ? this.relayout(at, withSort(at.table, at.cache, field, sort), "Sort") : false
   }
 
+  /**
+   * Slicers' picks: each PivotTable (on any sheet) laid out anew with its fields' items shown as given (`shown` null:
+   * all of them), as one undo step with the `extra` ops (a slicer's new connections). The selection stays.
+   */
+  slicerPick(
+    changes: readonly { sheet: number; table: PivotTable; field: number; shown: ReadonlySet<number> | null }[],
+    cache: PivotCache,
+    label: string,
+    extra: Op[] = [],
+  ): boolean {
+    if (this.c.edit) this.c.commitEdit()
+    const ops: Op[] = [...extra]
+    let overwrites = false
+    const bySheet = new Map<number, PivotTable[]>()
+    const tables = [...new Set(changes.map((x) => x.table))]
+    for (const table of tables) {
+      const own = changes.filter((x) => x.table === table)
+      const sheet = own[0].sheet
+      const next = own.reduce((t, x) => withShownItems(t, cache, x.field, x.shown), table)
+      if (next === table) continue
+      const plan = pivotCellsPlan(this.c.wb.sheets, this.c.wb.styles, sheet, table, next, cache)
+      overwrites ||= plan.overwrites !== null
+      ops.push(...plan.ops)
+      const list = bySheet.get(sheet) ?? [...this.c.wb.sheets[sheet].pivots]
+      bySheet.set(
+        sheet,
+        list.map((t) => (t === table ? plan.table : t)),
+      )
+    }
+    if (!bySheet.size && !extra.length) return false
+    for (const [sheet, list] of bySheet) ops.push({ kind: "pivots", sheet, tables: list })
+    const sel = this.c.selection
+    const go = () => {
+      const entry = this.c.transact(ops, { label, before: sel, after: sel })
+      if (entry) this.fitColumns(entry, ops)
+    }
+    if (overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, this.c.sheet.name), go)
+    else go()
+    return true
+  }
+
   private relayout(
     at: { table: PivotTable; cache: PivotCache },
     next: PivotTable,
@@ -1329,6 +1386,15 @@ export type PivotFilterCommands = Pick<
   "choices" | "showItems" | "setFilter" | "clearField" | "valueNames" | "pickPage" | "sortField"
 >
 
+/** Does cache `c` hold just what a new cache `fresh` read from the same source does (no groups or calculated fields)? */
+function sameCacheData(c: PivotCache, fresh: PivotCache): boolean {
+  const src = (x: PivotCache) => JSON.stringify(x.source).toLowerCase()
+  if (src(c) !== src(fresh) || c.fields.length !== fresh.fields.length) return false
+  if (c.fields.some((f, i) => f.group || f.formula !== undefined || f.name !== fresh.fields[i].name)) return false
+  if (c.records.length !== fresh.records.length) return false
+  return c.records.every((r, i) => r.length === fresh.records[i].length && r.every((v, j) => v === fresh.records[i][j]))
+}
+
 /** A range with $ signs, as Excel's Table/Range box shows it. */
 function absolute(r: { r0: number; c0: number; r1: number; c1: number }): string {
   return rangeName(r)
@@ -1338,8 +1404,8 @@ function absolute(r: { r0: number; c0: number; r1: number; c1: number }): string
 }
 
 /**
- * The ops that point every PivotChart of PivotTable `name` on sheet `sheet` at its new sheet and name (`sheets` as
- * the ops number them).
+ * The ops that point every PivotChart and slicer of PivotTable `name` on sheet `sheet` at its new sheet and name
+ * (`sheets` as the ops number them).
  */
 function pivotChartLinkOps(
   sheets: readonly Sheet[],
@@ -1348,22 +1414,43 @@ function pivotChartLinkOps(
   toSheet: string,
   toName: string,
 ): Op[] {
-  return pivotChartOps(sheets, sheet, [name], (c) => ({ ...c, pivot: { ...c.pivot!, sheet: toSheet, name: toName } }))
+  return pivotChartOps(
+    sheets,
+    sheet,
+    [name],
+    (c) => ({ ...c, pivot: { ...c.pivot!, sheet: toSheet, name: toName } }),
+    (o) => {
+      const pivot = pivotSlicerRenamed(o.pivot!, { sheet, name }, { sheet: toSheet, name: toName })
+      return pivot ? { ...o, pivot } : o
+    },
+  )
 }
 
-/** The ops that change every PivotChart of the PivotTables `names` on sheet `sheet` with `make`. */
+/**
+ * The ops that change every PivotChart of the PivotTables `names` on sheet `sheet` with `make`, and every slicer
+ * connected to one of them with `slicer` (null: the slicer goes).
+ */
 function pivotChartOps(
   sheets: readonly Sheet[],
   sheet: string,
   names: readonly string[],
   make: (c: SheetChart) => SheetChart,
+  slicer: (o: SheetSlicer) => SheetSlicer | null,
 ): Op[] {
   const ops: Op[] = []
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
-  const hit = (c: SheetChart) => !!c.pivot && same(c.pivot.sheet, sheet) && names.some((n) => same(c.pivot!.name, n))
+  const named = (t: { sheet: string; name: string }) => same(t.sheet, sheet) && names.some((n) => same(t.name, n))
+  const hit = (o: SheetObject) =>
+    isChart(o) ? !!o.pivot && named(o.pivot) : o.kind === "slicer" && !!o.pivot?.tables.some(named)
   sheets.forEach((s, i) => {
-    if (!s.charts.some(hit)) return
-    ops.push({ kind: "charts", sheet: i, charts: s.charts.map((c) => (hit(c) ? make(c) : c)) })
+    if (!s.objects.some(hit)) return
+    const objects = s.objects.flatMap((o) => {
+      if (!hit(o)) return [o]
+      if (isChart(o)) return [make(o)]
+      const next = slicer(o as SheetSlicer)
+      return next ? [next] : []
+    })
+    ops.push({ kind: "objects", sheet: i, objects })
   })
   return ops
 }

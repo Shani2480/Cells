@@ -166,3 +166,74 @@ export function SlicerSettingsDialog({
     </Dialog>
   )
 }
+
+/**
+ * Slicer › Report Connections (the PivotTables a slicer filters) and PivotTable Analyze › Filter Connections (the
+ * slicers that filter a PivotTable), as Excel lists them: a box per row, with its name and sheet.
+ */
+export function SlicerConnectionsDialog({
+  controller,
+  slicer,
+  onClose,
+}: {
+  controller: SheetController
+  /** Report Connections for this slicer; else Filter Connections for the active PivotTable. */
+  slicer?: SheetSlicer
+  onClose: () => void
+}) {
+  const rows = slicer
+    ? controller.slicers.reportConnections(slicer).map((r) => ({ key: r.key, name: r.name, sheet: r.sheet, on: r.on }))
+    : controller.slicers
+        .filterConnections()
+        .map((r) => ({ key: String(r.id), name: r.caption || r.name, sheet: r.sheet, on: r.on }))
+  const [picked, setPicked] = useState(() => rows.filter((r) => r.on).map((r) => r.key))
+  const accept = () => {
+    if (slicer) {
+      const message = controller.slicers.setReportConnections(slicer, picked)
+      if (message) return controller.shell.alert(message)
+    } else controller.slicers.setFilterConnections(picked.map(Number))
+    onClose()
+  }
+  const title = slicer ? `Report Connections (${slicer.name})` : "Filter Connections"
+  return (
+    <Dialog title={title} width={380} onCancel={onClose} onAccept={accept}>
+      <p className="dialog-label">
+        {slicer
+          ? "Select PivotTable reports to connect to this filter"
+          : "Select slicers to connect to this PivotTable"}
+      </p>
+      {rows.length ? (
+        <table className="slicer-connections" aria-label={slicer ? "PivotTables" : "Slicers"}>
+          <thead>
+            <tr>
+              <th />
+              <th>Name</th>
+              <th>Sheet</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.key}>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={r.name}
+                    data-autofocus={i === 0 || undefined}
+                    checked={picked.includes(r.key)}
+                    onChange={(e) =>
+                      setPicked((p) => (e.target.checked ? [...p, r.key] : p.filter((x) => x !== r.key)))
+                    }
+                  />
+                </td>
+                <td>{r.name}</td>
+                <td>{r.sheet}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="dialog-label">This PivotTable has no slicers to connect to. Insert one with Insert Slicer.</p>
+      )}
+    </Dialog>
+  )
+}

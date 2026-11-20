@@ -1,4 +1,5 @@
 import { copiedSheetCharts, copyChart, nextChartId, type ChartAnchor, type SheetChart } from "./chart"
+import type { PivotSlicerLink } from "./pivot/slicer"
 import { parseLinear, toLinear } from "./math/linear"
 import type { MathList } from "./math/model"
 import type { Sheet } from "./sheet"
@@ -274,6 +275,8 @@ export type SheetSlicer = ObjectBase & {
   cache?: string
   uid?: string
   cacheUid?: string
+  /** A PivotTable slicer: the cache field it filters and its PivotTables (`table` is then -1, `column` the field). */
+  pivot?: PivotSlicerLink
 }
 
 export type DrawingObject = SheetShape | SheetPicture | SheetGroup | SheetSlicer

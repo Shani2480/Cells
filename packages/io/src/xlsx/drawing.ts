@@ -17,7 +17,7 @@ import {
   PICTURE_TYPES,
   pivotChartData,
   readChartData,
-  slicerTarget,
+  slicerConnected,
   type ChartAnchor,
   type ChartCorner,
   type DrawingObject,
@@ -282,7 +282,12 @@ function pivotLinkOf(xml: string): PivotChartLink | null {
 }
 
 const unescapeXml = (t: string) =>
-  t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")
+  t
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
 
 /**
  * What a chart writes: a PivotChart's points and refs from its PivotTable (and its c:pivotSource), another chart's
@@ -294,7 +299,9 @@ function chartToWrite(wb: Workbook, chart: SheetChart, fileName: string): { spec
     const data = pivotChartData(pivot.table, pivot.cache, chart.pivot!.sheet)
     const spec = withSheetData(chart.spec as Partial<ChartSpec>, data)
     spec.levels = data.levels.length ? data.levels : undefined
-    const quoted = /^[A-Za-z_][\w.]*$/.test(chart.pivot!.sheet) ? chart.pivot!.sheet : `'${chart.pivot!.sheet.replace(/'/g, "''")}'`
+    const quoted = /^[A-Za-z_][\w.]*$/.test(chart.pivot!.sheet)
+      ? chart.pivot!.sheet
+      : `'${chart.pivot!.sheet.replace(/'/g, "''")}'`
     return {
       spec,
       refs: {
@@ -373,7 +380,7 @@ export function writeDrawing(
     (o) =>
       !isSignatureLine(o) &&
       !isEmbeddedObject(o) &&
-      (isChart(o) || o.kind !== "slicer" || slicerTarget(wb.sheets, o) !== null),
+      (isChart(o) || o.kind !== "slicer" || slicerConnected(wb.sheets, wb.pivotCaches, o)),
   )
   if (!drawn.length && !source?.kept.length) {
     if (source) {

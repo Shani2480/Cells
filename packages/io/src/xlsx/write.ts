@@ -8,6 +8,10 @@ import {
   isChart,
   quoteSheet,
   slicerTarget,
+  pivotSlicerTarget,
+  pivotSlicerItems,
+  pivotSlicerOrder,
+  type PivotSlicerTarget,
   type Range,
   type Sheet,
   type SheetSlicer,
@@ -108,7 +112,9 @@ import {
   URI_WB_PIVOT_SLICER_CACHES,
   URI_WB_SLICER_CACHES,
   withoutExts,
+  workbookPivotSlicersExt,
   workbookSlicersExt,
+  pivotSlicerCacheXml,
 } from "./slicers"
 import { rangeRef, SharedStrings, writeSheet } from "./sheet-write"
 import { structuredToFile, tableXml } from "./table"
@@ -233,7 +239,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       CHARTSHEET_REL.test(r.type) ||
       (VBA_REL.test(r.type) && !allowsMacros(fileName)),
   )
-  // Table slicers: their caches are written anew (a file with PivotTable slicers keeps them all as read).
+  // Slicers: their caches are written anew (a file with slicers Cells can't read keeps them all as read).
   const ownSlicers = source?.slicersModelled !== false
   if (ownSlicers) for (const r of wbRels) if (r.type === REL_SLICER_CACHE && !dropped.includes(r)) dropped.push(r)
   // Links to other workbooks: Cells writes them anew, unless the file had links of other kinds (kept as read).
@@ -308,37 +314,62 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   const conns = connectionsXml(source?.keptConnections ?? [], textLinks)
   const usedQueryTables = new Set<string>()
 
-  // One slicer cache per table column with slicers; its name is the file's when it can stay.
-  type Cache = { name: string; tableId: number; column: string; columnId: number; slicer: SheetSlicer }
+  // One slicer cache per table column with slicers, and per PivotTable field and set of PivotTables; its name is the
+  // file's when it can stay.
+  type Cache = { name: string; slicer: SheetSlicer } & (
+    { kind: "table"; tableId: number; column: string; columnId: number } | { kind: "pivot"; target: PivotSlicerTarget }
+  )
   const caches = new Map<string, Cache>()
   const cacheOf = new Map<SheetSlicer, Cache>()
+  /** The x14 ids of the PivotTable caches that slicers name (an id of their own for caches that have none yet). */
+  const slicerIds = new Map<number, number>()
   if (ownSlicers) {
     // The file's slicers parts are written anew.
     for (const p of [...parts.values()]) if (p.contentType === CT_SLICER) remove(p.name)
     const taken = new Set(wb.names.all().map((n) => n.name.toUpperCase()))
+    const used = new Set(wb.pivotCaches.flatMap((c) => (c.slicerId !== undefined ? [c.slicerId] : [])))
     for (const sheet of wb.sheets)
       for (const o of sheet.objects) {
         if (isChart(o) || o.kind !== "slicer") continue
-        const target = slicerTarget(wb.sheets, o)
-        if (!target) continue
-        const index = target.col - target.table.range.c0
-        const key = `${target.table.id}:${index}`
-        let cache = caches.get(key)
-        if (!cache) {
-          const name =
-            o.cache && !taken.has(o.cache.toUpperCase())
-              ? o.cache
-              : slicerCacheName(target.table.columns[index].name, taken)
+        const nameFor = (column: string) => {
+          const name = o.cache && !taken.has(o.cache.toUpperCase()) ? o.cache : slicerCacheName(column, taken)
           taken.add(name.toUpperCase())
-          cache = {
-            name,
-            tableId: target.table.id,
-            column: target.table.columns[index].name,
-            columnId: index + 1,
-            slicer: o,
-          }
-          caches.set(key, cache)
+          return name
         }
+        let key: string
+        let make: () => Cache
+        if (o.pivot) {
+          const target = pivotSlicerTarget(wb.sheets, wb.pivotCaches, o)
+          if (!target) continue
+          const field = target.cache.fields[target.field].name
+          key = `p:${target.cache.id}:${target.field}:${target.tables.map((t) => `${t.sheet}!${t.table.name}`).join("|")}`
+          make = () => ({ kind: "pivot", name: nameFor(field), slicer: o, target })
+          if (!slicerIds.has(target.cache.id)) {
+            let id = target.cache.slicerId
+            if (id === undefined) {
+              id = 1000 + target.cache.id
+              while (used.has(id)) id++
+              used.add(id)
+            }
+            slicerIds.set(target.cache.id, id)
+          }
+        } else {
+          const target = slicerTarget(wb.sheets, o)
+          if (!target) continue
+          const index = target.col - target.table.range.c0
+          key = `${target.table.id}:${index}`
+          const column = target.table.columns[index].name
+          make = () => ({
+            kind: "table",
+            name: nameFor(column),
+            slicer: o,
+            tableId: target.table.id,
+            column,
+            columnId: index + 1,
+          })
+        }
+        let cache = caches.get(key)
+        if (!cache) caches.set(key, (cache = make()))
         cacheOf.set(o, cache)
       }
   }
@@ -349,10 +380,12 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   const cachePart = new Map<number, string>()
   /** Caches written anew, as written (every axis field's shared items listed). */
   const cacheWritten = new Map<number, ReturnType<typeof cacheForWriting>>()
-  for (const cache of wb.pivotCaches) {
+  for (let cache of wb.pivotCaches) {
     const tables = wb.sheets.flatMap((s) => s.pivots.filter((t) => t.cacheId === cache.id))
     if (!tables.length || cachePart.has(cache.id)) continue
     const was = source?.pivots?.caches.get(cache.id)
+    const slicerId = slicerIds.get(cache.id)
+    if (slicerId !== undefined && cache.slicerId !== slicerId) cache = { ...cache, slicerId }
     const out = cacheForWriting(cache, tables)
     const same =
       was !== undefined &&
@@ -506,16 +539,22 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         )
       : null
     // The sheet's table slicers, in their own part.
-    let slicers: { relId: string | null } | undefined
+    let slicers: { relId: string | null; pivotRelId: string | null } | undefined
     if (ownSlicers) {
       const list = sheet.objects.flatMap((o) =>
-        !isChart(o) && o.kind === "slicer" && cacheOf.has(o) ? [{ slicer: o, cache: cacheOf.get(o)!.name }] : [],
+        !isChart(o) && o.kind === "slicer" && cacheOf.has(o) ? [{ slicer: o, cache: cacheOf.get(o)! }] : [],
       )
-      slicers = { relId: null }
-      if (list.length) {
+      const written: { relId: string | null; pivotRelId: string | null } = { relId: null, pivotRelId: null }
+      slicers = written
+      // Table slicers and PivotTable slicers each have a part of their own.
+      for (const kind of ["pivot", "table"] as const) {
+        const own = list.filter((x) => x.cache.kind === kind).map((x) => ({ slicer: x.slicer, cache: x.cache.name }))
+        if (!own.length) continue
         const part = freeName((n) => `/xl/slicers/slicer${n}.xml`)
-        put(part, CT_SLICER, slicerPartXml(list))
-        slicers.relId = addRel(partName, REL_SLICER, part)
+        put(part, CT_SLICER, slicerPartXml(own))
+        const relId = addRel(partName, REL_SLICER, part)
+        if (kind === "pivot") written.pivotRelId = relId
+        else written.relId = relId
       }
     }
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active || (views[i]?.selected ?? false) }
@@ -547,10 +586,33 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   })
 
   const cacheRels: string[] = []
+  const pivotCacheRels: string[] = []
   for (const cache of caches.values()) {
     const part = freeName((n) => `/xl/slicerCaches/slicerCache${n}.xml`)
-    put(part, CT_SLICER_CACHE, slicerCacheXml(cache))
-    cacheRels.push(addRel(main, REL_SLICER_CACHE, part))
+    if (cache.kind === "pivot") {
+      const { target, slicer } = cache
+      const shown = new Map(pivotSlicerItems(target, { ...slicer, hideNoData: false }).map((i) => [i.key, i]))
+      put(
+        part,
+        CT_SLICER_CACHE,
+        pivotSlicerCacheXml({
+          name: cache.name,
+          field: target.cache.fields[target.field].name,
+          slicer,
+          pivotCacheId: slicerIds.get(target.cache.id)!,
+          tables: target.tables.map((t) => ({ tabId: t.sheet + 1, name: t.table.name })),
+          items: pivotSlicerOrder(target.cache, target.field, slicer.sort === "descending").map((x) => ({
+            x,
+            selected: shown.get(`x:${x}`)?.selected ?? true,
+            data: shown.get(`x:${x}`)?.data ?? true,
+          })),
+        }),
+      )
+      pivotCacheRels.push(addRel(main, REL_SLICER_CACHE, part))
+    } else {
+      put(part, CT_SLICER_CACHE, slicerCacheXml(cache))
+      cacheRels.push(addRel(main, REL_SLICER_CACHE, part))
+    }
   }
 
   // Tables that are gone (converted to a range, or their sheet deleted) leave with their parts.
@@ -652,7 +714,8 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     if (ownSlicers) {
       const ext = kept.find((k) => k.local === "extLst")
       const rest = ext ? withoutExts(ext.xml, [URI_WB_SLICER_CACHES, URI_WB_PIVOT_SLICER_CACHES]) : ""
-      const xml = cacheRels.length ? withExt(rest || undefined, workbookSlicersExt(cacheRels)) : rest
+      const add = workbookPivotSlicersExt(pivotCacheRels) + workbookSlicersExt(cacheRels)
+      const xml = add ? withExt(rest || undefined, add) : rest
       if (ext) ext.xml = xml
       else if (xml) kept.push({ local: "extLst", xml })
     }
@@ -668,7 +731,14 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         WORKBOOK_ORDER,
         [
           { local: "workbookPr", xml: newTheme ? `<workbookPr/>` : `<workbookPr defaultThemeVersion="202300"/>` },
-          ...(cacheRels.length ? [{ local: "extLst", xml: withExt(undefined, workbookSlicersExt(cacheRels)) }] : []),
+          ...(cacheRels.length || pivotCacheRels.length
+            ? [
+                {
+                  local: "extLst",
+                  xml: withExt(undefined, workbookPivotSlicersExt(pivotCacheRels) + workbookSlicersExt(cacheRels)),
+                },
+              ]
+            : []),
         ],
         generated,
       ) +

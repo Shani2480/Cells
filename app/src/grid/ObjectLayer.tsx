@@ -3,7 +3,7 @@ import {
   isChart,
   plainText,
   slicerLayout,
-  slicerTarget,
+  slicerConnected,
   type DrawingObject,
   type PivotFilterTarget,
   type SheetSlicer,
@@ -215,7 +215,8 @@ export function ObjectLayer({
     for (const o of sheet.objects) {
       if (!isChart(o) && o.hidden) continue
       // A slicer whose table (or column) is gone isn't shown; undo brings it back with the table.
-      if (!isChart(o) && o.kind === "slicer" && !slicerTarget(controller.wb.sheets, o)) continue
+      if (!isChart(o) && o.kind === "slicer" && !slicerConnected(controller.wb.sheets, controller.wb.pivotCaches, o))
+        continue
       const box = chartBox(sheet, o.anchor)
       out.set(o.id, { svg: picture(controller, o, box, theme), box })
     }
