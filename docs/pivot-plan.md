@@ -169,6 +169,18 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    the same cells. Also fixed: a PivotTable's date labels show in their column's format. **Step 5 done.**
 6. **PivotCharts** — Insert › PivotChart and PivotChart from the Analyze tab: a chart that follows its PivotTable
    (field buttons on the chart, filtering from the chart), written with `c:pivotSource`.
+   _Part 1 done:_ `SheetChart.pivot` links a chart to its PivotTable by sheet and name (with Excel's c14 field-button
+   flags); core `pivotChartData` gives Excel's points from the PivotTable's innermost lines (categories, outer row
+   fields as `spec.levels`, a series per innermost column line or "Total", empty cells as gaps) and Excel's refs
+   (label columns and each value column down to the table's last row). io reads `c:pivotSource`/`c14:pivotOptions` and
+   writes them with `c:multiLvlStrRef` categories; on the 7 PivotCharts of fixtures/excel/pivot-chart.xlsx (two row
+   fields, rows × columns, two values, pie, a collapsed item, a report filter, a chart on another sheet) the names,
+   refs, categories and points equal Excel's caches, and the file with every chart rewritten opens in Excel 365 without
+   repairs, each a PivotChart of its PivotTable with the same values. The renderer draws multi-level category axes
+   (columns and bars). Insert › PivotChart / Analyze › PivotChart is a split button (type gallery); outside a
+   PivotTable it opens Create PivotChart (a PivotTable and its chart). Renaming or moving the PivotTable, or renaming
+   its sheet, carries the link; deleting the PivotTable leaves the chart static, as Excel does. Next (part 2): the
+   field buttons drawn on the chart with filtering and sorting from them, and the PivotChart Analyze tab.
 7. **Recommended PivotTables, Quick Analysis, Slicers and Timelines** — Recommended PivotTables (Insert tab), the
    PivotTable choices on Quick Analysis' Tables tab, slicers for PivotTables (today a file with them keeps them as
    read), and **Timelines** (Insert › Timeline, the Timeline tab, x15 timeline parts) for date fields.

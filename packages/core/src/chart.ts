@@ -36,6 +36,18 @@ export type SheetChart = {
   decorative?: boolean
   /** Inside a group: where it sits in the group (pixels of the group's own size). */
   box?: { x: number; y: number; w: number; h: number }
+  /** A PivotChart: the PivotTable it shows (its points come from it; `refs` are written from its layout). */
+  pivot?: PivotChartLink
+}
+
+/**
+ * A PivotChart's PivotTable, by sheet and name, and its field buttons (PivotChart Analyze › Field Buttons; Excel's
+ * c14:pivotOptions): report filters, value fields, axis fields, legend fields, and all of them at once.
+ */
+export type PivotChartLink = {
+  sheet: string
+  name: string
+  buttons?: { filter: boolean; categories: boolean; data: boolean; series: boolean; visible: boolean }
 }
 
 const corner = (c: ChartCorner): ChartCorner => ({ ...c })
@@ -46,6 +58,7 @@ export function copyChart(c: SheetChart): SheetChart {
     anchor: { from: corner(c.anchor.from), to: corner(c.anchor.to) },
     spec: structuredCopy(c.spec),
     refs: c.refs ? { categories: c.refs.categories, series: c.refs.series.map((s) => ({ ...s })) } : null,
+    ...(c.pivot ? { pivot: { ...c.pivot, ...(c.pivot.buttons ? { buttons: { ...c.pivot.buttons } } : {}) } } : {}),
   }
 }
 

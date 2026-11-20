@@ -257,7 +257,7 @@ type DialogState =
   | { kind: "textToColumns"; range: Range; texts: string[] }
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "pivotFilter"; request: PivotFilterRequest }
-  | { kind: "createPivot"; source?: string; mode?: "source" | "move" }
+  | { kind: "createPivot"; source?: string; mode?: "source" | "move" | "chart"; chartType?: string }
   | { kind: "pivotValue"; index: number }
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
   | { kind: "pivotField"; field: number }
@@ -1007,6 +1007,7 @@ function WorkbookWindow({
     else if (kind === "createPivot") setDialog({ kind: "createPivot", source: arg })
     else if (kind === "pivotSource") setDialog({ kind: "createPivot", mode: "source" })
     else if (kind === "pivotMove") setDialog({ kind: "createPivot", mode: "move" })
+    else if (kind === "createPivotChart") setDialog({ kind: "createPivot", mode: "chart", chartType: arg })
     else if (kind === "pivotValue") setDialog({ kind: "pivotValue", index: Number(arg) })
     else if (kind === "pivotShowAs") {
       const [index, as] = arg.split("/")
@@ -1472,7 +1473,13 @@ function WorkbookWindow({
           <CalculatedFieldDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "createPivot" ? (
-          <CreatePivotDialog controller={controller} source={dialog.source} mode={dialog.mode} onClose={closeDialog} />
+          <CreatePivotDialog
+            controller={controller}
+            source={dialog.source}
+            mode={dialog.mode}
+            chartType={dialog.chartType}
+            onClose={closeDialog}
+          />
         ) : null}
         {dialog?.kind === "pivotFilter" ? (
           <PivotFilterDialog controller={controller} request={dialog.request} onClose={closeDialog} />

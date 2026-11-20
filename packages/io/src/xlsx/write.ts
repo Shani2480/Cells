@@ -492,6 +492,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       rels,
       freeName,
       putBytes: (name, contentType, data) => parts.set(partKey(name), { name, contentType, data }),
+      fileName: fileName.split(/[\\/]/).pop(),
     })
     // Page Layout › Background: its picture in a media part of its own.
     const picture = sheet.background

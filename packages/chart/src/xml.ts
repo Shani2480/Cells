@@ -87,6 +87,29 @@ function stringCache(ref: string, values: string[]) {
   )
 }
 
+/**
+ * A multi-level category axis' cache, as Excel writes a PivotChart's: the innermost level first, each outer level
+ * with a point only where its label starts (empty labels have none).
+ */
+function multiLevelCache(ref: string, inner: string[], outer: string[][]) {
+  const level = (labels: string[], runs: boolean) =>
+    `<c:lvl>` +
+    labels
+      .map((label, i) =>
+        !label || (runs && i > 0 && labels[i - 1] === label && outer.slice(0, outer.indexOf(labels)).every((o) => o[i - 1] === o[i]))
+          ? ""
+          : `<c:pt idx="${i}"><c:v>${escapeXmlText(label)}</c:v></c:pt>`,
+      )
+      .join("") +
+    `</c:lvl>`
+  return (
+    `<c:multiLvlStrRef><c:f>${ref}</c:f><c:multiLvlStrCache><c:ptCount val="${inner.length}"/>` +
+    level(inner, false) +
+    [...outer].reverse().map((labels) => level(labels, true)).join("") +
+    `</c:multiLvlStrCache></c:multiLvlStrRef>`
+  )
+}
+
 /** A series' cached numbers; empty cells (`blanks`) have no point, as Excel writes them. */
 function numberCache(ref: string, values: number[], format = "General", blanks: readonly number[] = []) {
   const skip = new Set(blanks)
@@ -162,6 +185,28 @@ const UP_DOWN_BARS =
 export type ChartXmlRefs = {
   categories: string | null
   series: { name: string | null; values: string }[]
+  /**
+   * A PivotChart: its PivotTable as c:pivotSource names it ("[Book1.xlsx]Sheet1!PivotTable1") and its field buttons
+   * (c14:pivotOptions). Its categories are written with their outer levels (spec.levels) as a multi-level axis.
+   */
+  pivot?: {
+    name: string
+    buttons?: { filter: boolean; categories: boolean; data: boolean; series: boolean; visible: boolean }
+  }
+}
+
+/** A PivotChart's field buttons, as Excel 2010 and later keep them (all shown unless turned off). */
+function pivotOptionsXml() {
+  const pivot = sheetRefs?.pivot
+  if (!pivot) return ""
+  const b = pivot.buttons ?? { filter: true, categories: true, data: true, series: true, visible: true }
+  const flag = (name: string, on: boolean) => (on ? `<c14:${name} val="1"/>` : "")
+  return (
+    `<c:extLst><c:ext uri="{781A3756-C4B2-4CAC-9D66-4F8BD8637D16}" xmlns:c14="http://schemas.microsoft.com/office/drawing/2007/8/2/chart">` +
+    `<c14:pivotOptions>${flag("dropZoneFilter", b.filter)}${flag("dropZoneCategories", b.categories)}` +
+    `${flag("dropZoneData", b.data)}${flag("dropZoneSeries", b.series)}${flag("dropZonesVisible", b.visible)}</c14:pivotOptions>` +
+    `</c:ext></c:extLst>`
+  )
 }
 
 /** Set while one chartSpaceXml call writes a workbook's chart (the series writers read it). */
@@ -254,8 +299,11 @@ function seriesXml(spec: ChartSpec, index: number, group: Group, rows: number) {
       `<c:smooth val="${spec.smooth ? 1 : 0}"/></c:ser>`
     )
   }
+  const levels = sheetRefs?.pivot && spec.levels?.length ? spec.levels.map((level) => visible(spec, level)) : null
   const data =
-    (categoriesRef ? `<c:cat>${stringCache(categoriesRef, categories)}</c:cat>` : "") +
+    (categoriesRef
+      ? `<c:cat>${levels ? multiLevelCache(categoriesRef, categories, levels) : stringCache(categoriesRef, categories)}</c:cat>`
+      : "") +
     `<c:val>${numberCache(valuesRef, values, format, blanks)}</c:val>`
   switch (group) {
     case "bar":
@@ -612,10 +660,12 @@ function chartSpaceXmlNow(source: ChartSpec, workbookRelId?: string) {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<c:chartSpace xmlns:c="${CHART_NS}" xmlns:a="${DRAWING_NS}" xmlns:r="${REL_NS}">` +
     `<c:date1904 val="0"/><c:lang val="en-US"/><c:roundedCorners val="0"/>` +
+    (sheetRefs?.pivot ? `<c:pivotSource><c:name>${escapeXmlText(sheetRefs.pivot.name)}</c:name><c:fmtId val="0"/></c:pivotSource>` : "") +
     `<c:chart>${title}<c:autoTitleDeleted val="${spec.title.show ? 0 : 1}"/>${view3d}${plot}${legend}<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>` +
     `<c:spPr>${solid(area?.fill || look.background)}<a:ln w="${Math.round((area?.lineWidth ?? 0.75) * 12700)}">${solid(areaLine)}</a:ln></c:spPr>` +
     `<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr/></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>` +
     (workbookRelId ? `<c:externalData r:id="${workbookRelId}"><c:autoUpdate val="0"/></c:externalData>` : "") +
+    pivotOptionsXml() +
     `</c:chartSpace>`
   )
 }

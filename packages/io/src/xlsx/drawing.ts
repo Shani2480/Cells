@@ -6,18 +6,22 @@ import {
   readChartSpace,
   withSheetData,
   type ChartSpec,
+  type ChartXmlRefs,
 } from "@cells/chart"
 import {
   dataUrl,
   dataUrlBytes,
   DEFAULT_SLICER_STYLE,
   isChart,
+  parsePivotSourceName,
   PICTURE_TYPES,
+  pivotChartData,
   readChartData,
   slicerTarget,
   type ChartAnchor,
   type ChartCorner,
   type DrawingObject,
+  type PivotChartLink,
   type Sheet,
   type SheetChart,
   type SheetObject,
@@ -241,6 +245,8 @@ export function readDrawing(
       spec: (refs ? keepLook(spec) : spec) as unknown as Record<string, unknown>,
       refs: refs ? { categories: refs.categories, series: refs.series.map((s) => ({ ...s })) } : null,
     }
+    const pivot = pivotLinkOf(chartXml)
+    if (pivot) chart.pivot = pivot
     const descr = at(nv, "descr")
     if (descr) chart.altText = descr
     if (isDecorative(nv)) chart.decorative = true
@@ -253,6 +259,62 @@ export function readDrawing(
       `${unread === 1 ? "A chart" : `${unread} charts`} on ${sheet.name} can't be shown or changed in Cells; ${unread === 1 ? "it is" : "they are"} kept as ${unread === 1 ? "it was" : "they were"} when you save.`,
     )
   return source
+}
+
+/** A PivotChart's PivotTable (c:pivotSource) and its field buttons (c14:pivotOptions), or null for other charts. */
+function pivotLinkOf(xml: string): PivotChartLink | null {
+  const name = /<c:pivotSource>\s*<c:name>([^<]*)<\/c:name>/.exec(xml)?.[1]
+  const at = name ? parsePivotSourceName(unescapeXml(name)) : null
+  if (!at) return null
+  const options = /<c14:pivotOptions>([\s\S]*?)<\/c14:pivotOptions>/.exec(xml)?.[1]
+  if (options === undefined) return at
+  const on = (tag: string) => new RegExp(`<c14:${tag}(?:\\s+val="(?:1|true)")?\\s*/>`).test(options)
+  return {
+    ...at,
+    buttons: {
+      filter: on("dropZoneFilter"),
+      categories: on("dropZoneCategories"),
+      data: on("dropZoneData"),
+      series: on("dropZoneSeries"),
+      visible: on("dropZonesVisible"),
+    },
+  }
+}
+
+const unescapeXml = (t: string) =>
+  t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")
+
+/**
+ * What a chart writes: a PivotChart's points and refs from its PivotTable (and its c:pivotSource), another chart's
+ * from its ranges (or as typed).
+ */
+function chartToWrite(wb: Workbook, chart: SheetChart, fileName: string): { spec: ChartSpec; refs?: ChartXmlRefs } {
+  const pivot = chart.pivot && pivotOf(wb, chart.pivot)
+  if (pivot) {
+    const data = pivotChartData(pivot.table, pivot.cache, chart.pivot!.sheet)
+    const spec = withSheetData(chart.spec as Partial<ChartSpec>, data)
+    spec.levels = data.levels.length ? data.levels : undefined
+    const quoted = /^[A-Za-z_][\w.]*$/.test(chart.pivot!.sheet) ? chart.pivot!.sheet : `'${chart.pivot!.sheet.replace(/'/g, "''")}'`
+    return {
+      spec,
+      refs: {
+        ...data.refs,
+        pivot: { name: `[${fileName}]${quoted}!${chart.pivot!.name}`, buttons: chart.pivot!.buttons },
+      },
+    }
+  }
+  const spec = chart.refs
+    ? withSheetData(chart.spec as Partial<ChartSpec>, readChartData(wb.sheets, wb.styles, chart.refs))
+    : (chart.spec as unknown as ChartSpec)
+  return { spec, refs: chart.refs ?? undefined }
+}
+
+/** A PivotChart's PivotTable and cache, when they are there. */
+function pivotOf(wb: Workbook, link: PivotChartLink) {
+  const sheet = wb.sheets.find((s) => s.name.toLowerCase() === link.sheet.toLowerCase())
+  const table = sheet?.pivots.find((t) => t.name.toLowerCase() === link.name.toLowerCase())
+  const cache = table && wb.pivotCaches.find((c) => c.id === table.cacheId)
+  return table && cache ? { table, cache } : null
 }
 
 const keepLook = (spec: ChartSpec): ChartSpec => ({
@@ -289,6 +351,8 @@ export type DrawingWriter = {
   freeName(pattern: (n: number) => string): string
   /** A binary part (a picture). */
   putBytes(name: string, contentType: string, data: Uint8Array): void
+  /** The file's name, for a PivotChart's c:pivotSource ("[Book1.xlsx]Sheet1!PivotTable1"). */
+  fileName?: string
 }
 
 /**
@@ -387,16 +451,14 @@ export function writeDrawing(
     }
     const chart = object
     const was = source?.charts.get(chart.id)
-    const spec = chart.refs
-      ? withSheetData(chart.spec as Partial<ChartSpec>, readChartData(wb.sheets, wb.styles, chart.refs))
-      : (chart.spec as unknown as ChartSpec)
+    const { spec, refs } = chartToWrite(wb, chart, out.fileName ?? "Book1.xlsx")
     let part: string
     if (was && was.print === print(chart) && was.cache === cacheOf(spec)) part = was.partName
     else {
       if (was) out.removeTree(was.partName)
       part = was?.partName ?? out.freeName((n) => `/xl/charts/chart${n}.xml`)
       // The package writer adds the XML declaration.
-      const xml = chartSpaceXml(spec, undefined, chart.refs ?? undefined).replace(/^<\?xml[^>]*\?>/, "")
+      const xml = chartSpaceXml(spec, undefined, refs).replace(/^<\?xml[^>]*\?>/, "")
       out.put(part, CHART_CONTENT_TYPE, xml)
     }
     if (was) used.add(chart.id)

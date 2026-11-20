@@ -8,6 +8,7 @@ const TITLES = {
   create: "PivotTable from table or range",
   source: "Change PivotTable Data Source",
   move: "Move PivotTable",
+  chart: "Create PivotChart",
 }
 
 /**
@@ -19,6 +20,7 @@ export function CreatePivotDialog({
   controller,
   source: initial,
   mode = "create",
+  chartType = "column",
   onClose,
 }: {
   controller: SheetController
@@ -28,7 +30,9 @@ export function CreatePivotDialog({
    * "source": Analyze › Change Data Source (the Table/Range box only); "move": Analyze › Move PivotTable (where to
    * only).
    */
-  mode?: "create" | "source" | "move"
+  mode?: "create" | "source" | "move" | "chart"
+  /** "chart" (Insert › PivotChart outside a PivotTable): the chart type picked. */
+  chartType?: string
   onClose: () => void
 }) {
   const [source, setSource] = useState(
@@ -49,7 +53,12 @@ export function CreatePivotDialog({
       if (!at) return controller.shell.alert("Reference isn't valid.")
       dest = { kind: "existing", sheet: at.sheet, at: { row: at.range.r0, col: at.range.c0 } }
     }
-    const problem = mode === "move" ? controller.pivots.move(dest) : controller.pivots.create(source, dest)
+    const problem =
+      mode === "move"
+        ? controller.pivots.move(dest)
+        : mode === "chart"
+          ? controller.pivots.createWithChart(source, dest, chartType)
+          : controller.pivots.create(source, dest)
     if (problem) return controller.shell.alert(problem)
     onClose()
   }
@@ -58,7 +67,7 @@ export function CreatePivotDialog({
     <Dialog title={TITLES[mode]} onCancel={onClose} onAccept={accept} width={400}>
       {mode === "move" ? null : (
         <p className="dialog-label">
-          {mode === "source" ? "Choose the data that you want to analyze" : "Select a table or range"}
+          {mode === "create" ? "Select a table or range" : "Choose the data that you want to analyze"}
         </p>
       )}
       <div className="goal-seek-fields" hidden={mode === "move"}>
@@ -74,7 +83,7 @@ export function CreatePivotDialog({
         />
       </div>
       <fieldset className="dialog-group" hidden={mode === "source"}>
-        <legend>Choose where you want the PivotTable to be placed</legend>
+        <legend>Choose where you want the {mode === "chart" ? "PivotChart" : "PivotTable"} to be placed</legend>
         <label className="dialog-radio">
           <input type="radio" name="pivot-place" checked={!existing} onChange={() => setExisting(false)} />
           <span>New Worksheet</span>

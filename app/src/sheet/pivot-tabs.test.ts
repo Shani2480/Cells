@@ -341,3 +341,75 @@ describe("Grouping", () => {
     expect(c.sheet.pivots[0].rows.slice(0, 1)).toEqual([1])
   })
 })
+
+describe("PivotCharts", () => {
+  it("Insert › PivotChart charts the active PivotTable: its lines as categories, outer rows as outer levels", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    const chart = c.pivots.insertChart("column")!
+    expect(chart.pivot).toEqual({ sheet: "Data", name: c.sheet.pivots[0].name })
+    expect(chart.refs).toBeNull()
+    const spec = c.charts.liveSpec(chart)
+    expect(spec.title).toEqual({ show: true, text: "Total" })
+    // In the PivotTable's order: North (Shop, Online), South, East.
+    expect(spec.categories).toEqual(["Shop", "Online", "Online", "Shop"])
+    expect(spec.levels).toEqual([["North", "North", "South", "East"]])
+    expect(spec.series.map((s) => [s.name, s.values])).toEqual([["Total", [4, 5, 2, 1]]])
+    c.undo()
+    expect(c.sheet.charts).toEqual([])
+  })
+
+  it("follows the PivotTable: its fields, its new name, and its sheet's new name", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    const id = c.pivots.insertChart()!.id
+    const chart = () => c.sheet.charts.find((x) => x.id === id)!
+    // Channel moves to the columns: a series per channel.
+    c.pivots.change((t, k) => withFieldIn(t, k, 1, "cols"))
+    const spec = c.charts.liveSpec(chart())
+    expect(spec.categories).toEqual(["North", "South", "East"])
+    expect(spec.levels).toBeUndefined()
+    expect(spec.series.map((s) => [s.name, s.values])).toEqual([
+      ["Shop", [4, 0, 1]],
+      ["Online", [5, 2, 0]],
+    ])
+    expect(spec.series[0].blanks).toEqual([1])
+    expect(c.pivots.rename("Sales")).toBeNull()
+    expect(chart().pivot).toEqual({ sheet: "Data", name: "Sales" })
+    c.undo()
+    expect(chart().pivot?.name).not.toBe("Sales")
+    c.sheets.rename(0, "Facts")
+    expect(chart().pivot?.sheet).toBe("Facts")
+    expect(c.charts.liveSpec(chart()).categories).toEqual(["North", "South", "East"])
+  })
+
+  it("deleting the PivotTable leaves its chart with the points it showed, as Excel does", () => {
+    const c = setup()
+    c.goTo({ r0: 1, c0: 5, r1: 1, c1: 5 })
+    const id = c.pivots.insertChart()!.id
+    expect(c.pivots.deleteCovered([{ r0: 0, c0: 5, r1: 20, c1: 8 }])).toBe(true)
+    const chart = c.sheet.charts.find((x) => x.id === id)!
+    expect(chart.pivot).toBeUndefined()
+    const spec = c.charts.liveSpec(chart)
+    expect(spec.categories).toEqual(["Shop", "Online", "Online", "Shop"])
+    expect(spec.levels).toEqual([["North", "North", "South", "East"]])
+    expect(spec.series[0].values).toEqual([4, 5, 2, 1])
+    c.undo()
+    expect(c.sheet.charts.find((x) => x.id === id)!.pivot?.sheet).toBe("Data")
+  })
+
+  it("outside a PivotTable, Create PivotChart makes a PivotTable and a chart of it", () => {
+    const c = setup()
+    c.goTo({ r0: 0, c0: 0, r1: 0, c1: 0 })
+    expect(c.pivots.createWithChart("A1:D5", { kind: "existing", sheet: 1, at: { row: 2, col: 0 } }, "pie")).toBeNull()
+    expect(c.sheetIndex).toBe(1)
+    const [chart] = c.sheet.charts
+    expect(chart.pivot).toEqual({ sheet: "Other", name: c.sheet.pivots[0].name })
+    // An empty PivotTable: nothing to draw yet.
+    expect(c.charts.liveSpec(chart).type).toBe("pie")
+    c.pivots.change((t, k) => withFieldIn(withFieldIn(t, k, 1, "rows"), k, 3, "values"))
+    const spec = c.charts.liveSpec(c.sheet.charts[0])
+    expect(spec.categories).toEqual(["Shop", "Online"])
+    expect(spec.series[0].values).toEqual([50, 70])
+  })
+})

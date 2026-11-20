@@ -158,8 +158,14 @@ function renameRefs(sheets: Sheet[], from: string, to: string | null): Op[] {
     if (sheet.charts.length) {
       const before = copyCharts(sheet.charts)
       let changed = false
-      for (const chart of sheet.charts)
+      for (const chart of sheet.charts) {
         if (rewriteChartRefs(chart, (ref) => renameSheetRefs(ref, from, to))) changed = true
+        // A PivotChart follows its PivotTable's sheet to its new name.
+        if (to !== null && chart.pivot && chart.pivot.sheet.toLowerCase() === from.toLowerCase()) {
+          chart.pivot = { ...chart.pivot, sheet: to }
+          changed = true
+        }
+      }
       if (changed) undo.push({ kind: "charts", sheet: index, charts: before })
     }
     if (sheet.sparklines.length) {

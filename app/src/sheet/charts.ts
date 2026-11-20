@@ -1,4 +1,6 @@
 import {
+  pivotChartData,
+  type PivotChartLink,
   copyChart,
   chartRefsBox,
   chartRefsFor,
@@ -101,6 +103,14 @@ export class ChartCommands {
   /** The chart as drawn: its look, its data read from the sheet, and the workbook theme's accent colours. */
   liveSpec(chart: SheetChart): ChartSpec {
     const look = chart.spec as Partial<ChartSpec>
+    // A PivotChart: its points from its PivotTable, the outer row fields as the axis' outer levels.
+    const pivot = chart.pivot && this.c.pivots.byLink(chart.pivot)
+    if (pivot) {
+      const data = pivotChartData(pivot.table, pivot.cache, chart.pivot!.sheet)
+      const spec = withSheetData(look, data)
+      spec.levels = data.levels.length ? data.levels : undefined
+      return { ...spec, accents: themeAccents(this.c.wb.theme) }
+    }
     const spec = chart.refs
       ? withSheetData(look, readChartData(this.c.wb.sheets, this.c.wb.styles, chart.refs))
       : normalizeChartSpec(look)
@@ -146,6 +156,36 @@ export class ChartCommands {
       refs,
     }
     if (!this.commit([...sheet.charts, chart], "Insert Chart")) return null
+    this.select(chart.id)
+    this.c.shell.showTab?.("TabChartDesign")
+    return chart
+  }
+
+  /**
+   * Insert › PivotChart (and PivotChart Analyze › PivotChart): a chart of PivotTable `link` on this sheet, in the
+   * middle of the window. Its points follow the PivotTable; a one-series chart is titled with the series' name.
+   */
+  insertPivot(link: PivotChartLink, variant = "column"): SheetChart | null {
+    if (this.c.edit) this.c.commitEdit()
+    const pivot = this.c.pivots.byLink(link)
+    if (!pivot) return null
+    const sheet = this.c.sheet
+    const data = pivotChartData(pivot.table, pivot.cache, link.sheet)
+    const spec: ChartSpec = { ...withVariant(defaultChartSpec("column"), variant), categories: [], series: [] }
+    spec.title = { show: true, text: data.series.length === 1 ? data.series[0].name : "Chart Title" }
+    if (data.series.length === 1 && spec.type !== "pie" && spec.type !== "doughnut") spec.legend = "none"
+    const zoom = this.c.zoom || 1
+    const x = Math.max(0, this.c.scrollX + (this.c.viewWidth / zoom - CHART_WIDTH) / 2)
+    const y = Math.max(0, this.c.scrollY + (this.c.viewHeight / zoom - CHART_HEIGHT) / 2)
+    const chart: SheetChart = {
+      id: nextChartId(this.c.wb.sheets),
+      name: nextChartName(sheet),
+      anchor: anchorOf(sheet, { x, y, w: CHART_WIDTH, h: CHART_HEIGHT }),
+      spec: spec as unknown as Record<string, unknown>,
+      refs: null,
+      pivot: { sheet: link.sheet, name: link.name },
+    }
+    if (!this.commit([...sheet.charts, chart], "Insert PivotChart")) return null
     this.select(chart.id)
     this.c.shell.showTab?.("TabChartDesign")
     return chart

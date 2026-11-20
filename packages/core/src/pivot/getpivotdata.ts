@@ -9,16 +9,17 @@ import { serialToDate } from "../formula/dates"
 import { pivotAxes, pivotFieldName, pivotLayout, type PivotAxisLine, type PivotLayout } from "./engine"
 import { VALUES_FIELD, type PivotCache, type PivotTable, type PivotValue } from "./model"
 
-type Looked = {
+export type PivotLooked = {
   layout: PivotLayout
   axes: ReturnType<typeof pivotAxes>
   cells: Map<string, { row: number; col: number }>
 }
 
 /** Layouts per PivotTable object (tables are replaced, never changed, so the object is the key). */
-const looked = new WeakMap<PivotTable, { cache: PivotCache; at: Looked }>()
+const looked = new WeakMap<PivotTable, { cache: PivotCache; at: PivotLooked }>()
 
-function look(table: PivotTable, cache: PivotCache): Looked {
+/** The layout, axes and value cells of a PivotTable (kept per table object). */
+export function pivotLook(table: PivotTable, cache: PivotCache): PivotLooked {
   const hit = looked.get(table)
   if (hit && hit.cache === cache) return hit.at
   const layout = pivotLayout(table, cache)
@@ -31,7 +32,7 @@ function look(table: PivotTable, cache: PivotCache): Looked {
 
 /** The PivotTable's cells with its report filters above them: where a GETPIVOTDATA reference may point. */
 export function pivotTableRange(table: PivotTable, cache: PivotCache): Range {
-  const { range, pages } = look(table, cache).layout
+  const { range, pages } = pivotLook(table, cache).layout
   return pages ? { ...range, r0: pages.r0 } : range
 }
 
@@ -45,7 +46,7 @@ export function pivotDataCell(
   dataField: string,
   pairs: readonly [string, string | number | boolean][],
 ): { row: number; col: number } | null {
-  const { axes, cells } = look(table, cache)
+  const { axes, cells } = pivotLook(table, cache)
   const lower = dataField.toLowerCase()
   let data = table.values.findIndex((v) => v.name.toLowerCase() === lower)
   if (data < 0)
@@ -121,7 +122,7 @@ function argText(v: PivotValue, date: boolean): string {
  * for a cell that isn't a value.
  */
 export function getPivotDataFormula(table: PivotTable, cache: PivotCache, row: number, col: number): string | null {
-  const { layout, axes } = look(table, cache)
+  const { layout, axes } = pivotLook(table, cache)
   const cell = layout.cells.find((c) => c.row === row && c.col === col)
   if (!cell?.lines) return null
   const [ri, ci] = cell.lines

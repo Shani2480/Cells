@@ -301,3 +301,34 @@ describe("error bars and extra lines", () => {
     expect(errorAmounts("percent", 10, [10, 20])).toEqual([1, 2])
   })
 })
+
+describe("multi-level category axis (a PivotChart's outer row fields)", () => {
+  const spec = (type: "column" | "bar") => ({
+    ...defaultChartSpec("column"),
+    type,
+    categories: ["Shop", "Online", "Online", "Shop"],
+    levels: [["North", "North", "South", "East"]],
+    series: [{ name: "Total", values: [4, 5, 2, 1] }],
+  })
+  const axis = (svg: string) => /<g data-chart-part="axis:category">([\s\S]*?)<\/g>/.exec(svg)![1]
+  const texts = (svg: string) => [...axis(svg).matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1])
+
+  it("labels each run of an outer level once, below the categories", () => {
+    for (const type of ["column", "bar"] as const) {
+      expect(texts(renderChart(spec(type), 480, 290)), type).toEqual([
+        "Shop",
+        "Online",
+        "Online",
+        "Shop",
+        "North",
+        "South",
+        "East",
+      ])
+    }
+  })
+
+  it("other charts keep one level", () => {
+    const { levels: _, ...plain } = spec("column")
+    expect(texts(renderChart(plain, 480, 290))).toEqual(["Shop", "Online", "Online", "Shop"])
+  })
+})

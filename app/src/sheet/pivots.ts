@@ -11,6 +11,9 @@ import {
   groupSettings,
   derivedDateGroups,
   type GroupKind,
+  pivotChartData,
+  type PivotChartLink,
+  type SheetChart,
   type GroupSettings,
   fieldShared,
   withFieldIn,
@@ -80,6 +83,7 @@ import {
   type PivotTable,
   type Table,
 } from "@cells/core"
+import { withSheetData, type ChartSpec } from "@cells/chart"
 import type { SheetController } from "./controller"
 
 /** The width autofit adds for a cell's filter button (17 px and a gap). */
@@ -400,6 +404,30 @@ export class PivotCommands {
     return !!t.cache.fields[t.field].group || derivedDateGroups(t.cache, t.field).length > 0
   }
 
+  /** Insert › PivotChart in a PivotTable: a PivotChart of the active PivotTable (null when there is none). */
+  insertChart(variant = "column") {
+    const t = this.active()
+    if (!t) return null
+    return this.c.charts.insertPivot({ sheet: this.c.sheet.name, name: t.name }, variant)
+  }
+
+  /**
+   * Create PivotChart: a new PivotTable of `source` at `dest`, and a PivotChart of it next to it (as Excel does, on
+   * the PivotTable's sheet). Returns a problem to show, or null.
+   */
+  createWithChart(source: string, dest: PivotDestination, variant = "column"): string | null {
+    return this.create(source, dest, () => void this.insertChart(variant))
+  }
+
+  /** A PivotChart's PivotTable and cache, by the sheet and name it links to (null when gone). */
+  byLink(link: PivotChartLink): { table: PivotTable; cache: PivotCache; sheet: number } | null {
+    const wb = this.c.wb
+    const sheet = wb.sheets.findIndex((s) => s.name.toLowerCase() === link.sheet.toLowerCase())
+    const table = wb.sheets[sheet]?.pivots.find((t) => t.name.toLowerCase() === link.name.toLowerCase())
+    const cache = table && wb.pivotCaches.find((c) => c.id === table.cacheId)
+    return table && cache ? { table, cache, sheet } : null
+  }
+
   /** The active PivotTable's calculated fields (Calculated Field's Name list). */
   calcFields(): { name: string; formula: string }[] {
     const at = this.activeWithCache()
@@ -491,7 +519,7 @@ export class PivotCommands {
    * Create PivotTable's OK: a new cache from the source and an empty PivotTable, on a new sheet before this one (at
    * A3, as Excel puts it) or at a cell, shown and selected so the Fields pane opens on it. A message when it can't.
    */
-  create(sourceText: string, dest: PivotDestination): string | null {
+  create(sourceText: string, dest: PivotDestination, then?: () => void): string | null {
     const source = this.parseSource(sourceText)
     if (!source) return "Reference isn't valid."
     const wb = this.c.wb
@@ -529,6 +557,7 @@ export class PivotCommands {
       this.fieldsOpen = true
       this.fieldsAsked = true
       this.c.changed()
+      then?.()
     }
     if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, sheets[index].name), go)
     else go()
@@ -877,6 +906,8 @@ export class PivotCommands {
       ops.push({ kind: "pivots", sheet: fromAfter, tables: wb.sheets[from].pivots.filter((t) => t !== at.table) })
     }
     ops.push(...plan.ops, { kind: "pivots", sheet: to, tables: [...others, plan.table] })
+    if (to !== fromAfter)
+      ops.push(...pivotChartLinkOps(sheets, wb.sheets[from].name, at.table.name, sheets[to].name, at.table.name))
     const go = () => {
       const entry = this.c.transact(ops, { label: "Move PivotTable", before: this.c.selection, sheetAfter: to })
       if (!entry) return
@@ -915,6 +946,18 @@ export class PivotCommands {
       ...(clear ? [clear] : []),
       ...(caches.length !== wb.pivotCaches.length ? [{ kind: "pivotCaches" as const, caches }] : []),
     ]
+    ops.push(
+      ...pivotChartOps(
+        wb.sheets,
+        sheet.name,
+        gone.map((t) => t.name),
+        (c) => {
+          const t = gone.find((x) => x.name.toLowerCase() === c.pivot!.name.toLowerCase())!
+          const cache = wb.pivotCaches.find((x) => x.id === t.cacheId)
+          return cache ? staticPivotChart(c, t, cache) : c
+        },
+      ),
+    )
     this.c.transact(ops, { label: "Clear", before: this.c.selection, after: this.c.selection })
     return true
   }
@@ -1161,6 +1204,8 @@ export class PivotCommands {
     const plan = pivotCellsPlan(this.c.wb.sheets, this.c.wb.styles, s, at.table, next, at.cache)
     const tables = this.c.sheet.pivots.map((t) => (t === at.table ? plan.table : t))
     const ops: Op[] = [...extra, ...plan.ops, { kind: "pivots", sheet: s, tables }]
+    if (next.name !== at.table.name)
+      ops.push(...pivotChartLinkOps(this.c.wb.sheets, this.c.sheet.name, at.table.name, this.c.sheet.name, next.name))
     const go = () => {
       const entry = this.c.transact(ops, { label, before: this.c.selection })
       if (entry) this.fitColumns(entry, ops)
@@ -1183,4 +1228,38 @@ function absolute(r: { r0: number; c0: number; r1: number; c1: number }): string
     .split(":")
     .map((part) => part.replace(/^([A-Z]+)(\d+)$/, "$$$1$$$2"))
     .join(":")
+}
+
+/**
+ * The ops that point every PivotChart of PivotTable `name` on sheet `sheet` at its new sheet and name (`sheets` as
+ * the ops number them).
+ */
+function pivotChartLinkOps(sheets: readonly Sheet[], sheet: string, name: string, toSheet: string, toName: string): Op[] {
+  return pivotChartOps(sheets, sheet, [name], (c) => ({ ...c, pivot: { ...c.pivot!, sheet: toSheet, name: toName } }))
+}
+
+/** The ops that change every PivotChart of the PivotTables `names` on sheet `sheet` with `make`. */
+function pivotChartOps(
+  sheets: readonly Sheet[],
+  sheet: string,
+  names: readonly string[],
+  make: (c: SheetChart) => SheetChart,
+): Op[] {
+  const ops: Op[] = []
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const hit = (c: SheetChart) => !!c.pivot && same(c.pivot.sheet, sheet) && names.some((n) => same(c.pivot!.name, n))
+  sheets.forEach((s, i) => {
+    if (!s.charts.some(hit)) return
+    ops.push({ kind: "charts", sheet: i, charts: s.charts.map((c) => (hit(c) ? make(c) : c)) })
+  })
+  return ops
+}
+
+/** A PivotChart whose PivotTable is deleted keeps the points it showed, as a chart of its own (as in Excel). */
+function staticPivotChart(chart: SheetChart, table: PivotTable, cache: PivotCache): SheetChart {
+  const data = pivotChartData(table, cache, chart.pivot!.sheet)
+  const { pivot: _, ...rest } = chart
+  const spec = withSheetData(chart.spec as Partial<ChartSpec>, data)
+  if (data.levels.length) spec.levels = data.levels
+  return { ...rest, refs: null, spec: spec as unknown as Record<string, unknown> }
 }

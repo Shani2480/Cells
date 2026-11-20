@@ -1509,6 +1509,14 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
   const categoryLabelWidth = horizontal
     ? Math.min(box.w * 0.35, Math.max(...categories.map((item) => item.length)) * CHAR + 8)
     : 0
+  // A multi-level category axis (a PivotChart's outer row fields): each outer level's labels, outermost first.
+  const outer =
+    showCategoryAxis && !scatter && !spec.dataTable && spec.levels?.length
+      ? spec.levels.map((level) => level.filter((_, index) => !spec.hiddenCategories.includes(index)))
+      : []
+  const outerWidths = outer.map((level) =>
+    Math.min(box.w * 0.2, Math.max(1, ...level.map((item) => (item ?? "").length)) * CHAR + 10),
+  )
   const plot: Box = { ...box }
   const valueTitle = spec.axisTitles.value.show
   const categoryTitle = spec.axisTitles.category.show
@@ -1528,8 +1536,9 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
   }
   if (horizontal) {
     if (showCategoryAxis) {
-      plot.x += categoryLabelWidth
-      plot.w -= categoryLabelWidth
+      const room = categoryLabelWidth + outerWidths.reduce((a, b) => a + b, 0)
+      plot.x += room
+      plot.w -= room
     }
     if (showValueAxis) {
       plot.h -= 18
@@ -1542,7 +1551,7 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
       plot.w -= width2
     }
     if ((showCategoryAxis || scatter) && !spec.dataTable) {
-      plot.h -= 18
+      plot.h -= 18 + 18 * outer.length
     }
   }
   plot.w = Math.max(10, plot.w)
@@ -1737,7 +1746,61 @@ function cartesian(painter: Painter, box: Box, series: Serie[], entries: { name:
             ? `<text x="${n(plot.x - 6)}" y="${n(at + 4)}" text-anchor="end" ${categoryText}>${escapeXml(fit)}</text>`
             : `<text x="${n(at)}" y="${n(plot.y + plot.h + 14)}" text-anchor="middle" ${categoryText}>${escapeXml(fit)}</text>`
         })
-    painter.out.push(`<g data-chart-part="axis:category">${line}${labels.join("")}</g>`)
+    painter.out.push(`<g data-chart-part="axis:category">${line}${labels.join("")}${outerLabels()}</g>`)
+  }
+
+  /** The outer levels' labels, each centred on its run of categories, with lines between the runs. */
+  function outerLabels(): string {
+    if (!outer.length) return ""
+    const tick = partLine(painter, "axis:category", look.axis, 0.75)
+    const out: string[] = []
+    const edge = (column: number, side: -1 | 1) => slot(column) + (side * band) / 2
+    outer.forEach((level, k) => {
+      // A run: the same label under the same outer labels.
+      const runs: { from: number; to: number; label: string }[] = []
+      level.forEach((label, column) => {
+        const last = runs[runs.length - 1]
+        const same =
+          last &&
+          (label ?? "") === last.label &&
+          (!label || outer.slice(0, k).every((o) => o[column] === o[column - 1]))
+        if (same && label) last.to = column
+        else runs.push({ from: column, to: column, label: label ?? "" })
+      })
+      const deeper = outer.length - k
+      for (const run of runs) {
+        const a = slot(run.from)
+        const b = slot(run.to)
+        const lo = Math.min(edge(run.from, -1), edge(run.to, -1), edge(run.from, 1), edge(run.to, 1))
+        const hi = Math.max(edge(run.from, -1), edge(run.to, -1), edge(run.from, 1), edge(run.to, 1))
+        if (horizontal) {
+          const right = plot.x - categoryLabelWidth - outerWidths.slice(k + 1).reduce((x, w) => x + w, 0)
+          const text = clip(run.label, outerWidths[k] - 8)
+          if (text)
+            out.push(
+              `<text x="${n(right - 6)}" y="${n((a + b) / 2 + 4)}" text-anchor="end" ${categoryText}>${escapeXml(text)}</text>`,
+            )
+          out.push(
+            `<line x1="${n(right - outerWidths[k])}" y1="${n(hi)}" x2="${n(plot.x)}" y2="${n(hi)}" stroke="${tick.stroke}" stroke-width="${tick.width}"/>`,
+          )
+        } else {
+          const y = plot.y + plot.h + 14 + 18 * deeper
+          const text = clip(run.label, hi - lo)
+          if (text)
+            out.push(
+              `<text x="${n((a + b) / 2)}" y="${n(y)}" text-anchor="middle" ${categoryText}>${escapeXml(text)}</text>`,
+            )
+          out.push(
+            `<line x1="${n(lo)}" y1="${n(plot.y + plot.h)}" x2="${n(lo)}" y2="${n(y + 4)}" stroke="${tick.stroke}" stroke-width="${tick.width}"/>`,
+          )
+          if (run === runs[runs.length - 1])
+            out.push(
+              `<line x1="${n(hi)}" y1="${n(plot.y + plot.h)}" x2="${n(hi)}" y2="${n(y + 4)}" stroke="${tick.stroke}" stroke-width="${tick.width}"/>`,
+            )
+        }
+      }
+    })
+    return out.join("")
   }
 
   // Series: areas first, then bars, then lines and points, as Word layers a combo chart.

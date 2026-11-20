@@ -213,6 +213,15 @@ function galleryPanel(sections: Section[], pick: (env: RibbonEnv, id: string) =>
 }
 
 const insert = (env: RibbonEnv, id: string) => void env.c.charts.insert(id)
+
+/** The chart types a PivotChart can be (Excel's: no scatter, bubble, stock or the hierarchy and statistical ones). */
+const PIVOT_CHART_TYPES = ["column", "column-stacked", "hbar", "line", "pie", "doughnut", "area", "combo-column-line"]
+
+/** PivotChart: of the active PivotTable, or, outside one, Create PivotChart for a new PivotTable and its chart. */
+const pivotChart = (env: RibbonEnv, id: string) => {
+  if (env.c.pivots.active()) env.c.pivots.insertChart(id)
+  else env.dialog(`createPivotChart:${id}`)
+}
 const inChart = (env: RibbonEnv) => env.c.charts.active() !== null
 
 /** A grid of chart previews to pick a change from (Quick Layout, Chart Styles, Change Colors). */
@@ -308,6 +317,16 @@ export function chartCommands(): Command[] {
       description: "Want us to recommend a good chart to showcase your data? Just select data in your sheet.",
       keytip: "R",
       menu: [galleryPanel([{ heading: "Recommended Charts", ids: RECOMMENDED }], insert)],
+    },
+
+    {
+      id: "PivotChartInsert",
+      label: "PivotChart",
+      description:
+        "Use a PivotChart to graphically summarize data and explore complicated data. In a PivotTable, it charts that PivotTable.",
+      keytip: "ZC",
+      run: (env) => pivotChart(env, "column"),
+      menu: [galleryPanel([{ heading: "PivotChart", ids: PIVOT_CHART_TYPES }], pivotChart)],
     },
 
     // ── Chart Design ──
