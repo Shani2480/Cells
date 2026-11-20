@@ -16,14 +16,21 @@ import {
   type AutoFilter,
   type Op,
   type PivotCache,
+  type PivotTable,
+  withShownItems,
   type SheetObject,
   type SheetSlicer,
+  type SheetTimeline,
 } from "@cells/core"
 import { setSlicerSource, type SlicerView } from "@/drawing/slicer"
 import { anchorOf } from "./charts"
 import { todaySerial, type SheetController } from "./controller"
 
 export type { SlicerView }
+
+/** A PivotTable change: only the items `shown` of field `f` (null: all). */
+const shownIn = (cache: PivotCache, f: number, shown: ReadonlySet<number> | null) => (t: PivotTable) =>
+  withShownItems(t, cache, f, shown)
 
 /** Slicer Settings: what the dialog changes. */
 export type SlicerSettings = Pick<
@@ -139,7 +146,7 @@ export class SlicerCommands {
   private applyPivot(o: SheetSlicer, shown: Set<number> | null): boolean {
     const target = pivotSlicerTarget(this.c.wb.sheets, this.c.wb.pivotCaches, o)
     if (!target) return false
-    const changes = target.tables.map((t) => ({ ...t, field: target.field, shown }))
+    const changes = target.tables.map((t) => ({ ...t, apply: shownIn(target.cache, target.field, shown) }))
     return this.c.pivots.slicerPick(changes, target.cache, "Slicer")
   }
 
@@ -184,7 +191,11 @@ export class SlicerCommands {
     const at = this.c.pivots.active()
     if (!at) return []
     const here = this.c.sheet.name.toLowerCase()
-    return this.all().flatMap(({ sheet, slicer }) =>
+    // Timelines are listed too, as Excel's dialog lists both.
+    const timelines = this.c.wb.sheets.flatMap((s, sheet) =>
+      s.objects.flatMap((o) => (!isChart(o) && o.kind === "timeline" ? [{ sheet, slicer: o }] : [])),
+    )
+    return [...this.all(), ...timelines].flatMap(({ sheet, slicer }) =>
       slicer.pivot && slicer.pivot.cacheId === at.cacheId
         ? [
             {
@@ -206,8 +217,9 @@ export class SlicerCommands {
     const here = { sheet: this.c.sheet.name, name: at.name }
     const same = (t: { sheet: string; name: string }) =>
       t.sheet.toLowerCase() === here.sheet.toLowerCase() && t.name === here.name
+    const objects = this.c.wb.sheets.flatMap((s) => s.objects)
     const changes = this.filterConnections().flatMap((x) => {
-      const slicer = this.all().find((s) => s.slicer.id === x.id)!.slicer
+      const slicer = objects.find((o) => o.id === x.id) as SheetSlicer | SheetTimeline
       const want = ids.includes(x.id)
       if (want === x.on) return []
       const others = slicer.pivot!.tables.filter((t) => !same(t))
@@ -215,7 +227,13 @@ export class SlicerCommands {
       if (!want && !others.length) return []
       return [{ slicer, tables: want ? [...others, here] : others }]
     })
-    return this.connect(changes, "Filter Connections")
+    const slicers = changes.flatMap((x) => (x.slicer.kind === "slicer" ? [{ ...x, slicer: x.slicer }] : []))
+    const timelines = changes.flatMap((x) =>
+      x.slicer.kind === "timeline" ? [{ timeline: x.slicer, tables: x.tables }] : [],
+    )
+    const a = this.connect(slicers, "Filter Connections")
+    const b = this.c.timelines.connect(timelines, "Filter Connections")
+    return a || b
   }
 
   /**
@@ -250,7 +268,7 @@ export class SlicerCommands {
       const pick = (t: { sheet: string; name: string }, items: Set<number> | null) => {
         const sheet = sheets.findIndex((s) => s.name.toLowerCase() === t.sheet.toLowerCase())
         const table = sheets[sheet]?.pivots.find((p) => p.name === t.name)
-        if (table) picks.push({ sheet, table, field: target.field, shown: items })
+        if (table) picks.push({ sheet, table, apply: shownIn(target.cache, target.field, items) })
       }
       for (const t of tables) if (!had(t)) pick(t, shown)
       for (const t of slicer.pivot!.tables) if (!kept(t)) pick(t, null)

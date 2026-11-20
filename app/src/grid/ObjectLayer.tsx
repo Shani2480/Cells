@@ -4,6 +4,9 @@ import {
   plainText,
   slicerLayout,
   slicerConnected,
+  timelineLayout,
+  TIMELINE_LEVELS,
+  type SheetTimeline,
   type DrawingObject,
   type PivotFilterTarget,
   type SheetSlicer,
@@ -12,7 +15,7 @@ import {
   type SheetObject,
   type Theme,
 } from "@cells/core"
-import { Rotate3d } from "lucide-react"
+import { Check, Rotate3d } from "lucide-react"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { renderModel } from "@/drawing/model3d"
 import { canvasMeasure, objectAt, objectDocument } from "@/drawing/render"
@@ -20,6 +23,8 @@ import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
 import { pngKey, preparePng, readyPng } from "./chart-png"
 import { PivotFilterMenu } from "./PivotFilterMenu"
+import { ContextMenu } from "@/shell/ContextMenu"
+import { LEVEL_NAMES } from "@/drawing/timeline"
 import { cellAt, colX, rowY, type GridLayout } from "./layout"
 
 /** Excel's handles: the four corners and the middle of each side. */
@@ -185,6 +190,9 @@ export function ObjectLayer({
   const drawStart = useRef<{ x: number; y: number } | null>(null)
   const layer = useRef<HTMLDivElement>(null)
   // A PivotChart field button's dropdown: the PivotTable's sheet and the cell whose filter button it stands for.
+  // A timeline's time level menu, and a drag across its periods.
+  const [levelMenu, setLevelMenu] = useState<{ id: number; x: number; y: number } | null>(null)
+  const timelineDrag = useRef<{ id: number; box: ChartBox; from: number; to: number } | null>(null)
   const [pivotMenu, setPivotMenu] = useState<{
     sheet: number
     row: number
@@ -215,7 +223,11 @@ export function ObjectLayer({
     for (const o of sheet.objects) {
       if (!isChart(o) && o.hidden) continue
       // A slicer whose table (or column) is gone isn't shown; undo brings it back with the table.
-      if (!isChart(o) && o.kind === "slicer" && !slicerConnected(controller.wb.sheets, controller.wb.pivotCaches, o))
+      if (
+        !isChart(o) &&
+        (o.kind === "slicer" || o.kind === "timeline") &&
+        !slicerConnected(controller.wb.sheets, controller.wb.pivotCaches, o)
+      )
         continue
       const box = chartBox(sheet, o.anchor)
       out.set(o.id, { svg: picture(controller, o, box, theme), box })
@@ -339,13 +351,84 @@ export function ObjectLayer({
     return true
   }
 
-  // The wheel over a slicer with more buttons than fit scrolls them (and not the sheet).
+  /** The timeline's period under a point (its x, y in the timeline), or -1. */
+  const timelinePeriodAt = (o: SheetTimeline, box: ChartBox, x: number, y: number) => {
+    const view = controller.timelines.view(o)
+    const at = timelineLayout(o, o.level, box.w, view.periods.length, view.first)
+    if (y < at.groupY - 8 || y > at.bars.y + at.bars.h) return -1
+    const i = at.periods.findIndex((b) => x >= b.x && x < b.x + b.w)
+    return i < 0 ? -1 : at.first + i
+  }
+  const localPoint = (event: React.PointerEvent) => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+    return { x: (event.clientX - rect.left) / zoom, y: (event.clientY - rect.top) / zoom }
+  }
+  /**
+   * A press on a timeline: a period picks it (Shift+click, or a drag, picks the run), the header's button clears the
+   * dates, the time level opens its menu and the scroll bar's arrows scroll; anywhere else moves it. True when taken.
+   */
+  const timelinePress = (event: React.PointerEvent, o: SheetTimeline, box: ChartBox): boolean => {
+    if (event.button !== 0 || event.altKey) return false
+    const { x, y } = localPoint(event)
+    const view = controller.timelines.view(o)
+    const at = timelineLayout(o, o.level, box.w, view.periods.length, view.first)
+    const inside = (b: { x: number; y: number; w: number; h: number } | null | undefined) =>
+      !!b && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h
+    const period = timelinePeriodAt(o, box, x, y)
+    if (inside(at.clear)) controller.timelines.clear(o)
+    else if (inside(at.level)) setLevelMenu({ id: o.id, x: event.clientX, y: event.clientY })
+    else if (at.scrollbar && inside(at.scrollbar.left)) controller.timelines.scroll(o, -1)
+    else if (at.scrollbar && inside(at.scrollbar.right)) controller.timelines.scroll(o, 1)
+    else if (at.scrollbar && inside(at.scrollbar.box))
+      controller.timelines.scroll(o, (x < at.scrollbar.thumb.x ? -1 : 1) * Math.max(1, at.periods.length - 1))
+    else if (period >= 0) {
+      if (event.shiftKey) controller.timelines.pick(o, period, true)
+      else {
+        timelineDrag.current = { id: o.id, box, from: period, to: period }
+        ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+      }
+    } else return false
+    event.stopPropagation()
+    event.preventDefault()
+    if (!(objects.selected.length === 1 && objects.selected[0] === o.id)) objects.select(o.id)
+    return true
+  }
+  /** A drag across a timeline's periods picks them all, when it ends (one undo step). */
+  const timelineMove = (event: React.PointerEvent): boolean => {
+    const d = timelineDrag.current
+    if (!d) return false
+    const o = objects.find(d.id)
+    if (o && !isChart(o) && o.kind === "timeline") {
+      const { x, y } = localPoint(event)
+      const i = timelinePeriodAt(o, d.box, x, Math.min(Math.max(y, 0), d.box.h))
+      if (i >= 0) d.to = i
+    }
+    return true
+  }
+  const timelineEnd = (): boolean => {
+    const d = timelineDrag.current
+    if (!d) return false
+    timelineDrag.current = null
+    const o = objects.find(d.id)
+    if (!o || isChart(o) || o.kind !== "timeline") return true
+    controller.timelines.pick(o, d.from, false)
+    if (d.to !== d.from) controller.timelines.pick(o, d.to, true)
+    return true
+  }
+
+  // The wheel over a slicer with more buttons than fit scrolls them (and not the sheet); over a timeline, its periods.
   useEffect(() => {
     const el = layer.current
     if (!el) return
     const onWheel = (event: WheelEvent) => {
       const frame = (event.target as HTMLElement).closest<HTMLElement>("[data-object]")
       const o = frame ? objects.find(Number(frame.dataset.object)) : null
+      if (o && !isChart(o) && o.kind === "timeline") {
+        event.preventDefault()
+        event.stopPropagation()
+        controller.timelines.scroll(o, Math.sign(event.deltaY || event.deltaX))
+        return
+      }
       if (!o || isChart(o) || o.kind !== "slicer") return
       const box = chartBox(controller.sheet, o.anchor)
       const at = slicerLayout(o, box.w, box.h, controller.slicers.view(o).items.length)
@@ -436,7 +519,7 @@ export function ObjectLayer({
         return (
           <div
             key={o.id}
-            className={`object-frame${isChart(o) ? " is-chart chart-frame" : ""}${!isChart(o) && o.kind === "slicer" ? " is-slicer" : ""}${selected ? " is-selected" : ""}`}
+            className={`object-frame${isChart(o) ? " is-chart chart-frame" : ""}${!isChart(o) && (o.kind === "slicer" || o.kind === "timeline") ? " is-slicer" : ""}${selected ? " is-selected" : ""}`}
             style={{ ...toScreen(o, p.box), transform: rotation ? `rotate(${rotation}deg)` : undefined }}
             role="img"
             aria-label={o.name}
@@ -444,17 +527,19 @@ export function ObjectLayer({
             data-chart={isChart(o) ? o.id : undefined}
             onPointerDown={(event) => {
               if (!isChart(o) && o.kind === "slicer" && slicerPress(event, o, p.box)) return
+              if (!isChart(o) && o.kind === "timeline" && timelinePress(event, o, p.box)) return
               if (isChart(o) && pivotButtonPress(event, o)) return
               begin(event, o, "move")
             }}
-            onPointerMove={move}
-            onPointerUp={end}
+            onPointerMove={(event) => timelineMove(event) || move(event)}
+            onPointerUp={() => timelineEnd() || end()}
             onPointerCancel={() => {
+              timelineDrag.current = null
               gesture.current = null
               setDrag(null)
             }}
             onDoubleClick={(event) => {
-              if (isChart(o) || o.kind === "slicer") return
+              if (isChart(o) || o.kind === "slicer" || o.kind === "timeline") return
               event.stopPropagation()
               // A signature line opens its setup (signing needs a digital ID, which Cells doesn't have).
               if (o.kind === "picture" && o.signature) controller.shell.openDialog?.(`signatureSetup:${o.id}`)
@@ -575,6 +660,28 @@ export function ObjectLayer({
             />
           ) : null}
         </div>
+      ) : null}
+      {levelMenu ? (
+        <ContextMenu
+          x={levelMenu.x}
+          y={levelMenu.y}
+          onClose={() => {
+            setLevelMenu(null)
+            onDone()
+          }}
+          items={TIMELINE_LEVELS.map((level) => {
+            const o = objects.find(levelMenu.id)
+            const on = !!o && !isChart(o) && o.kind === "timeline" && o.level === level
+            return {
+              kind: "item" as const,
+              label: LEVEL_NAMES[level],
+              icon: on ? <Check size={14} strokeWidth={1.8} /> : undefined,
+              onSelect: () => {
+                if (o && !isChart(o) && o.kind === "timeline") controller.timelines.setLevel(o, level)
+              },
+            }
+          })}
+        />
       ) : null}
       {pivotMenu ? (
         <PivotFilterMenu

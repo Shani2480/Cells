@@ -149,7 +149,10 @@ export function pivotSlicerRenamed(
 export function slicerConnected(
   sheets: readonly Sheet[],
   caches: readonly PivotCache[],
-  slicer: Pick<SheetSlicer, "table" | "column" | "pivot">,
+  slicer: { pivot?: PivotSlicerLink } & Partial<Pick<SheetSlicer, "table" | "column">>,
 ): boolean {
-  return slicer.pivot ? pivotSlicerTarget(sheets, caches, slicer) !== null : slicerTarget(sheets, slicer) !== null
+  if (slicer.pivot) return pivotSlicerTarget(sheets, caches, slicer) !== null
+  return (
+    slicer.table !== undefined && slicer.column !== undefined && slicerTarget(sheets, slicer as SheetSlicer) !== null
+  )
 }

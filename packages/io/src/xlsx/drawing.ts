@@ -27,6 +27,7 @@ import {
   type SheetObject,
   type SheetPicture,
   type SheetSlicer,
+  type SheetTimeline,
   type SignatureSetup,
   type Workbook,
 } from "@cells/core"
@@ -37,6 +38,7 @@ import { objectKey, objectWithMathXml, readObject } from "./shapes"
 import { isEmbeddedObject } from "./ole-objects"
 import { CT_GLB, model3dNode, readModel3d, REL_MODEL3D } from "./model3d"
 import { slicerFrameName, slicerFrameXml, type SlicerRead } from "./slicers"
+import { timelineFrameName, timelineFrameXml, type TimelineRead } from "./timelines"
 import { CT_DGM, readSmartArt, REL_DGM, smartArtFrameXml, smartArtRelIds } from "./smartart"
 
 export const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
@@ -108,6 +110,8 @@ export function readDrawing(
     undefined,
   /** The sheet's table slicers by name (absent: slicers are kept as read). */
   slicers?: ReadonlyMap<string, SlicerRead>,
+  /** The sheet's timelines by name (absent: timelines are kept as read). */
+  timelines?: ReadonlyMap<string, TimelineRead>,
 ): DrawingSource {
   const doc = parseTree(xml)
   const source: DrawingSource = {
@@ -170,6 +174,33 @@ export function readDrawing(
       if (descr) slicer.altText = descr
       if (at(nv, "hidden") === "1" || at(nv, "hidden") === "true") slicer.hidden = true
       sheet.objects.push(slicer)
+      continue
+    }
+    // A timeline: its settings come from the sheet's timelines part (its PivotTables and field from its cache).
+    const timelineName = timelines && placed ? timelineFrameName(anchor) : null
+    const tdef = timelineName !== null ? timelines?.get(timelineName) : undefined
+    if (tdef && placed) {
+      const nv = kid(
+        kid(kid(kids(kid(anchor, "AlternateContent"), "Choice")[0], "graphicFrame"), "nvGraphicFramePr"),
+        "cNvPr",
+      )
+      const { cache, locked, uid, scrollPosition, ...shown } = tdef
+      const timeline: SheetTimeline = {
+        kind: "timeline",
+        id: nextId(),
+        anchor: placed.anchor,
+        pivot: { cacheId: -1, field: "", tables: [] },
+        ...shown,
+        cache,
+      }
+      if (placed.placement) timeline.placement = placed.placement
+      if (scrollPosition !== undefined) timeline.scrollPosition = scrollPosition
+      if (locked) timeline.locked = true
+      if (uid) timeline.uid = uid
+      const descr = at(nv, "descr")
+      if (descr) timeline.altText = descr
+      if (at(nv, "hidden") === "1" || at(nv, "hidden") === "true") timeline.hidden = true
+      sheet.objects.push(timeline)
       continue
     }
     // Excel 2010's form of a shape holding an equation: the Choice (Office Math), with a fallback for older readers.
@@ -380,7 +411,7 @@ export function writeDrawing(
     (o) =>
       !isSignatureLine(o) &&
       !isEmbeddedObject(o) &&
-      (isChart(o) || o.kind !== "slicer" || slicerConnected(wb.sheets, wb.pivotCaches, o)),
+      (isChart(o) || (o.kind !== "slicer" && o.kind !== "timeline") || slicerConnected(wb.sheets, wb.pivotCaches, o)),
   )
   if (!drawn.length && !source?.kept.length) {
     if (source) {
@@ -440,6 +471,10 @@ export function writeDrawing(
       const parts = object.kind === "group" ? object.smartArt?.parts : undefined
       if (object.kind === "slicer") {
         anchors.push(placedXml(object.anchor, object.placement, slicerFrameXml(object, ++shapeId, box)))
+        continue
+      }
+      if (object.kind === "timeline") {
+        anchors.push(placedXml(object.anchor, object.placement, timelineFrameXml(object, ++shapeId, box)))
         continue
       }
       const xml = same

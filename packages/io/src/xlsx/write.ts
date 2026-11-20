@@ -12,6 +12,10 @@ import {
   pivotSlicerItems,
   pivotSlicerOrder,
   type PivotSlicerTarget,
+  type PivotCache,
+  type SheetTimeline,
+  timelineBounds,
+  timelineSelection,
   type Range,
   type Sheet,
   type SheetSlicer,
@@ -116,6 +120,17 @@ import {
   workbookSlicersExt,
   pivotSlicerCacheXml,
 } from "./slicers"
+import {
+  CT_TIMELINE,
+  CT_TIMELINE_CACHE,
+  REL_TIMELINE,
+  REL_TIMELINE_CACHE,
+  timelineCacheName,
+  timelineCacheXml,
+  timelinePartXml,
+  URI_WB_TIMELINE_CACHES,
+  workbookTimelinesExt,
+} from "./timelines"
 import { rangeRef, SharedStrings, writeSheet } from "./sheet-write"
 import { structuredToFile, tableXml } from "./table"
 import { StylesOut } from "./styles"
@@ -241,6 +256,8 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   )
   // Slicers: their caches are written anew (a file with slicers Cells can't read keeps them all as read).
   const ownSlicers = source?.slicersModelled !== false
+  const ownTimelines = source?.timelinesModelled !== false
+  if (ownTimelines) for (const r of wbRels) if (r.type === REL_TIMELINE_CACHE && !dropped.includes(r)) dropped.push(r)
   if (ownSlicers) for (const r of wbRels) if (r.type === REL_SLICER_CACHE && !dropped.includes(r)) dropped.push(r)
   // Links to other workbooks: Cells writes them anew, unless the file had links of other kinds (kept as read).
   const ownLinks = source?.linksModelled !== false
@@ -323,11 +340,22 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   const cacheOf = new Map<SheetSlicer, Cache>()
   /** The x14 ids of the PivotTable caches that slicers name (an id of their own for caches that have none yet). */
   const slicerIds = new Map<number, number>()
+  const usedIds = new Set(wb.pivotCaches.flatMap((c) => (c.slicerId !== undefined ? [c.slicerId] : [])))
+  const needId = (cache: PivotCache) => {
+    if (slicerIds.has(cache.id)) return
+    let id = cache.slicerId
+    if (id === undefined) {
+      id = 1000 + cache.id
+      while (usedIds.has(id)) id++
+      usedIds.add(id)
+    }
+    slicerIds.set(cache.id, id)
+  }
+  const takenNames = new Set(wb.names.all().map((n) => n.name.toUpperCase()))
   if (ownSlicers) {
     // The file's slicers parts are written anew.
     for (const p of [...parts.values()]) if (p.contentType === CT_SLICER) remove(p.name)
-    const taken = new Set(wb.names.all().map((n) => n.name.toUpperCase()))
-    const used = new Set(wb.pivotCaches.flatMap((c) => (c.slicerId !== undefined ? [c.slicerId] : [])))
+    const taken = takenNames
     for (const sheet of wb.sheets)
       for (const o of sheet.objects) {
         if (isChart(o) || o.kind !== "slicer") continue
@@ -344,15 +372,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
           const field = target.cache.fields[target.field].name
           key = `p:${target.cache.id}:${target.field}:${target.tables.map((t) => `${t.sheet}!${t.table.name}`).join("|")}`
           make = () => ({ kind: "pivot", name: nameFor(field), slicer: o, target })
-          if (!slicerIds.has(target.cache.id)) {
-            let id = target.cache.slicerId
-            if (id === undefined) {
-              id = 1000 + target.cache.id
-              while (used.has(id)) id++
-              used.add(id)
-            }
-            slicerIds.set(target.cache.id, id)
-          }
+          needId(target.cache)
         } else {
           const target = slicerTarget(wb.sheets, o)
           if (!target) continue
@@ -371,6 +391,32 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         let cache = caches.get(key)
         if (!cache) caches.set(key, (cache = make()))
         cacheOf.set(o, cache)
+      }
+  }
+
+  // One timeline cache per date field and set of PivotTables; its name is the file's when it can stay.
+  type TimelineCache = { name: string; timeline: SheetTimeline; target: PivotSlicerTarget }
+  const timelineCaches = new Map<string, TimelineCache>()
+  const timelineCacheOf = new Map<SheetTimeline, TimelineCache>()
+  if (ownTimelines) {
+    for (const p of [...parts.values()]) if (p.contentType === CT_TIMELINE) remove(p.name)
+    for (const sheet of wb.sheets)
+      for (const o of sheet.objects) {
+        if (isChart(o) || o.kind !== "timeline") continue
+        const target = pivotSlicerTarget(wb.sheets, wb.pivotCaches, o)
+        if (!target) continue
+        const key = `${target.cache.id}:${target.field}:${target.tables.map((t) => `${t.sheet}!${t.table.name}`).join("|")}`
+        let cache = timelineCaches.get(key)
+        if (!cache) {
+          const name =
+            o.cache && !takenNames.has(o.cache.toUpperCase())
+              ? o.cache
+              : timelineCacheName(target.cache.fields[target.field].name, takenNames)
+          takenNames.add(name.toUpperCase())
+          timelineCaches.set(key, (cache = { name, timeline: o, target }))
+          needId(target.cache)
+        }
+        timelineCacheOf.set(o, cache)
       }
   }
 
@@ -557,6 +603,21 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         else written.relId = relId
       }
     }
+    // The sheet's timelines, in their own part.
+    let timelines: { relId: string | null } | undefined
+    if (ownTimelines) {
+      const list = sheet.objects.flatMap((o) =>
+        !isChart(o) && o.kind === "timeline" && timelineCacheOf.has(o)
+          ? [{ timeline: o, cache: timelineCacheOf.get(o)!.name }]
+          : [],
+      )
+      timelines = { relId: null }
+      if (list.length) {
+        const part = freeName((n) => `/xl/timelines/timeline${n}.xml`)
+        put(part, CT_TIMELINE, timelinePartXml(list))
+        timelines.relId = addRel(partName, REL_TIMELINE, part)
+      }
+    }
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active || (views[i]?.selected ?? false) }
     const written = writeSheet({
       sheet,
@@ -576,6 +637,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       picture,
       customSheetViews: customSheetViewsXml(wb, sheet),
       slicers,
+      timelines,
     })
     dynamic ||= written.dynamic
     put(partName, CT_WORKSHEET, written.xml)
@@ -615,6 +677,26 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     }
   }
 
+  const timelineCacheRels: string[] = []
+  for (const cache of timelineCaches.values()) {
+    const { target, timeline } = cache
+    const part = freeName((n) => `/xl/timelineCaches/timelineCache${n}.xml`)
+    put(
+      part,
+      CT_TIMELINE_CACHE,
+      timelineCacheXml({
+        name: cache.name,
+        field: target.cache.fields[target.field].name,
+        uid: timeline.cacheUid,
+        pivotCacheId: slicerIds.get(target.cache.id)!,
+        tables: target.tables.map((t) => ({ tabId: t.sheet + 1, name: t.table.name })),
+        picked: timelineSelection(target),
+        bounds: timelineBounds(target.cache, target.field),
+      }),
+    )
+    timelineCacheRels.push(addRel(main, REL_TIMELINE_CACHE, part))
+  }
+
   // Tables that are gone (converted to a range, or their sheet deleted) leave with their parts.
   for (const p of [...parts.values()])
     if (p.contentType === CT_TABLE && !usedTables.has(partKey(p.name))) remove(p.name)
@@ -649,7 +731,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     wb,
     source,
     links,
-    [...caches.values()].map((c) => c.name),
+    [...caches.values(), ...timelineCaches.values()].map((c) => c.name),
   )
   const references: string[] = []
   if (links)
@@ -711,10 +793,17 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     const kept: Kept[] = doc.root.children
       .filter((c) => !(c.local in generated))
       .map((c) => ({ local: c.local, xml: raw(doc, c) }))
-    if (ownSlicers) {
+    if (ownSlicers || ownTimelines) {
       const ext = kept.find((k) => k.local === "extLst")
-      const rest = ext ? withoutExts(ext.xml, [URI_WB_SLICER_CACHES, URI_WB_PIVOT_SLICER_CACHES]) : ""
-      const add = workbookPivotSlicersExt(pivotCacheRels) + workbookSlicersExt(cacheRels)
+      const uris = [
+        ...(ownSlicers ? [URI_WB_SLICER_CACHES, URI_WB_PIVOT_SLICER_CACHES] : []),
+        ...(ownTimelines ? [URI_WB_TIMELINE_CACHES] : []),
+      ]
+      const rest = ext ? withoutExts(ext.xml, uris) : ""
+      const add =
+        workbookPivotSlicersExt(pivotCacheRels) +
+        workbookSlicersExt(cacheRels) +
+        workbookTimelinesExt(timelineCacheRels)
       const xml = add ? withExt(rest || undefined, add) : rest
       if (ext) ext.xml = xml
       else if (xml) kept.push({ local: "extLst", xml })
@@ -731,11 +820,16 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         WORKBOOK_ORDER,
         [
           { local: "workbookPr", xml: newTheme ? `<workbookPr/>` : `<workbookPr defaultThemeVersion="202300"/>` },
-          ...(cacheRels.length || pivotCacheRels.length
+          ...(cacheRels.length || pivotCacheRels.length || timelineCacheRels.length
             ? [
                 {
                   local: "extLst",
-                  xml: withExt(undefined, workbookPivotSlicersExt(pivotCacheRels) + workbookSlicersExt(cacheRels)),
+                  xml: withExt(
+                    undefined,
+                    workbookPivotSlicersExt(pivotCacheRels) +
+                      workbookSlicersExt(cacheRels) +
+                      workbookTimelinesExt(timelineCacheRels),
+                  ),
                 },
               ]
             : []),

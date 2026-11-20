@@ -141,9 +141,9 @@ export function withoutField(table: PivotTable, f: number, area: PivotArea, inde
       ...table,
       values: table.values.filter((v, i) => (index !== undefined ? i !== index : v.field !== f)),
     }
-  // A field leaving the row and column areas takes its filter with it, as in Excel.
-  if (area !== "values" && next.filters?.some((x) => x.field === f)) {
-    const filters = next.filters.filter((x) => x.field !== f)
+  // A field leaving the row and column areas takes its filter with it, as in Excel (not a timeline's).
+  if (area !== "values" && next.filters?.some((x) => x.field === f && x.kind !== "date")) {
+    const filters = next.filters.filter((x) => x.field !== f || x.kind === "date")
     next = { ...next, filters }
     if (!filters.length) delete next.filters
   }
@@ -191,8 +191,8 @@ export function withFieldIn(
   else if (area === "cols") next.cols = put(cols, f)
   else next.pages = put(pages, { field: f, item: null })
   // Leaving rows and columns for Filters drops the field's label and value filters.
-  if (area === "filters" && next.filters?.some((x) => x.field === f)) {
-    const filters = next.filters.filter((x) => x.field !== f)
+  if (area === "filters" && next.filters?.some((x) => x.field === f && x.kind !== "date")) {
+    const filters = next.filters.filter((x) => x.field !== f || x.kind === "date")
     next = { ...next, filters }
     if (!filters.length) delete next.filters
   }

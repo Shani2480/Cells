@@ -263,7 +263,7 @@ export function objectCommands(): Command[] {
       menu: [
         colorMenu("No Outline", (env, color) =>
           env.c.objects.update("Shape Outline", (o) => {
-            if (isChart(o) || o.kind === "group" || o.kind === "slicer") return
+            if (isChart(o) || o.kind === "group" || o.kind === "slicer" || o.kind === "timeline") return
             const line = o.kind === "shape" ? o.line : (o.line ?? { color: null, width: 0.75 })
             o.line = { ...line, color, width: line.width || 0.75 }
           }),
@@ -280,7 +280,7 @@ export function objectCommands(): Command[] {
       label: `${w} pt`,
       run: (env) =>
         env.c.objects.update("Outline Weight", (o) => {
-          if (isChart(o) || o.kind === "group" || o.kind === "slicer") return
+          if (isChart(o) || o.kind === "group" || o.kind === "slicer" || o.kind === "timeline") return
           const line = o.kind === "shape" ? o.line : (o.line ?? { color: { theme: "dk1" }, width: w })
           o.line = { ...line, width: w, color: line.color ?? { theme: "dk1" } }
         }),
@@ -519,7 +519,8 @@ export function objectCommands(): Command[] {
       run: (env) => env.c.objects.group(),
       // Slicers stay on their own (Cells can't keep one inside a group).
       enabled: (env) =>
-        env.c.objects.drawings().length >= 2 && !env.c.objects.drawings().some((o) => o.kind === "slicer"),
+        env.c.objects.drawings().length >= 2 &&
+        !env.c.objects.drawings().some((o) => o.kind === "slicer" || o.kind === "timeline"),
     },
     {
       id: "ObjectsUngroup",
@@ -534,7 +535,8 @@ export function objectCommands(): Command[] {
       description: "Rotate or flip the selected object.",
       keytip: "AY",
       // Slicers don't turn, as in Excel.
-      enabled: (env) => hasDrawing(env) && !env.c.objects.drawings().some((o) => o.kind === "slicer"),
+      enabled: (env) =>
+        hasDrawing(env) && !env.c.objects.drawings().some((o) => o.kind === "slicer" || o.kind === "timeline"),
       menu: ["ObjectRotateRight90", "ObjectRotateLeft90", "ObjectFlipVertical", "ObjectFlipHorizontal"],
     },
     {

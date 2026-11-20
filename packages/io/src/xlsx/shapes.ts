@@ -595,7 +595,7 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
     )
   }
   // A slicer is written by the drawing (its frame needs the sheet's box); it never sits in a group.
-  if (o.kind === "slicer") return ""
+  if (o.kind === "slicer" || o.kind === "timeline") return ""
   const items = o.items
     .filter((i): i is DrawingObject => "kind" in i)
     .map((i) => objectXml(i, i.box ?? { x: 0, y: 0, w: o.child.w, h: o.child.h }, { ...w, modelRel: undefined }))

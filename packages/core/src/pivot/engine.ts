@@ -378,10 +378,18 @@ function prepare(table: PivotTable, cache: PivotCache) {
     sliced.push(fieldItems(table, cache, f))
   })
 
-  // The records that count: report filters' picks, no hidden item on a row or column field, and a slicer's picks.
+  // A timeline's dates, on whatever field (whole days: the last day counts to its end).
+  const dates = (table.filters ?? []).flatMap((x) => (x.kind === "date" && cache.fields[x.field] ? [x] : []))
+
+  // The records that count: report filters' picks, no hidden item on a row or column field, a slicer's picks and a
+  // timeline's dates.
   const records: number[] = []
   next: for (let r = 0; r < cache.records.length; r++) {
     for (const fi of sliced) if (fi.hidden.has(fi.ofRecord[r])) continue next
+    for (const d of dates) {
+      const v = cache.records[r][d.field]
+      if (typeof v !== "number" || v < d.value || v >= Math.floor(d.value2) + 1) continue next
+    }
     for (const page of table.pages) {
       const fi = items.get(page.field)
       if (!fi) continue
@@ -796,7 +804,7 @@ function applyFilters(
   const axisKept = (axis: number[]) => {
     let out = kept
     for (const filter of filters)
-      if (filter.kind !== "label" && axis.includes(filter.field))
+      if ((filter.kind === "value" || filter.kind === "top") && axis.includes(filter.field))
         out = measureFilter(table, cache, items, out, axis, filter)
     return out
   }
@@ -814,7 +822,7 @@ function measureFilter(
   items: Map<number, FieldItems>,
   records: number[],
   axis: number[],
-  filter: Exclude<PivotFilter, { kind: "label" }>,
+  filter: Extract<PivotFilter, { kind: "value" | "top" }>,
 ): number[] {
   const fi = items.get(filter.field)
   const df = table.values[filter.measure]

@@ -1,4 +1,5 @@
 import { slicerCommands } from "./slicer-commands"
+import { timelineCommands } from "./timeline-commands"
 import { pivotCommands } from "./pivot-commands"
 import { sparklineCommands } from "./sparkline-commands"
 import { linkCommands } from "./link-commands"
@@ -29,6 +30,7 @@ import {
   PICTURE_FORMAT,
   SHAPE_FORMAT,
   SLICER,
+  TIMELINE,
   SPARKLINE,
   TABLE_DESIGN,
   PIVOT_ANALYZE,
@@ -393,6 +395,7 @@ export function allCommands(): Command[] {
     ...smartArtCommands(),
     ...sparklineCommands(),
     ...slicerCommands(),
+    ...timelineCommands(),
     ...linkCommands(),
     ...otherCommands(),
   ]
@@ -412,6 +415,7 @@ export function buildRegistry(): CommandRegistry {
     EQUATION,
     SPARKLINE,
     SLICER,
+    TIMELINE,
   ]) {
     for (const id of controlIds(tab)) {
       if (!registry.get(id)) registry.add({ id, label: LABELS[id] ?? excelLabel(id) ?? id })

@@ -170,11 +170,12 @@ function renameRefs(sheets: Sheet[], from: string, to: string | null): Op[] {
       if (changed) undo.push({ kind: "charts", sheet: index, charts: before })
     }
     // PivotTable slicers name their PivotTables' sheets.
-    if (to !== null && sheet.objects.some((o) => !isChart(o) && o.kind === "slicer" && o.pivot)) {
+    const linked = (o: SheetObject) => !isChart(o) && (o.kind === "slicer" || o.kind === "timeline") && !!o.pivot
+    if (to !== null && sheet.objects.some(linked)) {
       const before = [...sheet.objects]
       let changed = false
       sheet.objects = sheet.objects.map((o) => {
-        if (isChart(o) || o.kind !== "slicer" || !o.pivot) return o
+        if (isChart(o) || (o.kind !== "slicer" && o.kind !== "timeline") || !o.pivot) return o
         const pivot = pivotSlicerRenamed(o.pivot, { sheet: from }, { sheet: to })
         if (!pivot) return o
         changed = true

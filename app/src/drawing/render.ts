@@ -45,6 +45,7 @@ export const canvasMeasure: Measure = (text, font) => {
 }
 
 import { slicerSvg, slicerView } from "./slicer"
+import { timelineSvg, timelineView } from "./timeline"
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 const n = (v: number) => Math.round(v * 100) / 100
@@ -260,6 +261,7 @@ export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, 
     )
   }
   if (o.kind === "slicer") return slicerSvg(o, slicerView(o), w, h, theme, measure)
+  if (o.kind === "timeline") return timelineSvg(o, timelineView(o), w, h, theme, measure)
   if (o.kind === "group") {
     const sx = w / (o.child.w || 1)
     const sy = h / (o.child.h || 1)

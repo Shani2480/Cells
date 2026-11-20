@@ -259,7 +259,7 @@ export function withSort(table: PivotTable, cache: PivotCache, f: number, sort: 
 
 /** A field's Label Filter, Value Filter or Top 10 (Excel keeps one per field), or null. */
 export function fieldFilter(table: PivotTable, f: number): PivotFilter | null {
-  return table.filters?.find((x) => x.field === f) ?? null
+  return table.filters?.find((x) => x.field === f && x.kind !== "date") ?? null
 }
 
 /** What a filter says apart from its field and id: what the dialogs make. */

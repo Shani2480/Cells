@@ -212,7 +212,6 @@ export function pivotCommands(): Command[] {
       enabled: (env) => env.c.pivots.groupDialogField() >= 0,
       run: (env) => env.dialog("pivotGroup"),
     },
-    later("PivotInsertTimeline", "Insert Timeline", "Filter the PivotTable by dates (comes with timelines).", "IT"),
     {
       id: "PivotRefreshMenu",
       label: "Refresh",

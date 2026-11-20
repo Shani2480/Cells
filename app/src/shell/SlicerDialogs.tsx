@@ -1,5 +1,5 @@
 import { useId, useState } from "react"
-import type { SheetSlicer } from "@cells/core"
+import type { SheetSlicer, SheetTimeline } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
 import { Dialog } from "./Dialog"
 
@@ -177,19 +177,25 @@ export function SlicerConnectionsDialog({
   onClose,
 }: {
   controller: SheetController
-  /** Report Connections for this slicer; else Filter Connections for the active PivotTable. */
-  slicer?: SheetSlicer
+  /** Report Connections for this slicer or timeline; else Filter Connections for the active PivotTable. */
+  slicer?: SheetSlicer | SheetTimeline
   onClose: () => void
 }) {
   const rows = slicer
-    ? controller.slicers.reportConnections(slicer).map((r) => ({ key: r.key, name: r.name, sheet: r.sheet, on: r.on }))
+    ? (slicer.kind === "timeline"
+        ? controller.timelines.reportConnections(slicer)
+        : controller.slicers.reportConnections(slicer)
+      ).map((r) => ({ key: r.key, name: r.name, sheet: r.sheet, on: r.on }))
     : controller.slicers
         .filterConnections()
         .map((r) => ({ key: String(r.id), name: r.caption || r.name, sheet: r.sheet, on: r.on }))
   const [picked, setPicked] = useState(() => rows.filter((r) => r.on).map((r) => r.key))
   const accept = () => {
     if (slicer) {
-      const message = controller.slicers.setReportConnections(slicer, picked)
+      const message =
+        slicer.kind === "timeline"
+          ? controller.timelines.setReportConnections(slicer, picked)
+          : controller.slicers.setReportConnections(slicer, picked)
       if (message) return controller.shell.alert(message)
     } else controller.slicers.setFilterConnections(picked.map(Number))
     onClose()
@@ -232,8 +238,41 @@ export function SlicerConnectionsDialog({
           </tbody>
         </table>
       ) : (
-        <p className="dialog-label">This PivotTable has no slicers to connect to. Insert one with Insert Slicer.</p>
+        <p className="dialog-label">
+          This PivotTable has no slicers or timelines to connect to. Insert one with Insert Slicer or Insert Timeline.
+        </p>
       )}
+    </Dialog>
+  )
+}
+
+/** Insert › Timeline: a box per date field of the PivotTable's data; one timeline for each ticked. */
+export function InsertTimelinesDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
+  const fields = controller.timelines.insertFields()
+  const [picked, setPicked] = useState<string[]>([])
+  return (
+    <Dialog
+      title="Insert Timelines"
+      width={280}
+      onCancel={onClose}
+      onAccept={() => {
+        controller.timelines.insert(fields.filter((f) => picked.includes(f)))
+        onClose()
+      }}
+    >
+      <div className="slicer-columns" role="group" aria-label="Date fields">
+        {fields.map((name, i) => (
+          <label key={name} className="dialog-radio">
+            <input
+              type="checkbox"
+              data-autofocus={i === 0 || undefined}
+              checked={picked.includes(name)}
+              onChange={(e) => setPicked((p) => (e.target.checked ? [...p, name] : p.filter((x) => x !== name)))}
+            />
+            {name}
+          </label>
+        ))}
+      </div>
     </Dialog>
   )
 }

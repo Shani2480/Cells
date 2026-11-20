@@ -207,6 +207,8 @@ export type PivotFilter = { field: number; id: number } & (
   | { kind: "label"; op: PivotLabelOp; value: string; value2?: string }
   | { kind: "value"; op: PivotValueOp; measure: number; value: number; value2?: number }
   | { kind: "top"; by: "count" | "percent" | "sum"; top: boolean; measure: number; value: number }
+  /** A timeline's pick: dates from `value` to `value2` (serials, whole days, both ends in), on any field. */
+  | { kind: "date"; op: "between"; value: number; value2: number }
 )
 
 /** The Values pseudo field's place among the row or column fields ("Σ Values"). */

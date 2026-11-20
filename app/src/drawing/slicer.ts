@@ -29,7 +29,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const n = (v: number) => Math.round(v * 100) / 100
 
 /** `text` cut to `width` with an ellipsis, as Excel cuts long captions and items. */
-function fit(text: string, width: number, font: string, measure: Measure): string {
+export function fit(text: string, width: number, font: string, measure: Measure): string {
   if (measure(text, font) <= width) return text
   let lo = 0
   let hi = text.length
@@ -117,7 +117,7 @@ function multiIcon(b: { x: number; y: number; w: number; h: number }, on: boolea
 }
 
 /** Clear Filter: a funnel, with a red cross while the column is filtered (greyed out otherwise). */
-function clearIcon(b: { x: number; y: number; w: number; h: number }, active: boolean): string {
+export function clearIcon(b: { x: number; y: number; w: number; h: number }, active: boolean): string {
   const x = b.x
   const y = b.y
   const ink = active ? "#505050" : "#B4B4B4"

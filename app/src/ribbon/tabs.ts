@@ -718,6 +718,35 @@ export const SLICER: Tab = {
   ],
 }
 
+/** Timeline, while timelines are selected (Excel 365's: Timeline, Timeline Styles, Arrange, Size, Show). */
+export const TIMELINE: Tab = {
+  id: "TabTimeline",
+  label: "Timeline",
+  keytip: "JL",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupTimelineProperties",
+      label: "Timeline",
+      columns: [
+        smalls({ kind: "label", text: "Timeline Caption:" }, F("TimelineCaption")),
+        L("TimelineReportConnections"),
+      ],
+    },
+    { id: "GroupTimelineStyles", label: "Timeline Styles", columns: [L("TimelineStyleGallery")] },
+    ARRANGE,
+    SIZE,
+    {
+      id: "GroupTimelineShow",
+      label: "Show",
+      columns: [
+        smalls(C("TimelineShowHeader"), C("TimelineShowSelectionLabel")),
+        smalls(C("TimelineShowScrollbar"), C("TimelineShowTimeLevel")),
+      ],
+    },
+  ],
+}
+
 /**
  * Table Design, while the active cell is in a table. Built from Excel 365 at a wide window (no reference screenshot
  * in docs/reference yet). External Table Data (Export, Refresh, Unlink…) is left out: Cells has no linked tables.

@@ -1,4 +1,5 @@
 import { SlicerCommands } from "./slicers"
+import { TimelineCommands } from "./timelines"
 import { QuickAnalysis } from "./quick-analysis"
 import { SparklineCommands, type SparklineDialogInit } from "./sparklines"
 import { PivotCommands, type PivotFilterRequest } from "./pivots"
@@ -405,6 +406,7 @@ export class SheetController {
   /** Quick Analysis (Ctrl+Q): the gallery's choices, their previews and the changes they make. */
   readonly quick: QuickAnalysis = new QuickAnalysis(this)
   readonly slicers: SlicerCommands = new SlicerCommands(this)
+  readonly timelines: TimelineCommands = new TimelineCommands(this)
   readonly audit: AuditCommands = new AuditCommands(this)
   readonly outline: OutlineCommands = new OutlineCommands(this)
   /** Data › Data Validation. */

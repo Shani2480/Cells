@@ -56,6 +56,13 @@ import {
   REL_PIVOT_RECORDS,
   REL_PIVOT_TABLE,
 } from "./pivot"
+import {
+  readTimelineCache,
+  readTimelinePart,
+  REL_TIMELINE,
+  REL_TIMELINE_CACHE,
+  type TimelineCacheRead,
+} from "./timelines"
 import { readSlicerCache, readSlicerPart, REL_SLICER, REL_SLICER_CACHE, type SlicerCacheRead } from "./slicers"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
@@ -100,6 +107,8 @@ export type XlsxSource = {
   linksModelled: boolean
   /** The file's slicers are table slicers Cells reads and writes anew (false: kept as read). */
   slicersModelled?: boolean
+  /** The file's timelines are ones Cells reads and writes anew (false: kept as read). */
+  timelinesModelled?: boolean
   /** The theme as read, so a save rewrites the theme part only when it changed. */
   theme?: Theme
   /** PivotTables as read, so a save writes back the parts of those that didn't change. */
@@ -255,6 +264,16 @@ export async function openXlsx(
     if (c) slicerCaches.set(c.name, c)
     else slicersModelled = false
   }
+  // Timelines: their caches (a PivotTable cache's date field); a file with any Cells can't read keeps them as read.
+  const timelineCacheRels = wbRels.filter((r) => r.type === REL_TIMELINE_CACHE && r.partName)
+  const timelineCaches = new Map<string, TimelineCacheRead>()
+  let timelinesModelled = true
+  for (const r of timelineCacheRels) {
+    const c = readTimelineCache(partText(pkg, r.partName) ?? "")
+    if (c) timelineCaches.set(c.name, c)
+    else timelinesModelled = false
+  }
+  const timelineSheets = new Set<Sheet>()
   /** Each table's column ids (slicer caches name a column by its id). */
   const tableColumnIds = new Map<number, number[]>()
   const slicerSheets = new Map<Sheet, number>()
@@ -398,6 +417,16 @@ export async function openXlsx(
           )
         : undefined
     if (slicerDefs?.size) slicerSheets.set(sheet, i)
+    const timelineDefs =
+      timelinesModelled && timelineCacheRels.length
+        ? new Map(
+            rels
+              .filter((r) => r.type === REL_TIMELINE && r.partName)
+              .flatMap((r) => readTimelinePart(partText(pkg, r.partName) ?? ""))
+              .map((d) => [d.name, d] as const),
+          )
+        : undefined
+    if (timelineDefs?.size) timelineSheets.add(sheet)
     const drawingRel = rels.find((r) => r.id === read.drawing && r.type === REL_DRAWING)
     const drawingXml = partText(pkg, drawingRel?.partName)
     const drawing =
@@ -415,6 +444,7 @@ export async function openXlsx(
               return part ? { data: part.data, contentType: part.contentType } : undefined
             },
             slicerDefs,
+            timelineDefs,
           )
         : undefined
     // Signature lines (Insert › Signature Line) live in the notes' VML drawing.
@@ -486,6 +516,7 @@ export async function openXlsx(
           r.type !== REL_TABLE &&
           r.type !== REL_HYPERLINK &&
           !(slicerDefs && r.type === REL_SLICER) &&
+          !(timelineDefs && r.type === REL_TIMELINE) &&
           !(drawing && r.id === read.drawing) &&
           !(picturePart && r.id === read.picture) &&
           r.type !== REL_OLE_OBJECT &&
@@ -578,6 +609,30 @@ export async function openXlsx(
     }
   }
 
+  // Each timeline's PivotTables and field, from its cache; one whose PivotTables are gone is left out.
+  for (const sheet of timelineSheets) {
+    const lost: number[] = []
+    for (const o of sheet.objects) {
+      if (isChart(o) || o.kind !== "timeline") continue
+      const cache = timelineCaches.get(o.cache ?? "")
+      const pivotCache = cache && wb.pivotCaches.find((c) => c.slicerId === cache.pivotCacheId)
+      const tables = (cache?.tables ?? []).flatMap((t) => {
+        const s = wb.sheets[sheetIds.indexOf(t.tabId)]
+        return s?.pivots.some((p) => p.name === t.name) ? [{ sheet: s.name, name: t.name }] : []
+      })
+      if (!cache || !pivotCache || !tables.length) {
+        lost.push(o.id)
+        continue
+      }
+      o.pivot = { cacheId: pivotCache.id, field: cache.field, tables }
+      if (cache.uid) o.cacheUid = cache.uid
+    }
+    if (lost.length) {
+      sheet.objects = sheet.objects.filter((o) => !lost.includes(o.id))
+      warnings.push(`A timeline on ${sheet.name} couldn't be read; it was left out.`)
+    }
+  }
+
   // Structured references as Excel shows them ([@Qty], no table name inside the table), now that the tables are known.
   for (const sheet of wb.sheets) {
     if (!sheet.tables.length && !hasBracket(sheet)) continue
@@ -622,6 +677,7 @@ export async function openXlsx(
     if (name === "_xlnm._FilterDatabase") continue
     // A slicer cache's name (#N/A) is written anew with its cache.
     if (slicersModelled && slicerCaches.has(name)) continue
+    if (timelinesModelled && timelineCaches.has(name)) continue
     // The print area and titles belong to the sheet's page setup (written anew from it).
     const sheetOf = at(n, "localSheetId") !== undefined ? wb.sheets[Number(at(n, "localSheetId"))] : undefined
     if (sheetOf && name === "_xlnm.Print_Area") {
@@ -728,6 +784,7 @@ export async function openXlsx(
       keptConnections,
       linksModelled,
       slicersModelled,
+      timelinesModelled,
       theme: themeXml ? copyTheme(wb.theme) : undefined,
       pivots: pivotCaches.length ? pivots : undefined,
     },

@@ -54,7 +54,7 @@ const DAY = 86_400_000
 
 const truthy = (v: string | undefined, fallback: boolean) => (v === undefined ? fallback : v === "1" || v === "true")
 
-function isoToSerial(text: string): number | null {
+export function isoToSerial(text: string): number | null {
   const ms = Date.parse(/Z$|[+-]\d\d:\d\d$/.test(text) ? text : text + "Z")
   return Number.isNaN(ms) ? null : (ms - ISO_EPOCH) / DAY
 }
@@ -470,6 +470,10 @@ const VALUE_OPS: PivotValueOp[] = [
 ]
 const cap = (op: string) => op[0].toUpperCase() + op.slice(1)
 
+/** A date filter on whole days (Excel 2013's x15 pivotFilter useWholeDay, which timelines write). */
+const wholeDay = (f: XNode) =>
+  kids(kid(f, "extLst"), "ext").some((e) => truthy(at(kid(e, "pivotFilter"), "useWholeDay"), false))
+
 /** The filters of a PivotTable; null when one is of a kind Cells doesn't model (date filters, OLAP members). */
 function readPivotFilters(node: XNode | undefined): PivotFilter[] | null {
   const out: PivotFilter[] = []
@@ -495,6 +499,13 @@ function readPivotFilters(node: XNode | undefined): PivotFilter[] | null {
       const filter: PivotFilter = { field, id, kind: "value", op: value, measure, value: vals[0] }
       if (vals.length > 1) filter.value2 = vals[1]
       out.push(filter)
+    } else if (type === "dateBetween") {
+      // A timeline's: whole days (Excel 2013's useWholeDay), from and to in the custom filters.
+      const vals = kids(kid(kid(kid(f, "autoFilter"), "filterColumn"), "customFilters"), "customFilter").map((c) =>
+        Number(at(c, "val")),
+      )
+      if (vals.length !== 2 || vals.some((v) => !Number.isFinite(v)) || !wholeDay(f)) return null
+      out.push({ field, id, kind: "date", op: "between", value: vals[0], value2: vals[1] })
     } else if (type === "count" || type === "percent" || type === "sum") {
       const top10 = kid(kid(kid(f, "autoFilter"), "filterColumn"), "top10")
       const v = Number(at(top10, "val"))
@@ -553,6 +564,13 @@ function pivotFilterXml(f: PivotFilter): string {
     extra.iMeasureFld = f.measure
     if (f.op === "between" || f.op === "notBetween") inner = range(f.value, f.value2 ?? f.value, f.op === "notBetween")
     else inner = custom([{ operator: f.op === "equal" ? undefined : f.op, val: f.value }])
+  } else if (f.kind === "date") {
+    const inner = range(f.value, f.value2, false)
+    const head = attrText({ fld: f.field, type: "dateBetween", evalOrder: -1, id: f.id })
+    return (
+      `<filter${head}><autoFilter ref="A1"><filterColumn colId="0">${inner}</filterColumn></autoFilter>` +
+      `<extLst><ext uri="${X15_FILTER}" xmlns:x15="${NS_X15}"><x15:pivotFilter useWholeDay="1"/></ext></extLst></filter>`
+    )
   } else {
     type = f.by
     extra.iMeasureFld = f.measure
@@ -734,6 +752,8 @@ function sharedItemsAttrs(values: Iterable<PivotValue>, dates: boolean) {
 }
 
 /** The x14 extension of a cache definition, which gives the cache the id PivotTable slicers name it by. */
+const X15_FILTER = "{0605FD5F-26C8-4aeb-8148-2DB25E43C511}"
+const NS_X15 = "http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"
 export const X14_CACHE = "{725AE2AE-9491-48be-B2B4-4EB974FC3084}"
 
 export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId: (code?: string) => number): string {
@@ -858,7 +878,9 @@ export function pivotTableXml(
       outline: f.outline ? undefined : 0,
       subtotalTop: f.subtotalTop ? undefined : 0,
       multipleItemSelectionAllowed: f.multipleItems ? 1 : undefined,
-      measureFilter: table.filters?.some((x) => x.field === i && x.kind !== "label") ? 1 : undefined,
+      measureFilter: table.filters?.some((x) => x.field === i && (x.kind === "value" || x.kind === "top"))
+        ? 1
+        : undefined,
       insertBlankRow: f.insertBlankRow ? 1 : undefined,
       showAll: f.showAll ? undefined : 0,
       sortType: f.sort === "manual" ? undefined : f.sort,

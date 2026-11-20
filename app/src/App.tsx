@@ -13,6 +13,7 @@ import {
   setRegional,
   type Range,
   type SheetSlicer,
+  type SheetTimeline,
 } from "@cells/core"
 import {
   lazy,
@@ -59,6 +60,7 @@ import {
   PICTURE_FORMAT,
   SHAPE_FORMAT,
   SLICER,
+  TIMELINE,
   SPARKLINE,
   TABLE_DESIGN,
   PIVOT_ANALYZE,
@@ -71,7 +73,12 @@ import {
   SparklineDateDialog,
   SparklineEmptyDialog,
 } from "@/shell/SparklineDialogs"
-import { InsertSlicersDialog, SlicerConnectionsDialog, SlicerSettingsDialog } from "@/shell/SlicerDialogs"
+import {
+  InsertSlicersDialog,
+  InsertTimelinesDialog,
+  SlicerConnectionsDialog,
+  SlicerSettingsDialog,
+} from "@/shell/SlicerDialogs"
 import type { SparklineDialogInit } from "@/sheet/sparklines"
 import { Backstage } from "@/shell/Backstage"
 import { isTextField, menuBarAction } from "@/shell/menu-bar"
@@ -183,6 +190,7 @@ const TABS_IN_TABLE = [...TABS, TABLE_DESIGN]
 const TABS_IN_PIVOT = [...TABS, PIVOT_ANALYZE, PIVOT_DESIGN]
 const TABS_IN_SPARKLINE = [...TABS, SPARKLINE]
 const TABS_IN_SLICER = [...TABS, SLICER]
+const TABS_IN_TIMELINE = [...TABS, TIMELINE]
 const TABS_IN_TABLE_SPARKLINE = [...TABS, TABLE_DESIGN, SPARKLINE]
 const TABS_IN_CHART = [...TABS, CHART_DESIGN]
 const TABS_IN_PIVOT_CHART = [...TABS, PIVOT_CHART_ANALYZE, CHART_DESIGN]
@@ -255,7 +263,8 @@ type DialogState =
   | { kind: "sparklineEmpty" }
   | { kind: "insertSlicers" }
   | { kind: "slicerSettings"; slicer: SheetSlicer }
-  | { kind: "slicerConnections"; slicer?: SheetSlicer }
+  | { kind: "slicerConnections"; slicer?: SheetSlicer | SheetTimeline }
+  | { kind: "insertTimelines" }
   | { kind: "sparklineDates" }
   | { kind: "sparklineAxis"; which: "min" | "max" }
   | { kind: "textToColumns"; range: Range; texts: string[] }
@@ -1049,8 +1058,11 @@ function WorkbookWindow({
       setDialog({ kind })
     else if (kind === "zoomToSelection") zoomToSelection()
     else if (kind === "sparklineEmpty" || kind === "sparklineDates") setDialog({ kind })
-    else if (kind === "insertSlicers") setDialog({ kind })
-    else if (kind === "slicerSettings") {
+    else if (kind === "insertSlicers" || kind === "insertTimelines") setDialog({ kind })
+    else if (kind === "timelineConnections") {
+      const timeline = controller.timelines.active()
+      if (timeline) setDialog({ kind: "slicerConnections", slicer: timeline })
+    } else if (kind === "slicerSettings") {
       const slicer = controller.slicers.active()
       if (slicer) setDialog({ kind, slicer })
     } else if (kind === "slicerConnections") setDialog({ kind, slicer: controller.slicers.active() ?? undefined })
@@ -1222,21 +1234,23 @@ function WorkbookWindow({
           ? TABS_IN_MODEL3D
           : drawings.length && drawings.every((o) => o.kind === "slicer")
             ? TABS_IN_SLICER
-            : drawings.length && drawings.every((o) => o.kind === "picture")
-              ? TABS_IN_PICTURE
-              : drawings.length
-                ? drawings.length === 1 && isEquation(drawings[0])
-                  ? TABS_IN_EQUATION
-                  : TABS_IN_SHAPE
-                : controller.sparklines.active()
-                  ? controller.tables.active()
-                    ? TABS_IN_TABLE_SPARKLINE
-                    : TABS_IN_SPARKLINE
-                  : controller.tables.active()
-                    ? TABS_IN_TABLE
-                    : controller.pivots.active()
-                      ? TABS_IN_PIVOT
-                      : TABS
+            : drawings.length && drawings.every((o) => o.kind === "timeline")
+              ? TABS_IN_TIMELINE
+              : drawings.length && drawings.every((o) => o.kind === "picture")
+                ? TABS_IN_PICTURE
+                : drawings.length
+                  ? drawings.length === 1 && isEquation(drawings[0])
+                    ? TABS_IN_EQUATION
+                    : TABS_IN_SHAPE
+                  : controller.sparklines.active()
+                    ? controller.tables.active()
+                      ? TABS_IN_TABLE_SPARKLINE
+                      : TABS_IN_SPARKLINE
+                    : controller.tables.active()
+                      ? TABS_IN_TABLE
+                      : controller.pivots.active()
+                        ? TABS_IN_PIVOT
+                        : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 
@@ -1547,6 +1561,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "insertSlicers" ? (
           <InsertSlicersDialog controller={controller} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "insertTimelines" ? (
+          <InsertTimelinesDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "slicerConnections" ? (
           <SlicerConnectionsDialog controller={controller} slicer={dialog.slicer} onClose={closeDialog} />

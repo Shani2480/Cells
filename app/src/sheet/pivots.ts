@@ -20,6 +20,7 @@ import {
   type SheetChart,
   type SheetObject,
   type SheetSlicer,
+  type SheetTimeline,
   pivotSlicerRenamed,
   isChart,
   type GroupSettings,
@@ -1307,11 +1308,11 @@ export class PivotCommands {
   }
 
   /**
-   * Slicers' picks: each PivotTable (on any sheet) laid out anew with its fields' items shown as given (`shown` null:
-   * all of them), as one undo step with the `extra` ops (a slicer's new connections). The selection stays.
+   * Slicers' and timelines' picks: each PivotTable (on any sheet) laid out anew with its changes (a field's items shown,
+   * a timeline's dates), as one undo step with the `extra` ops (new connections). The selection stays.
    */
   slicerPick(
-    changes: readonly { sheet: number; table: PivotTable; field: number; shown: ReadonlySet<number> | null }[],
+    changes: readonly { sheet: number; table: PivotTable; apply: (t: PivotTable) => PivotTable }[],
     cache: PivotCache,
     label: string,
     extra: Op[] = [],
@@ -1324,7 +1325,7 @@ export class PivotCommands {
     for (const table of tables) {
       const own = changes.filter((x) => x.table === table)
       const sheet = own[0].sheet
-      const next = own.reduce((t, x) => withShownItems(t, cache, x.field, x.shown), table)
+      const next = own.reduce((t, x) => x.apply(t), table)
       if (next === table) continue
       const plan = pivotCellsPlan(this.c.wb.sheets, this.c.wb.styles, sheet, table, next, cache)
       overwrites ||= plan.overwrites !== null
@@ -1435,19 +1436,21 @@ function pivotChartOps(
   sheet: string,
   names: readonly string[],
   make: (c: SheetChart) => SheetChart,
-  slicer: (o: SheetSlicer) => SheetSlicer | null,
+  slicer: <T extends SheetSlicer | SheetTimeline>(o: T) => T | null,
 ): Op[] {
   const ops: Op[] = []
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
   const named = (t: { sheet: string; name: string }) => same(t.sheet, sheet) && names.some((n) => same(t.name, n))
   const hit = (o: SheetObject) =>
-    isChart(o) ? !!o.pivot && named(o.pivot) : o.kind === "slicer" && !!o.pivot?.tables.some(named)
+    isChart(o)
+      ? !!o.pivot && named(o.pivot)
+      : (o.kind === "slicer" || o.kind === "timeline") && !!o.pivot?.tables.some(named)
   sheets.forEach((s, i) => {
     if (!s.objects.some(hit)) return
     const objects = s.objects.flatMap((o) => {
       if (!hit(o)) return [o]
       if (isChart(o)) return [make(o)]
-      const next = slicer(o as SheetSlicer)
+      const next = slicer(o as SheetSlicer | SheetTimeline)
       return next ? [next] : []
     })
     ops.push({ kind: "objects", sheet: i, objects })

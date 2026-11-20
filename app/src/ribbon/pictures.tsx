@@ -103,6 +103,7 @@ const PICTURES: Record<string, LucideIcon> = {
   SparklineAxis: L.MoveHorizontal,
   SlicerSettings: L.Settings2,
   SlicerReportConnections: L.Unplug,
+  TimelineReportConnections: L.Unplug,
   SparklineGroup: L.Group,
   SparklineUngroup: L.Ungroup,
   SparklineClear: L.Eraser,

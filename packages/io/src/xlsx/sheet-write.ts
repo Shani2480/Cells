@@ -1,3 +1,4 @@
+import { sheetTimelinesExt, URI_SHEET_TIMELINES } from "./timelines"
 import {
   sheetPivotSlicersExt,
   sheetSlicersExt,
@@ -126,6 +127,8 @@ export type SheetWriteContext = {
   customSheetViews?: string
   /** Table slicers are written anew: the sheet's slicers part (its relationship id), or null when it has none. */
   slicers?: { relId: string | null; pivotRelId?: string | null }
+  /** The sheet's timelines part (absent: timelines kept as read). */
+  timelines?: { relId: string | null }
 }
 
 export type SheetWritten = { xml: string; dynamic: boolean }
@@ -273,15 +276,20 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
   // The outline bar's depth, which Excel reads to size it.
   const format = kept.find((k) => k.local === "sheetFormatPr")
   if (format) format.xml = withOutlineLevels(format.xml, sheet.rows.maxLevel, sheet.cols.maxLevel)
-  if (ctx.slicers) {
+  if (ctx.slicers || ctx.timelines) {
     const extLst = kept.find((k) => k.local === "extLst")
-    if (extLst) extLst.xml = withoutExts(extLst.xml, [URI_SHEET_SLICERS, URI_SHEET_PIVOT_SLICERS])
+    const uris = [
+      ...(ctx.slicers ? [URI_SHEET_SLICERS, URI_SHEET_PIVOT_SLICERS] : []),
+      ...(ctx.timelines ? [URI_SHEET_TIMELINES] : []),
+    ]
+    if (extLst) extLst.xml = withoutExts(extLst.xml, uris)
   }
   const validationExt =
     validationExtXml(sheet.validations, rangeRef) +
     sparklineExtXml(sheet.sparklines) +
     (ctx.slicers?.pivotRelId ? sheetPivotSlicersExt(ctx.slicers.pivotRelId) : "") +
-    (ctx.slicers?.relId ? sheetSlicersExt(ctx.slicers.relId) : "")
+    (ctx.slicers?.relId ? sheetSlicersExt(ctx.slicers.relId) : "") +
+    (ctx.timelines?.relId ? sheetTimelinesExt(ctx.timelines.relId) : "")
   if (validationExt) {
     const extLst = kept.find((k) => k.local === "extLst")
     if (extLst) extLst.xml = withExt(extLst.xml, validationExt)

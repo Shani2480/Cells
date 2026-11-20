@@ -1,5 +1,6 @@
 import { copiedSheetCharts, copyChart, nextChartId, type ChartAnchor, type SheetChart } from "./chart"
 import type { PivotSlicerLink } from "./pivot/slicer"
+import type { TimelineLevel } from "./pivot/timeline"
 import { parseLinear, toLinear } from "./math/linear"
 import type { MathList } from "./math/model"
 import type { Sheet } from "./sheet"
@@ -279,7 +280,35 @@ export type SheetSlicer = ObjectBase & {
   pivot?: PivotSlicerLink
 }
 
-export type DrawingObject = SheetShape | SheetPicture | SheetGroup | SheetSlicer
+/**
+ * A timeline (PivotTable Analyze › Insert Timeline): a strip of periods of a date field that filters its PivotTables.
+ * The dates picked live in the PivotTables' own date filters, as in Excel.
+ */
+export type SheetTimeline = ObjectBase & {
+  kind: "timeline"
+  /** The date field and the PivotTables it filters. */
+  pivot: PivotSlicerLink
+  caption: string
+  /** Show › Header, Selection Label, Scrollbar, Time Level. */
+  header: boolean
+  selectionLabel: boolean
+  scrollbar: boolean
+  timeLevel: boolean
+  /** The periods shown, and those the selection was picked in. */
+  level: TimelineLevel
+  selectionLevel: TimelineLevel
+  /** The first day shown at the left (the strip scrolled). */
+  scrollPosition?: number
+  /** A built-in style ("TimeSlicerStyleLight1"). */
+  style: string
+  locked?: boolean
+  /** Excel's names for its cache ("NativeTimeline_Date") and ids, kept when saved. */
+  cache?: string
+  uid?: string
+  cacheUid?: string
+}
+
+export type DrawingObject = SheetShape | SheetPicture | SheetGroup | SheetSlicer | SheetTimeline
 export type GroupItem = DrawingObject | SheetChart
 /** Everything in a sheet's drawing, in order. */
 export type SheetObject = DrawingObject | SheetChart
@@ -311,6 +340,8 @@ export function copyObject<T extends SheetObject>(o: T): T {
       }
   } else if (out.kind === "slicer") {
     // Nothing nested.
+  } else if (out.kind === "timeline") {
+    out.pivot = { ...out.pivot, tables: out.pivot.tables.map((t) => ({ ...t })) }
   } else if (out.kind === "picture") {
     const p = o as SheetPicture
     if (p.crop) out.crop = { ...p.crop }
@@ -430,7 +461,7 @@ export function objectName(
   o: { kind: DrawingObject["kind"]; geometry?: string; textBox?: boolean; icon?: boolean; caption?: string },
   id: number,
 ): string {
-  if (o.kind === "slicer") return `${o.caption ?? "Slicer"} ${id}`
+  if (o.kind === "slicer" || o.kind === "timeline") return `${o.caption ?? "Slicer"} ${id}`
   if (o.kind === "picture") return `${o.icon ? "Graphic" : "Picture"} ${id}`
   if (o.kind === "group") return `Group ${id}`
   if (o.textBox) return `TextBox ${id}`

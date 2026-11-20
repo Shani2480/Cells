@@ -211,7 +211,19 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    slicer left with no PivotTable goes). A new PivotTable from the same unchanged data shares its cache, as in Excel
    (not one whose recommendation groups dates). Excel's fixture (pivot-slicer.xlsx) read, saved with a pick changed and
    written afresh: 0 validator errors, no repairs in Excel 365, slicers, connections and picks as written, and they
-   still filter. Not yet: slicers on OLAP data (such files keep all slicers as read). Next: Timelines.
+   still filter. Not yet: slicers on OLAP data (such files keep all slicers as read).
+
+   _Part 3 done:_ Timelines. Core `pivot/timeline.ts` (levels, whole-year bounds, periods, labels, layout and the
+   TimeSlicerStyle looks) and `SheetTimeline` (a `PivotSlicerLink` to its date field and PivotTables). The pick is
+   Excel's own: a whole-day `dateBetween` filter (`PivotFilter` kind "date", `x15:pivotFilter useWholeDay`) on the
+   field in each connected PivotTable, on an axis or not, so a timeline's state is its PivotTables' filters. io reads
+   and writes timeline parts, timeline caches (state, selection, bounds, `pivotCacheId`), the x15 workbook and sheet
+   refs, `NativeTimeline_*` names and the `tsle:timeslicer` frames (`timelines.ts`). App: click, Shift+click and drag
+   pick periods; Clear Filter, time level menu, scroll bar and wheel; the Timeline tab (caption, 12 styles, Report
+   Connections, Size, Arrange, Show); Insert Timelines dialog; Filter Connections lists timelines; rename and delete
+   of a PivotTable carry to its timelines. Checked in Excel 365: Cells' files (round trip with a changed pick, and
+   written without the file's ids) pass the validator, open without repair, keep TimelineState dates, captions,
+   styles and levels, and still filter (April on PTTwo: 295, as Cells computes). Not yet: timelines on OLAP data.
 
 ## Staying out
 
