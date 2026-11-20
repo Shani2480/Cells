@@ -233,8 +233,11 @@ export function withPageItems(
  * so a report filter's pick and the rows written with the file point at the same items.
  */
 export function withSort(table: PivotTable, cache: PivotCache, f: number, sort: PivotSort): PivotTable {
-  const field = table.fields[f]
-  if (!field || field.sort === sort) return table
+  const found = table.fields[f]
+  if (!found || (found.sort === sort && found.sortBy === undefined)) return table
+  // Sorting by the labels ends a sort by value.
+  const field = { ...found }
+  delete field.sortBy
   const shared = sharedItems(cache, f)
   let items = fullItems(field, shared.length)
   if (sort !== "manual") {
@@ -255,6 +258,22 @@ export function withSort(table: PivotTable, cache: PivotCache, f: number, sort: 
     pages = table.pages.map((p, i) => (i === pageAt ? { ...p, item: index >= 0 ? index : null } : p))
   }
   return { ...withField(table, f, { ...field, sort, items }), pages }
+}
+
+/**
+ * The table with field `f`'s items ordered by their totals of value field `measure` (an index into `values`):
+ * More Sort Options › Ascending/Descending by a value. Within each item above, as Excel sorts.
+ */
+export function withValueSort(
+  table: PivotTable,
+  f: number,
+  measure: number,
+  sort: Exclude<PivotSort, "manual">,
+): PivotTable {
+  const field = table.fields[f]
+  if (!field || !table.values[measure]) return table
+  if (field.sortBy === measure && field.sort === sort) return table
+  return withField(table, f, { ...field, sort, sortBy: measure })
 }
 
 /** A field's Label Filter, Value Filter or Top 10 (Excel keeps one per field), or null. */

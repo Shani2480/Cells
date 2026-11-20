@@ -114,6 +114,11 @@ export type PivotField = {
   /** Show items with no data. */
   showAll: boolean
   sort: PivotSort
+  /**
+   * Sort by a value instead of the labels (More Sort Options › Ascending/Descending by "Sum of Amount"): the index in
+   * `values` of the value field whose totals order the items, within the item above. `sort` gives the direction.
+   */
+  sortBy?: number
   /** Repeat item labels on every line. */
   repeatLabels: boolean
   /** The report filter lets more than one item be picked. */

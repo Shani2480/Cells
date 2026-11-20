@@ -4430,3 +4430,54 @@ html.is-phone .pivot-fields-foot {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* "Describe the PivotTable you want" (AI, opt-in): Recommended PivotTables and the Fields pane's dialog. */
+.describe-pivot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.describe-pivot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.describe-pivot-row {
+  display: flex;
+  gap: 6px;
+}
+
+.describe-pivot-row .dialog-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.describe-pivot-notice {
+  margin: 0;
+}
+
+.describe-pivot-preview {
+  height: 300px;
+}
+
+.recommend-card .recommend-title:has(svg) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recommend-title svg {
+  flex: none;
+  color: var(--app-theme-primary);
+}
+
+.pivot-describe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 12px 0;
+}

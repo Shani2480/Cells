@@ -6,9 +6,11 @@
 // (an ID, a name per row) is never a category, nor is a column of numbers.
 import { fieldShared, groupKind, derivedDateGroups, withRangeGroup, inRecords } from "./group"
 import { newPivotTable, withFieldIn } from "./make"
+import { withFieldFilter, withSort, withValueSort } from "./filter"
+import { withAllCleared, withValueSettings } from "./settings"
 import { serialToDate } from "../formula/dates"
 import type { CellAddress } from "../address"
-import type { PivotCache, PivotTable } from "./model"
+import type { PivotCache, PivotFn, PivotTable } from "./model"
 
 export type PivotRecipe = {
   /** As Excel titles it: "Sum of Amount by Region", "Count of Product by Region and Channel". */
@@ -17,9 +19,20 @@ export type PivotRecipe = {
   cols: number[]
   /** The fields summed (counted when they hold text). */
   values: number[]
-  /** A date field on the rows, grouped by these parts (largest last, as Grouping lists them). */
-  dates?: { field: number; parts: ("months" | "years")[] }
+  /** How each of `values` is summarized, when not the usual Sum (numbers) or Count (text). */
+  fns?: (PivotFn | undefined)[]
+  /** Report filters (all items shown). */
+  pages?: number[]
+  /** A date field on the rows or columns, grouped by these parts (largest last, as Grouping lists them). */
+  dates?: { field: number; parts: DatePart[] }
+  /** One row or column field sorted: by its labels, or by its totals of value `by` (an index into `values`). */
+  sort?: { field: number; by: "label" | number; order: "ascending" | "descending" }
+  /** Only the `count` items of a row or column field with the biggest (smallest: `bottom`) totals of value `measure`. */
+  top?: { field: number; count: number; bottom?: boolean; measure: number }
 }
+
+/** The parts a date field can be grouped by in a recipe. */
+export type DatePart = "days" | "months" | "quarters" | "years"
 
 const MAX_ITEMS = 40
 
@@ -96,7 +109,7 @@ export function recommendedPivots(cache: PivotCache, limit = 10): PivotRecipe[] 
 }
 
 /** How a date field is grouped for a suggestion: by months, with years when it spans more than one. */
-function dateParts(cache: PivotCache, f: number): ("months" | "years")[] | null {
+function dateParts(cache: PivotCache, f: number): DatePart[] | null {
   const serials = fieldShared(cache, f).filter((v): v is number => typeof v === "number")
   if (serials.length < 2) return null
   const years = new Set(serials.map((s) => serialToDate(s).year))
@@ -112,26 +125,70 @@ export function pivotFromRecipe(
   at: CellAddress,
   recipe: PivotRecipe,
 ): { table: PivotTable; cache: PivotCache } {
+  return withRecipe(newPivotTable(name, cache, at), cache, recipe)
+}
+
+/**
+ * PivotTable `start` laid out as the recipe says, from scratch (as after Clear All: its name, place, style and options
+ * stay), and its cache with the dates grouped as the recipe groups them (`cache` itself when nothing is grouped).
+ */
+export function withRecipe(
+  start: PivotTable,
+  cache: PivotCache,
+  recipe: PivotRecipe,
+): { table: PivotTable; cache: PivotCache } {
   let grouped = cache
   let rows = recipe.rows
-  if (recipe.dates) {
-    const next = withRangeGroup(cache, recipe.dates.field, {
-      start: null,
-      end: null,
-      by: 1,
-      parts: recipe.dates.parts,
-    })
+  let cols = recipe.cols
+  /** Where a field of the recipe ended up: a grouped date field becomes its parts, the largest outermost. */
+  let placedOf = (f: number) => [f]
+  const dates = recipe.dates
+  if (dates?.parts.length) {
+    const next = withRangeGroup(cache, dates.field, { start: null, end: null, by: 1, parts: dates.parts })
     if (typeof next !== "string") {
       grouped = next
-      const parts = derivedDateGroups(next, recipe.dates.field).map((d) => d.index)
-      // The largest part outermost; months grouped alone stay on the field itself.
-      const placed = parts.length ? [...parts].reverse() : [recipe.dates.field]
-      rows = rows.flatMap((f) => (f === recipe.dates!.field ? placed : [f]))
+      const parts = derivedDateGroups(next, dates.field).map((d) => d.index)
+      // The largest part outermost; one part grouped alone stays on the field itself.
+      const placed = parts.length ? [...parts].reverse() : [dates.field]
+      placedOf = (f) => (f === dates.field ? placed : [f])
+      rows = rows.flatMap(placedOf)
+      cols = cols.flatMap(placedOf)
     }
   }
-  let table = newPivotTable(name, grouped, at)
+  let table = withAllCleared(start, grouped)
+  for (const f of recipe.pages ?? []) table = withFieldIn(table, grouped, f, "filters")
   for (const f of rows) table = withFieldIn(table, grouped, f, "rows")
-  for (const f of recipe.cols) table = withFieldIn(table, grouped, f, "cols")
-  for (const f of recipe.values) table = withFieldIn(table, grouped, f, "values")
+  for (const f of cols) table = withFieldIn(table, grouped, f, "cols")
+  recipe.values.forEach((f, i) => {
+    table = withFieldIn(table, grouped, f, "values")
+    const fn = recipe.fns?.[i]
+    const index = table.values.length - 1
+    if (fn && table.values[index]?.fn !== fn) {
+      const next = withValueSettings(table, grouped, index, { name: "", fn })
+      if (typeof next !== "string") table = next
+    }
+  })
+  // Sort and Top N on the innermost field a date field became (where its items are listed).
+  const target = (f: number) => {
+    const placed = placedOf(f)
+    const g = placed[placed.length - 1]
+    return rows.includes(g) || cols.includes(g) ? g : null
+  }
+  const sort = recipe.sort
+  const sortField = sort ? target(sort.field) : null
+  if (sort && sortField !== null) {
+    if (sort.by === "label") table = withSort(table, grouped, sortField, sort.order)
+    else if (table.values[sort.by]) table = withValueSort(table, sortField, sort.by, sort.order)
+  }
+  const top = recipe.top
+  const topField = top ? target(top.field) : null
+  if (top && topField !== null && table.values[top.measure] && top.count > 0)
+    table = withFieldFilter(table, topField, {
+      kind: "top",
+      by: "count",
+      top: !top.bottom,
+      measure: top.measure,
+      value: Math.floor(top.count),
+    })
   return { table, cache: grouped }
 }

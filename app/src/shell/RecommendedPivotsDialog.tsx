@@ -1,5 +1,14 @@
-import { displayText, pivotLayout, type PivotCache, type PivotCell, type PivotTable } from "@cells/core"
+import {
+  displayText,
+  pivotLayout,
+  type PivotCache,
+  type PivotCell,
+  type PivotRecipe,
+  type PivotTable,
+} from "@cells/core"
+import { Sparkles } from "lucide-react"
 import { useMemo, useState } from "react"
+import { DescribePivot, useAiReady } from "@/ai/DescribePivot"
 import type { SheetController } from "@/sheet/controller"
 import { cn } from "@/lib/cn"
 import { Dialog } from "./Dialog"
@@ -7,7 +16,8 @@ import { Dialog } from "./Dialog"
 /**
  * Recommended PivotTables (Insert tab, PivotTable Analyze › Tools, Quick Analysis' Tables tab › More), as Excel's:
  * the suggestions down the left, each a small picture of its PivotTable; the one picked shown large on the right.
- * OK makes it on a new sheet; Blank PivotTable makes an empty one there for the Fields pane.
+ * OK makes it on a new sheet; Blank PivotTable makes an empty one there for the Fields pane. With AI on, "Describe the
+ * PivotTable you want" puts the AI's layout at the top of the list, picked, to look at before OK.
  */
 export function RecommendedPivotsDialog({
   controller,
@@ -21,7 +31,10 @@ export function RecommendedPivotsDialog({
 }) {
   const found = useMemo(() => controller.pivots.recommendations(source), [controller, source])
   const [picked, setPicked] = useState(0)
-  if (typeof found === "string" || !found.items.length) {
+  const [described, setDescribed] = useState<{ recipe: PivotRecipe; table: PivotTable; cache: PivotCache } | null>(null)
+  const aiReady = useAiReady()
+  // With nothing to recommend, the list still opens when the person can describe one.
+  if (typeof found === "string" || (!found.items.length && !aiReady)) {
     return (
       <Dialog title="Recommended PivotTables" onCancel={onClose} onAccept={onClose} cancelLabel={null}>
         <p className="dialog-label">
@@ -30,17 +43,15 @@ export function RecommendedPivotsDialog({
       </Dialog>
     )
   }
+  const items = described ? [described, ...found.items] : found.items
   const make = (blank: boolean) => {
-    const problem = controller.pivots.create(
-      found.source,
-      { kind: "newSheet" },
-      undefined,
-      blank ? undefined : found.items[picked]?.recipe,
-    )
+    const recipe = blank ? undefined : items[picked]?.recipe
+    if (!blank && !recipe) return
+    const problem = controller.pivots.create(found.source, { kind: "newSheet" }, undefined, recipe)
     if (problem) return controller.shell.alert(problem)
     onClose()
   }
-  const current = found.items[picked]
+  const current = items[picked]
   return (
     <Dialog
       title="Recommended PivotTables"
@@ -52,7 +63,7 @@ export function RecommendedPivotsDialog({
           <button type="button" className="dialog-btn recommend-blank" onClick={() => make(true)}>
             Blank PivotTable
           </button>
-          <button type="button" className="dialog-btn is-primary" onClick={() => make(false)}>
+          <button type="button" className="dialog-btn is-primary" disabled={!current} onClick={() => make(false)}>
             OK
           </button>
           <button type="button" className="dialog-btn" onClick={onClose}>
@@ -61,11 +72,18 @@ export function RecommendedPivotsDialog({
         </>
       }
     >
+      <DescribePivot
+        cache={found.cache}
+        onRecipe={(recipe) => {
+          setDescribed({ recipe, ...controller.pivots.recipePreview(found.cache, recipe) })
+          setPicked(0)
+        }}
+      />
       <div className="recommend-pivots">
         <div className="recommend-list" role="listbox" aria-label="Recommended PivotTables">
-          {found.items.map((item, i) => (
+          {items.map((item, i) => (
             <button
-              key={item.recipe.title}
+              key={`${item === described ? "ai" : "r"}:${item.recipe.title}`}
               type="button"
               role="option"
               aria-selected={i === picked}
@@ -79,19 +97,28 @@ export function RecommendedPivotsDialog({
                 const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0
                 if (!step) return
                 e.preventDefault()
-                const next = Math.max(0, Math.min(found.items.length - 1, i + step))
+                const next = Math.max(0, Math.min(items.length - 1, i + step))
                 setPicked(next)
                 ;(e.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus()
               }}
             >
               <PivotPreview table={item.table} cache={item.cache} rows={7} small />
-              <span className="recommend-title">{item.recipe.title}</span>
+              <span className="recommend-title">
+                {item === described ? <Sparkles size={12} strokeWidth={1.75} aria-label="Described" /> : null}
+                {item.recipe.title}
+              </span>
             </button>
           ))}
         </div>
         <div className="recommend-preview" aria-live="polite">
-          <div className="recommend-preview-title">{current.recipe.title}</div>
-          <PivotPreview table={current.table} cache={current.cache} rows={24} />
+          {current ? (
+            <>
+              <div className="recommend-preview-title">{current.recipe.title}</div>
+              <PivotPreview table={current.table} cache={current.cache} rows={24} />
+            </>
+          ) : (
+            <p className="dialog-note">Cells has no PivotTables to recommend for this data.</p>
+          )}
         </div>
       </div>
     </Dialog>

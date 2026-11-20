@@ -6,6 +6,7 @@ import {
   VALUES_FIELD,
   type PivotCache,
   type PivotDataField,
+  type PivotFilter,
   type PivotFn,
   type PivotTable,
 } from "./model"
@@ -136,11 +137,13 @@ export function withoutField(table: PivotTable, f: number, area: PivotArea, inde
   else if (area === "cols") next = { ...table, cols: table.cols.filter((x) => x !== f) }
   else if (area === "filters") next = { ...table, pages: table.pages.filter((p) => p.field !== f) }
   else if (f === VALUES_FIELD) return table
-  else
-    next = {
-      ...table,
-      values: table.values.filter((v, i) => (index !== undefined ? i !== index : v.field !== f)),
-    }
+  else {
+    const kept = table.values.map((v, i) => (index !== undefined ? i !== index : v.field !== f))
+    next = withValuesRenumbered(
+      { ...table, values: table.values.filter((_, i) => kept[i]) },
+      table.values.map((_, i) => (kept[i] ? kept.slice(0, i).filter(Boolean).length : -1)),
+    )
+  }
   // A field leaving the row and column areas takes its filter with it, as in Excel (not a timeline's).
   if (area !== "values" && next.filters?.some((x) => x.field === f && x.kind !== "date")) {
     const filters = next.filters.filter((x) => x.field !== f || x.kind === "date")
@@ -210,5 +213,37 @@ export function withValueMoved(table: PivotTable, from: number, to: number): Piv
   const [moved] = values.splice(from, 1)
   if (!moved) return table
   values.splice(Math.max(0, Math.min(to, values.length)), 0, moved)
-  return { ...table, values }
+  return withValuesRenumbered(
+    { ...table, values },
+    table.values.map((v) => values.indexOf(v)),
+  )
+}
+
+/**
+ * The table after its value fields were removed or reordered: `to[i]` is where value field i went (-1: gone). Sorting
+ * by a value field and value filters / Top 10 follow it; when it's gone, the sort goes back to the labels and the
+ * filter is dropped, as in Excel.
+ */
+export function withValuesRenumbered(table: PivotTable, to: number[]): PivotTable {
+  if (to.every((t, i) => t === i)) return table
+  const fields = table.fields.map((field) => {
+    if (field.sortBy === undefined) return field
+    const at = to[field.sortBy] ?? -1
+    if (at === field.sortBy) return field
+    const next = { ...field }
+    if (at >= 0) next.sortBy = at
+    else delete next.sortBy
+    return next
+  })
+  let next: PivotTable = { ...table, fields }
+  if (table.filters?.some((x) => x.kind === "value" || x.kind === "top")) {
+    const filters = table.filters.flatMap((x): PivotFilter[] => {
+      if (x.kind !== "value" && x.kind !== "top") return [x]
+      const measure = to[x.measure] ?? -1
+      return measure >= 0 ? [{ ...x, measure }] : []
+    })
+    next = { ...next, filters }
+    if (!filters.length) delete next.filters
+  }
+  return next
 }

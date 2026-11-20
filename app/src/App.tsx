@@ -34,6 +34,7 @@ import { usePlatform } from "@/platform/context"
 import type { SettingsPort } from "@cells/platform"
 import { loadSettings, useSettings } from "@/settings/settings"
 import { AiDialog } from "@/ai/AiDialog"
+import { DescribePivotDialog } from "@/ai/DescribePivotDialog"
 import type { AiTool } from "@/ai/prompts"
 import { OptionsDialog, type OptionsPage } from "@/settings/OptionsDialog"
 import { FirstRunSetup } from "@/settings/FirstRunSetup"
@@ -271,6 +272,7 @@ type DialogState =
   | { kind: "filter"; request: FilterDialogRequest }
   | { kind: "pivotFilter"; request: PivotFilterRequest }
   | { kind: "recommendPivots"; source?: string }
+  | { kind: "describePivot" }
   | { kind: "createPivot"; source?: string; mode?: "source" | "move" | "chart"; chartType?: string }
   | { kind: "pivotValue"; index: number }
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
@@ -1021,6 +1023,7 @@ function WorkbookWindow({
     else if (kind === "createPivot") setDialog({ kind: "createPivot", source: arg })
     else if (kind === "pivotSource") setDialog({ kind: "createPivot", mode: "source" })
     else if (kind === "pivotMove") setDialog({ kind: "createPivot", mode: "move" })
+    else if (kind === "describePivot") setDialog({ kind: "describePivot" })
     else if (kind === "recommendPivots")
       setDialog({ kind: "recommendPivots", source: name.slice(kind.length + 1) || undefined })
     else if (kind === "createPivotChart") setDialog({ kind: "createPivot", mode: "chart", chartType: arg })
@@ -1621,6 +1624,13 @@ function WorkbookWindow({
         {dialog?.kind === "ai" ? (
           <AiDialog
             tool={dialog.tool}
+            controller={controller}
+            onClose={closeDialog}
+            onOptions={() => setDialog({ kind: "options", page: "ai" })}
+          />
+        ) : null}
+        {dialog?.kind === "describePivot" ? (
+          <DescribePivotDialog
             controller={controller}
             onClose={closeDialog}
             onOptions={() => setDialog({ kind: "options", page: "ai" })}

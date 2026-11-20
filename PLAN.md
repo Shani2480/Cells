@@ -380,6 +380,25 @@ please name one).
 
 ---
 
+### Phase 7 — The commands marked "not built" (0.7.0) 🔄
+
+The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables have their own plan in
+`docs/pivot-plan.md`.
+
+- ✅ Parts 1–9: menus wired up, formula auditing, outline and Subtotal, data tools, links and symbols, views and
+  windows (as panels inside Cells), Review tools, objects (shapes, pictures, themes, equations, 3D models, SmartArt,
+  signature lines, embedded files), sparklines, slicers and Quick Analysis.
+- ✅ Part 10: PivotTables, PivotCharts, slicers and Timelines for PivotTables, Recommended PivotTables, and
+  "Describe the PivotTable you want" (AI, opt-in), with sorting by a value.
+- ⬜ Next: feature hints ("New: …", the house rule; Cells has none yet), then the Help tab.
+- ⬜ Then: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project.
+- ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: a More Sort Options dialog for PivotTables,
+  Field Headers, Show Report Filter Pages, calculated items, new PivotTable styles).
+
+**Known limits:** sorting a PivotTable by a value is set only by the AI or by Excel's files (no dialog yet).
+
+---
+
 ## 4. Verifying against Excel (all phases)
 
 - **Mechanism:** local, git-ignored tooling like Inkspire's Word renderer: copy files into the Office VM through the

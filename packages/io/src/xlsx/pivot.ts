@@ -254,6 +254,8 @@ const DATA_FN: Record<string, PivotFn> = {
 const AXIS: Record<string, PivotField["axis"]> = { axisRow: "row", axisCol: "col", axisPage: "page" }
 const X14_FIELD = "{2946ED86-A175-432a-8AC1-64E0C546D7DE}"
 const NS_X14 = "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"
+/** The Σ Values field in a pivot area reference (-2 as an unsigned 32-bit number). */
+const DATA_FIELD_REF = 4294967294
 
 /** The x14 extension of a dataField (Show Values As choices added in Excel 2010). */
 const X14_DATA = "{E15A36E0-9728-4e99-A89B-3F7291B0FE68}"
@@ -299,7 +301,14 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
   const outline = truthy(at(root, "outline"), false)
   const fields: PivotField[] = []
   for (const f of kids(kid(root, "pivotFields"), "pivotField")) {
-    if (at(f, "autoShow") === "1" || kid(f, "autoSortScope") || at(f, "dataSourceSort") === "1") return null
+    if (at(f, "autoShow") === "1" || at(f, "dataSourceSort") === "1") return null
+    // Sorted by a value field: the one shape Excel writes for it (any other scope is kept as read).
+    const scope = kid(f, "autoSortScope")
+    let sortBy: number | undefined
+    if (scope) {
+      sortBy = autoSortMeasure(scope)
+      if (sortBy === undefined) return null
+    }
     const axisAttr = at(f, "axis")
     if (axisAttr && !(axisAttr in AXIS)) return null
     const items: PivotField["items"] = []
@@ -342,6 +351,10 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
       multipleItems: truthy(at(f, "multipleItemSelectionAllowed"), false),
     }
     if (!["manual", "ascending", "descending"].includes(field.sort)) return null
+    if (sortBy !== undefined) {
+      if (field.sort === "manual") return null
+      field.sortBy = sortBy
+    }
     const name = at(f, "name")
     if (name !== undefined) field.name = name
     const numFmt = fmt(f)
@@ -900,6 +913,7 @@ export function pivotTableXml(
       else if (hasDefault) xml.push(`<item t="default"/>`)
       inner += `<items count="${xml.length}">${xml.join("")}</items>`
     }
+    if (f.sortBy !== undefined && f.sort !== "manual") inner += autoSortScopeXml(f.sortBy)
     if (f.repeatLabels)
       inner +=
         `<extLst><ext uri="${X14_FIELD}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">` +
@@ -1002,4 +1016,24 @@ export function pivotTableXml(
       `</ext></extLst>`
   const body = TABLE_ORDER.map((local) => generated[local] ?? kept.find((k) => k.local === local)?.xml ?? "").join("")
   return `<pivotTableDefinition xmlns="${NS_MAIN}"${attrs}>${body}</pivotTableDefinition>`
+}
+
+/** The value field an `<autoSortScope>` sorts by, when it is Excel's plain "by this value field" scope. */
+function autoSortMeasure(scope: XNode): number | undefined {
+  const area = kid(scope, "pivotArea")
+  const refs = kids(kid(area, "references"), "reference")
+  if (refs.length !== 1 || at(refs[0], "field") !== String(DATA_FIELD_REF)) return undefined
+  const xs = kids(refs[0], "x")
+  if (xs.length !== 1) return undefined
+  const v = Number(at(xs[0], "v") ?? 0)
+  return Number.isInteger(v) && v >= 0 ? v : undefined
+}
+
+/** Excel's `<autoSortScope>` for sorting a field by value field `measure`. */
+function autoSortScopeXml(measure: number): string {
+  return (
+    `<autoSortScope><pivotArea dataOnly="0" outline="0" fieldPosition="0"><references count="1">` +
+    `<reference field="${DATA_FIELD_REF}" count="1" selected="0"><x v="${measure}"/></reference>` +
+    `</references></pivotArea></autoSortScope>`
+  )
 }

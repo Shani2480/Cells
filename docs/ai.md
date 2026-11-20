@@ -12,11 +12,17 @@ AI.
 | Explain Formula     | the active cell's formula and the cells around it  | a short explanation (Copy)                        |
 | Suggest a Chart     | the selection (or the data around the active cell) | one of nine chart types and a title; Insert Chart |
 | Summarize Data      | the selection (or the data around the active cell) | three to five lines (Copy)                        |
+| Describe PivotTable | the data's column names, kinds and a few values    | a PivotTable layout, previewed; OK or Apply       |
 
 Cells are sent as `A1: Item | B1: Cost` lines, at most 60 rows and 26 columns, with formulas as written and the value
 they show. Every dialog says what it sends and where ("…to Anthropic, outside this computer" or "…on this computer"),
 and nothing goes into the workbook until the person chooses Insert or Insert Chart (one Undo step). A reply that isn't
 a formula Cells can read, or a chart Cells draws, is shown as a problem instead.
+
+"Describe the PivotTable you want" lives in Recommended PivotTables and the PivotTable Fields pane, and only shows
+while the AI tools are on and set up. It never sends rows: a text column is described by up to six of its values, a
+number or date column by its smallest and largest. The model only picks the layout (`app/src/ai/pivot-prompt.ts`,
+`DescribePivot.tsx`, `DescribePivotDialog.tsx`); Cells' PivotTable engine works out every number.
 
 Code: `app/src/ai/prompts.ts` (requests and reading replies), `app/src/ai/AiDialog.tsx`, `app/src/ai/client.ts`
 (where requests go), `app/src/settings/AiFields.tsx` (Options and setup), `src-tauri/src/ai.rs`.

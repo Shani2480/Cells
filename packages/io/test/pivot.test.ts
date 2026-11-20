@@ -232,6 +232,37 @@ describe("PivotTables in xlsx", () => {
     expect(expectCellsAsExcel(again)).toBe(15)
   })
 
+  it("reads sorting by a value, and the engine shows Excel's cells (pivot-sortvalue.xlsx)", async () => {
+    const { workbook: wb } = await openXlsx(fixture("pivot-sortvalue.xlsx"), "pivot-sortvalue.xlsx")
+    const field = (sheet: string, name: string) => {
+      const t = wb.sheets.find((s) => s.name === sheet)!.pivots[0]
+      return t.fields[cacheOf(wb, t).fields.findIndex((f) => f.name === name)]
+    }
+    expect(field("Desc", "Region")).toMatchObject({ sort: "descending", sortBy: 0 })
+    expect(field("Second", "Product")).toMatchObject({ sort: "descending", sortBy: 1 })
+    expect(field("Average", "Product")).toMatchObject({ sort: "ascending", sortBy: 0 })
+    expect(expectCellsAsExcel(wb)).toBe(6)
+  })
+
+  it("writes sorting by a value as Excel does, and reads it back the same", async () => {
+    const read = await openXlsx(fixture("pivot-sortvalue.xlsx"), "pivot-sortvalue.xlsx")
+    const wb = read.workbook
+    const before = wb.sheets.flatMap((s) => s.pivots.map((t) => t.fields))
+    for (const sheet of wb.sheets)
+      sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    const saved = await saveXlsx(wb, { source: read.source })
+    const files = await parts(saved)
+    const excel = await parts(fixture("pivot-sortvalue.xlsx"))
+    const scopes = (m: Map<string, string>) =>
+      [...m]
+        .filter(([n]) => /^xl\/pivotTables\/[^/]+\.xml$/.test(n))
+        .map(([, x]) => x.match(/<autoSortScope>.*?<\/autoSortScope>/g))
+    expect(scopes(files)).toEqual(scopes(excel))
+    const again = (await openXlsx(saved)).workbook
+    expect(again.sheets.flatMap((s) => s.pivots.map((t) => t.fields))).toEqual(before)
+    expect(expectCellsAsExcel(again)).toBe(6)
+  })
+
   it("a renamed PivotTable keeps what Cells keeps unread (Excel 365's no-Values-row extension)", async () => {
     const read = await openXlsx(fixture("pivot-filters.xlsx"), "pivot-filters.xlsx")
     const sheet = read.workbook.sheets.find((s) => s.name === "TwoValues")!

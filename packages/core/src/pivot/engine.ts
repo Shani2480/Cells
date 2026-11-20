@@ -5,6 +5,7 @@ import {
   PIVOT_FN_LABEL,
   VALUES_FIELD,
   type PivotCache,
+  type PivotDataField,
   type PivotFilter,
   type PivotFn,
   type PivotSubtotal,
@@ -268,10 +269,50 @@ export function pivotFieldName(table: PivotTable, cache: PivotCache, f: number):
 
 // ── Axes ──
 
-/** A group of records under one path of items. */
-type Node = { children: Map<number, Node> }
+/** A group of records under one path of items (`records` kept only when an item on the axis sorts by value). */
+type Node = { children: Map<number, Node>; records?: number[] }
+
+/** The value field (and direction) that orders field `f`'s items, or null when they follow their labels. */
+function valueSortOf(table: PivotTable, f: number): { df: PivotDataField; sign: number } | null {
+  const field = table.fields[f]
+  if (!field || field.sortBy === undefined || field.sort === "manual") return null
+  const df = table.values[field.sortBy]
+  return df ? { df, sign: field.sort === "ascending" ? 1 : -1 } : null
+}
+
+/**
+ * Items in the order of their totals of a value field under `node` (Excel's autoSort by a value): smallest or biggest
+ * first; items with no number (no data, or text summed) go last, keeping their label order, as do ties.
+ */
+function sortedByValue(
+  order: number[],
+  node: Node,
+  { df, sign }: { df: PivotDataField; sign: number },
+  cache: PivotCache,
+): number[] {
+  const inputs = calcFieldInputs(cache, df.field)
+  const total = (pos: number): number | null => {
+    const records = node.children.get(pos)?.records
+    if (!records) return null
+    const stats = new Map(inputs.map((f) => [f, newStats()]))
+    for (const r of records) for (const f of inputs) addValue(stats.get(f)!, cache.records[r][f] ?? null)
+    const v = cache.fields[df.field]?.formula
+      ? calcFieldValue(cache, df.field, (g) => stats.get(g)?.sum ?? 0)
+      : summarize(stats.get(df.field)!, df.fn)
+    return typeof v === "number" ? v : null
+  }
+  const totals = new Map(order.map((pos) => [pos, total(pos)]))
+  return order
+    .map((pos, i) => ({ pos, i, v: totals.get(pos)! }))
+    .sort((a, b) => {
+      if (a.v === null || b.v === null) return Number(a.v === null) - Number(b.v === null) || a.i - b.i
+      return sign * (a.v - b.v) || a.i - b.i
+    })
+    .map((x) => x.pos)
+}
 
 function axisLines(
+  cache: PivotCache,
   table: PivotTable,
   fields: number[],
   items: Map<number, FieldItems>,
@@ -282,6 +323,7 @@ function axisLines(
   const dataAt = fields.indexOf(VALUES_FIELD)
   const real = fields.filter((f) => f !== VALUES_FIELD)
   // The tree of item paths that have data.
+  const byValue = real.some((f) => valueSortOf(table, f) !== null)
   const root: Node = { children: new Map() }
   for (const r of records) {
     let node = root
@@ -290,6 +332,7 @@ function axisLines(
       let next = node.children.get(pos)
       if (!next) node.children.set(pos, (next = { children: new Map() }))
       node = next
+      if (byValue) (node.records ??= []).push(r)
     }
   }
   const lines: Line[] = []
@@ -303,7 +346,9 @@ function axisLines(
     else {
       const fi = items.get(f)!
       const field = table.fields[f]
-      const shown = field.showAll ? fi.order : fi.order.filter((pos) => node.children.has(pos))
+      let shown = field.showAll ? fi.order : fi.order.filter((pos) => node.children.has(pos))
+      const by = valueSortOf(table, f)
+      if (by) shown = sortedByValue(shown, node, by, cache)
       children = shown.map((pos) => ({ pos, node: node.children.get(pos) ?? { children: new Map() } }))
     }
     for (const { pos, node: child } of children) {
@@ -404,8 +449,8 @@ function prepare(table: PivotTable, cache: PivotCache) {
   }
   const filtered = applyFilters(table, cache, items, records)
 
-  const rowLines = axisLines(table, rowFields, items, filtered.rows, true)
-  const colLines = axisLines(table, colFields, items, filtered.cols, false)
+  const rowLines = axisLines(cache, table, rowFields, items, filtered.rows, true)
+  const colLines = axisLines(cache, table, colFields, items, filtered.cols, false)
   return { rowFields, colFields, items, filtered, rowLines, colLines }
 }
 

@@ -163,7 +163,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
   - [x] Sheet Background (tiled behind the cells, screen only; dimmed in dark mode; xlsx `<picture>`)
   - [x] Themes: Themes, Colors and Fonts galleries, Browse for Themes, writing the theme part; cells, cell styles,
         table styles, charts and shapes follow the theme
-- [ ] Part 8b — More objects (decided 2026-11-17: build them), smallest first; Excel-made reference files in
+- [x] Part 8b — More objects (decided 2026-11-17: build them), smallest first; Excel-made reference files in
       packages/io/test/fixtures/excel (sigline, oleobject, model3d, smartart)
   - [x] Signature Line: Insert › Text › Signature Line, Signature Setup (signer, title, email, instructions, comments,
         sign date), drawn like Office's; VML in xlsx (`o:signatureline`), Excel's kept
@@ -213,10 +213,10 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
         outside undo and unsaved changes. Built from Excel 365 as remembered (no reference screenshot). Not yet:
         PivotTable choices (Part 10), More Charts opens the Insert tab (no Insert Chart dialog)
   - Timelines go with Part 10 (Excel only links them to PivotTables)
-- [ ] Part 10 — PivotTables, PivotCharts and Timelines: plan in `docs/pivot-plan.md` (all steps decided 2026-11-17)
+- [x] Part 10 — PivotTables, PivotCharts and Timelines: plan in `docs/pivot-plan.md` (all steps decided 2026-11-17)
   - [x] 1 Model and engine (core) · [x] 2 Open and keep (io) · [x] 3 Refresh and use · [x] 4 Make and change
         (Fields pane, phone layout too) · [x] 5 Show Values As, calculated fields, grouping, GETPIVOTDATA
-        · [x] 6 PivotCharts · [ ] 7 Recommended PivotTables, Quick Analysis, Slicers, Timelines · [ ] 8 AI
+        · [x] 6 PivotCharts · [x] 7 Recommended PivotTables, Quick Analysis, Slicers, Timelines · [x] 8 AI
 - [ ] Help tab: Help (a local page of the shortcuts and features), Contact Support and Feedback (a pre-filled
       GitHub issue the person reviews), Show Training
 - [ ] Then: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project

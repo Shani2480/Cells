@@ -11,8 +11,9 @@ import {
   type PivotCache,
   type PivotTable,
 } from "@cells/core"
-import { ChevronDown, Columns3, Filter, Rows3, Sigma, X } from "lucide-react"
+import { ChevronDown, Columns3, Filter, Rows3, Sigma, Sparkles, X } from "lucide-react"
 import { useState, type CSSProperties, type DragEvent, type ReactNode } from "react"
+import { useAiReady } from "@/ai/DescribePivot"
 import type { SheetController } from "@/sheet/controller"
 
 /** A field chip in one of the four areas: its field and its place there. */
@@ -102,6 +103,7 @@ export function PivotFieldsPane({
   const [over, setOver] = useState<string | null>(null)
   // Fingers can't drag here (HTML drag and drop is mouse-only in most browsers): the lead says to use the menus.
   const [coarse] = useState(() => typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches)
+  const aiReady = useAiReady()
   const at = pivots.paneTable()
   if (!at) return null
   const { table, cache, waiting } = at
@@ -228,6 +230,12 @@ export function PivotFieldsPane({
           <X size={16} strokeWidth={1.75} />
         </button>
       </header>
+      {aiReady && onDialog ? (
+        <button type="button" className="dialog-btn pivot-describe" onClick={() => onDialog("describePivot")}>
+          <Sparkles size={14} strokeWidth={1.75} aria-hidden />
+          Describe the PivotTable you want…
+        </button>
+      ) : null}
       <p className="pivot-fields-lead">Choose fields to add to report:</p>
       <input
         className="dialog-field pivot-fields-search"

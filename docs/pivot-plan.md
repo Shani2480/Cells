@@ -246,3 +246,22 @@ preview before it is made. It only proposes a definition; the engine of step 1 d
 are never made up by the model.
 
 8. **AI** (after step 7, opt-in): "Describe the PivotTable you want", as above.
+
+   _Done:_ the box sits above the suggestions in Recommended PivotTables (the AI's PivotTable joins the list first,
+   picked, marked with a sparkle) and behind "Describe the PivotTable you want…" at the top of the Fields pane (a
+   dialog with a preview; Apply lays the PivotTable out anew in one undo step, keeping its name, place, style and
+   options). Both show only when AI is on and set up. The request (`app/src/ai/pivot-prompt.ts`) sends the data's
+   columns, their kind and a few values (text: up to six; numbers and dates: their range), never rows; the reply is a
+   JSON layout read against the columns (unknown names are reported, not guessed). It becomes a `PivotRecipe`, which
+   now also carries summaries, report filters, date parts (days, months, quarters, years, on rows or columns), one
+   sort and one Top N; `withRecipe` applies it to an existing PivotTable.
+
+   Needed for "biggest first": **sort by a value** (`PivotField.sortBy`, an index into `values`, direction in
+   `sort`). The engine orders each item's children by their totals of that value field within the item above (no
+   number last, ties in label order); removing or moving value fields renumbers it (and value filters' `measure`,
+   which didn't follow before); Sort A to Z ends it. io reads and writes Excel's `<autoSortScope>` (one reference to
+   the Σ Values field), so such files from Excel no longer stay read-only. Excel fixture `pivot-sortvalue.xlsx` (six
+   PivotTables: descending, nested ascending, by the second value, on columns, by Average, with Top 3): the engine
+   gives Excel's cells and writes Excel's XML byte for byte. Six value-sorted PivotTables made in Cells: 0 validator
+   errors, no repair in Excel 365, and Excel's own refresh leaves every cell as Cells wrote it. Not yet: a More Sort
+   Options dialog to pick the value by hand (only the AI and Excel's files set it).

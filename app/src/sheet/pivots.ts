@@ -13,6 +13,7 @@ import {
   type GroupKind,
   pivotChartButtons,
   pivotFromRecipe,
+  withRecipe,
   recommendedPivots,
   type PivotRecipe,
   pivotChartData,
@@ -564,7 +565,9 @@ export class PivotCommands {
    */
   recommendations(
     sourceText?: string,
-  ): { source: string; items: { recipe: PivotRecipe; table: PivotTable; cache: PivotCache }[] } | string {
+  ):
+    | { source: string; cache: PivotCache; items: { recipe: PivotRecipe; table: PivotTable; cache: PivotCache }[] }
+    | string {
     // In a PivotTable: its own data, as Excel suggests from it.
     const text = sourceText ?? (this.active() ? this.sourceText() : this.defaultSource())
     const source = text ? this.parseSource(text) : null
@@ -578,7 +581,30 @@ export class PivotCommands {
       recipe,
       ...pivotFromRecipe(nextPivotName(wb.sheets), cache, { row: 2, col: 0 }, recipe),
     }))
-    return { source: text, items }
+    return { source: text, cache, items }
+  }
+
+  /** A suggestion's PivotTable for a preview, as Recommended PivotTables shows its own (`cache` from recommendations). */
+  recipePreview(cache: PivotCache, recipe: PivotRecipe): { table: PivotTable; cache: PivotCache } {
+    return pivotFromRecipe(nextPivotName(this.c.wb.sheets), cache, { row: 2, col: 0 }, recipe)
+  }
+
+  /**
+   * "Describe the PivotTable you want" in the Fields pane: the active PivotTable laid out anew as `recipe` says (its
+   * name, place, style and options stay). Grouping dates regroups its cache, as the Grouping dialog does, so other
+   * PivotTables sharing it see the new date fields too.
+   */
+  applyRecipe(recipe: PivotRecipe): boolean {
+    const at = this.activeWithCache()
+    if (!at) return false
+    const made = withRecipe(at.table, at.cache, recipe)
+    const label = "Describe PivotTable"
+    if (made.cache === at.cache) return this.relayout(at, made.table, label)
+    const sheet = this.c.sheetIndex
+    return this.run([at.cache.id], label, undefined, {
+      cache: made.cache,
+      edit: (laid, s) => (s === sheet && laid.name === at.table.name ? made.table : laid),
+    })
   }
 
   /**
