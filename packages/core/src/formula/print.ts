@@ -84,6 +84,8 @@ export function printFormula(node: Node, parent = 0): string {
       return `(${printFormula(node.arg)})`
     case "func":
       return `${node.name}(${node.args.map((a) => printFormula(a)).join(",")})`
+    case "call":
+      return `${printFormula(node.callee, 11)}(${node.args.map((a) => printFormula(a)).join(",")})`
     case "unary": {
       const text = node.op + printFormula(node.arg, 6)
       return parent > 6 ? `(${text})` : text

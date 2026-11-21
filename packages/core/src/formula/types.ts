@@ -12,7 +12,24 @@ export type RefValue = { kind: "ref"; areas: Area[]; threeD?: boolean }
 /** An array: row-major values. Arrays from ranges can hold blanks. */
 export type Matrix = { kind: "matrix"; rows: number; cols: number; data: Scalar[] }
 
-export type Value = Scalar | RefValue | Matrix
+/**
+ * A function as a value: a LAMBDA (its parameters, body and the LET names it was made under), or a built-in function
+ * named without brackets (=BYROW(A1:C3,SUM)). Only calls and the helper functions (MAP, REDUCE…) use one; a cell that
+ * would hold one shows #CALC!.
+ */
+export type LambdaValue = {
+  kind: "lambda"
+  params: string[]
+  body: import("./ast").Node | null
+  bound?: Map<string, Value>
+  builtin?: string
+}
+
+export type Value = Scalar | RefValue | Matrix | LambdaValue
+
+export function isLambda(value: Value): value is LambdaValue {
+  return typeof value === "object" && value !== null && "kind" in value && value.kind === "lambda"
+}
 
 export function isRef(value: Value): value is RefValue {
   return typeof value === "object" && value !== null && "kind" in value && value.kind === "ref"

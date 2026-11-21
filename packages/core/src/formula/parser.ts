@@ -155,11 +155,17 @@ class Parser {
 
   private postfix(): Node {
     let node = this.primary()
-    while (this.peek()?.kind === "spill") {
-      this.i++
-      node = { type: "spill", ref: node }
+    for (;;) {
+      const t = this.peek()
+      if (t?.kind === "spill") {
+        this.i++
+        node = { type: "spill", ref: node }
+      } else if (t?.kind === "open" && (node.type === "func" || node.type === "call" || node.type === "paren")) {
+        // A call on a function's (or a bracketed expression's) result: LAMBDA(x,x+1)(5).
+        this.i++
+        node = { type: "call", callee: node, args: this.argList("The call") }
+      } else return node
     }
-    return node
   }
 
   private primary(): Node {
@@ -209,10 +215,15 @@ class Parser {
   private call(t: Token): Node {
     const name = t.text.toUpperCase().replace(/^_XLFN\.(?:_XLWS\.)?/, "")
     this.next() // "("
+    return { type: "func", name, args: this.argList(name) }
+  }
+
+  /** The arguments after an opening "(", up to and including its ")". */
+  private argList(name: string): Node[] {
     const args: Node[] = []
     if (this.peek()?.kind === "close") {
       this.i++
-      return { type: "func", name, args }
+      return args
     }
     for (;;) {
       const p = this.peek()
@@ -230,7 +241,7 @@ class Parser {
       this.fail(sep ? `Unexpected "${sep.text}".` : `${name} is missing its closing parenthesis.`)
     }
     if (args.length > 255) this.fail("A function can take at most 255 arguments.")
-    return { type: "func", name, args }
+    return args
   }
 
   private array(): Node {

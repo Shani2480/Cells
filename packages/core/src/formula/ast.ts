@@ -23,6 +23,8 @@ export type Node =
   | RefNode
   | { type: "name"; sheet: string | null; name: string }
   | { type: "func"; name: string; args: Node[] }
+  /** A call on what an expression gives (a LAMBDA): =LAMBDA(x,x+1)(5), =LET(f,LAMBDA(…),f)(2). */
+  | { type: "call"; callee: Node; args: Node[] }
   | { type: "unary"; op: "-" | "+" | "@"; arg: Node }
   | { type: "percent"; arg: Node }
   | { type: "binary"; op: BinaryOp; left: Node; right: Node }

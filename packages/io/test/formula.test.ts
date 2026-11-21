@@ -21,4 +21,28 @@ describe("formula text in files", () => {
     expect(formulaToFile('=SUM(A1:A3)&"XLOOKUP("')).toBe('SUM(A1:A3)&"XLOOKUP("')
     expect(formulaToFile("=stdev.s(A1:A3)")).toBe("_xlfn.stdev.s(A1:A3)")
   })
+
+  it("writes LAMBDA as Excel saves it, and reads it back", () => {
+    // These are the strings Excel 365 wrote for the same formulas and names.
+    const saved: [string, string][] = [
+      ["=LET(f,LAMBDA(x,x*2),f(21))", "_xlfn.LET(_xlpm.f,_xlfn.LAMBDA(_xlpm.x,_xlpm.x*2),_xlpm.f(21))"],
+      ["=LAMBDA(x,x+1)(5)", "_xlfn.LAMBDA(_xlpm.x,_xlpm.x+1)(5)"],
+      ["=MyDouble(4)", "MyDouble(4)"],
+      ["=MAP({1,2},LAMBDA(v,v*10))", "_xlfn.MAP({1,2},_xlfn.LAMBDA(_xlpm.v,_xlpm.v*10))"],
+      [
+        "=LAMBDA(x,y,IF(ISOMITTED(y),x,y))(1,)",
+        "_xlfn.LAMBDA(_xlpm.x,_xlpm.y,IF(_xlfn.ISOMITTED(_xlpm.y),_xlpm.x,_xlpm.y))(1,)",
+      ],
+      [
+        "=REDUCE(0,{1,2},LAMBDA(acc,v,acc+v))",
+        "_xlfn.REDUCE(0,{1,2},_xlfn.LAMBDA(_xlpm.acc,_xlpm.v,_xlpm.acc+_xlpm.v))",
+      ],
+      ["=MAKEARRAY(1,2,LAMBDA(r,c,r+c))", "_xlfn.MAKEARRAY(1,2,_xlfn.LAMBDA(_xlpm.r,_xlpm.c,_xlpm.r+_xlpm.c))"],
+      ["=LAMBDA(a,b,a+b)", "_xlfn.LAMBDA(_xlpm.a,_xlpm.b,_xlpm.a+_xlpm.b)"],
+    ]
+    for (const [cells, file] of saved) {
+      expect(formulaToFile(cells)).toBe(file)
+      expect(formulaFromFile(file)).toBe(cells)
+    }
+  })
 })

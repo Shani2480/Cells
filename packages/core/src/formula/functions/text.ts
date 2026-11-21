@@ -7,7 +7,7 @@ const formatWithCode = (value: number | string | boolean, code: string) =>
   withRegional(EN_US, () => formatShown(value, code))
 import { NA, numberToText, textToNumber, toBool, toNumber, toText, VALUE } from "../coerce"
 import { toMatrix } from "../evaluate"
-import { isMatrix, isRef, matrix, type Scalar, type Value } from "../types"
+import { isLambda, isMatrix, isRef, matrix, type Scalar, type Value } from "../types"
 import { wildcardPattern } from "./criteria"
 import { forEachScalar, int, num } from "./helpers"
 import { define, scalarFn } from "./registry"
@@ -230,7 +230,7 @@ define("CONCAT", {
         }
         continue
       }
-      const t = toText(arg)
+      const t = isLambda(arg) ? VALUE : toText(arg)
       if (isError(t)) {
         error = t
         break

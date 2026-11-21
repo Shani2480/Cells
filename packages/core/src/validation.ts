@@ -4,7 +4,7 @@ import { copyFormula } from "./formula/adjust"
 import { compareText } from "./formula/coerce"
 import { evaluateFormula } from "./formula/evaluate"
 import { parseFormula } from "./formula/parser"
-import { isMatrix, isRef, type Area, type Scalar, type Value } from "./formula/types"
+import { isMatrix, isRef, type Area, type Matrix, type Scalar } from "./formula/types"
 import { displayText } from "./format"
 import type { Sheet } from "./sheet"
 import { completeFormula } from "./formula/editing"
@@ -154,7 +154,7 @@ export class ValidationChecker {
     this.ctx = new PendingContext(sheets, today)
   }
 
-  private evaluate(formula: string, e: ValidationEntry, row: number, col: number): Value {
+  private evaluate(formula: string, e: ValidationEntry, row: number, col: number): Scalar | Matrix {
     const origin = e.ranges[0]
     const text = copyFormula("=" + formula, row - origin.r0, col - origin.c0)
     const parsed = parseFormula(text.slice(1))
@@ -167,10 +167,6 @@ export class ValidationChecker {
 
   private scalar(formula: string, e: ValidationEntry, row: number, col: number): Scalar {
     const v = this.evaluate(formula, e, row, col)
-    if (isRef(v)) {
-      const a = v.areas[0]
-      return this.ctx.cell(a.sheet, a.r0, a.c0)
-    }
     if (isMatrix(v)) return v.data[0] ?? null
     return v
   }

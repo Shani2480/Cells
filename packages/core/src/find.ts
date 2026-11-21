@@ -204,6 +204,10 @@ export function formulaRefs(input: string, sheetName: string): { local: Range[];
       case "func":
         n.args.forEach(walk)
         break
+      case "call":
+        walk(n.callee)
+        n.args.forEach(walk)
+        break
       case "unary":
       case "percent":
       case "paren":

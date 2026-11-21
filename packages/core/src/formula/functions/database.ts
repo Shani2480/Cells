@@ -10,7 +10,7 @@ import { DIV0, NUM, VALUE, toText } from "../coerce"
 import type { EvalContext } from "../context"
 import { evaluateFormula } from "../evaluate"
 import { parseFormula } from "../parser"
-import { isMatrix, isRef, type Matrix, type Scalar, type Value } from "../types"
+import { isLambda, isMatrix, isRef, type Matrix, type Scalar, type Value } from "../types"
 import { advancedCriterion } from "./criteria"
 import { arrayArg } from "./helpers"
 import { define } from "./registry"
@@ -32,7 +32,7 @@ function fieldColumn(field: Value, db: Matrix, ctx: EvalContext): number | null 
     if (field.areas.length !== 1 || a.r0 !== a.r1 || a.c0 !== a.c1) return VALUE
     field = ctx.cell(a.sheet, a.r0, a.c0)
   }
-  if (isMatrix(field)) return VALUE
+  if (isMatrix(field) || isLambda(field)) return VALUE
   if (isError(field)) return field
   // TRUE is column 1.
   if (typeof field === "boolean") field = field ? 1 : 0

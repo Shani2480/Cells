@@ -429,7 +429,12 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
 - ✅ Wave 4: database (12): DSUM, DAVERAGE, DCOUNT, DCOUNTA, DGET, DMAX, DMIN, DPRODUCT, DSTDEV, DSTDEVP, DVAR,
   DVARP with Advanced Filter's criteria ranges, computed criteria included (`functions/database.ts`); a Database
   category in Insert Function. 262 Excel cases.
-- ⬜ Wave 5: LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY, ISOMITTED; GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE.
+- ✅ Wave 5, part 1: LAMBDA (called in place, through LET names (recursion included) and as named functions in Name
+  Manager), MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY, ISOMITTED; built-in functions passed by name (=BYROW(A1:C3,
+  SUM)); saved with Excel's `_xlpm.` prefixes (`functions/lambda.ts`, a `call` node in the parser). 88 Excel cases
+  and an Excel-made file.
+- ⬜ Wave 5, part 2: GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE (not in the Excel build used for checking: built from
+  Microsoft's documentation, with our own tests).
 - ⬜ Wave 6: text, information and matrix (REGEX*, ARRAYTOTEXT, VALUETOTEXT, ENCODEURL, CELL, INFO, MUNIT, MINVERSE,
   MDETERM, SERIESSUM, MULTINOMIAL, ACOT, COTH, CSCH, SECH, …).
 - ⬜ The greyed-out ribbon buttons; then the thinner features above.

@@ -1,7 +1,7 @@
 import type { Node } from "./ast"
 import { printFormula } from "./print"
 import type { CellError } from "../values"
-import { isMatrix, isRef, type Scalar, type Value } from "./types"
+import { isLambda, isMatrix, isRef, type Scalar, type Value } from "./types"
 
 /**
  * Evaluate Formula (Formulas › Formula Auditing): a formula worked out one part at a time, as Excel's dialog does.
@@ -28,6 +28,8 @@ function children(n: Node): Node[] {
   switch (n.type) {
     case "func":
       return n.args
+    case "call":
+      return [n.callee, ...n.args]
     case "unary":
     case "percent":
     case "paren":
@@ -66,6 +68,7 @@ const scalarNode = (v: Scalar): Node => {
 /** A calculated value as the formula's text shows it: a value, or an array of values. */
 export function valueNode(v: Value): Node {
   if (isRef(v)) return { type: "error", code: "#VALUE!" }
+  if (isLambda(v)) return { type: "error", code: "#CALC!" }
   if (isMatrix(v)) {
     if (v.rows === 1 && v.cols === 1) return scalarNode(v.data[0])
     const rows: Node[][] = []
@@ -83,6 +86,8 @@ export function replacePart(root: Node, part: Node, value: Node): Node {
     switch (n.type) {
       case "func":
         return { ...n, args: n.args.map(map) }
+      case "call":
+        return { ...n, callee: map(n.callee), args: n.args.map(map) }
       case "unary":
       case "percent":
       case "paren":

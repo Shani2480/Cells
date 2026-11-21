@@ -2,7 +2,7 @@ import { isError, type CellError } from "../../values"
 import { toNumber, VALUE } from "../coerce"
 import type { EvalContext } from "../context"
 import { toMatrix } from "../evaluate"
-import { isMatrix, isRef, type Area, type Matrix, type Scalar, type Value } from "../types"
+import { isLambda, isMatrix, isRef, type Area, type Matrix, type Scalar, type Value } from "../types"
 
 /**
  * Visits every scalar of the arguments. `direct` is true for values typed as arguments (SUM(“1”, TRUE) counts
@@ -28,6 +28,8 @@ export function forEachScalar(
         if (v === null) continue
         if (visit(v, false) === false) return
       }
+    } else if (isLambda(arg)) {
+      if (visit(VALUE, true) === false) return
     } else if (arg !== null) {
       if (visit(arg, true) === false) return
     }

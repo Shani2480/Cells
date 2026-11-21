@@ -3,7 +3,7 @@ import { roundTo15 } from "../../values"
 import { roundDecimal } from "../../rounding"
 import { CALC, DIV0, NA, NUM, toNumber, VALUE } from "../coerce"
 import { cleanSum, power } from "../evaluate"
-import { isMatrix, isRef, matrix, type Area, type Scalar, type Value } from "../types"
+import { isLambda, isMatrix, isRef, matrix, type Area, type Scalar, type Value } from "../types"
 import { compileCriteria } from "./criteria"
 import { arrayArg, collectNumbers, forEachScalar, int, num } from "./helpers"
 import { define, scalarFn } from "./registry"
@@ -622,6 +622,7 @@ export function scalarOf(v: Value, ctx: Ctx): Scalar {
     return ctx.cell(a.sheet, a.r0, a.c0)
   }
   if (isMatrix(v)) return v.data[0]
+  if (isLambda(v)) return VALUE
   return v
 }
 

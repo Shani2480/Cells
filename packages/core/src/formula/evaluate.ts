@@ -1,16 +1,18 @@
 import { MAX_COLS, MAX_ROWS } from "../address"
 import { errorValue, isError, type CellError, type ErrorCode } from "../values"
 import type { BinaryOp, Node, RefNode } from "./ast"
-import { compareScalars, DIV0, NA, NAME, NULL, NUM, REF, toNumber, toText, VALUE } from "./coerce"
+import { CALC, compareScalars, DIV0, NA, NAME, NULL, NUM, REF, toNumber, toText, VALUE } from "./coerce"
 import type { EvalContext } from "./context"
 import { FUNCTIONS, type FnDef } from "./functions/registry"
 import { parseStructured, structuredArea, type StructuredSpec } from "../table/table"
 import {
   areaCols,
   areaRows,
+  isLambda,
   isMatrix,
   isRef,
   matrix,
+  type LambdaValue,
   type Area,
   type Matrix,
   type RefValue,
@@ -19,7 +21,7 @@ import {
 } from "./types"
 
 /** Evaluates a formula's AST to its result (a scalar, or an array that spills). */
-export function evaluateFormula(node: Node, ctx: EvalContext): Value {
+export function evaluateFormula(node: Node, ctx: EvalContext): Scalar | Matrix {
   // Excel cleans up cancellation only in the formula's last + or − (not inside parentheses or functions).
   const value =
     node.type === "binary" && (node.op === "+" || node.op === "-")
@@ -28,8 +30,12 @@ export function evaluateFormula(node: Node, ctx: EvalContext): Value {
   return finalValue(value, ctx)
 }
 
-/** A formula's result as the cell holds it: a reference becomes its value(s); a 1×1 array a scalar. */
-export function finalValue(value: Value, ctx: EvalContext): Value {
+/**
+ * A formula's result as the cell holds it: a reference becomes its value(s); a 1×1 array a scalar; a function (a
+ * LAMBDA not called) #CALC!.
+ */
+export function finalValue(value: Value, ctx: EvalContext): Scalar | Matrix {
+  if (isLambda(value)) return CALC
   if (isRef(value)) {
     if (value.areas.length > 1) return VALUE
     const area = value.areas[0]
@@ -76,6 +82,11 @@ export function evaluate(node: Node, ctx: EvalContext): Value {
       )
     case "func":
       return callFunction(node.name, node.args, ctx)
+    case "call": {
+      const callee = evaluate(node.callee, ctx)
+      if (isError(callee)) return callee
+      return isLambda(callee) ? callWith(callee, node.args, ctx) : VALUE
+    }
     case "unary": {
       if (node.op === "@") return implicitIntersection(evaluate(node.arg, ctx), ctx)
       const arg = evaluate(node.arg, ctx)
@@ -161,8 +172,63 @@ function resolveName(name: string, sheet: string | null, ctx: EvalContext): Valu
   const index = sheet === null ? ctx.sheet : ctx.sheetIndex(sheet)
   if (index < 0) return REF
   const formula = ctx.defined(name, index)
-  if (!formula) return NAME
-  return evaluate(formula, ctx)
+  if (formula) return evaluate(formula, ctx)
+  // A built-in function named without brackets is that function as a value: =BYROW(A1:C3,SUM).
+  const upper = name.toUpperCase().replace(/^_XLFN\.(?:_XLWS\.)?/, "")
+  if (sheet === null && FUNCTIONS.has(upper)) return { kind: "lambda", params: [], body: null, builtin: upper }
+  return NAME
+}
+
+// ── LAMBDA ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Bound-name key marking a LAMBDA parameter that was left out of the call (for ISOMITTED). */
+export const OMITTED_KEY = "\u0000omitted:"
+let callDepth = 0
+
+/** Calls a function value with arguments as written (an empty argument leaves its parameter out). */
+function callWith(fn: LambdaValue, nodes: Node[], ctx: EvalContext): Value {
+  if (fn.builtin) return callFunction(fn.builtin, nodes, ctx)
+  return invoke(
+    fn,
+    nodes.map((n) => (n.type === "missing" ? null : evaluate(n, ctx))),
+    ctx,
+    nodes.map((n) => n.type === "missing"),
+  )
+}
+
+/**
+ * Calls a function value: a LAMBDA's body worked out with its parameters bound (to blanks when left out), or a
+ * built-in function. A different number of arguments than parameters is #VALUE!; calls nested past 1,000 deep are
+ * #NUM!.
+ */
+export function invoke(fn: LambdaValue, args: Value[], ctx: EvalContext, omitted: boolean[] = []): Value {
+  if (fn.builtin) {
+    const def = FUNCTIONS.get(fn.builtin)!
+    if (args.length < def.min || args.length > def.max) return VALUE
+    if (def.lazy)
+      return def.lazy(
+        args.map((v) => () => v),
+        ctx,
+        args.map(() => ({ type: "missing" }) as Node),
+      )
+    return callEager(def, args, ctx)
+  }
+  // Every parameter needs its argument (an empty one leaves it out): =LAMBDA(x,y,x)(1) is #VALUE!.
+  if (args.length !== fn.params.length || !fn.body) return VALUE
+  const bound = new Map(fn.bound ?? [])
+  fn.params.forEach((p, i) => {
+    const left = i >= args.length || omitted[i]
+    bound.set(p, left ? null : args[i])
+    if (left) bound.set(OMITTED_KEY + p, true)
+    else bound.delete(OMITTED_KEY + p)
+  })
+  if (callDepth >= 1000) return NUM
+  callDepth++
+  try {
+    return evaluate(fn.body, Object.create(ctx, { bound: { value: bound } }) as EvalContext)
+  } finally {
+    callDepth--
+  }
 }
 
 /** The bounding area of two references (the : operator). Both must be single areas on the same sheet. */
@@ -256,7 +322,7 @@ export function toMatrix(value: Value, ctx: EvalContext): Matrix | CellError {
     if (value.areas.length !== 1) return VALUE
     return refToMatrix(value, ctx)
   }
-  return matrix(1, 1, [value])
+  return matrix(1, 1, [isLambda(value) ? VALUE : value])
 }
 
 /** A value used where one scalar is wanted; multi-cell values are lifted by the caller instead. */
@@ -268,6 +334,7 @@ export function toScalar(value: Value, ctx: EvalContext): Scalar {
     return implicitIntersection(value, ctx) as Scalar
   }
   if (isMatrix(value)) return value.data[0] ?? VALUE
+  if (isLambda(value)) return VALUE
   return value
 }
 
@@ -449,7 +516,12 @@ export type Thunk = () => Value
 
 function callFunction(name: string, args: Node[], ctx: EvalContext): Value {
   const def = FUNCTIONS.get(name)
-  if (!def) return NAME
+  if (!def) {
+    // A name holding a LAMBDA (LET's, or a defined name), called like a function: =f(2).
+    const fn = resolveName(name, null, ctx)
+    if (isLambda(fn) && !fn.builtin) return callWith(fn, args, ctx)
+    return isError(fn) ? fn : NAME
+  }
   if (args.length < def.min || args.length > def.max) return VALUE
   if (def.omittedIsNA && args.some((arg) => arg.type === "missing")) return NA
   if (def.lazy)
@@ -496,7 +568,7 @@ export function callEager(def: FnDef, values: Value[], ctx: EvalContext): Value 
       }
     }
     const result = def.call!(args, ctx)
-    return isRef(result) || isMatrix(result) ? toScalar(result, ctx) : result
+    return isRef(result) || isMatrix(result) || isLambda(result) ? toScalar(result, ctx) : result
   })
 }
 

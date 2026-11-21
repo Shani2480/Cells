@@ -161,6 +161,8 @@ function outsideRef(node: Node): boolean {
       return node.sheet !== null || !/^_PF\d+_$/.test(node.name)
     case "func":
       return node.args.some(outsideRef)
+    case "call":
+      return true
     case "unary":
     case "percent":
     case "paren":

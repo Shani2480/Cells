@@ -240,8 +240,19 @@ export class CalcEngine {
         if (def) this.collect(def, s, row, col, out, depth + 1)
         return
       }
-      case "func":
-        if (FUNCTIONS.get(node.name)?.volatile) out.volatile = true
+      case "func": {
+        const fn = FUNCTIONS.get(node.name)
+        if (fn?.volatile) out.volatile = true
+        if (!fn) {
+          // A LAMBDA kept in a defined name, called by its name: =Tax(A1).
+          const def = this.definedName(node.name, sheet)
+          if (def) this.collect(def, sheet, row, col, out, depth + 1)
+        }
+        for (const a of node.args) this.collect(a, sheet, row, col, out, depth)
+        return
+      }
+      case "call":
+        this.collect(node.callee, sheet, row, col, out, depth)
         for (const a of node.args) this.collect(a, sheet, row, col, out, depth)
         return
       case "unary":
