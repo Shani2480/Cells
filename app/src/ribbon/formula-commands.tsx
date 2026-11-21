@@ -28,8 +28,8 @@ const library = (id: string, label: string, description: string, category: Funct
 })
 
 /**
- * Formulas › Function Library and Defined Names. Excel's More Functions also has Engineering, Cube and Web, which
- * Cells has no functions for yet; they are left out of the menu.
+ * Formulas › Function Library and Defined Names. Excel's More Functions also has Cube and Web, which Cells has no
+ * functions for yet; they are left out of the menu.
  */
 export function formulaCommands(): Command[] {
   return [
@@ -84,10 +84,11 @@ export function formulaCommands(): Command[] {
     {
       id: "FunctionsMoreInsertGallery",
       label: "More Functions",
-      description: "Browse and select from lists of statistical, information and compatibility functions.",
-      menu: ["FunctionsStatistical", "FunctionsInformation", "FunctionsCompatibility"],
+      description: "Browse and select from lists of statistical, engineering, information and compatibility functions.",
+      menu: ["FunctionsStatistical", "FunctionsEngineering", "FunctionsInformation", "FunctionsCompatibility"],
     },
     library("FunctionsStatistical", "Statistical", "Statistical functions.", "Statistical"),
+    library("FunctionsEngineering", "Engineering", "Engineering functions.", "Engineering"),
     library("FunctionsInformation", "Information", "Information functions.", "Information"),
     library("FunctionsCompatibility", "Compatibility", "Functions kept for older workbooks.", "Compatibility"),
     {

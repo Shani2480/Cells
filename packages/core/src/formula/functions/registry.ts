@@ -16,6 +16,8 @@ export type FnDef = {
   /** Errors in scalar parameters are passed in rather than returned straight away (ISERROR, IFERROR…). */
   errors?: boolean
   volatile?: boolean
+  /** An omitted argument (=DEC2BIN(,)) is #N/A, as in the Analysis ToolPak functions. */
+  omittedIsNA?: boolean
   call?: (args: Value[], ctx: EvalContext) => Value
   /** Branching functions get their arguments unevaluated. */
   lazy?: (args: (() => Value)[], ctx: EvalContext, nodes: Node[]) => Value

@@ -451,6 +451,7 @@ function callFunction(name: string, args: Node[], ctx: EvalContext): Value {
   const def = FUNCTIONS.get(name)
   if (!def) return NAME
   if (args.length < def.min || args.length > def.max) return VALUE
+  if (def.omittedIsNA && args.some((arg) => arg.type === "missing")) return NA
   if (def.lazy)
     return def.lazy(
       args.map((arg) => () => evaluate(arg, ctx)),

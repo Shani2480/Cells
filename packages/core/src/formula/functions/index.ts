@@ -15,3 +15,5 @@ import "./regression"
 
 export { FUNCTIONS, isVolatile } from "./registry"
 export { compileCriteria, wildcardPattern } from "./criteria"
+import "./engineering"
+import "./complex"

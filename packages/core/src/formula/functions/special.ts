@@ -51,7 +51,7 @@ export function gamma(x: number): number {
 /** erf(x): a series of positive terms below 2.5, 1 − erfc(x) above. */
 export function erf(x: number): number {
   if (x < 0) return -erf(-x)
-  if (x >= 2.5) return 1 - erfc(x)
+  if (x >= 1) return 1 - erfc(x)
   // erf(x) = 2/√π · e^(−x²) · Σ 2ⁿ x^(2n+1) / (1·3·…·(2n+1)): no cancellation.
   let term = x
   let sum = x
@@ -60,7 +60,7 @@ export function erf(x: number): number {
     sum += term
     if (term < sum * EPS) break
   }
-  return (2 / SQRT_PI) * Math.exp(-x * x) * sum
+  return (2 / SQRT_PI) * expMinusSquare(x) * sum
 }
 
 /** erfc(x) = 1 − erf(x), without losing digits for large x (a continued fraction). */

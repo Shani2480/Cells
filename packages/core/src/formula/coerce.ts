@@ -71,7 +71,8 @@ export function toNumber(value: Scalar): number | CellError {
  * A number as & and text conversion write it (checked in Excel): 15 significant digits, written out in full while
  * that takes at most 20 characters (0.000000000000000001, 90000000000000000000), else scientific (1E-19, 1E+20).
  */
-export function numberToText(n: number): string {
+/** General text for a number: 15 significant digits, in E notation once it would take more than `width` characters. */
+export function numberToText(n: number, width = 20): string {
   if (n === 0 || !Number.isFinite(n)) return "0"
   const [mantissa, expText] = Math.abs(n).toPrecision(15).split(/e/i)
   let exp = expText === undefined ? 0 : Number(expText)
@@ -97,7 +98,7 @@ export function numberToText(n: number): string {
   } else {
     text = `0.${"0".repeat(-exp - 1)}${digits}`
   }
-  if (text.length > 20) {
+  if (text.length > width) {
     const m = digits.length > 1 ? `${digits[0]}.${digits.slice(1)}` : digits
     text = `${m}E${exp < 0 ? "-" : "+"}${String(Math.abs(exp)).padStart(2, "0")}`
   }

@@ -418,7 +418,10 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
   KURT, SKEW, TRIMMEAN, PERCENTRANK, PROB, MODE.MULT, FREQUENCY; LINEST, LOGEST, TREND, GROWTH
   (`functions/distributions.ts`, `stat-tests.ts`, `regression.ts`, special functions in `special.ts`). 215 Excel
   conformance cases; the xlsx `_xlfn.` list now holds every name Excel prefixes.
-- ⬜ Wave 2: engineering (bases, BIT*, ERF*, BESSEL*, CONVERT, the IM* complex numbers, DELTA, GESTEP).
+- ✅ Wave 2: engineering (54): number bases, BIT*, ERF/ERFC, DELTA, GESTEP, the Bessel functions (Excel's own
+  approximations), CONVERT with every unit and prefix Excel knows, COMPLEX and the IM* complex numbers written as
+  Excel writes them (`functions/engineering.ts`, `complex.ts`); a new Engineering category (More Functions). 940
+  Excel cases, including one per unit.
 - ⬜ Wave 3: financial (bonds and securities, depreciation, CUMIPMT/CUMPRINC, MIRR, ODD*, TBILL*, PDURATION, RRI).
 - ⬜ Wave 4: database (D* functions).
 - ⬜ Wave 5: LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY, ISOMITTED; GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE.
@@ -430,7 +433,8 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
 
 **Known limits:** distributions, tests and fits computed through special functions may differ from Excel in the
 16th significant digit (both are within a few units of the exact value, checked against 50-digit arithmetic);
-`tests/excel-golden/tolerances.json` lists them with how far.
+`tests/excel-golden/tolerances.json` lists them with how far. Excel's BESSELJ is itself only good to about 2e-5
+for x ≥ 8; Cells is closer to the true value there, so the two differ in the 5th digit.
 
 ---
 
