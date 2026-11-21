@@ -4587,3 +4587,236 @@ html.is-phone .pivot-fields-foot {
 html.is-phone .feature-hint-button {
   min-height: 40px;
 }
+
+/* Help › Help (F1) and Show Training: the Help pane. */
+.help-pane {
+  width: 320px;
+}
+
+.help-body,
+.help-training {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.help-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 12px 4px;
+  padding: 0 8px;
+  border: 1px solid var(--app-field-border);
+  border-radius: 4px;
+  background: var(--app-field-bg);
+}
+
+.help-search:focus-within {
+  border-color: var(--app-field-focus);
+}
+
+.help-search input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  user-select: text;
+}
+
+.help-heading {
+  margin: 14px 14px 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.help-topic {
+  margin: 0 6px;
+  border-radius: 4px;
+}
+
+.help-topic > summary {
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.help-topic > summary:hover {
+  background: var(--app-hover);
+}
+
+.help-topic[open] {
+  padding-bottom: 8px;
+}
+
+.help-text,
+.help-where,
+.help-note {
+  margin: 4px 10px 0 24px;
+  line-height: 1.4;
+}
+
+.help-where,
+.help-note {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.help-link {
+  margin: 6px 0 0 20px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-theme-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.help-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.help-keys {
+  margin: 2px 10px 0 24px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.help-keys th,
+.help-keys td {
+  padding: 3px 0;
+  vertical-align: top;
+  text-align: left;
+}
+
+.help-keys th {
+  padding-right: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.help-keys kbd {
+  font: 11.5px var(--font-ui);
+  font-weight: 600;
+}
+
+.help-more {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 14px 6px 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-divider);
+}
+
+.help-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.help-action:hover {
+  background: var(--app-hover);
+}
+
+.help-training {
+  padding: 4px 0 12px;
+}
+
+.help-training .help-text,
+.help-training .help-where,
+.help-training .help-note {
+  margin-left: 14px;
+}
+
+.help-step,
+.feature-hint-step {
+  margin: 10px 14px 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.feature-hint-step {
+  margin: 0 0 2px;
+  opacity: 0.85;
+}
+
+.help-training-title {
+  margin: 2px 14px 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.help-training-nav {
+  display: flex;
+  justify-content: space-between;
+  margin: 16px 14px 4px;
+}
+
+.help-training-nav .dialog-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.help-training .help-link {
+  margin-left: 10px;
+}
+
+/* Help › Feedback and Contact Support. */
+.feedback-kinds {
+  margin: 0 0 8px;
+  padding: 0;
+  border: none;
+}
+
+.feedback-kinds .dialog-radio {
+  display: flex;
+  margin: 4px 0;
+}
+
+.feedback-details {
+  width: 100%;
+  height: auto;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+#feedback-title {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+html.is-phone .help-pane {
+  width: auto;
+}
+
+html.is-phone .help-topic > summary,
+html.is-phone .help-action {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+html.is-phone .help-search input {
+  height: 40px;
+  font-size: 16px;
+}

@@ -119,6 +119,8 @@ import { SmartArtTextPane } from "@/shell/SmartArtTextPane"
 const SmartArtDialog = lazy(() => import("@/shell/SmartArtDialog").then((m) => ({ default: m.SmartArtDialog })))
 const IconsDialog = lazy(() => import("@/shell/IconsDialog").then((m) => ({ default: m.IconsDialog })))
 import { ThesaurusPane } from "@/shell/ThesaurusPane"
+import { HelpPane } from "@/help/HelpPane"
+import { FeedbackDialog } from "@/help/FeedbackDialog"
 import { QueriesPane } from "@/shell/QueriesPane"
 import { WorkbookLinksPane } from "@/shell/WorkbookLinksPane"
 import { QueryPropertiesDialog } from "@/shell/QueryPropertiesDialog"
@@ -274,6 +276,7 @@ type DialogState =
   | { kind: "pivotFilter"; request: PivotFilterRequest }
   | { kind: "recommendPivots"; source?: string }
   | { kind: "describePivot" }
+  | { kind: "feedback"; mode: "feedback" | "support" }
   | { kind: "createPivot"; source?: string; mode?: "source" | "move" | "chart"; chartType?: string }
   | { kind: "pivotValue"; index: number }
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
@@ -1025,6 +1028,8 @@ function WorkbookWindow({
     else if (kind === "pivotSource") setDialog({ kind: "createPivot", mode: "source" })
     else if (kind === "pivotMove") setDialog({ kind: "createPivot", mode: "move" })
     else if (kind === "describePivot") setDialog({ kind: "describePivot" })
+    else if (kind === "feedback") setDialog({ kind: "feedback", mode: "feedback" })
+    else if (kind === "contactSupport") setDialog({ kind: "feedback", mode: "support" })
     else if (kind === "recommendPivots")
       setDialog({ kind: "recommendPivots", source: name.slice(kind.length + 1) || undefined })
     else if (kind === "createPivotChart") setDialog({ kind: "createPivot", mode: "chart", chartType: arg })
@@ -1130,6 +1135,16 @@ function WorkbookWindow({
         event.preventDefault()
         ribbonHandle.current?.toggleCollapsed()
       } else if (
+        event.key === "F1" &&
+        !event.altKey &&
+        !event.shiftKey &&
+        !document.querySelector('[aria-modal="true"]')
+      ) {
+        // F1: Help, as in Excel (Alt+F1 is a chart, handled by the sheet).
+        event.preventDefault()
+        const c = files.doc.controller
+        c.setHelpPane(c.helpPane === "help" ? null : "help")
+      } else if (
         event.key === "F5" &&
         event.altKey &&
         !event.shiftKey &&
@@ -1203,6 +1218,16 @@ function WorkbookWindow({
   const accessibilityPane = (
     <AccessibilityPane controller={controller} onDone={focusGrid} onDialog={(name) => openDialog(name)} />
   )
+  const helpPane = controller.helpPane ? (
+    <HelpPane
+      key="help"
+      controller={controller}
+      onDone={focusGrid}
+      onShowTab={(id) => ribbonHandle.current?.showTab(id)}
+      onDialog={openDialog}
+      onWhatsNew={() => setBackstage("about")}
+    />
+  ) : null
   const linksPane = <WorkbookLinksPane controller={controller} files={files} onDone={focusGrid} />
   const queriesPane = (
     <QueriesPane
@@ -1344,6 +1369,7 @@ function WorkbookWindow({
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
               {controller.data.linksOpen ? linksPane : null}
+              {helpPane}
               {controller.pivots.fieldsShown(false) ? (
                 <PivotFieldsPane controller={controller} onDone={focusGrid} onDialog={openDialog} />
               ) : null}
@@ -1355,6 +1381,7 @@ function WorkbookWindow({
         {shell === "phone" && controller.clipboardPaneOpen ? clipboardPane : null}
         {shell === "phone" && controller.data.queriesOpen ? queriesPane : null}
         {shell === "phone" && controller.data.linksOpen ? linksPane : null}
+        {shell === "phone" ? helpPane : null}
         {shell === "phone" && controller.audit.watchOpen ? (
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}
@@ -1630,6 +1657,7 @@ function WorkbookWindow({
             onOptions={() => setDialog({ kind: "options", page: "ai" })}
           />
         ) : null}
+        {dialog?.kind === "feedback" ? <FeedbackDialog mode={dialog.mode} onClose={closeDialog} /> : null}
         {dialog?.kind === "describePivot" ? (
           <DescribePivotDialog
             controller={controller}
@@ -1728,6 +1756,14 @@ function WorkbookWindow({
             onOptions={() => {
               setBackstage(null)
               setDialog({ kind: "options" })
+            }}
+            onHelp={() => {
+              setBackstage(null)
+              controller.setHelpPane("help")
+            }}
+            onFeedback={() => {
+              setBackstage(null)
+              setDialog({ kind: "feedback", mode: "feedback" })
             }}
             recent={recentFiles}
             file={{

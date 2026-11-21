@@ -379,6 +379,14 @@ export class SheetController {
     this.changed()
   }
 
+  /** Help › Help (F1) or Show Training: the Help pane is open, on its help or on the tour. */
+  helpPane: "help" | "training" | null = null
+
+  setHelpPane(open: "help" | "training" | null) {
+    this.helpPane = open
+    this.changed()
+  }
+
   /** Puts text into a cell as if typed there (Thesaurus › Insert), as one undo step. */
   typeInto(at: CellAddress, text: string, label: string) {
     const before = this.selection

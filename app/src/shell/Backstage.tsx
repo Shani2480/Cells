@@ -19,7 +19,7 @@ type NavItem = {
   id: string
   label: string
   page?: BackstagePage
-  action?: "save" | "close" | "options"
+  action?: "save" | "close" | "options" | "help" | "feedback"
   gapBefore?: boolean
 }
 
@@ -35,6 +35,8 @@ const PAGES: NavItem[] = [
   { id: "export", label: "Export", page: "export" },
   { id: "close", label: "Close", action: "close" },
   { id: "account", label: "Account", page: "account", gapBefore: true },
+  { id: "help", label: "Help", action: "help" },
+  { id: "feedback", label: "Feedback", action: "feedback" },
   { id: "options", label: "Options", action: "options" },
 ]
 
@@ -56,6 +58,8 @@ export function Backstage({
   controller,
   onPageSetup,
   onOptions,
+  onHelp,
+  onFeedback,
 }: {
   page?: string
   onClose: () => void
@@ -68,6 +72,9 @@ export function Backstage({
   onPageSetup?: (tab: PageSetupTab) => void
   /** Options: the File view closes and Excel Options opens over the sheet. */
   onOptions?: () => void
+  /** Help (the pane, also on phones, which have no Help tab) and Feedback: the File view closes first. */
+  onHelp?: () => void
+  onFeedback?: () => void
 }) {
   const start = initial === "about" ? "account" : (initial ?? "home")
   const [page, setPage] = useState<string>(files || start === "account" ? start : "account")
@@ -96,6 +103,8 @@ export function Backstage({
       onOptions?.()
       return
     }
+    if (item.action === "help") return onHelp?.()
+    if (item.action === "feedback") return onFeedback?.()
     if (!files) return
     if (item.action === "save") {
       // A workbook never saved goes to Save As, as Excel does.
@@ -110,7 +119,11 @@ export function Backstage({
       ? true
       : item.action === "options"
         ? Boolean(onOptions)
-        : Boolean(files && (item.page || item.action))
+        : item.action === "help"
+          ? Boolean(onHelp)
+          : item.action === "feedback"
+            ? Boolean(onFeedback)
+            : Boolean(files && (item.page || item.action))
 
   return (
     <div className="backstage" role="dialog" aria-label="File">

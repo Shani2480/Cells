@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { updateSettings, useSettings } from "@/settings/settings"
 import { FEATURE_HINTS, nextHint, type FeatureHint } from "./feature-hints"
+import { pointAt, usePointer } from "./pointer"
 
 /** How long Cells is open before the first hint, and the pause after one is dismissed before the next. */
 export const FIRST_HINT_MS = 20_000
@@ -34,9 +35,9 @@ function busy() {
   return [...open].some((element) => element.getClientRects().length > 0)
 }
 
-type Placed = { hint: FeatureHint; top: number; left: number; beak: number; above: boolean }
+type Placed = { hint: FeatureHint; step?: string; top: number; left: number; beak: number; above: boolean }
 
-function place(hint: FeatureHint, target: HTMLElement): Placed {
+function place(hint: FeatureHint, target: HTMLElement, step?: string): Placed {
   const box = target.getBoundingClientRect()
   const height = 160
   const above = box.bottom + GAP + height > window.innerHeight && box.top - GAP - height > 0
@@ -44,6 +45,7 @@ function place(hint: FeatureHint, target: HTMLElement): Placed {
   const left = Math.min(Math.max(8, center - WIDTH / 2), Math.max(8, window.innerWidth - WIDTH - 8))
   return {
     hint,
+    step,
     top: above ? box.top - GAP : box.bottom + GAP,
     left,
     beak: Math.min(Math.max(16, center - left), WIDTH - 16),
@@ -55,39 +57,48 @@ function place(hint: FeatureHint, target: HTMLElement): Placed {
  * Office's teaching callout for Cells' special features (`feature-hints.ts`): one at a time, pointing at the feature's
  * control while it is on screen, once Cells has been open a while and some time after the last one. A tap on it, or
  * using the feature, dismisses it for good (kept in the settings file, `apps.cells.hintsDismissed`). Never before the
- * first-run setup is finished or skipped.
+ * first-run setup is finished or skipped. Help's "Show me" and Show Training point with the same callout at once
+ * (`pointer.ts`), whatever the settings.
  */
 export function FeatureHints() {
   const enabled = useSettings((s) => s.hintsEnabled)
   const dismissed = useSettings((s) => s.hintsDismissed)
   const ready = useSettings((s) => s.loaded && s.setupDone)
+  const pointed = usePointer((s) => s.pointed)
   const [placed, setPlaced] = useState<Placed | null>(null)
   const readyAt = useRef(Date.now() + FIRST_HINT_MS)
 
   useEffect(() => {
-    if (!enabled || !ready) {
+    if (!pointed && (!enabled || !ready)) {
       setPlaced(null)
       return
     }
     const tick = () => {
-      if (Date.now() < readyAt.current || busy()) return setPlaced(null)
-      const hint = nextHint(FEATURE_HINTS, dismissed, (name) => hintTarget(name) !== null)
-      const target = hint ? hintTarget(hint.target) : null
-      if (!hint || !target) return setPlaced(null)
-      const next = place(hint, target)
+      let next: Placed | null = null
+      if (pointed) {
+        const target = hintTarget(pointed.target)
+        if (target) next = place(pointed, target, pointed.step)
+      } else if (Date.now() >= readyAt.current && !busy()) {
+        const hint = nextHint(FEATURE_HINTS, dismissed, (name) => hintTarget(name) !== null)
+        const target = hint ? hintTarget(hint.target) : null
+        if (hint && target) next = place(hint, target)
+      }
+      if (!next) return setPlaced(null)
+      const shown = next
       setPlaced((current) =>
         current &&
-        current.hint.id === next.hint.id &&
+        current.hint.id === shown.hint.id &&
+        current.step === shown.step &&
         Math.abs(current.top - next.top) < 1 &&
         Math.abs(current.left - next.left) < 1
           ? current
-          : next,
+          : shown,
       )
     }
     tick()
     const timer = window.setInterval(tick, POLL_MS)
     return () => window.clearInterval(timer)
-  }, [enabled, ready, dismissed])
+  }, [enabled, ready, dismissed, pointed])
 
   const shownId = placed?.hint.id
   const shownTarget = placed?.hint.target
@@ -107,12 +118,14 @@ export function FeatureHints() {
   function close(id: string) {
     readyAt.current = Date.now() + NEXT_HINT_MS
     setPlaced(null)
+    // A "Show me" is done; closing a Show Training step ends the tour.
+    if (usePointer.getState().pointed) pointAt(null)
     const had = useSettings.getState().hintsDismissed
     if (!had.includes(id)) void updateSettings({ hintsDismissed: [...had, id] })
   }
 
   if (!placed) return null
-  const { hint, top, left, beak, above } = placed
+  const { hint, step, top, left, beak, above } = placed
   return createPortal(
     <div
       role="dialog"
@@ -121,6 +134,7 @@ export function FeatureHints() {
       style={{ top, left, width: WIDTH, ["--beak-x" as string]: `${beak}px` }}
       onClick={() => close(hint.id)}
     >
+      {step ? <p className="feature-hint-step">{step}</p> : null}
       <p className="feature-hint-title">{hint.title}</p>
       <p className="feature-hint-text">{hint.text}</p>
       <div className="feature-hint-actions">

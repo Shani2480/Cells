@@ -393,12 +393,17 @@ The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables h
 - ✅ Feature hints ("New: …", the house rule): `app/src/hints/`, one at a time beside the feature's control, on by
   default, File › Options › General turns them off or shows them again; kept in `apps.cells` of the shared settings.
   Each new special feature adds its hint to `feature-hints.ts`.
-- ⬜ Next: the Help tab.
-- ⬜ Then: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project.
+- ✅ Help tab (`app/src/help/`): Help (F1) is a pane with the special features (where each is, "Show me" pointing
+  at its button with the hint callout) and the keyboard shortcuts, searchable and offline; Show Training walks through
+  the features; Contact Support and Feedback open a pre-filled GitHub issue the person reviews and submits (Cells
+  sends nothing, no workbook content). File › Help and File › Feedback too (phones have no Help tab).
+- ⬜ Next: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project.
 - ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: a More Sort Options dialog for PivotTables,
   Field Headers, Show Report Filter Pages, calculated items, new PivotTable styles).
 
-**Known limits:** sorting a PivotTable by a value is set only by the AI or by Excel's files (no dialog yet).
+**Known limits:** sorting a PivotTable by a value is set only by the AI or by Excel's files (no dialog yet). Help's
+shortcut list is written by hand (`help-content.ts`): a new shortcut has to be added there too. Show me can't point
+on phones (the pane fills the screen), and Show Training says so when a feature's button isn't on screen.
 
 ---
 
