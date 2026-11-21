@@ -1,3 +1,4 @@
+import { contentPartOf, contentPartXml, CT_INK, inkmlXml, readInkml, REL_INK } from "./ink"
 import {
   CHART_CONTENT_TYPE,
   CHART_RELATIONSHIP,
@@ -28,6 +29,7 @@ import {
   type SheetPicture,
   type SheetSlicer,
   type SheetTimeline,
+  type SheetShape,
   type SignatureSetup,
   type Workbook,
 } from "@cells/core"
@@ -75,6 +77,8 @@ export type DrawingSource = {
   images: Map<string, string>
   /** The 3D models read, by relationship id (likewise). */
   models?: Map<string, Uint8Array>
+  /** The ink parts' relationships Cells read: dropped, and written anew for the ink still there. */
+  inkRels?: Set<string>
 }
 
 const print = (chart: SheetChart) => JSON.stringify({ spec: chart.spec, refs: chart.refs })
@@ -201,6 +205,32 @@ export function readDrawing(
       if (descr) timeline.altText = descr
       if (at(nv, "hidden") === "1" || at(nv, "hidden") === "true") timeline.hidden = true
       sheet.objects.push(timeline)
+      continue
+    }
+    // Ink (Draw tab pens): a content part whose InkML holds the strokes.
+    const contentPart = placed ? contentPartOf(anchor) : null
+    const inkRel = contentPart ? rels.find((r) => r.id === contentPart.rid && r.type === REL_INK) : undefined
+    const inkml = inkRel ? text(inkRel.partName) : undefined
+    const strokes = inkml ? readInkml(inkml) : null
+    if (placed && contentPart && strokes) {
+      const nv = contentPart.nv
+      const id = nextId()
+      const ink: SheetShape = {
+        kind: "shape",
+        id,
+        name: at(nv, "name") ?? `Ink ${id}`,
+        anchor: placed.anchor,
+        geometry: "ink",
+        fill: { kind: "none" },
+        line: { color: { rgb: strokes[0].color.replace("#", "").toUpperCase() }, width: strokes[0].width * 0.75 },
+        ink: { strokes },
+      }
+      if (placed.placement) ink.placement = placed.placement
+      const descr = at(nv, "descr")
+      if (descr) ink.altText = descr
+      if (at(nv, "hidden") === "1" || at(nv, "hidden") === "true") ink.hidden = true
+      sheet.objects.push(ink)
+      ;(source.inkRels ??= new Set()).add(contentPart.rid)
       continue
     }
     // Excel 2010's form of a shape holding an equation: the Choice (Office Math), with a fallback for older readers.
@@ -424,6 +454,12 @@ export function writeDrawing(
   // The drawing's relationships: the kept anchors' and pictures', then the charts' anew.
   const rels = out.rels(partName)
   for (const r of [...rels]) if (source?.chartRels.has(r.id)) rels.splice(rels.indexOf(r), 1)
+  // Ink read from the file is written anew (its parts too).
+  for (const r of [...rels])
+    if (source?.inkRels?.has(r.id)) {
+      rels.splice(rels.indexOf(r), 1)
+      if (r.partName) out.removeTree(r.partName)
+    }
   // Shape ids are unique within a drawing: new ones go above the kept anchors'.
   const keptXml = [
     ...(source?.kept ?? []),
@@ -475,6 +511,17 @@ export function writeDrawing(
       }
       if (object.kind === "timeline") {
         anchors.push(placedXml(object.anchor, object.placement, timelineFrameXml(object, ++shapeId, box)))
+        continue
+      }
+      if (object.kind === "shape" && object.ink) {
+        const part = out.freeName((n) => `/xl/ink/ink${n}.xml`)
+        out.put(part, CT_INK, inkmlXml(object.ink.strokes, box.w, box.h))
+        const rid = out.addRel(partName, REL_INK, part)
+        const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")
+        const extra = (object.altText ? ` descr="${esc(object.altText)}"` : "") + (object.hidden ? ` hidden="1"` : "")
+        anchors.push(
+          placedXml(object.anchor, object.placement, contentPartXml(rid, ++shapeId, object.name, box, extra)),
+        )
         continue
       }
       const xml = same

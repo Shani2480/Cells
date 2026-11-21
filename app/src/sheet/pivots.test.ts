@@ -283,6 +283,29 @@ describe("Expand and collapse", () => {
     expect(c.pivots.drillState()).toBeNull()
   })
 
+  it("Drill Down shows only the active item opened; Drill Up on an inner item brings the others back", () => {
+    const c = setup()
+    select(c, 3, 0)
+    expect(c.pivots.drillTarget(false)).toBeNull()
+    expect(c.pivots.drillLevel(true)).toBe(true)
+    expect(labels(c)).toEqual(["Row Labels", "North", "Apples", "Pears", "Grand Total"])
+    select(c, 4, 0)
+    expect(c.pivots.drillTarget(true)).toBeNull()
+    expect(c.pivots.drillLevel(false)).toBe(true)
+    expect(labels(c)).toEqual(["Row Labels", "North", "Apples", "Pears", "South", "Apples", "Grand Total"])
+  })
+
+  it("Field Headers off blanks Row Labels and drops its filter button; one undo step", () => {
+    const c = setup()
+    select(c, 3, 0)
+    expect(c.pivots.filterTargetAt(2, 0)).not.toBeNull()
+    expect(c.pivots.setFieldHeaders(false)).toBe(true)
+    expect(c.sheet.cells.get(2, 0)?.value).toBeUndefined()
+    expect(c.pivots.filterTargetAt(2, 0)).toBeNull()
+    c.undo()
+    expect(c.sheet.cells.get(2, 0)?.value).toBe("Row Labels")
+  })
+
   it("PivotTable Options' Show expand/collapse buttons off hides the buttons", () => {
     const c = setup()
     const t = { ...c.sheet.pivots[0], showDrill: false as const }

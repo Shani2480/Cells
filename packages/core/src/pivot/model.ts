@@ -282,6 +282,8 @@ export type PivotTable = {
   autoFit?: false
   /** PivotTable Options › Display › Show expand/collapse buttons (Excel's showDrill); false only when off. */
   showDrill?: false
+  /** Analyze › Show › Field Headers (Excel's showHeaders): false hides the Row/Column Labels headers and their buttons. */
+  showHeaders?: false
   style: PivotTableStyle
   /**
    * The file part the PivotTable was read from: saving finds what Cells keeps unread there by it, so a renamed

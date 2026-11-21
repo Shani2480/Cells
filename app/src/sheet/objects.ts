@@ -28,6 +28,8 @@ import {
   type SmartArtEdit,
   type SmartArtNode,
   type SmartArtPath,
+  inkFromPixels,
+  inkPoints,
 } from "@cells/core"
 import { layoutSmartArt } from "@/drawing/smartart"
 import { renderModel } from "@/drawing/model3d"
@@ -37,6 +39,12 @@ import type { SheetController } from "./controller"
 
 /** Excel's size for a shape put in with a click: one inch (96 pixels) square. */
 export const SHAPE_SIZE = 96
+
+/** A Draw tab tool: a pen or highlighter (its colour and width in pixels at 100%), or the stroke eraser. */
+export type InkTool = { kind: "pen" | "highlighter"; color: string; width: number } | { kind: "eraser" }
+
+/** Strokes drawn within this long of the last one join its ink object, as in Excel. */
+const INK_JOIN_MS = 2000
 
 /** Excel's names for Align (Shape Format › Arrange › Align). */
 export type AlignTo = "left" | "center" | "right" | "top" | "middle" | "bottom" | "distributeH" | "distributeV"
@@ -66,6 +74,22 @@ export class ObjectCommands {
   textPaneOpen = false
   /** The SmartArt point being typed in (the Text Pane's line), what Add Shape, Promote and Demote act on. */
   smartArtPoint: SmartArtPath | null = null
+
+  /** Draw tab: the tool drawing on the sheet (null: Select, the sheet works as usual). */
+  pen: InkTool | null = null
+  /** The Draw tab's pens, as Excel sets them up: black and red 0.5 mm pens, a yellow 6 mm highlighter. */
+  pens: { kind: "pen" | "highlighter"; color: string; width: number }[] = [
+    { kind: "pen", color: "#000000", width: (0.5 * 96) / 25.4 },
+    { kind: "pen", color: "#E71224", width: (0.5 * 96) / 25.4 },
+    { kind: "highlighter", color: "#FFFF00", width: (6 * 96) / 25.4 },
+  ]
+  /** Which of `pens` is drawing (null: the eraser or Select). */
+  penSlot: number | null = null
+  /** Draw › Draw with Touch: a finger draws too (a pen and the mouse always do). */
+  drawWithTouch = false
+  /** Review › Hide Ink: ink isn't shown (a view setting, not saved). */
+  inkHidden = false
+  private lastInk: { sheet: number; id: number; time: number } | null = null
 
   constructor(private readonly c: SheetController) {}
 
@@ -171,6 +195,150 @@ export class ObjectCommands {
 
   private nextId() {
     return nextObjectId(this.c.wb.sheets)
+  }
+
+  // ── Ink (Draw tab) ──
+
+  /** Draw › a pen (its slot), the eraser, or Select (null). */
+  usePen(slot: number | "eraser" | null) {
+    this.penSlot = typeof slot === "number" ? slot : null
+    this.setPen(typeof slot === "number" ? { ...this.pens[slot] } : slot === "eraser" ? { kind: "eraser" } : null)
+  }
+
+  /** A pen's colour or thickness changed (its menu); it's picked up to draw with. */
+  setPenLook(slot: number, change: { color?: string; width?: number }) {
+    this.pens[slot] = { ...this.pens[slot], ...change }
+    this.usePen(slot)
+  }
+
+  setPen(tool: InkTool | null) {
+    if (this.c.edit) this.c.commitEdit()
+    this.pen = tool
+    this.pending = null
+    if (tool) this.select(null)
+    this.lastInk = null
+    if (tool) this.inkHidden = false
+    this.c.changed()
+  }
+
+  /** A stroke drawn on the sheet (points in sheet pixels): one undo step, joining the ink drawn just before. */
+  addStroke(points: number[], now = Date.now()): SheetShape | null {
+    const tool = this.pen
+    if (!tool || tool.kind === "eraser" || points.length < 2) return null
+    if (points.length === 2) points = [...points, points[0] + 0.5, points[1] + 0.5]
+    const stroke = {
+      points,
+      color: tool.color,
+      width: tool.width,
+      ...(tool.kind === "highlighter" ? { highlighter: true as const } : {}),
+    }
+    const last = this.lastInk
+    const prev =
+      last && last.sheet === this.c.sheetIndex && now - last.time < INK_JOIN_MS ? this.find(last.id) : undefined
+    const strokes = [stroke]
+    if (prev && !isChart(prev) && prev.kind === "shape" && prev.ink) {
+      const box = chartBox(this.c.sheet, prev.anchor)
+      strokes.unshift(...prev.ink.strokes.map((k) => ({ ...k, points: inkPoints(k, box) })))
+    }
+    const ink = inkFromPixels(strokes)
+    const anchor = anchorOf(this.c.sheet, ink.box)
+    if (prev && !isChart(prev) && prev.kind === "shape" && prev.ink) {
+      const next: SheetShape = { ...prev, anchor, ink: { strokes: ink.strokes } }
+      this.commit(
+        this.list.map((o) => (o.id === prev.id ? next : o)),
+        "Ink",
+      )
+      this.lastInk = { sheet: this.c.sheetIndex, id: prev.id, time: now }
+      return next
+    }
+    const id = this.nextId()
+    const shape: SheetShape = {
+      kind: "shape",
+      id,
+      name: objectName({ kind: "shape", geometry: "ink" }, id),
+      anchor,
+      geometry: "ink",
+      fill: { kind: "none" },
+      line: { color: { rgb: tool.color.replace("#", "").toUpperCase() }, width: tool.width * 0.75 },
+      ink: { strokes: ink.strokes },
+    }
+    this.commit([...this.list, shape], "Ink")
+    this.lastInk = { sheet: this.c.sheetIndex, id, time: now }
+    return shape
+  }
+
+  /** The strokes the eraser touches along a path (sheet pixels): ink object id → stroke indexes. */
+  inkHits(path: number[], radius = 6): Map<number, Set<number>> {
+    const hits = new Map<number, Set<number>>()
+    for (const o of this.list) {
+      if (isChart(o) || o.kind !== "shape" || !o.ink || o.hidden) continue
+      const box = chartBox(this.c.sheet, o.anchor)
+      o.ink.strokes.forEach((s, i) => {
+        const p = inkPoints(s, box)
+        const reach = radius + s.width / 2
+        const near = (x: number, y: number) => {
+          if (p.length < 4) return Math.hypot(x - p[0], y - p[1]) <= reach
+          for (let k = 0; k + 3 < p.length; k += 2)
+            if (segmentDistance(x, y, p[k], p[k + 1], p[k + 2], p[k + 3]) <= reach) return true
+          return false
+        }
+        for (let j = 0; j + 1 < path.length; j += 2)
+          if (near(path[j], path[j + 1])) {
+            if (!hits.has(o.id)) hits.set(o.id, new Set())
+            hits.get(o.id)!.add(i)
+            return
+          }
+      })
+    }
+    return hits
+  }
+
+  /** Removes strokes (the eraser's drag), as one undo step; an ink object left without strokes goes. */
+  eraseStrokes(hits: Map<number, Set<number>>): boolean {
+    if (!hits.size) return false
+    const objects = this.list.flatMap((o): SheetObject[] => {
+      const gone = hits.get(o.id)
+      if (!gone || isChart(o) || o.kind !== "shape" || !o.ink) return [o]
+      const box = chartBox(this.c.sheet, o.anchor)
+      const left = o.ink.strokes.filter((_, i) => !gone.has(i)).map((k) => ({ ...k, points: inkPoints(k, box) }))
+      if (!left.length) return []
+      const ink = inkFromPixels(left)
+      return [{ ...o, anchor: anchorOf(this.c.sheet, ink.box), ink: { strokes: ink.strokes } }]
+    })
+    this.lastInk = null
+    return this.commit(objects, "Erase Ink")
+  }
+
+  /** Review › Hide Ink › Delete All Ink on Sheet / Delete All Ink (every sheet), as one undo step. */
+  deleteAllInk(everywhere: boolean): boolean {
+    const isInk = (o: SheetObject) => !isChart(o) && o.kind === "shape" && o.ink !== undefined
+    const sheets = everywhere ? this.c.wb.sheets.map((_, i) => i) : [this.c.sheetIndex]
+    const ops = sheets.flatMap((sheet) => {
+      const list = this.c.wb.sheets[sheet].objects
+      return list.some(isInk) ? [{ kind: "objects" as const, sheet, objects: list.filter((o) => !isInk(o)) }] : []
+    })
+    if (!ops.length) return false
+    if (this.c.edit) this.c.commitEdit()
+    const sel = this.c.selection
+    this.selected = this.selected.filter((id) => !this.c.sheet.objects.some((o) => o.id === id && isInk(o)))
+    return this.c.transact(ops, { label: "Delete All Ink", before: sel, after: sel }) !== null
+  }
+
+  /** Whether there's ink on the sheet (or anywhere in the workbook). */
+  hasInk(everywhere = false): boolean {
+    const sheets = everywhere ? this.c.wb.sheets : [this.c.sheet]
+    return sheets.some((s) => s.objects.some((o) => !isChart(o) && o.kind === "shape" && o.ink !== undefined))
+  }
+
+  setInkHidden(hidden: boolean) {
+    this.inkHidden = hidden
+    if (hidden) this.selected = this.selected.filter((id) => !this.isInk(id))
+    this.c.changed()
+  }
+
+  isInk(id: number): boolean {
+    const o = this.find(id)
+    return !!o && !isChart(o) && o.kind === "shape" && o.ink !== undefined
   }
 
   // ── Insert ──
@@ -916,6 +1084,7 @@ export class ObjectCommands {
   key(key: string, primary: boolean, shift: boolean): boolean {
     if (!this.selected.length) {
       if (key === "Escape" && this.pending) return (this.cancelPending(), true)
+      if (key === "Escape" && this.pen) return (this.usePen(null), true)
       return false
     }
     if (key === "Delete" || key === "Backspace") return (this.delete(), true)
@@ -1005,4 +1174,13 @@ export class ObjectCommands {
     if (!clean) return
     this.update("Rename Object", (o) => (o.name = clean), [id])
   }
+}
+
+/** How far (x, y) is from the segment (x1, y1)–(x2, y2). */
+function segmentDistance(x: number, y: number, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const len = dx * dx + dy * dy
+  const t = len ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / len)) : 0
+  return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy))
 }

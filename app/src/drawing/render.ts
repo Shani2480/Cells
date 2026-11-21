@@ -5,6 +5,7 @@ import {
   colorCss,
   isChart,
   type DrawingObject,
+  type InkStroke,
   type ShapeColor,
   type ShapeFill,
   type ShapeLine,
@@ -273,6 +274,7 @@ export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, 
       })
     return items.join("")
   }
+  if (o.ink) return inkSvg(o.ink.strokes, w, h)
   const g = presetGeometry(o.geometry, w, h, o.adjust)
   const id = `o${o.id}`
   const stroke = strokeAttr(o.line, theme)
@@ -284,6 +286,28 @@ export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, 
     (g.lines ?? []).map((d) => `<path d="${d}" fill="none"${stroke}/>`).join("")
   const text = o.text && !o.connector ? textSvg(o.text, g.text, theme, measure, o.wordArt) : ""
   return `${ends.defs ? `<defs>${ends.defs}</defs>` : ""}${shapes}${text}`
+}
+
+/** A smooth path through points (x, y pairs): quadratic curves through the midpoints. */
+export function inkPath(p: readonly number[]): string {
+  if (p.length < 4) return `M${n(p[0])} ${n(p[1])}l0.01 0`
+  let d = `M${n(p[0])} ${n(p[1])}`
+  for (let i = 2; i + 3 < p.length; i += 2)
+    d += `Q${n(p[i])} ${n(p[i + 1])} ${n((p[i] + p[i + 2]) / 2)} ${n((p[i + 1] + p[i + 3]) / 2)}`
+  return d + `L${n(p[p.length - 2])} ${n(p[p.length - 1])}`
+}
+
+/** Ink strokes in a box (points are fractions of it): pens round, highlighters flat-tipped and see-through. */
+export function inkSvg(strokes: readonly InkStroke[], w: number, h: number): string {
+  return strokes
+    .map((s) => {
+      const d = inkPath(s.points.map((v, i) => v * (i % 2 ? h : w)))
+      const look = s.highlighter
+        ? ` stroke-linecap="square" stroke-linejoin="round" opacity="0.5" style="mix-blend-mode:multiply"`
+        : ` stroke-linecap="round" stroke-linejoin="round"`
+      return `<path d="${d}" fill="none" stroke="${esc(s.color)}" stroke-width="${n(s.width)}"${look}/>`
+    })
+    .join("")
 }
 
 /** An object at a box, turned and flipped about its middle. */

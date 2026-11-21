@@ -170,8 +170,22 @@ export function pivotCommands(): Command[] {
         if (t) env.dialog(t.kind === "value" ? `pivotValue:${t.index}` : `pivotField:${t.field}`)
       },
     },
-    later("PivotDrillDown", "Drill Down", "Show the next level of a Data Model hierarchy.", "DD"),
-    later("PivotDrillUp", "Drill Up", "Show the level above in a Data Model hierarchy.", "DU"),
+    {
+      id: "PivotDrillDown",
+      label: "Drill Down",
+      description: "Show only the active item, opened to the field inside it.",
+      keytip: "DD",
+      enabled: (env) => env.c.pivots.drillTarget(true) !== null,
+      run: (env) => void env.c.pivots.drillLevel(true),
+    },
+    {
+      id: "PivotDrillUp",
+      label: "Drill Up",
+      description: "Show every item of the field above the active one again.",
+      keytip: "DU",
+      enabled: (env) => env.c.pivots.drillTarget(false) !== null,
+      run: (env) => void env.c.pivots.drillLevel(false),
+    },
     {
       id: "PivotExpandField",
       label: "Expand Field",
@@ -348,7 +362,15 @@ export function pivotCommands(): Command[] {
       pressed: (env) => table(env)?.showDrill !== false,
       run: (env) => void env.c.pivots.setButtons(table(env)?.showDrill === false),
     },
-    later("PivotFieldHeaders", "Field Headers", "Show or hide the row and column field headers.", "D"),
+    {
+      id: "PivotFieldHeaders",
+      label: "Field Headers",
+      description: "Show or hide the Row Labels and Column Labels headers and their filter buttons.",
+      keytip: "D",
+      enabled: inPivot,
+      pressed: (env) => table(env)?.showHeaders !== false,
+      run: (env) => void env.c.pivots.setFieldHeaders(table(env)?.showHeaders === false),
+    },
 
     // ── PivotChart Analyze ──
     {

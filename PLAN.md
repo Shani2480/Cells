@@ -442,7 +442,17 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
   `cell-info.ts`, `filterxml.ts`); 203 Excel cases; a Web category in Insert Function and More Functions. DOLLAR with
   negative decimals now rounds to tens/hundreds as Excel does.
 - ⏸ Not planned: WEBSERVICE and IMAGE (need the network during calculation), JIS (Japanese Excel only).
-- ⬜ The greyed-out ribbon buttons; then the thinner features above.
+- 🔄 The greyed-out ribbon buttons:
+  - ✅ PivotTable Analyze › Field Headers (showHeaders in files), Drill Down / Drill Up (down: only the active item,
+    opened to the field inside; up: the field above shows every item again).
+  - ✅ Ink: a Draw tab (Select, Eraser, two pens and a highlighter with colour and thickness, Draw with Touch) and
+    Review › Hide Ink (Hide Ink, Delete All Ink on Sheet, Delete All Ink). Ink is a shape with strokes (moves,
+    sizes and undoes like one); strokes drawn within 2 s join one ink object, as in Excel. xlsx: Excel's own form
+    (xdr:contentPart + InkML customXml part), checked in Excel 365 (opens, keeps and draws it); Excel's difference-
+    encoded traces are read. Feature hint "New: Draw on the sheet".
+  - ⬜ Screenshot, Theme Effects, Get Data (From Web, From Table/Range, Recent Sources, Existing Connections),
+    Relationships, Manage Data Model, Unshare Workbook, Macros, Move Chart.
+- ⬜ Then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

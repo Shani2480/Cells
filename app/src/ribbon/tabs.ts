@@ -185,6 +185,21 @@ export const INSERT: Tab = {
   ],
 }
 
+/** Draw: pens, a highlighter and the eraser for ink over the sheet (Review › Ink hides or deletes it). */
+export const DRAW: Tab = {
+  id: "TabDraw",
+  label: "Draw",
+  keytip: "JI",
+  groups: [
+    {
+      id: "GroupDrawingTools",
+      label: "Drawing Tools",
+      columns: [L("InkSelect"), L("InkEraser"), L("InkPen0"), L("InkPen1"), L("InkPen2")],
+    },
+    { id: "GroupDrawTouch", label: "Touch", columns: [L("InkDrawWithTouch")] },
+  ],
+}
+
 export const PAGE_LAYOUT: Tab = {
   id: "TabPageLayoutExcel",
   label: "Page Layout",
@@ -454,7 +469,7 @@ export const HELP: Tab = {
   ],
 }
 
-export const TABS: Tab[] = [HOME, INSERT, PAGE_LAYOUT, FORMULAS, DATA, REVIEW, VIEW, HELP]
+export const TABS: Tab[] = [HOME, INSERT, DRAW, PAGE_LAYOUT, FORMULAS, DATA, REVIEW, VIEW, HELP]
 
 /**
  * Chart Design, while a chart is selected (Excel 365 at a wide window, from memory: no reference screenshot yet). The

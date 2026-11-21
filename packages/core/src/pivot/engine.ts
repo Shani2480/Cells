@@ -581,6 +581,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     } else if (table.values.length === 1 && !dataInRows && !dataInCols) put(0, 0, "corner", dataName(0))
     else put(0, 0, "corner")
     if (colFields.length === 1 && dataInCols) put(0, labelCols, "colHeader", table.captions.data)
+    else if (table.showHeaders === false) put(0, labelCols, "colHeader")
     else if (compactOf(colFields[0])) put(0, labelCols, "colHeader", table.captions.colHeader ?? "Column Labels")
     else colFields.forEach((f, j) => put(0, labelCols + j, "colHeader", pivotFieldName(table, cache, f)))
   }
@@ -590,7 +591,8 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     const j = labelCol.indexOf(c)
     const f = rowFields[j]
     const shared = labelCol.filter((x) => x === c).length > 1
-    put(headerRow, c, "rowHeader", shared || compactOf(f) ? rowHeaderCaption : pivotFieldName(table, cache, f))
+    const caption = shared || compactOf(f) ? rowHeaderCaption : pivotFieldName(table, cache, f)
+    put(headerRow, c, "rowHeader", table.showHeaders === false ? undefined : caption)
   }
   if (!n && table.values.length === 1) put(0, labelCols, "dataHeader", dataName(0))
 

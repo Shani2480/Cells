@@ -1093,6 +1093,16 @@ export class PivotCommands {
     }, "+/- Buttons")
   }
 
+  /** Analyze › Show › Field Headers. */
+  setFieldHeaders(on: boolean): boolean {
+    return this.change((t) => {
+      const next = { ...t }
+      if (on) delete next.showHeaders
+      else next.showHeaders = false
+      return next
+    }, "Field Headers")
+  }
+
   // ── Show Details ──
 
   /** The cell is a value of a PivotTable whose details can be shown (the cell menu's Show Details). */
@@ -1218,6 +1228,30 @@ export class PivotCommands {
       return inner && this.relayout(at, withCollapsed(at.table, at.cache, item.field, [item.x], collapse), label)
     const field = inner ? item.field : collapse ? outerField(at.table, item) : null
     return field !== null && this.relayout(at, withCollapsed(at.table, at.cache, field, null, collapse), label)
+  }
+
+  /**
+   * Analyze › Drill Down / Drill Up, as Excel does along a hierarchy: down shows only the active item, opened to the
+   * field inside it; up, on an item of an inner field, brings back every item of the field above.
+   */
+  drillTarget(down: boolean): { field: number; x: number | null } | null {
+    const { row, col } = this.c.selection.active
+    const at = this.cellAt(row, col)
+    const item = at?.cell?.item
+    if (!at || !item) return null
+    if (down) return innerFields(at.table, item).length ? { field: item.field, x: item.x } : null
+    const outer = outerField(at.table, item)
+    return outer !== null && at.table.fields[outer].items.some((i) => i.hidden) ? { field: outer, x: null } : null
+  }
+
+  drillLevel(down: boolean): boolean {
+    const target = this.drillTarget(down)
+    const { row, col } = this.c.selection.active
+    const at = this.cellAt(row, col)
+    if (!target || !at) return false
+    if (target.x === null) return this.relayout(at, withShownItems(at.table, at.cache, target.field, null), "Drill Up")
+    const only = withShownItems(at.table, at.cache, target.field, new Set([target.x]))
+    return this.relayout(at, withCollapsed(only, at.cache, target.field, [target.x], false), "Drill Down")
   }
 
   // ── Filter dropdowns ──

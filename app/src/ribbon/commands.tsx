@@ -1,3 +1,4 @@
+import { inkCommands } from "./ink-commands"
 import { slicerCommands } from "./slicer-commands"
 import { timelineCommands } from "./timeline-commands"
 import { pivotCommands } from "./pivot-commands"
@@ -421,6 +422,7 @@ export function allCommands(): Command[] {
     ...slicerCommands(),
     ...timelineCommands(),
     ...linkCommands(),
+    ...inkCommands(),
     ...otherCommands(),
   ]
 }

@@ -63,6 +63,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Show the workbook twice, each with its own sheet and place, and Arrange All lays them side by side inside Cells.",
     target: "New Window",
   },
+  {
+    id: "ink",
+    title: "New: Draw on the sheet",
+    text: "Pick a pen or the highlighter and write, circle or mark up right on the sheet, with a stylus, the mouse or (with Draw with Touch) your finger. Review › Hide Ink hides it.",
+    target: "Draw with Touch",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

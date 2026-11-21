@@ -36,6 +36,7 @@ export function pivotFilterTarget(
     return page ? { kind: "page", fields: [page.field] } : null
   }
   if (cell.role === "rowHeader" || cell.role === "colHeader") {
+    if (table.showHeaders === false) return null
     const row = cell.role === "rowHeader"
     const fields = real(row ? table.rows : table.cols)
     if (!fields.length) return null

@@ -18,7 +18,7 @@ import {
 import { Check, Rotate3d } from "lucide-react"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { renderModel } from "@/drawing/model3d"
-import { canvasMeasure, objectAt, objectDocument } from "@/drawing/render"
+import { canvasMeasure, inkPath, objectAt, objectDocument } from "@/drawing/render"
 import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
 import { pngKey, preparePng, readyPng } from "./chart-png"
@@ -188,6 +188,10 @@ export function ObjectLayer({
   const turnNow = useRef(turn)
   turnNow.current = turn
   const drawStart = useRef<{ x: number; y: number } | null>(null)
+  /** The stroke being drawn with a Draw tab pen (sheet pixels), or the eraser's path so far. */
+  const [stroke, setStroke] = useState<number[] | null>(null)
+  const strokeNow = useRef<number[] | null>(null)
+  const inkPointer = useRef<number | null>(null)
   const layer = useRef<HTMLDivElement>(null)
   // A PivotChart field button's dropdown: the PivotTable's sheet and the cell whose filter button it stands for.
   // A timeline's time level menu, and a drag across its periods.
@@ -504,12 +508,18 @@ export function ObjectLayer({
   }
 
   const pending = objects.pending
-  if (!sheet.objects.length && !pending) return null
+  const pen = objects.pen
+  if (!sheet.objects.length && !pending && !pen) return null
+  const inkX = (x: number) => (colX(sheet, layout, 0) - left - sheet.cols.offset(0) + x) * zoom
+  const inkY = (y: number) => (rowY(sheet, layout, 0) - top - sheet.rows.offset(0) + y) * zoom
+  const erasing = pen?.kind === "eraser" && stroke ? objects.inkHits(stroke) : null
   return (
     <div className="object-layer" ref={layer} style={{ left: left * zoom, top: top * zoom }}>
       {sheet.objects.map((o) => {
         const p = pictures.get(o.id)
         if (!p) return null
+        const ink = !isChart(o) && o.kind === "shape" && o.ink !== undefined
+        if (ink && objects.inkHidden) return null
         const selected = objects.selected.includes(o.id)
         const single = selected && objects.selected.length === 1
         const dragging = drag?.boxes.get(o.id) ?? null
@@ -519,7 +529,7 @@ export function ObjectLayer({
         return (
           <div
             key={o.id}
-            className={`object-frame${isChart(o) ? " is-chart chart-frame" : ""}${!isChart(o) && (o.kind === "slicer" || o.kind === "timeline") ? " is-slicer" : ""}${selected ? " is-selected" : ""}`}
+            className={`object-frame${ink ? " is-ink" : ""}${erasing?.has(o.id) ? " is-erasing" : ""}${isChart(o) ? " is-chart chart-frame" : ""}${!isChart(o) && (o.kind === "slicer" || o.kind === "timeline") ? " is-slicer" : ""}${selected ? " is-selected" : ""}`}
             style={{ ...toScreen(o, p.box), transform: rotation ? `rotate(${rotation}deg)` : undefined }}
             role="img"
             aria-label={o.name}
@@ -614,6 +624,66 @@ export function ObjectLayer({
           </div>
         )
       })}
+      {pen ? (
+        <div
+          className={`object-draw ink-draw is-${pen.kind}`}
+          style={{ touchAction: objects.drawWithTouch ? "none" : "pan-x pan-y" }}
+          onPointerDown={(event) => {
+            if (event.button !== 0 || inkPointer.current !== null) return
+            // A finger scrolls unless Draw with Touch is on; a pen and the mouse draw.
+            if (event.pointerType === "touch" && !objects.drawWithTouch) return
+            event.preventDefault()
+            event.stopPropagation()
+            inkPointer.current = event.pointerId
+            const at = sheetPoint(event)
+            strokeNow.current = [at.x, at.y]
+            setStroke(strokeNow.current)
+            capture(event)
+          }}
+          onPointerMove={(event) => {
+            const s = strokeNow.current
+            if (!s || event.pointerId !== inkPointer.current) return
+            const events = "getCoalescedEvents" in event.nativeEvent ? event.nativeEvent.getCoalescedEvents() : []
+            for (const e of events.length ? events : [event]) {
+              const at = sheetPoint(e)
+              // Points closer than half a pixel add nothing.
+              if (Math.hypot(at.x - s[s.length - 2], at.y - s[s.length - 1]) < 0.5) continue
+              s.push(at.x, at.y)
+            }
+            setStroke([...s])
+          }}
+          onPointerUp={(event) => {
+            if (event.pointerId !== inkPointer.current) return
+            const s = strokeNow.current
+            strokeNow.current = null
+            inkPointer.current = null
+            setStroke(null)
+            if (!s) return
+            if (pen.kind === "eraser") objects.eraseStrokes(objects.inkHits(s))
+            else objects.addStroke(s)
+          }}
+          onPointerCancel={() => {
+            strokeNow.current = null
+            inkPointer.current = null
+            setStroke(null)
+          }}
+        >
+          {stroke && pen.kind !== "eraser" ? (
+            <svg className="ink-live" width="100%" height="100%" aria-hidden>
+              <path
+                d={inkPath(stroke.map((v, i) => (i % 2 ? inkY(v) : inkX(v))))}
+                fill="none"
+                stroke={pen.color}
+                strokeWidth={pen.width * zoom}
+                strokeLinecap={pen.kind === "highlighter" ? "square" : "round"}
+                strokeLinejoin="round"
+                opacity={pen.kind === "highlighter" ? 0.5 : 1}
+                style={pen.kind === "highlighter" ? { mixBlendMode: "multiply" } : undefined}
+              />
+            </svg>
+          ) : null}
+        </div>
+      ) : null}
       {pending ? (
         <div
           className="object-draw"

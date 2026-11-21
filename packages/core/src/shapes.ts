@@ -119,6 +119,12 @@ type ObjectBase = {
   box?: ChildBox
 }
 
+/**
+ * A pen stroke (Draw tab): points as x, y pairs in fractions of the ink object's box (0–1), so the ink scales with
+ * the box; the width in pixels at 100%.
+ */
+export type InkStroke = { points: number[]; color: string; width: number; highlighter?: true }
+
 export type SheetShape = ObjectBase & {
   kind: "shape"
   /** DrawingML preset geometry ("rect", "ellipse", "rightArrow", "line"…). */
@@ -135,6 +141,8 @@ export type SheetShape = ObjectBase & {
   /** WordArt: the letters' fill and effects. */
   wordArt?: { fill?: ShapeFill; effects?: TextEffects }
   shadow?: boolean
+  /** Ink drawn with the Draw tab's pens (geometry "ink"): drawn as its strokes, kept in files as InkML. */
+  ink?: { strokes: InkStroke[] }
 }
 
 /**
@@ -328,6 +336,7 @@ export function copyObject<T extends SheetObject>(o: T): T {
     out.fill = copyFill(s.fill)
     out.line = copyLine(s.line)!
     if (s.adjust) out.adjust = { ...s.adjust }
+    if (s.ink) out.ink = { strokes: s.ink.strokes.map((k) => ({ ...k, points: [...k.points] })) }
     if (s.text) out.text = copyText(s.text)
     if (s.wordArt)
       out.wordArt = {
@@ -470,6 +479,7 @@ export function objectName(
 
 /** Excel's base names for shapes (as the Selection Pane shows them). */
 const GEOMETRY_NAMES: Record<string, string> = {
+  ink: "Ink",
   rect: "Rectangle",
   roundRect: "Rectangle: Rounded Corners",
   ellipse: "Oval",
@@ -617,4 +627,32 @@ export const PICTURE_TYPES: Record<string, string> = {
   "image/x-emf": "emf",
   "image/x-wmf": "wmf",
   "image/webp": "webp",
+}
+
+/** An ink object's strokes in sheet pixels for a box. */
+export function inkPoints(stroke: InkStroke, box: { x: number; y: number; w: number; h: number }): number[] {
+  return stroke.points.map((v, i) => (i % 2 ? box.y + v * box.h : box.x + v * box.w))
+}
+
+/**
+ * Strokes given in sheet pixels as one ink object's box and strokes (the box spans the points, at least 1 px each
+ * way).
+ */
+export function inkFromPixels(strokes: { points: number[]; color: string; width: number; highlighter?: true }[]): {
+  box: { x: number; y: number; w: number; h: number }
+  strokes: InkStroke[]
+} {
+  const xs = strokes.flatMap((s) => s.points.filter((_, i) => i % 2 === 0))
+  const ys = strokes.flatMap((s) => s.points.filter((_, i) => i % 2 === 1))
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  const w = Math.max(1, Math.max(...xs) - x)
+  const h = Math.max(1, Math.max(...ys) - y)
+  return {
+    box: { x, y, w, h },
+    strokes: strokes.map((s) => ({
+      ...s,
+      points: s.points.map((v, i) => (i % 2 ? (v - y) / h : (v - x) / w)),
+    })),
+  }
 }

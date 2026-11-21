@@ -127,7 +127,12 @@ async function objectImages(
   const out = await Promise.all(
     sheet.objects.map(async (o) => {
       if (!isChart(o) && o.hidden) return null
-      if (!isChart(o) && (o.kind === "slicer" || o.kind === "timeline") && !slicerConnected(c.wb.sheets, c.wb.pivotCaches, o)) return null
+      if (
+        !isChart(o) &&
+        (o.kind === "slicer" || o.kind === "timeline") &&
+        !slicerConnected(c.wb.sheets, c.wb.pivotCaches, o)
+      )
+        return null
       const box = chartBox(sheet, o.anchor)
       // Room around the box for a rotated object's corners and a shadow.
       const pad = Math.ceil(Math.max(box.w, box.h) / 2) + 8

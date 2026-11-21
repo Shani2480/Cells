@@ -2836,6 +2836,29 @@
   pointer-events: auto;
 }
 
+.ink-pen-icon {
+  display: inline-flex;
+  filter: drop-shadow(0 0 0.5px var(--text-muted, #666));
+}
+
+/* Draw tab: the pens draw over the sheet; the eraser fades the ink it touches until the drag ends. */
+.ink-draw {
+  cursor: crosshair;
+}
+.ink-draw.is-eraser {
+  cursor: cell;
+}
+.ink-live {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.object-frame.is-erasing .object-picture {
+  opacity: 0.3;
+  transition: opacity 120ms ease-out;
+}
+
 .object-text-editor {
   position: absolute;
   inset: 4px;
