@@ -212,6 +212,14 @@ function otherCommands(): Command[] {
       run: (env) => env.dialog("customViews"),
     },
     {
+      id: "MenuMacros",
+      label: "Macros",
+      description: "See the macros in this workbook and their code. (Cells doesn't run VBA macros.)",
+      keytip: "M",
+      enabled: (env) => env.c.wb.vba.length > 0,
+      run: (env) => env.dialog("macros"),
+    },
+    {
       id: "ViewPageLayoutView",
       label: "Page Layout",
       description:

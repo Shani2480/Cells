@@ -162,6 +162,7 @@ import { loadQat, saveQat } from "@/ribbon/qat-commands"
 import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
+import { MacrosDialog } from "@/shell/MacrosDialog"
 import { SignatureSetupDialog } from "@/shell/SignatureSetupDialog"
 import { ObjectDialog } from "@/shell/ObjectDialog"
 import { ArrangeWindowsDialog, CompareSideBySideDialog, UnhideWindowDialog } from "@/shell/WindowDialogs"
@@ -217,6 +218,7 @@ type DialogState =
         | "zoom"
         | "fillAcross"
         | "customViews"
+        | "macros"
         | "arrangeWindows"
         | "object"
         | "unhideWindow"
@@ -1054,6 +1056,7 @@ function WorkbookWindow({
       kind === "zoom" ||
       kind === "fillAcross" ||
       kind === "customViews" ||
+      kind === "macros" ||
       kind === "arrangeWindows" ||
       kind === "object" ||
       kind === "unhideWindow" ||
@@ -1714,6 +1717,7 @@ function WorkbookWindow({
           <WorkbookStatisticsDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "customViews" ? <CustomViewsDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "macros" ? <MacrosDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "object" ? <ObjectDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "arrangeWindows" ? (
           <ArrangeWindowsDialog windows={doc.windows} onClose={closeDialog} />

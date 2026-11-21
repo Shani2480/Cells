@@ -12,6 +12,9 @@ import type { WorkbookProtection } from "./protection"
 import type { Node } from "./formula/ast"
 import { copyTheme, OFFICE_THEME, type Theme } from "./theme"
 
+/** A module of the workbook's VBA project, read to show (View › Macros); Cells doesn't run VBA. */
+export type VbaModule = { name: string; kind: "module" | "class" | "document"; code: string }
+
 /** One undoable step: a label for the Undo tooltip, the ops either way, and the caller's state either side. */
 export type UndoEntry<Meta = unknown> = {
   label: string
@@ -113,6 +116,13 @@ export class Workbook<Meta = unknown> {
   readonly links: { list: ExternalBook[] } = { list: [] }
   /** View › Custom Views (kept out of undo, as Excel does). */
   customViews: CustomView[] = []
+  /**
+   * Review › Share Workbook (Legacy): the file keeps a change history for several people editing it at once. Unshare
+   * Workbook turns it off (and drops the history when saving), as Excel does; not undoable, like Excel's.
+   */
+  legacyShared = false
+  /** The VBA project's modules as read from an .xlsm or .xls (the project itself stays in the file as it was). */
+  vba: VbaModule[] = []
   /** The PivotTables' caches (their data as last refreshed), shared by the sheets' PivotTables by id. */
   readonly pivotData: { caches: PivotCache[] } = { caches: [] }
   get pivotCaches(): PivotCache[] {

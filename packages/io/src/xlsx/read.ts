@@ -1,3 +1,4 @@
+import { readVbaProject } from "../vba"
 import { readCustomViews, type CustomSheetViewRead } from "./custom-views"
 import {
   copyTheme,
@@ -241,6 +242,12 @@ export async function openXlsx(
   const sheetNodes = kids(kid(root, "sheets"), "sheet")
   if (!sheetNodes.length) throw new XlsxError("The workbook has no sheets.")
   const wb = new Workbook(sheetNodes.map((s) => at(s, "name") ?? "Sheet"))
+  // A legacy shared workbook (Share Workbook): its revision history is kept as read until it's unshared.
+  wb.legacyShared = wbRels.some((r) => /\/revisionHeaders$/.test(r.type))
+  // Macros: the VBA project's modules, to list (Cells doesn't run them).
+  const vbaPart = wbRels.find((r) => /\/vbaProject$/i.test(r.type))?.partName
+  const vbaBytes = vbaPart ? findPart(pkg, vbaPart)?.data : undefined
+  if (vbaBytes) wb.vba = readVbaProject(vbaBytes)
   wb.theme = readTheme(themeXml, theme)
 
   const reuse = new Map<number, number>()

@@ -254,6 +254,13 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       CHARTSHEET_REL.test(r.type) ||
       (VBA_REL.test(r.type) && !allowsMacros(fileName)),
   )
+  // An unshared legacy shared workbook: its revision headers, logs and user names go.
+  if (!wb.legacyShared)
+    for (const r of wbRels)
+      if (/\/(revisionHeaders|usernames)$/.test(r.type) && !dropped.includes(r)) {
+        dropped.push(r)
+        for (const log of r.partName ? (relGroups.get(partKey(r.partName)) ?? []) : []) remove(log.partName)
+      }
   // Slicers: their caches are written anew (a file with slicers Cells can't read keeps them all as read).
   const ownSlicers = source?.slicersModelled !== false
   const ownTimelines = source?.timelinesModelled !== false

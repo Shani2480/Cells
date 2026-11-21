@@ -450,8 +450,12 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     sizes and undoes like one); strokes drawn within 2 s join one ink object, as in Excel. xlsx: Excel's own form
     (xdr:contentPart + InkML customXml part), checked in Excel 365 (opens, keeps and draws it); Excel's difference-
     encoded traces are read. Feature hint "New: Draw on the sheet".
+  - ✅ Review › Unshare Workbook: on for legacy shared workbooks (the file's revision history is kept while shared,
+    dropped on save once unshared; checked in Excel 365).
+  - ✅ View › Macros: lists an .xlsm's or .xls's VBA macros as Excel names them and shows their code (read-only;
+    MS-OVBA decompression). Cells doesn't run VBA, so Run stays off; the project stays in the file.
   - ⬜ Screenshot, Theme Effects, Get Data (From Web, From Table/Range, Recent Sources, Existing Connections),
-    Relationships, Manage Data Model, Unshare Workbook, Macros, Move Chart.
+    Relationships, Manage Data Model, Move Chart.
 - ⬜ Then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).

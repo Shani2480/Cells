@@ -1,3 +1,4 @@
+import { readVbaProject } from "../vba"
 import {
   errorValue,
   Workbook,
@@ -703,6 +704,7 @@ export async function openXls(
   if (!worksheets.length) throw new XlsError("The workbook has no sheets.", "damaged")
 
   const wb = new Workbook(worksheets.map((s) => s.name))
+  if (file.stream("dir") && file.stream("_VBA_PROJECT")) wb.vba = readVbaProject(bytes)
   const styleIds = new Map<number, number>()
   const styleId = (xf: number) => {
     let id = styleIds.get(xf)

@@ -13,6 +13,22 @@ export function reviewCommands(): Command[] {
     run: (env) => env.c.annotations.newComment(),
   }
   return [
+    {
+      id: "SameAsName",
+      label: "Unshare Workbook",
+      description:
+        "Stop sharing this workbook the old way (Share Workbook, Legacy): its change history goes when you save.",
+      keytip: "W",
+      enabled: (env) => env.c.wb.legacyShared,
+      run: (env) =>
+        env.c.shell.confirm(
+          "This removes the workbook from shared use. Its change history is deleted, and others who have it open can't save their changes to it. Unshare it?",
+          () => {
+            env.c.wb.legacyShared = false
+            env.c.unsavedChange()
+          },
+        ),
+    },
     newComment,
     { ...newComment, id: "InsertNewComment", label: "Comment" },
     {
