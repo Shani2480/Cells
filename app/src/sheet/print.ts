@@ -99,12 +99,18 @@ export class PrintCommands {
     if (line.kind === "break") {
       const lo = rows ? a.r0 : a.c0
       const hi = rows ? a.r1 + 1 : a.c1 + 1
-      this.change((s) => {
+      const place = (s: PageSetup) => {
         const list = (rows ? s.rowBreaks : s.colBreaks).filter((b) => b !== line.index)
         if (to > lo && to < hi && !list.includes(to)) list.push(to)
         list.sort((x, y) => x - y)
         if (rows) s.rowBreaks = list
         else s.colBreaks = list
+      }
+      // Dragged past what a page holds, the sheet prints smaller so the page fits (Excel lowers Adjust to).
+      const scale = to > line.index && to < hi ? this.scaleToHold(line.axis, to, place) : null
+      this.change((s) => {
+        place(s)
+        if (scale !== null) s.scale = scale
       }, "Move Page Break")
       return
     }
@@ -117,9 +123,31 @@ export class PrintCommands {
     this.change((s) => (s.printArea = areas), "Set Print Area")
   }
 
+  /**
+   * The largest "Adjust to" percentage (down to 10%) at which no automatic break falls on the page that now ends
+   * before line `to`, or null when it fits already (or the sheet is fitted to pages, which ignores breaks).
+   */
+  private scaleToHold(axis: "rows" | "cols", to: number, place: (s: PageSetup) => void): number | null {
+    const setup = this.c.sheet.pageSetup
+    if (setup.fitTo) return null
+    const next = copyPageSetup(setup)
+    place(next)
+    const manual = axis === "rows" ? next.rowBreaks : next.colBreaks
+    const from = Math.max(-1, ...manual.filter((b) => b < to))
+    const splits = (percent: number) => {
+      const p = this.pages(this.c.sheet, {}, { ...next, scale: percent })
+      return p.pages.some((page) => {
+        const first = axis === "rows" ? page.rows[0] : page.cols[0]
+        return first > from && first < to && !manual.includes(first)
+      })
+    }
+    if (!splits(setup.scale)) return null
+    for (let percent = setup.scale - 1; percent >= 10; percent--) if (!splits(percent)) return percent
+    return 10
+  }
+
   /** The pages a sheet prints (File › Print, the dashed page breaks). */
-  pages(sheet: Sheet = this.c.sheet, options: PaginateOptions = {}): Pagination {
-    const setup = sheet.pageSetup
+  pages(sheet: Sheet = this.c.sheet, options: PaginateOptions = {}, setup = sheet.pageSetup): Pagination {
     // Printed headings: the row numbers' column fits the last row number printed (pt).
     const used = setup.printArea?.at(-1)?.r1 ?? sheet.cells.usedBounds()?.r1 ?? 0
     const headings = { width: Math.max(20, String(used + 1).length * 6 + 9), height: 15 }

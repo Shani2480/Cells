@@ -146,8 +146,8 @@ Phase 3, added at the end:
 - [ ] Split: overlays (charts, notes, arrows, the cell editor) in the top and left panes are placed in the bottom-right
       pane when it shows the same cells; Excel draws them in each pane.
 - [ ] Page Break Preview against Excel: the grey and blue, the "Page N" size, and what Excel does when an automatic
-      break is dragged further than a page holds (Excel lowers the scale to fit; Cells' manual break then gets an
-      automatic one after it).
+      break is dragged further than a page holds (Cells, like Excel, lowers Adjust to until the page holds it: check
+      Excel's exact percentage, and what it does when the sheet is fitted to pages).
 - [ ] Spelling: where Excel starts and stops with one cell selected (from the active cell, wrapping round with a
       "continue from the beginning?" question?), and its exact end message.
 - [ ] Check Accessibility: Excel's exact list of rules and their names (does it flag unclear link text, tables
@@ -155,7 +155,8 @@ Phase 3, added at the end:
 - [ ] Allow Edit Ranges: Excel's wording for a bad reference, a missing or taken title; whether ranges unlocked
       with a password lock again when the sheet is protected again.
 - [ ] Page Layout: the gap between pages, how many blank pages Excel adds after the data, where the ruler counts
-      from (Cells: 0 at the margin), and when "Add header" shows (Excel: on hover).
+      from (Cells: 0 at the margin), and when "Add header" shows (Excel: on hover). Header & Footer on the page:
+      Excel's undo label, whether Esc drops the typed text, and the boxes' size and border.
 - [ ] Custom Views: Excel's own messages for replacing and deleting a view (Cells' wording), and whether Excel
       greys Custom Views out while sheets are grouped.
 - [ ] Fill Across Worksheets on whole rows and columns (Cells copies the used part of the cells; row and column

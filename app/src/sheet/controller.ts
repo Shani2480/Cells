@@ -7,6 +7,7 @@ import { PivotCommands, type PivotFilterRequest } from "./pivots"
 import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
 import { PrintCommands } from "./print"
+import { HeaderFooterEditor } from "./header-footer"
 import { TableCommands, type CreateTableInit } from "./tables"
 import { DEFAULT_VIEW as DEFAULT_FILE_VIEW, type SheetView as FileSheetView } from "@cells/io"
 import {
@@ -174,6 +175,7 @@ type SheetView = {
   viewZooms: Partial<Record<SheetViewMode, number>>
   showGridlines: boolean
   showHeadings: boolean
+  showRuler: boolean
 }
 
 /** Undo state: the selection, and the sheet it was on. */
@@ -430,6 +432,8 @@ export class SheetController {
   readonly objects: ObjectCommands = new ObjectCommands(this)
   /** Printing: Page Layout, Page Setup, print area, page breaks and the pages File › Print shows. */
   readonly print: PrintCommands = new PrintCommands(this)
+  /** Page Layout: the header or footer being edited on the page. */
+  readonly headerFooter: HeaderFooterEditor = new HeaderFooterEditor(this)
   /** Find, Replace and Go To Special. */
   readonly find: FindCommands = new FindCommands(this)
   /** Defined names (Name Box, Define Name, Go To). */
@@ -598,6 +602,7 @@ export class SheetController {
     const target = sheets[index]
     if (!target) return
     if (this.edit) this.commitEdit()
+    if (this.sheet !== target) this.headerFooter.commit()
     this.annotations.editing = null
     this.annotations.open = null
     // A sheet outside the group ungroups (Excel); one in it becomes the group's active sheet.
@@ -620,6 +625,7 @@ export class SheetController {
         viewZooms: this.viewZooms,
         showGridlines: this.showGridlines,
         showHeadings: this.showHeadings,
+        showRuler: this.showRuler,
       })
     this.shown = target
     const view = this.views.get(target)
@@ -633,6 +639,7 @@ export class SheetController {
     this.viewZooms = view?.viewZooms ?? {}
     this.showGridlines = view?.showGridlines ?? true
     this.showHeadings = view?.showHeadings ?? true
+    this.showRuler = view?.showRuler ?? true
     this.lastCtrlARegion = null
     this.fillPreview = null
     this.endMode = false
@@ -674,6 +681,7 @@ export class SheetController {
         viewZooms: { ...(v.zooms ?? {}) },
         showGridlines: v.showGridlines,
         showHeadings: v.showHeadings,
+        showRuler: v.showRuler ?? true,
       })
     })
     // Make the target load its view: activate() reads the stored view only when the shown sheet changes.
@@ -700,6 +708,7 @@ export class SheetController {
             viewZooms: this.viewZooms,
             showGridlines: this.showGridlines,
             showHeadings: this.showHeadings,
+            showRuler: this.showRuler,
           }
         : this.views.get(sheet)
       if (!v) return { ...DEFAULT_FILE_VIEW, selected: this.group.has(i) }
@@ -718,6 +727,7 @@ export class SheetController {
         zooms: { ...v.viewZooms, [v.view]: v.zoom },
         showGridlines: v.showGridlines,
         showHeadings: v.showHeadings,
+        ...(v.showRuler ? {} : { showRuler: false }),
         topLeft: { row: m.rows.indexAt(v.scrollY), col: m.cols.indexAt(v.scrollX) },
         active: v.selection.active,
         selection: [...v.selection.ranges],
@@ -1914,6 +1924,7 @@ export class SheetController {
   setView(view: SheetViewMode) {
     if (this.edit) this.commitEdit()
     if (view === this.view) return
+    this.headerFooter.commit()
     // Page Layout has no frozen panes or split (Excel takes them away).
     if (view === "pageLayout") {
       if (this.freeze) this.unfreeze()

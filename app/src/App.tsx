@@ -54,6 +54,7 @@ import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
 import {
   CHART_DESIGN,
   CHART_FORMAT,
+  HEADER_FOOTER,
   PIVOT_CHART_ANALYZE,
   EQUATION,
   HELP,
@@ -212,6 +213,7 @@ const TABS_IN_EQUATION = [...TABS, SHAPE_FORMAT, EQUATION]
 const TABS_IN_PICTURE = [...TABS, PICTURE_FORMAT]
 const TABS_IN_MODEL3D = [...TABS, MODEL3D_FORMAT]
 const TABS_IN_SMARTART = [...TABS, SMARTART_DESIGN, SMARTART_FORMAT]
+const TABS_IN_HEADER_FOOTER = [...TABS, HEADER_FOOTER]
 
 type DialogState =
   | { kind: "goto" }
@@ -973,13 +975,10 @@ function WorkbookWindow({
         { kind: "item", label: "Filter", items: filterItems(), onSelect: () => undefined },
         { kind: "item", label: "Sort", items: sortItems(), onSelect: () => undefined },
         { kind: "separator" },
-        // Power Query, which Cells doesn't have (docs/next-todo.md, Phase 7).
         {
           kind: "item",
           label: "Get Data from Table/Range...",
-          disabled: true,
-          title: "Needs Power Query, which Cells doesn't have.",
-          onSelect: () => undefined,
+          onSelect: () => void controller.getData.fromTable(),
         },
         { kind: "separator" },
         ...annotationItems(),
@@ -994,6 +993,7 @@ function WorkbookWindow({
         { kind: "item", label: "Define Name...", onSelect: () => openDialog("defineName") },
         { kind: "separator" },
         ...linkItems(),
+        ...pageBreakItems(),
       )
     } else {
       const axis = target
@@ -1013,6 +1013,36 @@ function WorkbookWindow({
       )
     }
     return items
+  }
+
+  /**
+   * Page Break Preview's own items at the foot of the cell menu, as Excel adds them: a break at the active cell
+   * (or its removal), resetting the breaks, the print area, and Page Setup.
+   */
+  const pageBreakItems = (): MenuItem[] => {
+    if (controller.view !== "pageBreakPreview") return []
+    const print = controller.print
+    const setup = controller.sheet.pageSetup
+    return [
+      { kind: "separator" },
+      print.hasBreakAtCell()
+        ? { kind: "item", label: "Remove Page Break", onSelect: () => print.removeBreak() }
+        : { kind: "item", label: "Insert Page Break", onSelect: () => print.insertBreak() },
+      {
+        kind: "item",
+        label: "Reset All Page Breaks",
+        disabled: !setup.rowBreaks.length && !setup.colBreaks.length,
+        onSelect: () => print.resetBreaks(),
+      },
+      { kind: "item", label: "Set Print Area", onSelect: () => print.setPrintArea() },
+      {
+        kind: "item",
+        label: "Reset Print Area",
+        disabled: !setup.printArea,
+        onSelect: () => print.clearPrintArea(),
+      },
+      { kind: "item", label: "Page Setup...", onSelect: () => openDialog("pageSetup") },
+    ]
   }
 
   /** Unhide acts on hidden lines inside the selection, as Excel does when you select across them. */
@@ -1294,33 +1324,35 @@ function WorkbookWindow({
     controller.charts.formatPaneOpen && controller.charts.active() ? (
       <ChartFormatPane controller={controller} onDone={focusGrid} />
     ) : null
-  const ribbonTabs = controller.charts.activePivot()
-    ? TABS_IN_PIVOT_CHART
-    : controller.charts.active()
-      ? TABS_IN_CHART
-      : smartArt
-        ? TABS_IN_SMARTART
-        : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
-          ? TABS_IN_MODEL3D
-          : drawings.length && drawings.every((o) => o.kind === "slicer")
-            ? TABS_IN_SLICER
-            : drawings.length && drawings.every((o) => o.kind === "timeline")
-              ? TABS_IN_TIMELINE
-              : drawings.length && drawings.every((o) => o.kind === "picture")
-                ? TABS_IN_PICTURE
-                : drawings.length
-                  ? drawings.length === 1 && isEquation(drawings[0])
-                    ? TABS_IN_EQUATION
-                    : TABS_IN_SHAPE
-                  : controller.sparklines.active()
-                    ? controller.tables.active()
-                      ? TABS_IN_TABLE_SPARKLINE
-                      : TABS_IN_SPARKLINE
-                    : controller.tables.active()
-                      ? TABS_IN_TABLE
-                      : controller.pivots.active()
-                        ? TABS_IN_PIVOT
-                        : TABS
+  const ribbonTabs = controller.headerFooter.editing
+    ? TABS_IN_HEADER_FOOTER
+    : controller.charts.activePivot()
+      ? TABS_IN_PIVOT_CHART
+      : controller.charts.active()
+        ? TABS_IN_CHART
+        : smartArt
+          ? TABS_IN_SMARTART
+          : drawings.length === 1 && drawings[0].kind === "picture" && drawings[0].model3d
+            ? TABS_IN_MODEL3D
+            : drawings.length && drawings.every((o) => o.kind === "slicer")
+              ? TABS_IN_SLICER
+              : drawings.length && drawings.every((o) => o.kind === "timeline")
+                ? TABS_IN_TIMELINE
+                : drawings.length && drawings.every((o) => o.kind === "picture")
+                  ? TABS_IN_PICTURE
+                  : drawings.length
+                    ? drawings.length === 1 && isEquation(drawings[0])
+                      ? TABS_IN_EQUATION
+                      : TABS_IN_SHAPE
+                    : controller.sparklines.active()
+                      ? controller.tables.active()
+                        ? TABS_IN_TABLE_SPARKLINE
+                        : TABS_IN_SPARKLINE
+                      : controller.tables.active()
+                        ? TABS_IN_TABLE
+                        : controller.pivots.active()
+                          ? TABS_IN_PIVOT
+                          : TABS
   // The phone's palette: the ribbon's tabs but Help (its commands are in the File view's About).
   const paletteTabs = ribbonTabs.filter((tab) => tab !== HELP)
 

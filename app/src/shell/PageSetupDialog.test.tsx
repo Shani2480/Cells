@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { SheetController } from "@/sheet/controller"
-import { BAD_REFERENCE, codesToNames, namesToCodes, PageSetupDialog } from "./PageSetupDialog"
+import { BAD_REFERENCE, PageSetupDialog } from "./PageSetupDialog"
+import { codesToNames, namesToCodes } from "@/sheet/header-footer"
 
 describe("Page Setup dialog", () => {
   it("applies every tab's changes on OK as one undo step", () => {

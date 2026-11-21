@@ -51,6 +51,27 @@ describe("Page Break Preview", () => {
     expect(c.sheet.pageSetup.rowBreaks).toEqual([])
   })
 
+  it("dragging a break further than a page holds prints smaller, so the page holds it (as Excel)", () => {
+    const c = setup()
+    const auto = breakLines(c).lines.find((l) => l.kind === "break" && l.axis === "rows")!
+    const further = auto.index + 15
+    c.print.moveLine(auto, further)
+    const s = c.sheet.pageSetup
+    expect(s.rowBreaks).toEqual([further])
+    expect(s.scale).toBeLessThan(100)
+    // No automatic break left on the first page; one percent more would bring one back.
+    const firstBreak = breakLines(c).lines.find((l) => l.kind === "break" && l.axis === "rows")!
+    expect(firstBreak).toMatchObject({ index: further, manual: true })
+    // Moving a break up never changes the scale.
+    const scale = s.scale
+    c.print.moveLine(firstBreak, 10)
+    expect(c.sheet.pageSetup.scale).toBe(scale)
+    // One undo step each.
+    c.undo()
+    c.undo()
+    expect(c.sheet.pageSetup.scale).toBe(100)
+  })
+
   it("dragging the bottom edge sets the print area", () => {
     const c = setup()
     const bottom = breakLines(c).lines.find((l) => l.kind === "edge" && l.axis === "rows" && l.index === 120)!

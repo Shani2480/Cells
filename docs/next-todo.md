@@ -127,7 +127,7 @@ follows Excel's names, dialogs and behaviour; what stays out is listed at the en
 - [x] Part 4 — Data tools: Advanced Filter, Consolidate, What-If Analysis (Goal Seek, Scenario Manager, Data
       Table), Forecast Sheet, Refresh All and Queries & Connections for text and CSV imports, Edit Links
 - [x] Part 5 — Links and text: Link (Ctrl+K, the cell menu's Link ›, following and editing links, Excel files),
-      Symbol, Header & Footer (opens Page Setup's tab until Page Layout view exists)
+      Symbol, Header & Footer (typed on the page in Page Layout view)
 - [x] Part 6 — Views and windows: New Window, Arrange
       All, Hide / Unhide, View Side by Side and synchronous scrolling, Switch Windows
   - [x] Grouped sheets: Shift/Ctrl+click tabs, Select All Sheets / Ungroup Sheets, Ctrl+Shift+PgDn/PgUp, edits
@@ -268,8 +268,9 @@ built in Part 8b.
 - Allow Edit Ranges: Permissions... (Windows users and groups) isn't offered; a file's permissions are kept as read.
   Refers to cells is typed (no collapse-to-pick button yet).
 
-- Page Layout: Excel edits the header and footer in place on the page (Cells opens Page Setup › Header/Footer);
-  print titles aren't repeated on each page; the ruler setting isn't saved with the sheet (sheetView showRuler).
+- Page Layout: print titles aren't repeated on each page in the view (they are when printing); the Header & Footer
+  tab has no Picture or Format Picture, and no Options group (different first page, odd and even pages, scale with
+  document, align with margins).
 
 - Custom Views: a view's filter settings aren't saved or shown (Excel's .wvu.FilterData is kept as read), nor are
   split panes or hidden sheets.
@@ -302,7 +303,6 @@ built in Part 8b.
 
 ## Later (from Phase 4)
 
-- Page Layout view and Page Break Preview (dragging page breaks).
 - PDF pages are pictures of the pages, so their text can't be selected or searched.
 - Even-page and first-page headers from Excel files are kept but can't be edited.
 - Black and white printing is saved but not applied to the drawing.

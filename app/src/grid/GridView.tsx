@@ -7,7 +7,8 @@ import { AnnotationLayer } from "./AnnotationLayer"
 import { ObjectLayer } from "./ObjectLayer"
 import { TraceLayer } from "./TraceLayer"
 import { Ruler, RULER, rulerShown } from "./Ruler"
-import { pagePartAt } from "./page-layout"
+import { pageAt, pagePartAt, sectionAt } from "./page-layout"
+import { HeaderFooterOverlay } from "./HeaderFooterOverlay"
 import { OutlineBar, outlineBarSize } from "./OutlineBar"
 import { FilterButtons } from "./FilterButtons"
 import { PivotButtons } from "./PivotButtons"
@@ -552,10 +553,15 @@ export function GridView({
     pointerRef.current = { x, y, ctrl }
     // Page Layout: the header or footer margin opens Header & Footer; the desk and side margins hold no cells.
     const pagePart = hit.zone === "cell" ? pagePartAt(layout, x, y) : null
-    if (pagePart) {
-      if (pagePart === "header" || pagePart === "footer") controller.shell.openDialog?.("pageSetup:headerFooter")
+    if (pagePart === "header" || pagePart === "footer") {
+      const page = pageAt(layout, x, y)
+      if (page)
+        controller.headerFooter.open(pagePart, { rowBand: page.rowBand, colBand: page.colBand }, sectionAt(page, x))
       return
     }
+    // A click anywhere else keeps the header or footer being edited.
+    controller.headerFooter.commit()
+    if (pagePart) return
     const pageLine = hit.zone === "cell" ? breakLineAt(controller, layout, x, y) : null
     if (pageLine) {
       dragRef.current = { kind: "pageLine", line: pageLine, to: pageLine.index }
@@ -1103,6 +1109,9 @@ export function GridView({
             })
           }}
         />
+        {layoutNow && controller.headerFooter.editing ? (
+          <HeaderFooterOverlay controller={controller} layout={layoutNow} zoom={zoom} onDone={focusInput} />
+        ) : null}
         {editing ? (
           <FormulaHighlight controller={controller} className="cell-editor-highlight" style={editorStyle} />
         ) : null}

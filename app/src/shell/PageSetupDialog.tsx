@@ -13,6 +13,7 @@ import {
 import { headerFooterLines, type PrintContext } from "@/print/render"
 import { useState, type ReactNode } from "react"
 import type { SheetController } from "@/sheet/controller"
+import { codesToNames, namesToCodes } from "@/sheet/header-footer"
 import { Dialog } from "./Dialog"
 
 export type PageSetupTab = "page" | "margins" | "headerFooter" | "sheet"
@@ -50,20 +51,6 @@ export function headerPresets(sheetName: string, fileName: string): { label: str
     { label: `${fileName}, ${sheetName}`, value: hf("", "&F", "&A") },
   ]
 }
-
-/** Excel shows codes by name in Custom Header (&[Page]) and keeps them as letters in the file (&P). */
-const CODE_NAMES: [string, string][] = [
-  ["&P", "&[Page]"],
-  ["&N", "&[Pages]"],
-  ["&D", "&[Date]"],
-  ["&T", "&[Time]"],
-  ["&Z", "&[Path]"],
-  ["&F", "&[File]"],
-  ["&A", "&[Tab]"],
-]
-export const codesToNames = (s: string) =>
-  s.replace(/&&|&[PNDTZFA]/g, (code) => CODE_NAMES.find(([c]) => c === code)?.[1] ?? code)
-export const namesToCodes = (s: string) => CODE_NAMES.reduce((out, [code, name]) => out.split(name).join(code), s)
 
 const sameHF = (a: HeaderFooterText, b: HeaderFooterText) =>
   a.left === b.left && a.center === b.center && a.right === b.right

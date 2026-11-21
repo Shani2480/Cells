@@ -505,8 +505,16 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     for long or dated runs, pie for one small series, a combo with a second axis for series of very different sizes),
     each with a preview of the selected data and Excel's line on what it's for; All Charts has every type by family.
     Limits: no Templates or custom Combo (series by series) page; Maps aren't offered (Cells has no map charts).
-  - ⬜ Page Layout view and Page Break Preview, picture crop and corrections,
-    PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
+  - ✅ Page Layout view and Page Break Preview, the gaps (both views were built in 0.7.0): headers and footers are
+    typed on the page, as in Excel (a click in a page's top or bottom margin opens its left, center and right boxes;
+    Insert › Header & Footer opens the active cell's page), with a Header & Footer tab (Excel's ready-made headers and
+    footers, Page Number, Number of Pages, Date, Time, File Path, File Name, Sheet Name, Go to Header/Footer); the
+    ruler setting is kept per sheet and saved in Excel files (showRuler); Page Break Preview's right-click menu has
+    Insert/Remove Page Break, Reset All Page Breaks, Set/Reset Print Area and Page Setup; a break dragged further
+    than a page holds lowers the print scale so the page holds it, as Excel does. Hint and Help topic "Type headers
+    and footers on the page". Limits: print titles aren't repeated on each page in Page Layout view (they are when
+    printing); no Picture element or Options group (different first, odd and even pages; Excel's are kept as read).
+  - ⬜ Picture crop and corrections, PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).

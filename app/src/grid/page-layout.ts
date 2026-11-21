@@ -109,6 +109,7 @@ export function drawPageLayout(p: Painter, controller: SheetController, layout: 
   p.font = `${size}px ${CELL_FONT_FAMILY}`
   p.textBaseline = "alphabetic"
   const ctx = { ...controller.printFile, now: new Date(), total: Math.max(1, pagination.pages.length) }
+  const editing = controller.headerFooter.editing
   for (const page of pages) {
     const number = pageNumber(
       controller,
@@ -121,6 +122,8 @@ export function drawPageLayout(p: Painter, controller: SheetController, layout: 
     const left = page.body.x
     const right = page.body.x + page.body.w
     for (const where of ["header", "footer"] as const) {
+      // The one being edited shows in its boxes instead.
+      if (editing?.where === where && editing.rowBand === page.rowBand && editing.colBand === page.colBand) continue
       const hf = setup[where]
       const empty = !hf.left && !hf.center && !hf.right
       if (empty) {
@@ -155,6 +158,17 @@ export function drawPageLayout(p: Painter, controller: SheetController, layout: 
   }
   p.textAlign = "left"
   p.restore()
+}
+
+/** The page a point is on, if any. */
+export function pageAt(layout: GridLayout, x: number, y: number): PageRect | null {
+  return visiblePages(layout).find((p) => x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) ?? null
+}
+
+/** Which of a header's three sections a point is over (thirds of the printable width). */
+export function sectionAt(page: PageRect, x: number): "left" | "center" | "right" {
+  const t = (x - page.body.x) / page.body.w
+  return t < 1 / 3 ? "left" : t < 2 / 3 ? "center" : "right"
 }
 
 /** What part of a page a point is on: its header or footer margin, another margin or the desk, or its cells. */

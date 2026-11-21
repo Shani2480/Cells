@@ -87,6 +87,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Click a chart, then click its title, an axis, a series or the legend to pick it (or choose it in Chart Elements). Shape Fill, Shape Outline and Text Fill colour just that part; double-click it for all its options. Excel keeps the look.",
     target: "Format Selection",
   },
+  {
+    id: "header-footer-page",
+    title: "New: Type headers and footers on the page",
+    text: "In Page Layout view, click above or below a page's cells to type its header or footer right there. The Header & Footer tab adds page numbers, dates and the sheet's name.",
+    target: "Header & Footer",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

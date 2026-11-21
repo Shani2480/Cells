@@ -54,6 +54,8 @@ export type SheetView = {
   zooms?: Partial<Record<"normal" | "pageBreakPreview" | "pageLayout", number>>
   showGridlines: boolean
   showHeadings: boolean
+  /** Page Layout's ruler (View › Ruler); absent: shown. */
+  showRuler?: boolean
   topLeft: { row: number; col: number }
   active: { row: number; col: number }
   selection: Range[]
@@ -675,6 +677,7 @@ export function readViewNode(v: XNode, warnings: string[]): SheetView {
     ...(Object.keys(zooms).length ? { zooms } : {}),
     showGridlines: at(v, "showGridLines") !== "0" && at(v, "showGridLines") !== "false",
     showHeadings: at(v, "showRowColHeaders") !== "0" && at(v, "showRowColHeaders") !== "false",
+    ...(at(v, "showRuler") === "0" || at(v, "showRuler") === "false" ? { showRuler: false } : {}),
     topLeft: split
       ? cell(at(pane, "topLeftCell") ?? at(v, "topLeftCell"))
       : freeze

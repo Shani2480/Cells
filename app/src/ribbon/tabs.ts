@@ -957,3 +957,32 @@ export function controlIds(tab: Tab): string[] {
   }
   return out
 }
+
+/**
+ * Header & Footer, while a header or footer is edited on the page in Page Layout view: Excel's ready-made ones, the
+ * elements (page number, date, file and sheet names…) and moving between header and footer. Excel's Picture and the
+ * Options group (different first page, odd and even pages) aren't built.
+ */
+export const HEADER_FOOTER: Tab = {
+  id: "TabHeaderFooter",
+  label: "Header & Footer",
+  keytip: "JH",
+  contextual: true,
+  groups: [
+    { id: "GroupHFPresets", label: "Header & Footer", columns: [L("HFHeaderMenu"), L("HFFooterMenu")] },
+    {
+      id: "GroupHFElements",
+      label: "Header & Footer Elements",
+      columns: [
+        L("HFPageNumber"),
+        L("HFNumberOfPages"),
+        L("HFCurrentDate"),
+        L("HFCurrentTime"),
+        L("HFFilePath"),
+        L("HFFileName"),
+        L("HFSheetName"),
+      ],
+    },
+    { id: "GroupHFNavigation", label: "Navigation", columns: [L("HFGoToHeader"), L("HFGoToFooter")] },
+  ],
+}

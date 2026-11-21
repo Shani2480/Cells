@@ -334,6 +334,7 @@ function viewsXml(view: SheetView, showSymbols: boolean): string {
     tabSelected: view.selected,
     showGridLines: view.showGridlines ? undefined : "0",
     showRowColHeaders: view.showHeadings ? undefined : "0",
+    showRuler: view.showRuler === false ? "0" : undefined,
     showOutlineSymbols: showSymbols ? undefined : "0",
     view: view.mode && view.mode !== "normal" ? view.mode : undefined,
     zoomScale: view.zoom !== 1 ? Math.round(view.zoom * 100) : undefined,
