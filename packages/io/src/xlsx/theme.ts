@@ -1,4 +1,12 @@
-import { copyTheme, OFFICE_THEME, sameLook, SHEET_THEME_SLOTS, type Theme, type ThemeSlot } from "@cells/core"
+import {
+  copyTheme,
+  OFFICE_EFFECTS,
+  OFFICE_THEME,
+  sameLook,
+  SHEET_THEME_SLOTS,
+  type Theme,
+  type ThemeSlot,
+} from "@cells/core"
 import { escapeXml, readZip } from "@cells/ooxml"
 import { themeColorsFrom, DEFAULT_THEME_COLORS, type ThemeColors } from "./colors"
 import { at, kid, parseTree, type XNode } from "./dom"
@@ -41,6 +49,15 @@ export function readThemeColors(xml: string | undefined): ThemeColors {
   return themeColorsFrom(scheme)
 }
 
+/** The file's format scheme (Effects), whitespace between tags dropped; none when it's Office's or not a:-prefixed. */
+function formatScheme(xml: string): Theme["effects"] {
+  const m = /<a:fmtScheme\b[^>]*>[\s\S]*?<\/a:fmtScheme>/.exec(xml)
+  if (!m) return undefined
+  const scheme = m[0].replace(/>\s+</g, "><")
+  if (scheme === OFFICE_EFFECTS.scheme) return undefined
+  return { name: /\bname="([^"]*)"/.exec(scheme)?.[1] ?? "", scheme }
+}
+
 /** The theme as the workbook keeps it: names, colours (by slot) and fonts. */
 export function readTheme(xml: string | undefined, colors: ThemeColors): Theme {
   const theme = copyTheme(OFFICE_THEME)
@@ -54,6 +71,8 @@ export function readTheme(xml: string | undefined, colors: ThemeColors): Theme {
   const fontsName = at(find(doc.root, "fontScheme") ?? doc.root, "name")
   if (colorsName && colorsName !== theme.name) theme.colorsName = colorsName
   if (fontsName && fontsName !== theme.name) theme.fontsName = fontsName
+  const effects = formatScheme(xml)
+  if (effects) theme.effects = effects
   return theme
 }
 
@@ -84,33 +103,11 @@ function fontSchemeXml(theme: Theme): string {
   )
 }
 
-/** A plain format scheme (fills, lines, effects and backgrounds in the theme colour), for themes Cells writes whole. */
-const FORMAT_SCHEME =
-  `<a:fmtScheme name="Office">` +
-  `<a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill>` +
-  `<a:solidFill><a:schemeClr val="phClr"><a:tint val="50000"/></a:schemeClr></a:solidFill>` +
-  `<a:solidFill><a:schemeClr val="phClr"><a:shade val="80000"/></a:schemeClr></a:solidFill></a:fillStyleLst>` +
-  `<a:lnStyleLst>` +
-  [12700, 19050, 25400]
-    .map(
-      (w) =>
-        `<a:ln w="${w}" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>`,
-    )
-    .join("") +
-  `</a:lnStyleLst>` +
-  `<a:effectStyleLst>` +
-  `<a:effectStyle><a:effectLst/></a:effectStyle>`.repeat(3) +
-  `</a:effectStyleLst>` +
-  `<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill>` +
-  `<a:solidFill><a:schemeClr val="phClr"><a:tint val="95000"/></a:schemeClr></a:solidFill>` +
-  `<a:solidFill><a:schemeClr val="phClr"><a:shade val="90000"/></a:schemeClr></a:solidFill></a:bgFillStyleLst>` +
-  `</a:fmtScheme>`
-
 /** A whole theme part, for a workbook that had none. */
 export function themeXml(theme: Theme): string {
   return (
     `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="${escapeXml(theme.name)}">` +
-    `<a:themeElements>${colorSchemeXml(theme, "a:")}${fontSchemeXml(theme)}${FORMAT_SCHEME}</a:themeElements>` +
+    `<a:themeElements>${colorSchemeXml(theme, "a:")}${fontSchemeXml(theme)}${(theme.effects ?? OFFICE_EFFECTS).scheme}</a:themeElements>` +
     `<a:objectDefaults/><a:extraClrSchemeLst/></a:theme>`
   )
 }
@@ -128,6 +125,9 @@ export function patchThemeXml(xml: string, theme: Theme): string {
   // The theme family names Office's theme it came from; Excel would take that one's look.
   out = out.replace(/<(\w+:)?ext\b[^>]*>\s*<(\w+:)?themeFamily\b[^>]*\/>\s*<\/\1?ext>/, "")
   out = out.replace(/<(\w+:)?extLst>\s*<\/\1?extLst>/, "")
+  // Effects: the scheme picked, or back to Office's (only when the file's is a:-prefixed, as Office writes it).
+  if (prefix === "a:" || prefix === "")
+    out = out.replace(/<a:fmtScheme\b[\s\S]*?<\/a:fmtScheme>/, () => (theme.effects ?? OFFICE_EFFECTS).scheme)
   for (const [tag, face] of [
     ["majorFont", theme.fonts.major],
     ["minorFont", theme.fonts.minor],
@@ -147,7 +147,8 @@ export function themeChanged(theme: Theme, read: Theme | undefined): boolean {
     !sameLook(theme, before) ||
     theme.name !== before.name ||
     (theme.colorsName ?? "") !== (before.colorsName ?? "") ||
-    (theme.fontsName ?? "") !== (before.fontsName ?? "")
+    (theme.fontsName ?? "") !== (before.fontsName ?? "") ||
+    (theme.effects?.scheme ?? "") !== (before.effects?.scheme ?? "")
   )
 }
 

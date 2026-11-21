@@ -37,6 +37,7 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
   "forecast-sheet": { command: "ForecastInsert", keywords: "forecast trend predict future dates" },
   "3d-models": { command: "Insert3DModelDropdown", keywords: "3d model glb turn rotate" },
   "new-window": { command: "WindowNew", keywords: "window arrange side by side compare" },
+  ink: { command: "InkPen0", keywords: "draw pen highlighter ink stylus handwriting annotate eraser" },
 }
 
 export const FEATURE_TOPICS: FeatureTopic[] = FEATURE_HINTS.map((hint) => ({

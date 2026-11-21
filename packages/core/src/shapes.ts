@@ -141,6 +141,11 @@ export type SheetShape = ObjectBase & {
   /** WordArt: the letters' fill and effects. */
   wordArt?: { fill?: ShapeFill; effects?: TextEffects }
   shadow?: boolean
+  /**
+   * One of the theme's three effect styles (Shape Styles' effect rows; Excel's effectRef), drawn from the theme's
+   * Effects, so Page Layout › Effects changes it. An own shadow (Shape Effects) takes its place.
+   */
+  themeEffect?: 1 | 2 | 3
   /** Ink drawn with the Draw tab's pens (geometry "ink"): drawn as its strokes, kept in files as InkML. */
   ink?: { strokes: InkStroke[] }
 }

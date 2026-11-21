@@ -534,3 +534,40 @@
   border: 1px solid var(--app-popover-border);
   font-size: 18px;
 }
+
+.th-effects-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 96px);
+  gap: 4px;
+  padding: 6px;
+}
+
+.th-effects-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.th-effects-item:hover {
+  border-color: var(--app-popover-border);
+  background: var(--app-hover);
+}
+
+.th-effects-item.is-current {
+  border-color: var(--app-theme-primary);
+  background: var(--app-theme-light);
+}
+
+.th-effects {
+  overflow: visible;
+}

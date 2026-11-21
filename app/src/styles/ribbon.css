@@ -3913,3 +3913,36 @@
   background: var(--grid-bg);
   line-height: normal;
 }
+
+.shape-styles {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px 6px;
+}
+
+.shape-styles-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 60px);
+  gap: 2px;
+}
+
+.shape-styles-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+.shape-styles-item:hover,
+.shape-styles-item:focus-visible {
+  border-color: var(--app-theme-primary);
+  background: var(--app-theme-light);
+}
+
+.shape-styles-item svg {
+  overflow: visible;
+}

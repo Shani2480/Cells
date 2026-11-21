@@ -2,6 +2,8 @@ import { colorCss, isChart, type DashStyle, type ShapeColor, type SheetShape } f
 import { presetGeometry, SHAPE_GALLERY } from "@/drawing/geometry"
 import { pickPicture } from "@/drawing/pictures"
 import { WORDART_STYLES } from "@/drawing/wordart"
+import { themeEffectFilter } from "@/drawing/render"
+import { applyShapeStyle, SHAPE_STYLES, type ShapeStyle } from "@/drawing/shape-styles"
 import { ColorPanel, shapeColorOf } from "./colors"
 import type { Command, MenuEntry, RibbonEnv } from "./registry"
 
@@ -163,6 +165,55 @@ const hasObjects = (env: RibbonEnv) => env.c.objects.selected.length > 0
 const hasShape = (env: RibbonEnv) => env.c.objects.drawings().some((o) => o.kind === "shape")
 const shapes = (env: RibbonEnv) => env.c.objects.drawings().filter((o): o is SheetShape => o.kind === "shape")
 
+/** A style's picture in the gallery: a rounded box in its fill, outline and effect, with "Abc" in its text colour. */
+function styleTile(env: RibbonEnv, s: ShapeStyle, id: string): string {
+  const theme = env.c.wb.theme
+  const fill = s.fill.kind === "solid" ? colorCss(s.fill.color, theme).hex : "none"
+  const line = s.line.color ? colorCss(s.line.color, theme).hex : "none"
+  const fx = s.effect ? themeEffectFilter(id, s.effect, theme, fill) : ""
+  return (
+    `${fx ? `<defs>${fx}</defs>` : ""}<rect x="4" y="4" width="48" height="28" rx="3" fill="${fill}" stroke="${line}"` +
+    ` stroke-width="${Math.max(0.75, s.line.width)}"${fx ? ` filter="url(#${id})"` : ""}/>` +
+    `<text x="28" y="22" text-anchor="middle" font-size="11" fill="${colorCss(s.text, theme).hex}">Abc</text>`
+  )
+}
+
+const shapeStylesPanel: MenuEntry = {
+  panel: (env, close) => (
+    <div className="shape-styles" role="menu" aria-label="Shape Styles">
+      <span className="menu-heading">Theme Styles</span>
+      <div className="shape-styles-grid">
+        {SHAPE_STYLES.flatMap((row, r) =>
+          row.map((s, c) => (
+            <button
+              key={s.name}
+              type="button"
+              role="menuitem"
+              className="shape-styles-item"
+              title={s.name}
+              aria-label={s.name}
+              onClick={() => {
+                env.c.objects.update("Shape Style", (o) => {
+                  if (!isChart(o) && o.kind === "shape" && !o.connector && !o.ink) applyShapeStyle(o, s)
+                })
+                close()
+              }}
+            >
+              <svg
+                width="56"
+                height="36"
+                viewBox="0 0 56 36"
+                aria-hidden
+                dangerouslySetInnerHTML={{ __html: styleTile(env, s, `ssfx${r}-${c}`) }}
+              />
+            </button>
+          )),
+        )}
+      </div>
+    </div>
+  ),
+}
+
 /** A colour menu for shapes: picks a theme-aware colour (null: none). */
 function colorMenu(noneLabel: string, pick: (env: RibbonEnv, color: ShapeColor | null) => void): MenuEntry {
   return {
@@ -239,6 +290,15 @@ export function objectCommands(): Command[] {
     },
 
     // ── Shape Format › Shape Styles ──
+    {
+      id: "ShapeStylesGallery",
+      label: "Shape Styles",
+      description:
+        "Choose a ready-made look for the shape: its fill, outline and text colour, and in the lower rows the theme's effects.",
+      keytip: "SS",
+      enabled: hasShape,
+      menu: [shapeStylesPanel],
+    },
     {
       id: "ShapeFillColorPicker",
       label: "Shape Fill",

@@ -1,4 +1,14 @@
-import { copyTheme, OFFICE_THEME, sameLook, type Theme, type ThemeSlot } from "@cells/core"
+import {
+  copyTheme,
+  OFFICE_EFFECTS,
+  OFFICE_THEME,
+  sameLook,
+  type Theme,
+  type ThemeEffects,
+  type ThemeSlot,
+} from "@cells/core"
+import { themeEffectFilter } from "@/drawing/render"
+import { EFFECT_SCHEMES } from "./effects-data"
 import type { SheetController } from "@/sheet/controller"
 import { COLOR_SETS, FONT_SETS, THEMES } from "./themes-data"
 import type { Command, RibbonEnv } from "./registry"
@@ -58,9 +68,49 @@ function withFonts(theme: Theme, set: (typeof OFFICE_FONT_SETS)[number]): Theme 
 }
 
 function setTheme(c: SheetController, theme: Theme, label: string) {
-  if (sameLook(theme, c.wb.theme) && theme.name === c.wb.theme.name) return
+  const now = c.wb.theme
+  if (sameLook(theme, now) && theme.name === now.name && theme.effects?.scheme === now.effects?.scheme) return
   if (c.edit) c.commitEdit()
   c.transact([{ kind: "theme", theme }], { label, before: c.selection })
+}
+
+/** Office's effect schemes, Office's own first (as `undefined` on the theme: what a new workbook has). */
+export const OFFICE_EFFECT_SCHEMES: { label: string; effects: ThemeEffects | undefined }[] = [
+  { label: "Office", effects: undefined },
+  ...EFFECT_SCHEMES.map(([label, scheme]) => ({
+    label,
+    effects: { name: /\bname="([^"]*)"/.exec(scheme)?.[1] ?? label, scheme },
+  })),
+]
+
+function withEffects(theme: Theme, effects: ThemeEffects | undefined): Theme {
+  const t = copyTheme(theme)
+  if (effects) t.effects = { ...effects }
+  else delete t.effects
+  return t
+}
+
+/** An effect scheme's picture: three rounded shapes in the theme's accents with its three effects. */
+function EffectsTile({ theme, effects, id }: { theme: Theme; effects: ThemeEffects | undefined; id: string }) {
+  const t = withEffects(theme, effects)
+  const shapes = ([1, 2, 3] as const).map((n, i) => {
+    const color = `#${theme.colors[(["accent1", "accent2", "accent3"] as const)[i]]}`
+    const fx = themeEffectFilter(`${id}-${n}`, n, t, color)
+    return (
+      `${fx ? `<defs>${fx}</defs>` : ""}<rect x="${6 + i * 22}" y="${10 + (i % 2) * 4}" width="18" height="18" rx="4" fill="${color}"` +
+      `${fx ? ` filter="url(#${id}-${n})"` : ""}/>`
+    )
+  })
+  return (
+    <svg
+      className="th-effects"
+      width="76"
+      height="40"
+      viewBox="0 0 76 40"
+      aria-hidden
+      dangerouslySetInnerHTML={{ __html: shapes.join("") }}
+    />
+  )
 }
 
 const sameColors = (a: Theme["colors"], b: Theme["colors"]) =>
@@ -253,5 +303,44 @@ export function themeCommands(): Command[] {
       ],
     },
     { id: "ThemeFontsCustomize", label: "Customize Fonts..." },
+    {
+      id: "ThemeEffectsGallery",
+      label: "Effects",
+      description:
+        "Change the look of the theme's effects: the shadows, glows and bevels that shapes with a theme effect style get.",
+      keytip: "TE",
+      menu: [
+        {
+          panel: (env, close) => {
+            const now = env.c.wb.theme.effects?.scheme ?? OFFICE_EFFECTS.scheme
+            return (
+              <div className="th-effects-grid" role="menu" aria-label="Effects">
+                {OFFICE_EFFECT_SCHEMES.map((set, i) => {
+                  const current = (set.effects?.scheme ?? OFFICE_EFFECTS.scheme) === now
+                  return (
+                    <button
+                      key={set.label}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={current}
+                      title={set.label}
+                      aria-label={set.label}
+                      className={`th-effects-item${current ? " is-current" : ""}`}
+                      onClick={() => {
+                        setTheme(env.c, withEffects(env.c.wb.theme, set.effects), "Theme Effects")
+                        close()
+                      }}
+                    >
+                      <EffectsTile theme={env.c.wb.theme} effects={set.effects} id={`thfx${i}`} />
+                      <span>{set.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          },
+        },
+      ],
+    },
   ]
 }

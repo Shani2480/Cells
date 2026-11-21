@@ -454,8 +454,12 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     dropped on save once unshared; checked in Excel 365).
   - ✅ View › Macros: lists an .xlsm's or .xls's VBA macros as Excel names them and shows their code (read-only;
     MS-OVBA decompression). Cells doesn't run VBA, so Run stays off; the project stays in the file.
-  - ⬜ Screenshot, Theme Effects, Get Data (From Web, From Table/Range, Recent Sources, Existing Connections),
-    Relationships, Manage Data Model, Move Chart.
+  - ✅ Page Layout › Effects: Office's 15 effect schemes (taken from Office's .eftx files), kept in the theme and
+    written as its format scheme. Shape Format › Shape Styles: Excel's 6 × 7 theme styles; the lower rows give a
+    shape a theme effect (Excel's effectRef), drawn from the workbook's effects (shadows and glows; bevels,
+    reflections and 3-D show in Excel only; the style's gradient fills are drawn solid). Checked in Excel 365.
+  - ⬜ Screenshot, Get Data (From Web, From Table/Range, Recent Sources, Existing Connections), Relationships,
+    Manage Data Model, Move Chart.
 - ⬜ Then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).

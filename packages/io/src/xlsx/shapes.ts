@@ -442,6 +442,10 @@ export function readObject(
       }
     }
     if (kid(kid(spPr, "effectLst"), "outerShdw")) shape.shadow = true
+    // The theme's effect, when the shape's style names one and its own properties don't set effects.
+    const effectRef = num(at(kid(kid(node, "style"), "effectRef"), "idx"))
+    if (effectRef >= 1 && effectRef <= 3 && !kid(spPr, "effectLst") && !shape.wordArt)
+      shape.themeEffect = effectRef as 1 | 2 | 3
     return shape
   }
   if (node.local === "pic") {
@@ -537,6 +541,11 @@ const xfrmXml = (o: DrawingObject, box: ChildBox, group?: { w: number; h: number
   return `<a:xfrm${attrs}>${inner}${child}</a:xfrm>`
 }
 
+/** The theme colour a shape's effect takes (a glow in the fill's colour): its fill's, or accent 1. */
+function effectColor(o: SheetShape): string {
+  return (o.fill.kind === "solid" && o.fill.color.theme) || "accent1"
+}
+
 /** An object's XML (sp, cxnSp, pic or grpSp) at `box` (pixels: on the sheet, or in its group). */
 export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): string {
   const id = w.nextId()
@@ -564,8 +573,15 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
       `</xdr:spPr>`
     if (o.connector) return `<xdr:cxnSp macro="">${nv("nvCxnSpPr", "<xdr:cNvCxnSpPr/>")}${spPr}</xdr:cxnSp>`
     const txBox = o.textBox ? ` txBox="1"` : ""
+    // A theme effect: a style naming it (its fill and line are the shape's own, set in spPr; text stays dark 1).
+    const style =
+      o.themeEffect && !o.shadow
+        ? `<xdr:style><a:lnRef idx="0"><a:scrgbClr r="0" g="0" b="0"/></a:lnRef><a:fillRef idx="0"><a:scrgbClr r="0" g="0" b="0"/></a:fillRef>` +
+          `<a:effectRef idx="${o.themeEffect}"><a:schemeClr val="${effectColor(o)}"/></a:effectRef>` +
+          `<a:fontRef idx="minor"><a:schemeClr val="dk1"/></a:fontRef></xdr:style>`
+        : ""
     return (
-      `<xdr:sp macro="" textlink="">${nv("nvSpPr", `<xdr:cNvSpPr${txBox}/>`)}${spPr}` +
+      `<xdr:sp macro="" textlink="">${nv("nvSpPr", `<xdr:cNvSpPr${txBox}/>`)}${spPr}${style}` +
       textXml(o.text, o.wordArt, w.mathAsText) +
       `</xdr:sp>`
     )

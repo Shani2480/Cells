@@ -557,7 +557,10 @@ export const SHAPE_FORMAT: Tab = {
     {
       id: "GroupShapeStyles",
       label: "Shape Styles",
-      columns: [smalls(S("ShapeFillColorPicker"), S("ShapeOutlineColorPicker"), S("ShapeEffectsMenu"))],
+      columns: [
+        L("ShapeStylesGallery"),
+        smalls(S("ShapeFillColorPicker"), S("ShapeOutlineColorPicker"), S("ShapeEffectsMenu")),
+      ],
     },
     {
       id: "GroupWordArtStyles",

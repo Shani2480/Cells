@@ -200,6 +200,7 @@ const PICTURES: Record<string, LucideIcon> = {
   ShapeFillColorPicker: L.PaintBucket,
   ShapeOutlineColorPicker: L.SquareDashed,
   ShapeEffectsMenu: L.Sparkles,
+  ShapeStylesGallery: L.Palette,
   TextFillColorPicker: L.Baseline,
   TextOutlineColorPicker: L.Type,
   TextEffectsMenu: L.WandSparkles,

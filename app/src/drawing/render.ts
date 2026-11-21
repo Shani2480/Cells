@@ -3,8 +3,10 @@ import { signatureSvg } from "./signature"
 import { layoutEquation, type MathBox } from "./math"
 import {
   colorCss,
+  effectLooks,
   isChart,
   type DrawingObject,
+  type EffectLook,
   type InkStroke,
   type ShapeColor,
   type ShapeFill,
@@ -244,6 +246,48 @@ function textSvg(
 
 const SHADOW = `<filter id="shape-shadow" x="-20%" y="-20%" width="150%" height="150%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.4"/></filter><filter id="text-shadow" x="-20%" y="-20%" width="150%" height="150%"><feDropShadow dx="1.5" dy="1.5" stdDeviation="1" flood-opacity="0.4"/></filter>`
 
+const looks = new Map<string, EffectLook[]>()
+
+/** A shape's theme effect as an SVG filter (its shadow and glow), or none when the effect has neither. */
+export function themeEffectFilter(id: string, effect: 1 | 2 | 3, theme: Theme, ownColor: string): string {
+  const scheme = theme.effects?.scheme ?? ""
+  let list = looks.get(scheme)
+  if (!list) looks.set(scheme, (list = effectLooks(scheme || undefined)))
+  const look = list[effect - 1]
+  const parts: string[] = []
+  const merge: string[] = []
+  if (look.glow && look.glow.radius > 0) {
+    const g = look.glow
+    parts.push(
+      `<feMorphology in="SourceAlpha" operator="dilate" radius="${n(g.radius / 2)}" result="gm"/>` +
+        `<feGaussianBlur in="gm" stdDeviation="${n(g.radius / 2)}" result="gb"/>` +
+        `<feFlood flood-color="${g.color ?? ownColor}" flood-opacity="${n(g.alpha)}"/>` +
+        `<feComposite in2="gb" operator="in" result="glow"/>`,
+    )
+    merge.push("glow")
+  }
+  if (look.shadow && !look.shadow.inner) {
+    const s = look.shadow
+    parts.push(
+      `<feGaussianBlur in="SourceAlpha" stdDeviation="${n(s.blur / 2)}"/><feOffset dx="${n(s.dx)}" dy="${n(s.dy)}" result="so"/>` +
+        `<feFlood flood-color="${s.color}" flood-opacity="${n(s.alpha)}"/><feComposite in2="so" operator="in" result="shadow"/>`,
+    )
+    merge.push("shadow")
+  }
+  let inner = ""
+  if (look.shadow?.inner) {
+    const s = look.shadow
+    inner =
+      `<feComponentTransfer in="SourceAlpha"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>` +
+      `<feGaussianBlur stdDeviation="${n(s.blur / 2)}"/><feOffset dx="${n(s.dx)}" dy="${n(s.dy)}" result="io"/>` +
+      `<feFlood flood-color="${s.color}" flood-opacity="${n(s.alpha)}"/><feComposite in2="io" operator="in"/>` +
+      `<feComposite in2="SourceAlpha" operator="in" result="inner"/>`
+  }
+  if (!parts.length && !inner) return ""
+  const nodes = [...merge, "SourceGraphic", ...(inner ? ["inner"] : [])].map((m) => `<feMergeNode in="${m}"/>`)
+  return `<filter id="${id}" x="-30%" y="-30%" width="160%" height="160%">${parts.join("")}${inner}<feMerge>${nodes.join("")}</feMerge></filter>`
+}
+
 /** An object's SVG content in its own box (0,0)–(w,h), not rotated. */
 export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, measure: Measure = estimate): string {
   if (o.kind === "picture" && o.signature) return signatureSvg(o.signature, w, h, theme)
@@ -279,13 +323,23 @@ export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, 
   const id = `o${o.id}`
   const stroke = strokeAttr(o.line, theme)
   const ends = o.connector ? markers(id, o.line, theme) : { defs: "", attrs: "" }
-  const filter = o.shadow ? ` filter="url(#shape-shadow)"` : ""
+  const fx =
+    o.themeEffect && !o.shadow
+      ? themeEffectFilter(
+          `${id}fx`,
+          o.themeEffect,
+          theme,
+          o.fill.kind === "solid" ? colorCss(o.fill.color, theme).hex : "#156082",
+        )
+      : ""
+  const filter = o.shadow ? ` filter="url(#shape-shadow)"` : fx ? ` filter="url(#${id}fx)"` : ""
   const fill = g.open || o.connector ? ` fill="none"` : fillAttr(o.fill, theme)
   const shapes =
     g.paths.map((d) => `<path d="${d}" fill-rule="evenodd"${fill}${stroke}${ends.attrs}${filter}/>`).join("") +
     (g.lines ?? []).map((d) => `<path d="${d}" fill="none"${stroke}/>`).join("")
   const text = o.text && !o.connector ? textSvg(o.text, g.text, theme, measure, o.wordArt) : ""
-  return `${ends.defs ? `<defs>${ends.defs}</defs>` : ""}${shapes}${text}`
+  const defs = ends.defs + fx
+  return `${defs ? `<defs>${defs}</defs>` : ""}${shapes}${text}`
 }
 
 /** A smooth path through points (x, y pairs): quadratic curves through the midpoints. */

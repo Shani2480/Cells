@@ -1,3 +1,4 @@
+import type { ThemeEffects } from "./theme-effects"
 import type { ShapeColor, ThemeSlot } from "./shapes"
 
 /**
@@ -11,6 +12,8 @@ export type Theme = {
   /** The names of the colour and font sets (Page Layout › Colors and Fonts); the theme's name when absent. */
   colorsName?: string
   fontsName?: string
+  /** The format scheme (Page Layout › Effects); Office's when absent. */
+  effects?: ThemeEffects
 }
 
 export const OFFICE_THEME: Theme = {
@@ -36,6 +39,7 @@ export const copyTheme = (t: Theme): Theme => ({
   ...t,
   colors: { ...t.colors },
   fonts: { ...t.fonts },
+  ...(t.effects ? { effects: { ...t.effects } } : {}),
 })
 
 /** Whether two themes look the same (colours and fonts; names aside). */
