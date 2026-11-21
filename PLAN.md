@@ -380,7 +380,7 @@ please name one).
 
 ---
 
-### Phase 7 — The commands marked "not built" (0.7.0) 🔄
+### Phase 7 — The commands marked "not built" (0.7.0, 0.7.1) ✅
 
 The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables have their own plan in
 `docs/pivot-plan.md`.

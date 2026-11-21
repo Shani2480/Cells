@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "cells"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "futures-util",
  "gtk",
