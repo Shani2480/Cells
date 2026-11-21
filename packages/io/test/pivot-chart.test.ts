@@ -72,9 +72,18 @@ describe("PivotCharts", () => {
       const cache = wb.pivotCaches.find((c) => c.id === table.cacheId)!
       const got = pivotChartData(table, cache, sheet.name)
       const label = `${chart.pivot!.name}`
-      expect(got.series.map((s) => s.name), label).toEqual(want.map((w) => w.name))
-      expect(got.refs.series.map((s) => s.name), label).toEqual(want.map((w) => w.nameRef))
-      expect(got.refs.series.map((s) => s.values), label).toEqual(want.map((w) => w.valRef))
+      expect(
+        got.series.map((s) => s.name),
+        label,
+      ).toEqual(want.map((w) => w.name))
+      expect(
+        got.refs.series.map((s) => s.name),
+        label,
+      ).toEqual(want.map((w) => w.nameRef))
+      expect(
+        got.refs.series.map((s) => s.values),
+        label,
+      ).toEqual(want.map((w) => w.valRef))
       expect(got.refs.categories, label).toBe(want[0].catRef)
       expect(got.categories, label).toEqual(want[0].inner)
       // Excel writes an outer level's label only where it starts.
@@ -104,7 +113,8 @@ describe("PivotCharts", () => {
       const xml = zip.get(`xl/charts/chart${i}.xml`)!
       const was = before.get(`xl/charts/chart${i}.xml`)!
       expect(xml).toContain(/<c:pivotSource>[\s\S]*?<\/c:pivotSource>/.exec(was)![0])
-      const strip = (s: ReturnType<typeof excelSeries>) => s.map(({ name, nameRef, catRef, valRef, inner, values }) => ({ name, nameRef, catRef, valRef, inner, values }))
+      const strip = (s: ReturnType<typeof excelSeries>) =>
+        s.map(({ name, nameRef, catRef, valRef, inner, values }) => ({ name, nameRef, catRef, valRef, inner, values }))
       expect(strip(excelSeries(xml)), `chart${i}`).toEqual(strip(excelSeries(was)))
     }
     const again = await openXlsx(saved, "pivot-chart.xlsx")
