@@ -39,6 +39,14 @@ export interface WindowPort {
   onMenuCommand?(callback: (id: string) => void): () => void
 }
 
+/**
+ * Insert › Screenshot: a picture of the screen, a window or an area, taken with the system's own picker so the person
+ * chooses what's captured. Resolves with the picture as a data URL, or null when they cancel; rejects when it fails.
+ */
+export interface ScreenshotPort {
+  take(): Promise<string | null>
+}
+
 export type Platform = {
   /** "linux" | "macos" | "windows" | "android" | "web": for shortcuts and small layout differences only. */
   readonly os: "linux" | "macos" | "windows" | "android" | "web"
@@ -49,6 +57,8 @@ export type Platform = {
   readonly opens: OpenPort
   readonly links: LinkPort
   readonly ai: AiPort
+  /** Absent where screenshots can't be taken (Android, a browser without screen capture). */
+  readonly screenshot?: ScreenshotPort
 }
 
 /** Where an AI request goes: the providers Inkspire uses (LM Studio is an OpenAI-compatible endpoint). */

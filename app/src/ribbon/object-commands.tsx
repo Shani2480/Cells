@@ -1,6 +1,6 @@
 import { colorCss, isChart, type DashStyle, type ShapeColor, type SheetShape } from "@cells/core"
 import { presetGeometry, SHAPE_GALLERY } from "@/drawing/geometry"
-import { pickPicture } from "@/drawing/pictures"
+import { pickPicture, pictureSize } from "@/drawing/pictures"
 import { WORDART_STYLES } from "@/drawing/wordart"
 import { themeEffectFilter } from "@/drawing/render"
 import { applyShapeStyle, SHAPE_STYLES, type ShapeStyle } from "@/drawing/shape-styles"
@@ -278,6 +278,33 @@ export function objectCommands(): Command[] {
           env.c.objects.insertPicture(p.src, { w: p.w, h: p.h })
           env.c.shell.showTab?.("TabPictureToolsFormat")
         })
+      },
+    },
+    {
+      id: "ScreenshotInsertGallery",
+      label: "Screenshot",
+      description:
+        "Add a picture of a window or part of your screen. Your system asks what to capture, so nothing is taken without you choosing it.",
+      keytip: "SC",
+      enabled: (env) => !!env.screenshot,
+      run: (env) => {
+        const port = env.screenshot
+        if (!port) return
+        void port.take().then(
+          async (src) => {
+            if (!src) return
+            const p = await pictureSize(src)
+            // Big screenshots come in at most half the window's width, keeping their shape (as Excel's do).
+            const most = Math.max(240, Math.round(window.innerWidth / 2))
+            const scale = Math.min(1, most / p.w)
+            env.c.objects.insertPicture(src, { w: Math.round(p.w * scale), h: Math.round(p.h * scale) })
+            env.c.shell.showTab?.("TabPictureToolsFormat")
+          },
+          (error: unknown) =>
+            env.c.shell.alert(
+              `The screenshot couldn't be taken. ${error instanceof Error ? error.message : String(error)}`,
+            ),
+        )
       },
     },
     {

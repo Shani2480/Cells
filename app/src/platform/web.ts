@@ -1,4 +1,4 @@
-import type { AiPort, ClipboardContent, LinkPort, Platform, SettingsPort } from "@cells/platform"
+import type { AiPort, ClipboardContent, LinkPort, Platform, ScreenshotPort, SettingsPort } from "@cells/platform"
 import { webFiles } from "./web-files"
 
 function detectOs(): Platform["os"] {
@@ -10,6 +10,41 @@ function detectOs(): Platform["os"] {
   if (/Linux/i.test(agent)) return "linux"
   return "web"
 }
+
+/**
+ * A screenshot through the webview's screen picker (getDisplayMedia): the person picks a screen, window or tab, and
+ * one frame of it becomes the picture. Absent where the webview has no screen capture.
+ */
+export const displayMediaScreenshot: ScreenshotPort | undefined =
+  typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function"
+    ? {
+        async take() {
+          let stream: MediaStream
+          try {
+            stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+          } catch (error) {
+            // Cancelling the picker is a NotAllowedError; that's not a failure.
+            if (error instanceof DOMException && error.name === "NotAllowedError") return null
+            throw error
+          }
+          try {
+            const video = document.createElement("video")
+            video.muted = true
+            video.srcObject = stream
+            await video.play()
+            // Let the first real frame arrive.
+            await new Promise((r) => setTimeout(r, 150))
+            const canvas = document.createElement("canvas")
+            canvas.width = video.videoWidth
+            canvas.height = video.videoHeight
+            canvas.getContext("2d")!.drawImage(video, 0, 0)
+            return canvas.toDataURL("image/png")
+          } finally {
+            for (const track of stream.getTracks()) track.stop()
+          }
+        },
+      }
+    : undefined
 
 /** The browser build (dev server and tests): the async clipboard where allowed, no window controls. */
 /** A browser can't keep keys safe or reach local models: the AI tools need the desktop app. */
@@ -77,6 +112,7 @@ export const webPlatform: Platform = {
   opens: { onRequest: () => () => {}, external: openInBrowser, openCopy: downloadCopy },
   links: webLinks(),
   ai: noAi,
+  screenshot: displayMediaScreenshot,
 }
 
 /** The browser build: the same files as storage entries (nothing outside the tab reads them). */

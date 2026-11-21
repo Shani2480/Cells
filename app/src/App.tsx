@@ -1128,6 +1128,7 @@ function WorkbookWindow({
     toggleRibbon: () => ribbonHandle.current?.toggleCollapsed(),
     backstage: (page) => setBackstage(page ?? "home"),
     files,
+    screenshot: platform.screenshot,
   }
 
   // Ctrl+F1 shows or hides the ribbon's commands, from anywhere; Ctrl+P and Ctrl+F2 open File › Print.

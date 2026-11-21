@@ -4,6 +4,7 @@
 mod ai;
 #[cfg(desktop)]
 mod menu;
+mod screenshot;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -296,7 +297,11 @@ fn safe_file_name(name: &str) -> String {
 /// Insert › Object: an embedded file written to `<cache dir>/cells/objects/<n>/<name>` so the system can open it in
 /// its own app; returns the path. Each copy gets a folder of its own, so two files of one name don't collide.
 #[tauri::command]
-fn write_object_copy(app: tauri::AppHandle, name: String, bytes: Vec<u8>) -> Result<String, String> {
+fn write_object_copy(
+    app: tauri::AppHandle,
+    name: String,
+    bytes: Vec<u8>,
+) -> Result<String, String> {
     let cache = app.path().cache_dir().map_err(|e| e.to_string())?;
     let root = cache.join("cells").join("objects");
     let stamp = std::time::SystemTime::now()
@@ -562,7 +567,8 @@ pub fn run() {
             ai::ai_cancel,
             ai::ai_test,
             ai::ai_key_status,
-            ai::ai_save_key
+            ai::ai_save_key,
+            screenshot::take_screenshot
         ])
         .build(tauri::generate_context!())
         .expect("error while running Cells")

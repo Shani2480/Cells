@@ -1,3 +1,4 @@
+import type { ScreenshotPort } from "@cells/platform"
 import type { FileCommands } from "@/file/commands"
 import type { ReactNode } from "react"
 import type { SheetController } from "@/sheet/controller"
@@ -20,6 +21,8 @@ export type RibbonEnv = {
   backstage(page?: string): void
   /** File › New, Open, Save… (absent in tests that only drive the ribbon). */
   files?: FileCommands
+  /** Insert › Screenshot (absent where the platform can't take one). */
+  screenshot?: ScreenshotPort
 }
 
 export type MenuEntry =

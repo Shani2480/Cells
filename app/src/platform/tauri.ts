@@ -1,4 +1,4 @@
-import type { AiKeyStatus, AiPort, Platform, SystemFacts } from "@cells/platform"
+import type { AiKeyStatus, AiPort, Platform, ScreenshotPort, SystemFacts } from "@cells/platform"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { readText, writeHtml, writeText } from "@tauri-apps/plugin-clipboard-manager"
@@ -6,7 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { openPath, openUrl } from "@tauri-apps/plugin-opener"
 import { onOpenedDocuments } from "./android-files"
 import { tauriFiles } from "./tauri-files"
-import { webPlatform } from "./web"
+import { displayMediaScreenshot, webPlatform } from "./web"
 
 /**
  * The window's listener for links and files. Requests are taken from the shell once; one that comes back after its
@@ -68,6 +68,7 @@ export function tauriPlatform(): Platform {
       },
     },
     ai: tauriAi(),
+    screenshot: tauriScreenshot(webPlatform.os),
     links: {
       wanted: () => invoke<string | null>("read_link_wants"),
       publish: (name, text) => invoke<void>("write_link_snapshot", { name, text }),
@@ -200,4 +201,27 @@ function tauriAi(): AiPort {
         throw new Error(String(error))
       }),
   }
+}
+
+/**
+ * Insert › Screenshot in the desktop app: the system's own tool on Linux (the desktop portal) and macOS
+ * (screencapture), the webview's screen picker on Windows; none on Android.
+ */
+function tauriScreenshot(os: Platform["os"]): ScreenshotPort | undefined {
+  if (os === "android") return undefined
+  if (os === "windows") return displayMediaScreenshot
+  return {
+    async take() {
+      const bytes = await invoke<number[] | null>("take_screenshot")
+      return bytes ? imageDataUrl(Uint8Array.from(bytes)) : null
+    },
+  }
+}
+
+/** Image bytes as a data URL, its type from its first bytes (PNG unless it's a JPEG). */
+export function imageDataUrl(bytes: Uint8Array): string {
+  const type = bytes[0] === 0xff && bytes[1] === 0xd8 ? "image/jpeg" : "image/png"
+  let binary = ""
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return `data:${type};base64,${btoa(binary)}`
 }

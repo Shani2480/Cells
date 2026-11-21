@@ -34,6 +34,8 @@ tauri-plugin-opener = "2"
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
 webkit2gtk = "2.0"
+# Insert › Screenshot: the desktop's own screenshot tool, through the XDG portal (src/screenshot.rs).
+ashpd = { version = "0.14", default-features = false, features = ["tokio", "screenshot"] }
 
 [target.'cfg(target_os = "linux")'.dependencies.keyring]
 version = "3"

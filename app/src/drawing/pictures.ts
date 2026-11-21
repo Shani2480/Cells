@@ -34,6 +34,16 @@ export function readPicture(file: Blob & { name?: string }): Promise<PickedPictu
   })
 }
 
+/** A picture's size in pixels, from its data URL. */
+export function pictureSize(src: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve({ w: img.naturalWidth || 96, h: img.naturalHeight || 96 })
+    img.onerror = () => reject(new Error("The screenshot isn't a picture Cells can show."))
+    img.src = src
+  })
+}
+
 /** An SVG drawn into a PNG at a size (the copy older apps show for an SVG picture). */
 export function svgToPng(svg: string, w: number, h: number): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -458,8 +458,12 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     written as its format scheme. Shape Format › Shape Styles: Excel's 6 × 7 theme styles; the lower rows give a
     shape a theme effect (Excel's effectRef), drawn from the workbook's effects (shadows and glows; bevels,
     reflections and 3-D show in Excel only; the style's gradient fills are drawn solid). Checked in Excel 365.
-  - ⬜ Screenshot, Get Data (From Web, From Table/Range, Recent Sources, Existing Connections), Relationships,
-    Manage Data Model, Move Chart.
+  - ✅ Insert › Screenshot: taken with the system's own picker (Linux: the XDG desktop portal's interactive
+    screenshot; macOS: screencapture -i; Windows and browsers: the webview's screen picker), inserted as a picture.
+    Off on Android. Not yet tried by hand on Windows or macOS (can't be built here); Excel's gallery of open windows
+    is the system picker instead.
+  - ⬜ Get Data (From Web, From Table/Range, Recent Sources, Existing Connections), Relationships, Manage Data Model,
+    Move Chart.
 - ⬜ Then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
