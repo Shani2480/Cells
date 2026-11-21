@@ -18,6 +18,14 @@ const cases = JSON.parse(readFileSync(join(DIR, "cases.json"), "utf8")) as {
 }
 /** Cases where we knowingly differ from Excel, with the reason. */
 const known = JSON.parse(readFileSync(join(DIR, "known-differences.json"), "utf8")) as Record<string, string>
+/** Functions whose last digit may differ from Excel's, with how far (tests/excel-golden/tolerances.json says why). */
+const tolerances = JSON.parse(readFileSync(join(DIR, "tolerances.json"), "utf8")) as {
+  families: { relative: number; functions: string[] }[]
+}
+function toleranceOf(formula: string): number {
+  const name = /^=([A-Z][A-Z0-9.]*)\(/.exec(formula)?.[1]
+  return tolerances.families.find((f) => name && f.functions.includes(name))?.relative ?? 0
+}
 
 function fixtureBook() {
   const wb = new Workbook(["Sheet1"])
@@ -37,10 +45,11 @@ function actual(wb: Workbook, row: number, col: number): Expected {
   return v as Expected
 }
 
-function same(a: Expected, b: Expected): boolean {
+function same(a: Expected, b: Expected, tolerance = 0): boolean {
   if (typeof a === "number" && typeof b === "number") {
     if (a === b) return true
-    return Number(a.toPrecision(15)) === Number(b.toPrecision(15))
+    if (Number(a.toPrecision(15)) === Number(b.toPrecision(15))) return true
+    return tolerance > 0 && Math.abs(a - b) <= tolerance * Math.max(Math.abs(a), Math.abs(b))
   }
   if (a && b && typeof a === "object" && typeof b === "object") return a.error === b.error
   return a === b
@@ -69,7 +78,7 @@ function evaluate(c: Case): Expected | Expected[][] {
 }
 
 const groups = readdirSync(DIR).filter(
-  (f) => f.endsWith(".json") && f !== "cases.json" && f !== "known-differences.json",
+  (f) => f.endsWith(".json") && !["cases.json", "known-differences.json", "tolerances.json"].includes(f),
 )
 
 describe.each(groups)("Excel conformance: %s", (file) => {
@@ -81,10 +90,11 @@ describe.each(groups)("Excel conformance: %s", (file) => {
     let message: string
     if (c.array) {
       const rows = got as Expected[][]
-      ok = c.array.every((row, r) => row.every((v, k) => same(v === null ? 0 : v, rows[r][k] ?? 0)))
+      const tolerance = toleranceOf(c.formula)
+      ok = c.array.every((row, r) => row.every((v, k) => same(v === null ? 0 : v, rows[r][k] ?? 0, tolerance)))
       message = `Excel ${JSON.stringify(c.array)}, ours ${JSON.stringify(rows)}`
     } else {
-      ok = same(c.value!, got as Expected)
+      ok = same(c.value!, got as Expected, toleranceOf(c.formula))
       message = `Excel ${show(c.value!)}, ours ${show(got as Expected)}`
     }
     if (known[c.formula]) {

@@ -405,6 +405,33 @@ The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables h
 shortcut list is written by hand (`help-content.ts`): a new shortcut has to be added there too. Show me can't point
 on phones (the pane fills the screen), and Show Training says so when a feature's button isn't on screen.
 
+### Phase 8 — Closing the gap with Excel (0.8.0) 🔄
+
+In order: the functions Excel has and Cells didn't (about 250), then the greyed-out ribbon buttons, then the thinner
+features (chart Format tab, Insert Chart dialog, Move Chart and chart sheets, Page Layout view and Page Break
+Preview, picture crop and corrections, PivotTable extras, searchable PDF text, notes that move with inserted cells,
+Name Box lists, live Flash Fill, .xlsb and .ods).
+
+- ✅ Functions, wave 1: statistics (87): the normal, lognormal, t, chi-squared, F, beta, gamma, exponential, Weibull,
+  binomial, Poisson, hypergeometric and negative binomial distributions and their inverses (new and older names),
+  GAMMA, GAMMALN, CONFIDENCE, FISHER, PERMUTATIONA, PHI, GAUSS, STANDARDIZE; Z.TEST, T.TEST, F.TEST, CHISQ.TEST,
+  KURT, SKEW, TRIMMEAN, PERCENTRANK, PROB, MODE.MULT, FREQUENCY; LINEST, LOGEST, TREND, GROWTH
+  (`functions/distributions.ts`, `stat-tests.ts`, `regression.ts`, special functions in `special.ts`). 215 Excel
+  conformance cases; the xlsx `_xlfn.` list now holds every name Excel prefixes.
+- ⬜ Wave 2: engineering (bases, BIT*, ERF*, BESSEL*, CONVERT, the IM* complex numbers, DELTA, GESTEP).
+- ⬜ Wave 3: financial (bonds and securities, depreciation, CUMIPMT/CUMPRINC, MIRR, ODD*, TBILL*, PDURATION, RRI).
+- ⬜ Wave 4: database (D* functions).
+- ⬜ Wave 5: LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY, ISOMITTED; GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE.
+- ⬜ Wave 6: text, information and matrix (REGEX*, ARRAYTOTEXT, VALUETOTEXT, ENCODEURL, CELL, INFO, MUNIT, MINVERSE,
+  MDETERM, SERIESSUM, MULTINOMIAL, ACOT, COTH, CSCH, SECH, …).
+- ⬜ The greyed-out ribbon buttons; then the thinner features above.
+- ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
+  STOCKHISTORY (online services, add-ins or Data Model).
+
+**Known limits:** distributions, tests and fits computed through special functions may differ from Excel in the
+16th significant digit (both are within a few units of the exact value, checked against 50-digit arithmetic);
+`tests/excel-golden/tolerances.json` lists them with how far.
+
 ---
 
 ## 4. Verifying against Excel (all phases)

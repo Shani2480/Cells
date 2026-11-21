@@ -1,0 +1,22 @@
+{
+  "why": "Functions computed through special functions (incomplete gamma and beta, erfc, inverse distributions found by iteration) and least-squares fits. Excel and Cells both land within a few units of the 16th significant digit of the exact value (Cells checked against 50-digit mpmath when these were added), so the 15th digit can round either way. These agree with Excel to the relative difference given; anything beyond it fails.",
+  "families": [
+    {
+      "relative": 3e-14,
+      "functions": [
+        "NORM.DIST", "NORMDIST", "NORM.INV", "NORMINV", "NORM.S.DIST", "NORMSDIST", "NORM.S.INV", "NORMSINV",
+        "LOGNORM.DIST", "LOGNORMDIST", "LOGNORM.INV", "LOGINV", "T.DIST", "T.DIST.2T", "T.DIST.RT", "TDIST", "T.INV",
+        "T.INV.2T", "TINV", "CHISQ.DIST", "CHISQ.DIST.RT", "CHIDIST", "CHISQ.INV", "CHISQ.INV.RT", "CHIINV", "F.DIST",
+        "F.DIST.RT", "FDIST", "F.INV", "F.INV.RT", "FINV", "BETA.DIST", "BETADIST", "BETA.INV", "BETAINV", "GAMMA.DIST",
+        "GAMMADIST", "GAMMA.INV", "GAMMAINV", "GAMMA", "GAMMALN", "GAMMALN.PRECISE", "WEIBULL.DIST", "WEIBULL",
+        "BINOM.DIST", "BINOMDIST", "POISSON.DIST", "POISSON", "NEGBINOM.DIST", "NEGBINOMDIST", "HYPGEOM.DIST",
+        "HYPGEOMDIST", "CONFIDENCE.NORM", "CONFIDENCE", "CONFIDENCE.T", "Z.TEST", "ZTEST", "T.TEST", "TTEST", "F.TEST",
+        "FTEST", "CHISQ.TEST", "CHITEST", "KURT", "SKEW", "SKEW.P", "LOGNORM.INV"
+      ]
+    },
+    {
+      "relative": 1e-13,
+      "functions": ["LINEST", "LOGEST", "TREND", "GROWTH"]
+    }
+  ]
+}
