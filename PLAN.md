@@ -442,7 +442,7 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
   `cell-info.ts`, `filterxml.ts`); 203 Excel cases; a Web category in Insert Function and More Functions. DOLLAR with
   negative decimals now rounds to tens/hundreds as Excel does.
 - ⏸ Not planned: WEBSERVICE and IMAGE (need the network during calculation), JIS (Japanese Excel only).
-- 🔄 The greyed-out ribbon buttons:
+- ✅ The greyed-out ribbon buttons (released in 0.8.0; Move Chart comes with chart sheets):
   - ✅ PivotTable Analyze › Field Headers (showHeaders in files), Drill Down / Drill Up (down: only the active item,
     opened to the field inside; up: the field above shows every item again).
   - ✅ Ink: a Draw tab (Select, Eraser, two pens and a highlighter with colour and thickness, Draw with Touch) and

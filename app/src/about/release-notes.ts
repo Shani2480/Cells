@@ -6,6 +6,23 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "0.8.0",
+    date: "2026-11-21",
+    notes: [
+      "Get Data (Data tab): bring in data from a table in your workbook, a CSV or JSON file on the web, or a table on a web page (Navigator shows each one so you can pick). The Query Editor shapes it before it loads: keep or remove columns, filter rows, sort, remove duplicates, keep the first rows, use the first row as headers and set each column's type, with a preview of the data at every step. Close & Load puts the result in a table on a new sheet, or keeps it as a connection only. Refresh brings in the latest.",
+      "Your queries are saved in Excel's own form, so Excel can open, edit and refresh queries made in Cells, and Cells runs the ones made in Excel that use these steps (others are kept as they are and Excel refreshes them). Queries & Connections lists them with Refresh, Edit and Delete; Recent Sources reopens a source you used before, and Existing Connections loads a query that's only a connection.",
+      "Relationships and Manage Data Model (Data tab): see the tables in an Excel workbook's Data Model, a diagram of how they're related, and each table's data. The model itself is changed in Excel.",
+      "Fixed: a workbook with a Data Model, or with Power Query tables made in Excel, no longer comes back from Cells as a file Excel can't open or has to repair.",
+      "244 new functions: statistics (distributions and their inverses, tests, LINEST, TREND, GROWTH and more), engineering (number bases, CONVERT with every unit, complex numbers, Bessel functions), financial (bonds, coupons, depreciation, odd periods), database (DSUM, DCOUNT and the other D functions with criteria ranges), regular expressions (REGEXTEST, REGEXEXTRACT, REGEXREPLACE), matrices (MINVERSE, MDETERM, MUNIT) and more.",
+      "LAMBDA: write your own functions, call them in place or give them a name in Name Manager and use them anywhere, with MAP, REDUCE, SCAN, BYROW, BYCOL and MAKEARRAY. GROUPBY and PIVOTBY summarise data in a formula, and PERCENTOF and TRIMRANGE are there too.",
+      "Draw tab: write, circle or highlight right on the sheet with pens and a highlighter, with a stylus, the mouse or (with Draw with Touch) your finger. Ink opens and saves with Excel files; Review › Hide Ink hides it.",
+      "Screenshot (Insert tab): take a picture of your screen, or a part of it, and put it on the sheet.",
+      "Theme Effects (Page Layout tab) and Shape Styles (Shape Format tab): Office's effect schemes and Excel's ready-made shape styles, with their shadows and glows.",
+      "Macros (View tab): see the VBA macros in an .xlsm or .xls file and read their code. Cells doesn't run them, and keeps them in the file.",
+      "Unshare Workbook (Review tab) for old shared workbooks, and Field Headers, Drill Down and Drill Up for PivotTables.",
+    ],
+  },
+  {
     version: "0.7.1",
     date: "2026-11-21",
     notes: [
