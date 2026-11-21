@@ -472,7 +472,12 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     sources) stay untouched and Excel refreshes them. Also fixed: Power Query tables used to lose their query table
     part, which Excel called a damaged file. The desktop and Android apps fetch web data themselves; the browser
     build only reads sites that allow it (CORS).
-  - ⬜ Relationships, Manage Data Model, Move Chart.
+  - ✅ Fixed: a workbook with Excel's Data Model (or any connection Excel stamped with xr16:uid) wouldn't open in
+    Excel after Cells saved it (connections.xml lost its namespace declarations). The model (xl/model/item.data)
+    and its relationships are kept as Excel wrote them. Checked in Excel 365.
+  - ⬜ Relationships, Manage Data Model, Move Chart. Excel trusts only its binary model (xl/model/item.data, an
+    Analysis Services backup): without it, it opens an empty model even when workbook.xml lists the tables and
+    relationships, and with it, it ignores the XML. So relationships made in Cells can't reach Excel.
 - ⬜ Then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).

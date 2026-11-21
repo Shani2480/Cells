@@ -160,6 +160,34 @@ function textConnectionXml(id: number, q: QueryTable): string {
   )
 }
 
+/** Namespaces Excel's connections use; the revision ones are ignorable (as Excel marks them). */
+const KNOWN_NS: Record<string, string> = {
+  mc: "http://schemas.openxmlformats.org/markup-compatibility/2006",
+  r: "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+  x14: "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main",
+  x15: "http://schemas.microsoft.com/office/spreadsheetml/2010/11/main",
+  xr16: "http://schemas.microsoft.com/office/spreadsheetml/2017/revision16",
+}
+const IGNORABLE = ["x14", "x15", "xr16"]
+
+/**
+ * The root's declarations for prefixes the kept connections use (Excel declares them on the root, e.g. xr16:uid);
+ * without them the part isn't well-formed and Excel won't open the file.
+ */
+function rootNamespaces(items: readonly string[]): string {
+  const used = new Set<string>()
+  for (const xml of items)
+    for (const m of xml.matchAll(/[<\s/]([A-Za-z][\w.-]*):[A-Za-z][\w.-]*/g)) if (m[1] !== "xmlns") used.add(m[1])
+  const prefixes = Object.keys(KNOWN_NS).filter((p) => used.has(p))
+  if (!prefixes.length) return ""
+  const ignorable = prefixes.filter((p) => IGNORABLE.includes(p))
+  const all = ignorable.length && !prefixes.includes("mc") ? ["mc", ...prefixes] : prefixes
+  return (
+    all.map((p) => ` xmlns:${p}="${KNOWN_NS[p]}"`).join("") +
+    (ignorable.length ? ` mc:Ignorable="${ignorable.join(" ")}"` : "")
+  )
+}
+
 /** xl/connections.xml: the kept connections, then Cells' text links (ids after the kept ones); null when none. */
 export function connectionsXml(
   kept: readonly ConnectionIn[],
@@ -181,7 +209,7 @@ export function connectionsXml(
     items.push(mashupConnectionXml(next++, q))
   }
   return {
-    xml: `<connections xmlns="${NS_MAIN}">${items.join("")}</connections>`,
+    xml: `<connections xmlns="${NS_MAIN}"${rootNamespaces(items)}>${items.join("")}</connections>`,
     ids,
     queryIds,
   }
