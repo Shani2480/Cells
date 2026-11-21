@@ -88,6 +88,29 @@
         "BESSELJ"
       ],
       "why": "For x ≥ 8 Excel's BESSELJ is up to about 2e-5 off the true value (BESSELJ(8.5,1) is -0.27311529 there, -0.27312196 exactly); Cells uses the Numerical Recipes asymptotic form, good to about 1e-9. Below 8 both use the same rational approximation and agree to the last digit."
+    },
+    {
+      "relative": 5e-14,
+      "why": "Bond and loan sums: each cash flow is discounted and added, and Excel's order of operations isn't documented, so the last digit or two of these sums of many terms can differ (DDB loses digits to cancellation when salvage is near the book value).",
+      "functions": [
+        "PRICE",
+        "DURATION",
+        "MDURATION",
+        "ODDFPRICE",
+        "CUMIPMT",
+        "CUMPRINC",
+        "DDB",
+        "YIELDMAT",
+        "INTRATE"
+      ]
+    },
+    {
+      "relative": 2e-09,
+      "why": "Yields found by iteration: Excel stops its search once the price is within its tolerance, so its last digits are those of an unfinished iteration (agrees to 9 digits or better); ours iterates to the root.",
+      "functions": [
+        "YIELD",
+        "ODDFYIELD"
+      ]
     }
   ]
 }

@@ -393,6 +393,59 @@ const TABLE: Record<string, string> = {
   "ERFC.PRECISE": "x|The complementary error function.",
   DELTA: "number1, [number2]|1 when two numbers are equal, otherwise 0.",
   GESTEP: "number, [step]|1 when a number is at least the step, otherwise 0.",
+  ACCRINT:
+    "issue, first_interest, settlement, rate, [par], frequency, [basis], [calc_method]|Accrued interest of a security that pays periodic interest.",
+  ACCRINTM: "issue, settlement, rate, [par], [basis]|Accrued interest of a security that pays interest at maturity.",
+  AMORDEGRC:
+    "cost, date_purchased, first_period, salvage, period, rate, [basis]|French declining depreciation for an accounting period.",
+  AMORLINC:
+    "cost, date_purchased, first_period, salvage, period, rate, [basis]|French straight-line depreciation for an accounting period.",
+  COUPDAYBS: "settlement, maturity, frequency, [basis]|Days from the start of the coupon period to settlement.",
+  COUPDAYS: "settlement, maturity, frequency, [basis]|Days in the coupon period that holds settlement.",
+  COUPDAYSNC: "settlement, maturity, frequency, [basis]|Days from settlement to the next coupon date.",
+  COUPNCD: "settlement, maturity, frequency, [basis]|The next coupon date after settlement.",
+  COUPNUM: "settlement, maturity, frequency, [basis]|The number of coupons payable from settlement to maturity.",
+  COUPPCD: "settlement, maturity, frequency, [basis]|The coupon date on or before settlement.",
+  CUMIPMT: "rate, nper, pv, start_period, end_period, type|The interest paid on a loan between two periods.",
+  CUMPRINC: "rate, nper, pv, start_period, end_period, type|The principal paid on a loan between two periods.",
+  DB: "cost, salvage, life, period, [month]|Fixed-declining balance depreciation for a period.",
+  DDB: "cost, salvage, life, period, [factor]|Double-declining balance depreciation for a period.",
+  DISC: "settlement, maturity, pr, redemption, [basis]|The discount rate of a security.",
+  DOLLARDE: "fractional_dollar, fraction|A price written as a fraction (1.02 for 1 2/16) as a decimal number.",
+  DOLLARFR: "decimal_dollar, fraction|A decimal price written as a fraction (1.125 becomes 1.02 in sixteenths).",
+  DURATION:
+    "settlement, maturity, coupon, yld, frequency, [basis]|The Macaulay duration of a security with periodic interest.",
+  FVSCHEDULE: "principal, schedule|The future value of a principal after a series of interest rates.",
+  INTRATE: "settlement, maturity, investment, redemption, [basis]|The interest rate of a fully invested security.",
+  ISPMT: "rate, per, nper, pv|The interest paid in a period of a loan with even principal payments.",
+  MDURATION: "settlement, maturity, coupon, yld, frequency, [basis]|The modified duration of a security.",
+  MIRR: "values, finance_rate, reinvest_rate|The internal rate of return with separate borrowing and reinvestment rates.",
+  ODDFPRICE:
+    "settlement, maturity, issue, first_coupon, rate, yld, redemption, frequency, [basis]|The price per 100 of a security with an odd first period.",
+  ODDFYIELD:
+    "settlement, maturity, issue, first_coupon, rate, pr, redemption, frequency, [basis]|The yield of a security with an odd first period.",
+  ODDLPRICE:
+    "settlement, maturity, last_interest, rate, yld, redemption, frequency, [basis]|The price per 100 of a security with an odd last period.",
+  ODDLYIELD:
+    "settlement, maturity, last_interest, rate, pr, redemption, frequency, [basis]|The yield of a security with an odd last period.",
+  PDURATION: "rate, pv, fv|The number of periods an investment takes to reach a value.",
+  PRICE:
+    "settlement, maturity, rate, yld, redemption, frequency, [basis]|The price per 100 of a security that pays periodic interest.",
+  PRICEDISC: "settlement, maturity, discount, redemption, [basis]|The price per 100 of a discounted security.",
+  PRICEMAT:
+    "settlement, maturity, issue, rate, yld, [basis]|The price per 100 of a security that pays interest at maturity.",
+  RECEIVED:
+    "settlement, maturity, investment, discount, [basis]|The amount received at maturity for a fully invested security.",
+  RRI: "nper, pv, fv|The equivalent interest rate for the growth of an investment.",
+  TBILLEQ: "settlement, maturity, discount|The bond-equivalent yield of a Treasury bill.",
+  TBILLPRICE: "settlement, maturity, discount|The price per 100 of a Treasury bill.",
+  TBILLYIELD: "settlement, maturity, pr|The yield of a Treasury bill.",
+  VDB: "cost, salvage, life, start_period, end_period, [factor], [no_switch]|Declining balance depreciation between two periods, switching to straight line.",
+  YIELD:
+    "settlement, maturity, rate, pr, redemption, frequency, [basis]|The yield of a security that pays periodic interest.",
+  YIELDDISC: "settlement, maturity, pr, redemption, [basis]|The annual yield of a discounted security.",
+  YIELDMAT:
+    "settlement, maturity, issue, rate, pr, [basis]|The annual yield of a security that pays interest at maturity.",
   BESSELJ: "x, n|The Bessel function Jn(x).",
   BESSELY: "x, n|The Bessel function Yn(x).",
   BESSELI: "x, n|The modified Bessel function In(x).",

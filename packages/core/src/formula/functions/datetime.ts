@@ -20,7 +20,7 @@ import { define, scalarFn } from "./registry"
 type Ctx = Parameters<typeof toMatrix>[1]
 
 /** A date argument: a number, or text that reads as a date. Negative or past 9999 is #NUM!. */
-function dateArg(v: Value): number | CellError {
+export function dateArg(v: Value): number | CellError {
   const n = num(v)
   if (isError(n)) return n
   if (n < 0 || n > MAX_DATE_SERIAL + 0.99999) return NUM
@@ -203,10 +203,11 @@ scalarFn("DAYS360", 2, 3, (a) => {
   const european = a.length > 2 && a[2] !== null && a[2] !== false && a[2] !== 0
   return days360(serialToDate(s), serialToDate(e), european)
 })
-function days360(
+export function days360(
   s: { year: number; month: number; day: number },
   e: { year: number; month: number; day: number },
   european: boolean,
+  februaryRule = true,
 ) {
   let sd = s.day
   let ed = e.day
@@ -215,7 +216,7 @@ function days360(
     if (ed === 31) ed = 30
   } else {
     const lastFeb = (d: typeof s) => d.month === 2 && d.day === daysInMonth(d.year, 2)
-    if (lastFeb(s)) {
+    if (februaryRule && lastFeb(s)) {
       if (lastFeb(e)) ed = 30
       sd = 30
     }
@@ -266,13 +267,18 @@ scalarFn("DATEDIF", 3, 3, (a) => {
 })
 
 scalarFn("YEARFRAC", 2, 3, (a) => {
-  let s = dateArg(a[0])
-  let e = dateArg(a[1])
+  const s = dateArg(a[0])
+  const e = dateArg(a[1])
   const basis = a.length > 2 && a[2] !== null ? int(a[2]) : 0
   if (isError(s)) return s
   if (isError(e)) return e
   if (isError(basis)) return basis
   if (basis < 0 || basis > 4) return NUM
+  return yearFrac(s, e, basis)
+})
+
+/** YEARFRAC for whole serials and a basis of 0–4 (the bond and discount functions count years the same way). */
+export function yearFrac(s: number, e: number, basis: number): number {
   s = Math.floor(s)
   e = Math.floor(e)
   if (s > e) [s, e] = [e, s]
@@ -305,7 +311,7 @@ scalarFn("YEARFRAC", 2, 3, (a) => {
     default:
       return days360(sd, ed, true) / 360
   }
-})
+}
 /** The 30/360 US (NASD) day count used by YEARFRAC basis 0. */
 function days360Us(s: { year: number; month: number; day: number }, e: { year: number; month: number; day: number }) {
   let sd = s.day

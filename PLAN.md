@@ -422,7 +422,10 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
   approximations), CONVERT with every unit and prefix Excel knows, COMPLEX and the IM* complex numbers written as
   Excel writes them (`functions/engineering.ts`, `complex.ts`); a new Engineering category (More Functions). 940
   Excel cases, including one per unit.
-- ⬜ Wave 3: financial (bonds and securities, depreciation, CUMIPMT/CUMPRINC, MIRR, ODD*, TBILL*, PDURATION, RRI).
+- ✅ Wave 3: financial (40): coupon dates (COUP*), PRICE, YIELD, DURATION, MDURATION, ACCRINT(M), the discount and
+  at-maturity securities, TBILL*, odd first and last periods (ODDF*, ODDL*), DB, DDB, VDB, AMORDEGRC, AMORLINC,
+  CUMIPMT, CUMPRINC, DOLLARDE/FR, FVSCHEDULE, ISPMT, MIRR, PDURATION, RRI (`functions/bonds.ts`,
+  `depreciation.ts`), with Excel's own day counts and fractional-period rules worked out from 1384 Excel cases.
 - ⬜ Wave 4: database (D* functions).
 - ⬜ Wave 5: LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY, ISOMITTED; GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE.
 - ⬜ Wave 6: text, information and matrix (REGEX*, ARRAYTOTEXT, VALUETOTEXT, ENCODEURL, CELL, INFO, MUNIT, MINVERSE,
@@ -435,6 +438,9 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
 16th significant digit (both are within a few units of the exact value, checked against 50-digit arithmetic);
 `tests/excel-golden/tolerances.json` lists them with how far. Excel's BESSELJ is itself only good to about 2e-5
 for x ≥ 8; Cells is closer to the true value there, so the two differ in the 5th digit.
+Excel's YIELD and ODDFYIELD stop iterating early (agree to 9 digits); a few Excel bond results fit none of its
+documented conventions (two actual/actual COUPDAYS periods at month ends, ODDF* long first periods on actual/360 and
+actual/365) and are listed in `tests/excel-golden/known-differences.json`.
 
 ---
 
