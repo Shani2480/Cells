@@ -1,3 +1,4 @@
+import type { WorkbookQuery } from "./power-query"
 import type { Theme } from "./theme"
 import type { PivotCache } from "./pivot/model"
 import type { ExternalBook } from "./links"
@@ -29,6 +30,8 @@ export type SheetList = Sheet[] & {
   look?: { theme: Theme }
   /** The PivotTables' caches. */
   pivotData?: { caches: PivotCache[] }
+  /** Data › Get Data: the workbook's queries. */
+  mashup?: { queries: WorkbookQuery[] }
 }
 
 export class NameTable {

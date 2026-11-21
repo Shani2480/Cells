@@ -1,3 +1,4 @@
+import { copyQueries, type WorkbookQuery } from "./power-query"
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import type { Axis } from "./axis"
 import type { CellData } from "./cell-store"
@@ -131,6 +132,8 @@ export type Op =
   | { kind: "advancedFilter"; sheet: number; filter: AdvancedFilter | null; rows?: AxisEntry[] }
   /** The sheet's ranges linked to text files (import, refresh, rename, delete). */
   | { kind: "queryTables"; sheet: number; tables: QueryTable[] }
+  /** Data › Get Data: the workbook's queries (new, changed, renamed, deleted). */
+  | { kind: "queries"; queries: WorkbookQuery[] }
   /** Data › Consolidate: what the dialog last used on the sheet. */
   | { kind: "consolidateSettings"; sheet: number; settings: ConsolidateSettings | null }
   /** Protect Sheet (with the options) or Unprotect Sheet (null). */
@@ -222,6 +225,13 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       box.theme = copyTheme(op.theme)
       styles.retheme(box.theme)
       return { inverse: [{ kind: "theme", theme: before }], change: { sheet: 0, structural: false, format: true } }
+    }
+    case "queries": {
+      const box = (sheets as SheetList).mashup
+      if (!box) throw new Error("No queries")
+      const before = copyQueries(box.queries)
+      box.queries = copyQueries(op.queries)
+      return { inverse: [{ kind: "queries", queries: before }], change: { sheet: 0, structural: false } }
     }
     case "protectWorkbook": {
       const box = (sheets as SheetList).structure

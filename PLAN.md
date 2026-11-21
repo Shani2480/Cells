@@ -462,8 +462,17 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     screenshot; macOS: screencapture -i; Windows and browsers: the webview's screen picker), inserted as a picture.
     Off on Android. Not yet tried by hand on Windows or macOS (can't be built here); Excel's gallery of open windows
     is the system picker instead.
-  - ⬜ Get Data (From Web, From Table/Range, Recent Sources, Existing Connections), Relationships, Manage Data Model,
-    Move Chart.
+  - ✅ Data › Get & Transform Data (Power Query): From Table/Range and From Web (CSV, JSON, or a web page's tables
+    through a Navigator) open a Query Editor with a preview and Applied Steps: choose/remove columns, keep first rows,
+    remove duplicates, first row as headers, sort, filter rows and data types. Close & Load makes a table on a new
+    sheet (or a connection only); Refresh, Refresh All and the Queries & Connections pane (Edit, Refresh, Delete) run
+    them again. Recent Sources (kept on the device) and Existing Connections. Queries are kept in the file as
+    Excel's DataMashup with Excel's own M, so Excel reads, edits and refreshes them (checked in Excel 365: a query
+    made in Cells refreshes there; an Excel query changed in Cells too); queries Cells can't run (other M steps or
+    sources) stay untouched and Excel refreshes them. Also fixed: Power Query tables used to lose their query table
+    part, which Excel called a damaged file. The desktop and Android apps fetch web data themselves; the browser
+    build only reads sites that allow it (CORS).
+  - ⬜ Relationships, Manage Data Model, Move Chart.
 - ⬜ Then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).

@@ -1,3 +1,4 @@
+import { getDataCommands } from "./getdata-commands"
 import { inkCommands } from "./ink-commands"
 import { slicerCommands } from "./slicer-commands"
 import { timelineCommands } from "./timeline-commands"
@@ -414,6 +415,7 @@ export function allCommands(): Command[] {
     ...outlineCommands(),
     ...whatIfCommands(),
     ...dataToolCommands(),
+    ...getDataCommands(),
     ...qatCommands(),
     ...tableCommands(),
     ...pivotCommands(),

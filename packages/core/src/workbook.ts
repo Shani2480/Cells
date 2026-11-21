@@ -1,3 +1,4 @@
+import type { WorkbookQuery } from "./power-query"
 import type { ExternalBook } from "./links"
 import { CalcEngine, cellOfKey, type CalcMode } from "./calc/engine"
 import type { Range } from "./address"
@@ -132,6 +133,15 @@ export class Workbook<Meta = unknown> {
   set pivotCaches(caches: PivotCache[]) {
     this.pivotData.caches = caches
   }
+  /** Data › Get Data: the workbook's queries (Power Query), in a box so operations can change them. */
+  readonly mashup: { queries: WorkbookQuery[] } = { queries: [] }
+  get queries(): WorkbookQuery[] {
+    return this.mashup.queries
+  }
+  /** Sets the queries as read from a file (use the "queries" op to change them). */
+  set queries(list: WorkbookQuery[]) {
+    this.mashup.queries = list
+  }
   /** Page Layout › Themes, in a box so operations can change it. */
   readonly look: { theme: Theme } = { theme: copyTheme(OFFICE_THEME) }
   /** The colours and fonts that theme colours and fonts in cells, shapes and charts follow. */
@@ -159,6 +169,7 @@ export class Workbook<Meta = unknown> {
     ;(this.sheets as SheetList).links = this.links
     ;(this.sheets as SheetList).look = this.look
     ;(this.sheets as SheetList).pivotData = this.pivotData
+    ;(this.sheets as SheetList).mashup = this.mashup
     this.undoLimit = undoLimit
     this.calc = new CalcEngine(this)
     this.calculator = new LocalCalculator(this.calc)

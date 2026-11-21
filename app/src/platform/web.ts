@@ -1,4 +1,12 @@
-import type { AiPort, ClipboardContent, LinkPort, Platform, ScreenshotPort, SettingsPort } from "@cells/platform"
+import type {
+  AiPort,
+  ClipboardContent,
+  LinkPort,
+  Platform,
+  ScreenshotPort,
+  SettingsPort,
+  WebPort,
+} from "@cells/platform"
 import { webFiles } from "./web-files"
 
 function detectOs(): Platform["os"] {
@@ -45,6 +53,22 @@ export const displayMediaScreenshot: ScreenshotPort | undefined =
         },
       }
     : undefined
+
+/** The browser's fetch: only sites that allow other pages to read them (CORS) work here. */
+export const browserWeb: WebPort = {
+  async fetch(url) {
+    let response: Response
+    try {
+      response = await fetch(url)
+    } catch {
+      throw new Error(
+        "Couldn't read the address. In a browser, only sites that allow it can be read; the Cells app reads any.",
+      )
+    }
+    if (!response.ok) throw new Error(`The site answered ${response.status} ${response.statusText}.`)
+    return { bytes: new Uint8Array(await response.arrayBuffer()), type: response.headers.get("content-type") ?? "" }
+  },
+}
 
 /** The browser build (dev server and tests): the async clipboard where allowed, no window controls. */
 /** A browser can't keep keys safe or reach local models: the AI tools need the desktop app. */
@@ -113,6 +137,7 @@ export const webPlatform: Platform = {
   links: webLinks(),
   ai: noAi,
   screenshot: displayMediaScreenshot,
+  web: browserWeb,
 }
 
 /** The browser build: the same files as storage entries (nothing outside the tab reads them). */

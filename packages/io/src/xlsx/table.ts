@@ -72,12 +72,16 @@ export function tableXml(
   styles: StylesOut,
   rangeRef: (r: Range) => string,
   toFile: (formula: string) => string,
+  /** Filled by a query: its columns are the query table's fields, in order. */
+  query = false,
 ): string {
   const cols = t.columns
     .map((c, i) => {
       const attrs = attrText({
         id: i + 1,
+        uniqueName: query ? i + 1 : undefined,
         name: c.name,
+        queryTableFieldId: query ? i + 1 : undefined,
         totalsRowFunction: c.totals && c.totals !== "none" ? c.totals : undefined,
         totalsRowLabel: !c.totals || c.totals === "none" ? c.totalsLabel || undefined : undefined,
       })
@@ -103,6 +107,7 @@ export function tableXml(
     name: t.name,
     displayName: t.name,
     ref: rangeRef(t.range),
+    tableType: query ? "queryTable" : undefined,
     headerRowCount: t.header ? undefined : "0",
     totalsRowCount: t.totals ? "1" : undefined,
     totalsRowShown: t.totals ? undefined : "0",

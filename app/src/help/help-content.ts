@@ -38,6 +38,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
   "3d-models": { command: "Insert3DModelDropdown", keywords: "3d model glb turn rotate" },
   "new-window": { command: "WindowNew", keywords: "window arrange side by side compare" },
   ink: { command: "InkPen0", keywords: "draw pen highlighter ink stylus handwriting annotate eraser" },
+  "power-query": {
+    command: "PowerQueryGetTransformDataMenuSubscription19",
+    keywords: "power query get data from web table range query editor import csv json refresh connection transform",
+  },
 }
 
 export const FEATURE_TOPICS: FeatureTopic[] = FEATURE_HINTS.map((hint) => ({

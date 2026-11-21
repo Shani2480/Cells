@@ -1,3 +1,4 @@
+import { setWebPort } from "./sheet/get-data"
 import React from "react"
 import ReactDOM from "react-dom/client"
 import { App } from "./App"
@@ -17,6 +18,7 @@ const web =
     ? (await import("./platform/demo-ai")).withDemoAi(webPlatform)
     : webPlatform
 const platform = isTauri() ? tauriPlatform() : web
+setWebPort(platform.web)
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

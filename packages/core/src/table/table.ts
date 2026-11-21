@@ -42,6 +42,8 @@ export type Table = {
   columnStripes: boolean
   /** Filter Button: the header row's dropdowns, with their filters and sort. */
   autoFilter: AutoFilter | null
+  /** The query (Data › Get Data) that fills the table on Refresh. */
+  query?: string
 }
 
 /** Excel's style for a new table. */

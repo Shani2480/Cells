@@ -1,3 +1,4 @@
+import { GetData } from "./get-data"
 import { SlicerCommands } from "./slicers"
 import { TimelineCommands } from "./timelines"
 import { QuickAnalysis } from "./quick-analysis"
@@ -421,6 +422,8 @@ export class SheetController {
   readonly validation: ValidationCommands = new ValidationCommands(this)
   /** Insert › Table, Format as Table and the Table Design tab. */
   readonly tables: TableCommands = new TableCommands(this)
+  /** Data › Get & Transform Data: queries (Power Query) and the Query Editor's state. */
+  readonly getData: GetData = new GetData(this)
   /** Charts: inserting, selecting, moving and the Chart Design tab. */
   readonly charts: ChartCommands = new ChartCommands(this)
   /** Shapes, text boxes, pictures and groups (and charts, as objects): Insert › Illustrations, Shape Format. */

@@ -69,6 +69,12 @@ export function tauriPlatform(): Platform {
     },
     ai: tauriAi(),
     screenshot: tauriScreenshot(webPlatform.os),
+    web: {
+      async fetch(url) {
+        const got = await invoke<{ bytes: number[]; contentType: string }>("fetch_url", { url })
+        return { bytes: Uint8Array.from(got.bytes), type: got.contentType }
+      },
+    },
     links: {
       wanted: () => invoke<string | null>("read_link_wants"),
       publish: (name, text) => invoke<void>("write_link_snapshot", { name, text }),

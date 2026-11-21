@@ -5,6 +5,7 @@ mod ai;
 #[cfg(desktop)]
 mod menu;
 mod screenshot;
+mod web;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -568,7 +569,8 @@ pub fn run() {
             ai::ai_test,
             ai::ai_key_status,
             ai::ai_save_key,
-            screenshot::take_screenshot
+            screenshot::take_screenshot,
+            web::fetch_url
         ])
         .build(tauri::generate_context!())
         .expect("error while running Cells")

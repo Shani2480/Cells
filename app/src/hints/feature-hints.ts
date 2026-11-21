@@ -69,6 +69,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Pick a pen or the highlighter and write, circle or mark up right on the sheet, with a stylus, the mouse or (with Draw with Touch) your finger. Review › Hide Ink hides it.",
     target: "Draw with Touch",
   },
+  {
+    id: "power-query",
+    title: "New: Get and shape data",
+    text: "Get Data reads a table, a CSV or JSON file on the web, or a web page's tables, and the Query Editor filters, sorts and trims it before it loads. Refresh brings in the latest, and Excel can refresh it too.",
+    target: "Get Data",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

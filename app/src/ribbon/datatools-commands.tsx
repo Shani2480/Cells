@@ -33,8 +33,9 @@ export function dataToolCommands(): Command[] {
       description: "Get the latest data by reading every linked text file and PivotTable source in the workbook again.",
       shortcut: "Ctrl+Alt+F5",
       keytip: "RA",
-      run: (env) => refreshAll(env),
-      enabled: (env) => (Boolean(env.files) && hasLinks(env)) || env.c.pivots.any(),
+      run: (env) => void refreshAll(env),
+      enabled: (env) =>
+        (Boolean(env.files) && hasLinks(env)) || env.c.pivots.any() || env.c.wb.queries.some((q) => q.table),
       menu: ["RefreshAll", "RefreshData", "-", "ConnectionProperties"],
     },
     {
@@ -43,8 +44,9 @@ export function dataToolCommands(): Command[] {
       description: "Get the latest data by reading every linked text file and PivotTable source in the workbook again.",
       shortcut: "Ctrl+Alt+F5",
       keytip: "A",
-      run: (env) => refreshAll(env),
-      enabled: (env) => (Boolean(env.files) && hasLinks(env)) || env.c.pivots.any(),
+      run: (env) => void refreshAll(env),
+      enabled: (env) =>
+        (Boolean(env.files) && hasLinks(env)) || env.c.pivots.any() || env.c.wb.queries.some((q) => q.table),
     },
     {
       id: "RefreshData",
@@ -54,10 +56,22 @@ export function dataToolCommands(): Command[] {
       keytip: "R",
       run: (env) => {
         if (env.c.pivots.active()) return void env.c.pivots.refresh()
+        const loaded = activeQuery(env)
+        if (loaded)
+          return void env.c.getData.refresh(loaded).then(
+            (ok) =>
+              ok ||
+              env.c.shell.alert("Cells can't run this query (it uses steps only Excel knows); Excel can refresh it."),
+            (e: unknown) =>
+              env.c.shell.alert(`Cells couldn't refresh ${loaded}. ${e instanceof Error ? e.message : String(e)}`),
+          )
         const q = env.c.data.activeQuery()
         if (q) void env.files?.refreshQuery(q.sheet, q.name)
       },
-      enabled: (env) => env.c.pivots.active() !== null || (Boolean(env.files) && env.c.data.activeQuery() !== null),
+      enabled: (env) =>
+        env.c.pivots.active() !== null ||
+        activeQuery(env) !== null ||
+        (Boolean(env.files) && env.c.data.activeQuery() !== null),
     },
     {
       id: "ConnectionProperties",
@@ -103,7 +117,30 @@ const hasLinks = (env: RibbonEnv) => env.c.wb.sheets.some((s) => s.queryTables.l
 /** Linked text files first (a PivotTable may count their data), then the PivotTables. */
 async function refreshAll(env: RibbonEnv) {
   if (env.files && hasLinks(env)) await env.files.refreshAll()
+  await refreshQueries(env)
   env.c.pivots.refreshAll()
+}
+
+/** Refresh All's queries: each loaded one Cells can run, in one step to undo; the ones that fail are named. */
+async function refreshQueries(env: RibbonEnv) {
+  const c = env.c
+  if (!c.wb.queries.some((q) => q.table)) return
+  const { ops, failed } = await c.getData.refreshAllOps()
+  if (ops.length) {
+    if (c.edit) c.commitEdit()
+    c.transact(ops, { label: "Refresh All", before: c.selection })
+  }
+  if (failed.length)
+    c.shell.alert(`Cells couldn't refresh ${failed.length === 1 ? "the query" : "the queries"} ${failed.join(", ")}.`)
+}
+
+/** The loaded query of the active cell's table. */
+const activeQuery = (env: RibbonEnv) => {
+  const { row, col } = env.c.selection.active
+  const t = env.c.sheet.tables.find(
+    (x) => x.query && row >= x.range.r0 && row <= x.range.r1 && col >= x.range.c0 && col <= x.range.c1,
+  )
+  return t?.query ?? null
 }
 
 function openProperties(env: RibbonEnv) {

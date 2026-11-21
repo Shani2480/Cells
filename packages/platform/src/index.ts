@@ -47,6 +47,11 @@ export interface ScreenshotPort {
   take(): Promise<string | null>
 }
 
+/** Data › Get Data › From Web: a file at a web address (rejects with a reason when it can't be read). */
+export interface WebPort {
+  fetch(url: string): Promise<{ bytes: Uint8Array; type: string }>
+}
+
 export type Platform = {
   /** "linux" | "macos" | "windows" | "android" | "web": for shortcuts and small layout differences only. */
   readonly os: "linux" | "macos" | "windows" | "android" | "web"
@@ -59,6 +64,8 @@ export type Platform = {
   readonly ai: AiPort
   /** Absent where screenshots can't be taken (Android, a browser without screen capture). */
   readonly screenshot?: ScreenshotPort
+  /** Reading files from the web (the desktop app fetches them itself; a browser only where the site allows it). */
+  readonly web: WebPort
 }
 
 /** Where an AI request goes: the providers Inkspire uses (LM Studio is an OpenAI-compatible endpoint). */

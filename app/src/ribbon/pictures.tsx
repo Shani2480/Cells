@@ -165,6 +165,7 @@ const PICTURES: Record<string, LucideIcon> = {
   GetPowerQueryDataFromWeb: L.Globe,
   GetPowerQueryGetTransformDataFromTable: L.Table2,
   PowerQueryRecentSources: L.History,
+  PowerQueryRecentSourcesItem: L.History,
   GetTransformExistingConnections: L.Cable,
   RefreshAllMenu: L.RefreshCw,
   PivotExpandField: L.SquarePlus,

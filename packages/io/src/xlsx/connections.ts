@@ -7,7 +7,9 @@ import {
   type Range,
   type TextEncoding,
   type TextImport,
+  type WorkbookQuery,
 } from "@cells/core"
+import { mashupConnectionXml } from "./mashup"
 import { escapeXmlText } from "@cells/ooxml"
 import { at, attrText, kid, kids, parseTree, raw } from "./dom"
 import { NS_MAIN } from "./constants"
@@ -162,18 +164,26 @@ function textConnectionXml(id: number, q: QueryTable): string {
 export function connectionsXml(
   kept: readonly ConnectionIn[],
   links: readonly QueryTable[],
-): { xml: string; ids: Map<QueryTable, number> } | null {
+  queries: readonly WorkbookQuery[] = [],
+): { xml: string; ids: Map<QueryTable, number>; queryIds: Map<string, number> } | null {
   const ids = new Map<QueryTable, number>()
-  if (!kept.length && !links.length) return null
+  const queryIds = new Map<string, number>()
+  if (!kept.length && !links.length && !queries.length) return null
   let next = Math.max(0, ...kept.map((k) => k.id)) + 1
   const items = kept.map((k) => k.xml)
   for (const q of links) {
     ids.set(q, next)
     items.push(textConnectionXml(next++, q))
   }
+  // Loaded queries (Get Data): Excel's Power Query connection for each.
+  for (const q of queries) {
+    queryIds.set(q.name, next)
+    items.push(mashupConnectionXml(next++, q))
+  }
   return {
     xml: `<connections xmlns="${NS_MAIN}">${items.join("")}</connections>`,
     ids,
+    queryIds,
   }
 }
 

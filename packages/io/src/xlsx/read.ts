@@ -1,3 +1,4 @@
+import { isMashup, itemText, mashupLocation, readMashup, REL_CUSTOM_XML, type MashupIn } from "./mashup"
 import { readVbaProject } from "../vba"
 import { readCustomViews, type CustomSheetViewRead } from "./custom-views"
 import {
@@ -13,6 +14,7 @@ import {
   type WorkbookProtection,
   isChart,
   objectName,
+  type Table,
 } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
@@ -104,6 +106,8 @@ export type XlsxSource = {
   dynamic: boolean
   /** Connections Cells doesn't model (databases, the web, Power Query), written back as read. */
   keptConnections: ConnectionIn[]
+  /** Power Query: the DataMashup item as read, its part, and which table each query filled. */
+  mashup?: { read: MashupIn; partName: string; loads: Map<string, string | null> }
   /** The file's links to other workbooks are in wb.links (false: some are of other kinds, kept as read). */
   linksModelled: boolean
   /** The file's slicers are table slicers Cells reads and writes anew (false: kept as read). */
@@ -234,6 +238,22 @@ export async function openXlsx(
   const connections = readConnections(partText(pkg, relOfType(wbRels, REL_CONNECTIONS)?.partName) ?? null)
   /** Query tables found on sheets, placed once the defined names are read. */
   const linked: { sheet: Sheet; relId: string; name: string; connectionId: number }[] = []
+  // Power Query: the queries, and the connections that load them into tables.
+  const mashupRel = wbRels.find((r) => {
+    if (r.type !== REL_CUSTOM_XML || !r.partName) return false
+    const data = findPart(pkg, r.partName)?.data
+    return data ? isMashup(itemText(data.subarray(0, 600))) : false
+  })
+  const mashupRead = mashupRel ? await readMashup(findPart(pkg, mashupRel.partName!)!.data) : null
+  const mashupConnections = new Map<number, string>()
+  if (mashupRead) {
+    for (const c of connections.values()) {
+      const location = mashupLocation(c.xml)
+      if (location !== null && mashupRead.queries.some((q) => q.name === location))
+        mashupConnections.set(c.id, location)
+    }
+  }
+  const queryLoads: { sheet: Sheet; table: Table; name: string; connectionId: number }[] = []
   const persons = personsXml ? readPersons(personsXml) : new Map<string, string>()
 
   if (at(kid(root, "workbookPr"), "date1904") === "1" || at(kid(root, "workbookPr"), "date1904") === "true")
@@ -391,6 +411,12 @@ export async function openXlsx(
       }
       sheet.tables.push(table)
       tables.push({ id: table.id, partName: r.partName })
+      // A table a query loads: its query table part names the query's connection.
+      for (const tr of relationshipsFor(pkg, r.partName)) {
+        if (tr.type !== REL_QUERY_TABLE || !tr.partName) continue
+        const q = readQueryTable(partText(pkg, tr.partName) ?? null)
+        if (q && mashupConnections.has(q.connectionId)) queryLoads.push({ sheet, table, ...q })
+      }
       if (cacheRels.length)
         tableColumnIds.set(
           table.id,
@@ -728,6 +754,24 @@ export async function openXlsx(
     const s = sheetSources.get(l.sheet)
     if (s) s.rels = s.rels.filter((r) => r.id !== l.relId)
   }
+  // Loaded queries: each table knows its query; the connections, query tables and their names are written anew.
+  wb.queries = (mashupRead?.queries ?? []).map((q) => ({ ...q, table: null }))
+  for (const l of queryLoads) {
+    const query = wb.queries.find((q) => q.name === mashupConnections.get(l.connectionId))
+    if (!query || query.table) continue
+    query.table = l.table.name
+    l.table.query = query.name
+    modelled.add(l.connectionId)
+    const k = keptNames.findIndex((n) => n.sheet === l.sheet && at(parseTree(n.xml).root, "name") === l.name)
+    if (k >= 0) keptNames.splice(k, 1)
+  }
+  const mashup = mashupRead
+    ? {
+        read: mashupRead,
+        partName: mashupRel!.partName!,
+        loads: new Map(wb.queries.map((q) => [q.name, q.table])),
+      }
+    : undefined
   const keptConnections = [...connections.values()].filter((c) => !modelled.has(c.id))
 
   // View › Custom Views: the views, each sheet's part, and the hidden names that hold their rows, columns and print
@@ -789,6 +833,7 @@ export async function openXlsx(
       sheets: sheetSources,
       dynamic,
       keptConnections,
+      mashup,
       linksModelled,
       slicersModelled,
       timelinesModelled,

@@ -3946,3 +3946,54 @@
 .shape-styles-item svg {
   overflow: visible;
 }
+
+/* Data › Recent Sources */
+.recent-sources {
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+  max-width: 420px;
+  padding-bottom: 4px;
+}
+
+.recent-sources-heading {
+  padding: 4px 10px;
+  background: var(--app-hover);
+  color: var(--app-ribbon-text);
+  font-weight: 600;
+}
+
+.recent-sources-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  font: inherit;
+  text-align: left;
+}
+
+.recent-sources-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-sources-item:hover,
+.recent-sources-item:focus-visible {
+  background: var(--app-hover);
+}
+
+.recent-sources-clear {
+  margin-top: 2px;
+  border-top: 1px solid var(--app-divider);
+  color: var(--app-ribbon-muted);
+}
+
+.recent-sources-empty {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--app-ribbon-muted);
+}

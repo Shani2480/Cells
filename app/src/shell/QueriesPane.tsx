@@ -1,8 +1,9 @@
-import { allQueryTables, columnName } from "@cells/core"
-import { FileText, RefreshCw, Settings2, Trash2, X } from "lucide-react"
+import { allQueryTables, columnName, findTable, readQueryPlan } from "@cells/core"
+import { Database, FileText, Pencil, RefreshCw, Settings2, Trash2, X } from "lucide-react"
 import { useState, useSyncExternalStore } from "react"
 import type { FileCommands } from "@/file/commands"
 import type { SheetController } from "@/sheet/controller"
+import { message } from "@/sheet/get-data"
 import { sourceName } from "@/sheet/queries"
 
 const rangeText = (r: { r0: number; c0: number; r1: number; c1: number }) =>
@@ -27,6 +28,13 @@ export function QueriesPane({
   useSyncExternalStore(controller.subscribe, controller.getVersion)
   const [busy, setBusy] = useState<string | null>(null)
   const links = allQueryTables(controller.wb.sheets)
+  const queries = controller.wb.queries
+  const refreshAll = async () => {
+    if (files && links.length) await files.refreshAll()
+    const { ops, failed } = await controller.getData.refreshAllOps()
+    if (ops.length) controller.transact(ops, { label: "Refresh All", before: controller.selection })
+    if (failed.length) controller.shell.alert(`Cells couldn't refresh ${failed.join(", ")}.`)
+  }
   const close = () => {
     controller.data.toggleQueries(false)
     onDone()
@@ -60,18 +68,91 @@ export function QueriesPane({
         <button
           type="button"
           className="comments-pane-new"
-          disabled={!files || !links.length || busy !== null}
-          onClick={() => void run("*", () => files!.refreshAll())}
+          disabled={(!(files && links.length) && !queries.some((q) => q.table)) || busy !== null}
+          onClick={() => void run("*", refreshAll)}
         >
           <RefreshCw size={16} strokeWidth={1.6} aria-hidden className={busy === "*" ? "queries-spin" : undefined} />
           Refresh All
         </button>
       </div>
       <div className="comments-pane-list" role="list">
-        {!links.length ? (
+        {queries.map((q) => {
+          const key = `q:${q.name}`
+          const runnable = readQueryPlan(q.formula) !== null
+          const found = q.table ? findTable(controller.wb.sheets, q.table) : null
+          const rows = found ? found.table.range.r1 - found.table.range.r0 : 0
+          return (
+            <div key={key} role="listitem" className="queries-item">
+              <button
+                type="button"
+                className="queries-go"
+                aria-label={`Query ${q.name}`}
+                title={q.description || undefined}
+                onClick={() => {
+                  if (!found) return void controller.getData.editQuery(q.name)
+                  if (found.sheet !== controller.sheetIndex) controller.activate(found.sheet)
+                  controller.goTo(found.table.range)
+                }}
+              >
+                <Database size={18} strokeWidth={1.5} aria-hidden className="queries-icon" />
+                <span className="queries-text">
+                  <strong>{q.name}</strong>
+                  <span className="queries-meta">
+                    {found ? `${rows.toLocaleString()} ${rows === 1 ? "row" : "rows"} loaded` : "Connection only."}
+                  </span>
+                  {found ? (
+                    <span className="queries-meta">
+                      {controller.wb.sheets[found.sheet].name}!{rangeText(found.table.range)}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+              <span className="queries-actions">
+                {found ? (
+                  <button
+                    type="button"
+                    aria-label={`Refresh ${q.name}`}
+                    title={runnable ? "Refresh" : "Only Excel can refresh this query"}
+                    disabled={!runnable || busy !== null}
+                    onClick={() =>
+                      void run(key, () =>
+                        controller.getData.refresh(q.name).catch((e: unknown) => controller.shell.alert(message(e))),
+                      )
+                    }
+                  >
+                    <RefreshCw
+                      size={15}
+                      strokeWidth={1.6}
+                      aria-hidden
+                      className={busy === key ? "queries-spin" : undefined}
+                    />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  aria-label={`Edit ${q.name}`}
+                  title={runnable ? "Edit in the Query Editor" : "Only Excel can edit this query"}
+                  disabled={!runnable}
+                  onClick={() => controller.getData.editQuery(q.name)}
+                >
+                  <Pencil size={15} strokeWidth={1.6} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${q.name}`}
+                  title="Delete the query (its data stays)"
+                  onClick={() => controller.getData.remove(q.name)}
+                >
+                  <Trash2 size={15} strokeWidth={1.6} aria-hidden />
+                </button>
+              </span>
+            </div>
+          )
+        })}
+        {!links.length && !queries.length ? (
           <p className="comments-pane-empty">
-            This workbook has no connections. Data from Data › From Text/CSV stays linked to its file and shows up here,
-            so you can refresh it when the file changes.
+            This workbook has no connections. Data from Data › From Text/CSV, From Web and From Table/Range stays linked
+            to its source and shows up here, so you can refresh it when the source changes.
           </p>
         ) : null}
         {links.map(({ sheet, table }) => {

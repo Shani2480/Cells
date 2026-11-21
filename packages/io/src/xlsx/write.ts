@@ -84,6 +84,15 @@ import {
   REL_CONNECTIONS,
   REL_QUERY_TABLE,
 } from "./connections"
+import {
+  CT_CUSTOM_XML_PROPS,
+  mashupItem,
+  mashupPropsXml,
+  mashupQueryTableXml,
+  REL_CUSTOM_XML,
+  REL_CUSTOM_XML_PROPS,
+  sameQueries,
+} from "./mashup"
 import { printNamesXml } from "./page-setup"
 import {
   cacheForWriting,
@@ -275,6 +284,19 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         wb.sheets.map((s) => s.name),
       )
     : null
+  // Power Query: the DataMashup item goes (with its properties) once the workbook has no queries left.
+  const mashupPart = source?.mashup?.partName
+  if (mashupPart && !wb.queries.length)
+    for (const r of wbRels)
+      if (
+        r.type === REL_CUSTOM_XML &&
+        r.partName &&
+        partKey(r.partName) === partKey(mashupPart) &&
+        !dropped.includes(r)
+      ) {
+        dropped.push(r)
+        for (const p of relGroups.get(partKey(mashupPart)) ?? []) remove(p.partName)
+      }
   const keepWorksheet = new Set<string>()
   for (const sheet of wb.sheets) {
     const s = source?.sheets.get(sheet)
@@ -301,6 +323,26 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         !dropped.includes(r) && !(r.type === REL_PIVOT_CACHE && r.partName && modelledCaches.has(partKey(r.partName))),
     ),
   )
+
+  // Power Query: the queries' DataMashup item, as read while they are the same (Excel's signed permissions stay).
+  if (wb.queries.length) {
+    const read = source?.mashup
+    const data =
+      read && sameQueries(wb.queries, read.read, read.loads)
+        ? read.read.raw
+        : mashupItem(wb.queries, read?.read ?? null)
+    if (read) parts.set(partKey(read.partName), { name: read.partName, contentType: "application/xml", data })
+    else {
+      const item = freeName((n) => `/customXml/item${n}.xml`)
+      const n = /item(\d+)\.xml$/.exec(item)![1]
+      parts.set(partKey(item), { name: item, contentType: "application/xml", data })
+      const props = `/customXml/itemProps${n}.xml`
+      taken.add(partKey(props))
+      put(props, CT_CUSTOM_XML_PROPS, mashupPropsXml())
+      addRel(item, REL_CUSTOM_XML_PROPS, props)
+      addRel(main, REL_CUSTOM_XML, item)
+    }
+  }
 
   // Page Layout › Themes: the file's theme part with the workbook's colours and fonts, or a new one; the theme's
   // fonts go into the font records that use them.
@@ -335,7 +377,12 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   const usedTables = new Set<string>()
   // Connections: the kept ones and one per text link; each link's query table goes with its sheet.
   const textLinks = wb.sheets.flatMap((s) => s.queryTables)
-  const conns = connectionsXml(source?.keptConnections ?? [], textLinks)
+  // Loaded queries: each with the table it fills (on some sheet), written with its connection and query table.
+  const loadedQueries = wb.queries.filter(
+    (q) => q.table && wb.sheets.some((s) => s.tables.some((t) => t.name === q.table && t.query === q.name)),
+  )
+  const conns = connectionsXml(source?.keptConnections ?? [], textLinks, loadedQueries)
+  const queryTableNames: { sheet: number; name: string; range: Range }[] = []
   const usedQueryTables = new Set<string>()
 
   // One slicer cache per table column with slicers, and per PivotTable field and set of PivotTables; its name is the
@@ -531,8 +578,27 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       usedTables.add(partKey(part))
       taken.add(partKey(part))
       const toFile = (f: string) => formulaToFile(structuredToFile("=" + f, t.name))
-      put(part, CT_TABLE, tableXml(t, styles, rangeRef, toFile))
+      const connectionId = t.query ? conns?.queryIds.get(t.query) : undefined
+      put(part, CT_TABLE, tableXml(t, styles, rangeRef, toFile, connectionId !== undefined))
       tableParts.push(addRel(partName, REL_TABLE, part))
+      relGroups.set(partKey(part), [])
+      if (connectionId !== undefined) {
+        // The query table: named ExternalData_n (a hidden name places it), its fields the table's columns.
+        const qtPart = freeName((n) => `/xl/queryTables/queryTable${n}.xml`)
+        usedQueryTables.add(partKey(qtPart))
+        const name = `ExternalData_${queryTableNames.length + 1}`
+        queryTableNames.push({ sheet: wb.sheets.indexOf(sheet), name, range: t.range })
+        put(
+          qtPart,
+          CT_QUERY_TABLE,
+          mashupQueryTableXml(
+            name,
+            connectionId,
+            t.columns.map((c, i) => ({ id: i + 1, name: c.name })),
+          ),
+        )
+        addRel(part, REL_QUERY_TABLE, qtPart)
+      }
     }
     // PivotTables: as read when neither they nor their cache changed, moved when only their place did, else anew.
     const pivotsRead = source?.pivots?.tables.get(sheet)
@@ -739,6 +805,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     source,
     links,
     [...caches.values(), ...timelineCaches.values()].map((c) => c.name),
+    queryTableNames,
   )
   const references: string[] = []
   if (links)
@@ -928,6 +995,7 @@ function definedNamesXml(
   source: XlsxSource | null,
   links: LinkTable | null,
   slicerCaches: readonly string[] = [],
+  queryTableNames: readonly { sheet: number; name: string; range: Range }[] = [],
 ): string {
   const items: string[] = []
   // Each slicer cache has a name of its own, #N/A.
@@ -953,6 +1021,12 @@ function definedNamesXml(
   wb.sheets.forEach((sheet, index) => {
     for (const q of sheet.queryTables) items.push(queryTableNameXml(sheet.name, index, q))
   })
+  for (const q of queryTableNames) {
+    const r = q.range
+    const abs = (row: number, col: number) => "$" + columnName(col) + "$" + (row + 1)
+    const ref = quoteSheet(wb.sheets[q.sheet].name) + "!" + abs(r.r0, r.c0) + ":" + abs(r.r1, r.c1)
+    items.push(`<definedName name="${q.name}" localSheetId="${q.sheet}" hidden="1">${escapeXmlText(ref)}</definedName>`)
+  }
   // Custom views' hidden rows, columns, print areas and titles.
   items.push(...customViewNamesXml(wb))
   const viewPrefixes = wb.customViews.map((v) => viewNamePrefix(v.guid))
