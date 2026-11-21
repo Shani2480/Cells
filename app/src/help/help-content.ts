@@ -42,6 +42,11 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     command: "PowerQueryGetTransformDataMenuSubscription19",
     keywords: "power query get data from web table range query editor import csv json refresh connection transform",
   },
+  "chart-format": {
+    where: "Format, beside Chart Design (select a chart first)",
+    keywords:
+      "chart format part element title axis series legend fill outline colour color text font plot area gridlines",
+  },
   "chart-sheets": {
     where: "Chart Design › Location (select a chart first)",
     keywords: "chart sheet move chart f11 new sheet object in full window",

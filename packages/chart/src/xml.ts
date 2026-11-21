@@ -15,6 +15,7 @@ import {
   type ChartSpec,
   type LabelPosition,
   type LegendPosition,
+  type PartFormat,
   type TrendlineKind,
 } from "./spec"
 import { SaxesParser } from "saxes"
@@ -43,6 +44,11 @@ export function hex(color: string | undefined) {
   return match ? match[1]!.toUpperCase() : null
 }
 
+/** Points as EMU, for a line's width. */
+function emu(points: number) {
+  return Math.round(points * 12700)
+}
+
 function solid(color: string | undefined) {
   const value = hex(color)
   return value ? `<a:solidFill><a:srgbClr val="${value}"/></a:solidFill>` : "<a:noFill/>"
@@ -69,6 +75,12 @@ function textProps(color: string, size: number, bold = false) {
     `<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${Math.round(size * 100)}" b="${bold ? 1 : 0}">` +
     `${solid(color)}<a:latin typeface="+mn-lt"/></a:defRPr></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>`
   )
+}
+
+/** A text part's look: its own colour, size and bold (Format › Text Fill, Font), or the style's. */
+function partText(spec: ChartSpec, part: string, color: string, size = 9, bold = false) {
+  const own = spec.format[part]
+  return textProps(own?.color || color, own?.fontSize ?? size, own?.bold ?? bold)
 }
 
 function richTitle(text: string, color: string, size: number, bold: boolean) {
@@ -166,7 +178,7 @@ function labelsXml(spec: ChartSpec, group: Group, text: string) {
   const content = spec.labelContent
   const any = content.value || content.category || content.series || content.percent
   return (
-    `<c:dLbls><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>${textProps(text, 9)}` +
+    `<c:dLbls><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>${partText(spec, "dataLabels", text)}` +
     (position ? `<c:dLblPos val="${position}"/>` : "") +
     `<c:showLegendKey val="0"/><c:showVal val="${content.value || !any ? 1 : 0}"/>` +
     `<c:showCatName val="${content.category ? 1 : 0}"/><c:showSerName val="${content.series ? 1 : 0}"/>` +
@@ -362,13 +374,14 @@ function axisXml(spec: ChartSpec, kind: "cat" | "val", ids: [number, number], op
     (!isCategory && options.secondary && spec.pareto ? `<c:max val="1"/><c:min val="0"/>` : "") +
     `</c:scaling>`
   const gridColor = spec.format.gridlines?.line || look.grid
+  const gridWidth = emu(spec.format.gridlines?.lineWidth ?? 0.75)
   const grid =
     !options.secondary && ((!isCategory && spec.gridlines.major) || (isCategory && spec.gridlines.vertical))
-      ? `<c:majorGridlines><c:spPr><a:ln w="9525">${solid(gridColor)}</a:ln></c:spPr></c:majorGridlines>`
+      ? `<c:majorGridlines><c:spPr><a:ln w="${gridWidth}">${solid(gridColor)}</a:ln></c:spPr></c:majorGridlines>`
       : ""
   const minor =
     !options.secondary && (isCategory ? spec.gridlines.minorVertical : spec.gridlines.minor)
-      ? `<c:minorGridlines><c:spPr><a:ln w="9525">${solid(gridColor)}</a:ln></c:spPr></c:minorGridlines>`
+      ? `<c:minorGridlines><c:spPr><a:ln w="${gridWidth}">${solid(gridColor)}</a:ln></c:spPr></c:minorGridlines>`
       : ""
   const titleOf = isCategory ? spec.axisTitles.category : spec.axisTitles.value
   const title =
@@ -376,11 +389,11 @@ function axisXml(spec: ChartSpec, kind: "cat" | "val", ids: [number, number], op
       ? richTitle(
           titleOf.text,
           spec.format[`axisTitle:${isCategory ? "category" : "value"}`]?.color || look.text,
-          10,
-          true,
+          spec.format[`axisTitle:${isCategory ? "category" : "value"}`]?.fontSize ?? 10,
+          spec.format[`axisTitle:${isCategory ? "category" : "value"}`]?.bold ?? true,
         )
       : ""
-  const text = spec.format[`axis:${isCategory ? "category" : "value"}`]?.color || look.text
+  const textPart = `axis:${isCategory ? "category" : "value"}`
   const format =
     !isCategory && options.secondary && spec.pareto
       ? `<c:numFmt formatCode="0%" sourceLinked="0"/>`
@@ -388,11 +401,11 @@ function axisXml(spec: ChartSpec, kind: "cat" | "val", ids: [number, number], op
         ? `<c:numFmt formatCode="${escapeXml(spec.valueAxis.numberFormat ?? (spec.grouping === "percent" ? "0%" : "General"))}" sourceLinked="${spec.valueAxis.numberFormat ? 0 : 1}"/>`
         : `<c:numFmt formatCode="General" sourceLinked="1"/>`
   const line = isCategory
-    ? `<c:spPr><a:noFill/><a:ln w="9525">${solid(spec.format["axis:category"]?.line || look.axis)}</a:ln></c:spPr>`
+    ? `<c:spPr><a:noFill/><a:ln w="${emu(spec.format["axis:category"]?.lineWidth ?? 0.75)}">${solid(spec.format["axis:category"]?.line || look.axis)}</a:ln></c:spPr>`
     : `<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>`
   const common =
     `<c:axId val="${ids[0]}"/>${scaling}<c:delete val="${shown ? 0 : 1}"/><c:axPos val="${position}"/>${grid}${minor}${title}${format}` +
-    `<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>${line}${textProps(text, 9)}` +
+    `<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>${line}${partText(spec, textPart, look.text)}` +
     `<c:crossAx val="${ids[1]}"/>`
   if (isCategory) {
     return `<c:catAx>${common}<c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>`
@@ -615,10 +628,15 @@ function chartSpaceXmlNow(source: ChartSpec, workbookRelId?: string) {
   }
   const table =
     spec.dataTable && !round
-      ? `<c:dTable><c:showHorzBorder val="1"/><c:showVertBorder val="1"/><c:showOutline val="1"/><c:showKeys val="1"/>${textProps(look.text, 9)}</c:dTable>`
+      ? `<c:dTable><c:showHorzBorder val="1"/><c:showVertBorder val="1"/><c:showOutline val="1"/><c:showKeys val="1"/>${partText(spec, "dataTable", look.text)}</c:dTable>`
       : ""
   const plotFill = spec.format.plotArea?.fill || (look.plot === "none" ? undefined : look.plot)
-  const plot = `<c:plotArea><c:layout/>${groups.join("")}${axes}${table}<c:spPr>${plotFill ? solid(plotFill) : "<a:noFill/>"}<a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>`
+  const plotLine = spec.format.plotArea?.line
+  const plotBorder =
+    plotLine && plotLine !== "none"
+      ? `<a:ln w="${emu(spec.format.plotArea?.lineWidth ?? 0.75)}">${solid(plotLine)}</a:ln>`
+      : "<a:ln><a:noFill/></a:ln>"
+  const plot = `<c:plotArea><c:layout/>${groups.join("")}${axes}${table}<c:spPr>${plotFill ? solid(plotFill) : "<a:noFill/>"}${plotBorder}</c:spPr></c:plotArea>`
   const legendPositions: Record<Exclude<LegendPosition, "none">, string> = {
     right: "r",
     left: "l",
@@ -627,7 +645,7 @@ function chartSpaceXmlNow(source: ChartSpec, workbookRelId?: string) {
   }
   const legend =
     spec.legend !== "none"
-      ? `<c:legend><c:legendPos val="${legendPositions[spec.legend]}"/><c:overlay val="0"/>${textProps(spec.format.legend?.color || look.text, 9)}</c:legend>`
+      ? `<c:legend><c:legendPos val="${legendPositions[spec.legend]}"/><c:overlay val="0"/>${partText(spec, "legend", look.text)}</c:legend>`
       : ""
   const titleFormat = spec.format.title
   const title = spec.title.show
@@ -670,7 +688,7 @@ function chartSpaceXmlNow(source: ChartSpec, workbookRelId?: string) {
       ? `<c:pivotSource><c:name>${escapeXmlText(sheetRefs.pivot.name)}</c:name><c:fmtId val="0"/></c:pivotSource>`
       : "") +
     `<c:chart>${title}<c:autoTitleDeleted val="${spec.title.show ? 0 : 1}"/>${view3d}${plot}${legend}<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>` +
-    `<c:spPr>${solid(area?.fill || look.background)}<a:ln w="${Math.round((area?.lineWidth ?? 0.75) * 12700)}">${solid(areaLine)}</a:ln></c:spPr>` +
+    `<c:spPr>${solid(area?.fill || look.background)}<a:ln w="${emu(area?.lineWidth ?? 0.75)}">${solid(areaLine)}</a:ln></c:spPr>` +
     `<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr/></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>` +
     (workbookRelId ? `<c:externalData r:id="${workbookRelId}"><c:autoUpdate val="0"/></c:externalData>` : "") +
     pivotOptionsXml() +
@@ -1196,12 +1214,8 @@ export function readChartSpace(xml: string): ChartSpec | null {
   // The chart area's fill and outline, and the plot area's fill.
   const areaShape = child(root, "spPr")
   const areaFill = srgb(areaShape)
-  const areaLine = child(areaShape, "ln")
   if (areaFill && areaFill !== "#ffffff") {
     spec.format.chartArea = { fill: areaFill }
-  }
-  if (child(areaLine, "noFill")) {
-    spec.format.chartArea = { ...spec.format.chartArea, line: "none" }
   }
   const plotFill = srgb(child(plot, "spPr"))
   if (plotFill) {
@@ -1212,7 +1226,81 @@ export function readChartSpace(xml: string): ChartSpec | null {
     // Word 2007's style numbers: 1–8 are greys and palettes, 41–48 dark backgrounds.
     spec.style = style >= 41 ? 10 : 1
   }
+  readPartFormats(spec, { root, chart, plot, groups, categoryAxis, valueAxis })
   return normalizeChartSpec(spec)
+}
+
+/**
+ * The parts' own text, line and outline formats (the Format tab's), kept only where they differ from what the chart
+ * style draws: a style's own colours and sizes, and Excel's theme colours, don't become overrides.
+ */
+function readPartFormats(
+  spec: ChartSpec,
+  at: {
+    root: Element
+    chart: Element
+    plot: Element
+    groups: Element[]
+    categoryAxis: Element | undefined
+    valueAxis: Element | undefined
+  },
+) {
+  const look = CHART_STYLES[spec.style - 1] ?? CHART_STYLES[0]!
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const put = (part: string, format: PartFormat) => {
+    const own = Object.fromEntries(Object.entries(format).filter(([, v]) => v !== undefined)) as PartFormat
+    if (Object.keys(own).length) spec.format[part] = { ...spec.format[part], ...own }
+  }
+  /** A text part's colour, size and bold, from its `txPr` or a title's `rich` (their first paragraph's defaults). */
+  const text = (part: string, body: Element | undefined, size: number, bold: boolean) => {
+    const props = child(child(child(body, "p"), "pPr"), "defRPr")
+    if (!props) return
+    const color = srgb(props)
+    const sz = props.attrs.sz !== undefined ? Number(props.attrs.sz) / 100 : undefined
+    const b = props.attrs.b !== undefined ? props.attrs.b === "1" || props.attrs.b === "true" : undefined
+    put(part, {
+      color: color && !same(color, look.text) ? color : undefined,
+      fontSize: sz !== undefined && Number.isFinite(sz) && sz !== size ? sz : undefined,
+      bold: b !== undefined && b !== bold ? b : undefined,
+    })
+  }
+  /** A line's colour ("none" for no line) and width in points, where they differ from `color` and `width`. */
+  const line = (part: string, ln: Element | undefined, color: string, width: number) => {
+    if (!ln) return
+    const own = child(ln, "noFill") ? "none" : srgb(ln)
+    const w = ln.attrs.w !== undefined ? Number(ln.attrs.w) / 12700 : undefined
+    put(part, {
+      line: own && !same(own, color) ? own : undefined,
+      lineWidth: w !== undefined && own !== "none" && Math.abs(w - width) > 0.01 ? w : undefined,
+    })
+  }
+  const spPrLine = (element: Element | undefined) => child(child(element, "spPr"), "ln")
+  const title = child(at.chart, "title")
+  text("title", child(child(title, "tx"), "rich"), 14, look.titleBold)
+  for (const [axis, element] of [
+    ["category", at.categoryAxis],
+    ["value", at.valueAxis],
+  ] as const) {
+    text(`axisTitle:${axis}`, child(child(child(element, "title"), "tx"), "rich"), 10, true)
+    text(`axis:${axis}`, child(element, "txPr"), 9, false)
+  }
+  text("legend", child(child(at.chart, "legend"), "txPr"), 9, false)
+  const labels = at.groups.map((g) => child(g, "dLbls") ?? child(child(g, "ser"), "dLbls")).find(Boolean)
+  text("dataLabels", child(labels, "txPr"), 9, false)
+  text("dataTable", child(child(at.plot, "dTable"), "txPr"), 9, false)
+  line("chartArea", spPrLine(at.root), look.border, 0.75)
+  line("plotArea", spPrLine(at.plot), "none", 0.75)
+  line("gridlines", spPrLine(child(at.valueAxis, "majorGridlines")), look.grid, 0.75)
+  line("axis:category", spPrLine(at.categoryAxis), look.axis, 0.75)
+  // Series outlines (a line chart's line): only when the series are read in the order they're written.
+  const series = at.groups.flatMap((g) => children(g, "ser").map((ser) => ({ ser, group: g.name })))
+  if (series.length !== spec.series.length) return
+  series.forEach(({ ser, group }, index) => {
+    const fill = spec.format[`series:${index}`]?.fill ?? ""
+    const lined = group === "lineChart" || group === "scatterChart" || (group === "radarChart" && !spec.filled)
+    const outline = lined ? fill : look.seriesLine === "series" ? fill : look.seriesLine
+    line(`series:${index}`, spPrLine(ser), outline || "none", lined ? 2.25 : look.seriesLineWidth)
+  })
 }
 
 /** The relationship id of the chart a drawing shows, from its `c:chart r:id`. */

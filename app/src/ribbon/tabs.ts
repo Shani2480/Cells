@@ -472,8 +472,7 @@ export const HELP: Tab = {
 export const TABS: Tab[] = [HOME, INSERT, DRAW, PAGE_LAYOUT, FORMULAS, DATA, REVIEW, VIEW, HELP]
 
 /**
- * Chart Design, while a chart is selected (Excel 365 at a wide window, from memory: no reference screenshot yet). The
- * Format tab isn't built.
+ * Chart Design, while a chart is selected (Excel 365 at a wide window, from memory: no reference screenshot yet).
  */
 export const CHART_DESIGN: Tab = {
   id: "TabChartDesign",
@@ -507,6 +506,34 @@ const ARRANGE: Group = {
 }
 
 const SIZE: Group = { id: "GroupSize", label: "Size", columns: [smalls(F("ShapeHeight"), F("ShapeWidth"))] }
+
+/**
+ * Format, while a chart is selected (beside Chart Design): the part picked in Chart Elements (or by a click on it),
+ * its fill, outline and text colour, and the chart's place and size. Excel's Shape Styles and WordArt galleries,
+ * Shape Effects and Text Outline aren't here: Cells' charts don't draw them.
+ */
+export const CHART_FORMAT: Tab = {
+  id: "TabChartFormat",
+  label: "Format",
+  keytip: "JO",
+  contextual: true,
+  groups: [
+    {
+      id: "GroupChartCurrentSelection",
+      label: "Current Selection",
+      columns: [smalls(F("ChartFormatElements"), S("ChartFormatSelection"), S("ChartResetToMatchStyle"))],
+    },
+    {
+      id: "GroupChartShapeStyles",
+      label: "Shape Styles",
+      columns: [smalls(S("ChartShapeFill"), S("ChartShapeOutline"))],
+    },
+    { id: "GroupChartWordArtStyles", label: "WordArt Styles", columns: [L("ChartTextFill")] },
+    { id: "GroupChartFormatAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
+    ARRANGE,
+    SIZE,
+  ],
+}
 
 /** Equation, while an equation is selected (beside Shape Format, as in Excel). */
 export const EQUATION: Tab = {

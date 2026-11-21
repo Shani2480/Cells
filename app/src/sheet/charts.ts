@@ -27,15 +27,19 @@ import {
   sheetNameProblem,
 } from "@cells/core"
 import {
+  chartParts,
   defaultChartSpec,
+  isTextPart,
   normalizeChartSpec,
   renderChart,
   variantOf,
   withSheetData,
   withVariant,
   type ChartSpec,
+  type PartFormat,
 } from "@cells/chart"
 import type { SheetController } from "./controller"
+import { DEFAULT_RECOMMENDED, recommendCharts } from "./chart-recommend"
 import { chartHtml, copiedChartInfo, svgPicture, type CopiedChartInfo } from "./chart-clipboard"
 
 /** Excel's size for a new chart: 5 by 3 inches (480 by 288 pixels at 100%). */
@@ -72,6 +76,24 @@ export function themeAccents(theme: Theme): string[] {
   return (["accent1", "accent2", "accent3", "accent4", "accent5", "accent6"] as const).map((s) => `#${theme.colors[s]}`)
 }
 
+/**
+ * What a chart part's Format can change, as Cells draws and saves it: a fill (chart and plot areas, series, points),
+ * an outline (the areas, gridlines, category axis, series) and text (titles, axes, legend, labels, data table).
+ */
+export function chartPartCan(part: string): { fill: boolean; line: boolean; text: boolean } {
+  const kind = part.split(":")[0]
+  return {
+    fill: part === "chartArea" || part === "plotArea" || kind === "series" || kind === "point",
+    line:
+      part === "chartArea" ||
+      part === "plotArea" ||
+      part === "gridlines" ||
+      part === "axis:category" ||
+      kind === "series",
+    text: isTextPart(part),
+  }
+}
+
 export class ChartCommands {
   /**
    * The selected chart's id (Excel selects a chart instead of cells; the Chart Design tab shows): the object
@@ -105,7 +127,71 @@ export class ChartCommands {
   }
 
   select(id: number | null) {
+    // Selecting a chart starts at its chart area again (Excel's first click is the chart).
+    this.picked = null
     this.c.objects.select(id)
+  }
+
+  // ── Format: the chart's parts ──
+
+  /** The part picked in the selected chart (Format › Current Selection), with the chart it's in. */
+  private picked: { chart: number; part: string } | null = null
+  /** The Format pane (Format Selection, or a double-click on a chart). */
+  formatPaneOpen = false
+
+  /** The selected chart's part being formatted: the one picked, or Chart Area (a new chart, a part gone). */
+  get part(): string {
+    const chart = this.active()
+    if (!chart || this.picked?.chart !== chart.id) return "chartArea"
+    const spec = this.liveSpec(chart)
+    return chartParts(spec).some((p) => p.id === this.picked!.part) ? this.picked.part : "chartArea"
+  }
+
+  /** Picks a part of the selected chart (a click on it, the Chart Elements box, the Format pane's list). */
+  setPart(part: string) {
+    const chart = this.active()
+    if (!chart) return
+    this.picked = { chart: chart.id, part }
+    this.c.changed()
+  }
+
+  /** The picked part's own format (its fill, outline and text over the style's). */
+  partFormat(part = this.part): PartFormat {
+    return this.spec()?.format[part] ?? {}
+  }
+
+  /** Format › Shape Fill, Shape Outline, Text Fill and the Format pane: a change to the picked part's own format. */
+  formatPart(change: Partial<PartFormat>, label = "Format Chart", part = this.part) {
+    this.change((spec) => {
+      const own: PartFormat = { ...spec.format[part], ...change }
+      for (const key of Object.keys(own) as (keyof PartFormat)[]) if (own[key] === undefined) delete own[key]
+      const format = { ...spec.format }
+      if (Object.keys(own).length) format[part] = own
+      else delete format[part]
+      return { ...spec, format }
+    }, label)
+  }
+
+  /** Format › Reset to Match Style: the picked part drawn as the chart style has it again. */
+  resetPart(part = this.part) {
+    if (!this.spec()?.format[part]) return
+    this.change((spec) => {
+      const format = { ...spec.format }
+      delete format[part]
+      return { ...spec, format }
+    }, "Reset to Match Style")
+  }
+
+  /** Format › Format Selection: the Format pane for the picked part (or `part`). */
+  openFormatPane(part?: string) {
+    if (part) this.setPart(part)
+    this.formatPaneOpen = true
+    this.c.changed()
+  }
+
+  closeFormatPane() {
+    this.formatPaneOpen = false
+    this.c.changed()
   }
 
   /** The spec a chart is drawn with: its own look, with the categories and series read from its ranges now. */
@@ -200,12 +286,7 @@ export class ChartCommands {
   insertSheet(variant = "column"): boolean {
     if (this.c.sheet.chartSheet) return false
     if (this.c.edit) this.c.commitEdit()
-    const sheet = this.c.sheet
-    const sel = this.c.selection.ranges[0]
-    const single = sel.r0 === sel.r1 && sel.c0 === sel.c1
-    const range = single ? currentRegion(sheet, this.c.selection.active) : { ...sel }
-    const empty = single && sheet.cells.get(range.r0, range.c0)?.value === undefined && range.r0 === range.r1
-    const { spec, refs } = this.draft(variant, empty ? null : range)
+    const { spec, refs } = this.draft(variant, this.insertRange())
     const name = nextChartSheetName(this.c.wb.sheets.map((s) => s.name))
     const chart: SheetChart = {
       id: nextChartId(this.c.wb.sheets),
@@ -268,11 +349,7 @@ export class ChartCommands {
   insert(variant = "column"): SheetChart | null {
     if (this.c.edit) this.c.commitEdit()
     const sheet = this.c.sheet
-    const sel = this.c.selection.ranges[0]
-    const single = sel.r0 === sel.r1 && sel.c0 === sel.c1
-    const range = single ? currentRegion(sheet, this.c.selection.active) : { ...sel }
-    const empty = single && sheet.cells.get(range.r0, range.c0)?.value === undefined && range.r0 === range.r1
-    const { spec, refs } = this.draft(variant, empty ? null : range)
+    const { spec, refs } = this.draft(variant, this.insertRange())
     const zoom = this.c.zoom || 1
     const x = Math.max(0, this.c.scrollX + (this.c.viewWidth / zoom - CHART_WIDTH) / 2)
     const y = Math.max(0, this.c.scrollY + (this.c.viewHeight / zoom - CHART_HEIGHT) / 2)
@@ -323,6 +400,46 @@ export class ChartCommands {
    * A new chart's look and ranges for data on this sheet (null: an empty chart). Quick Analysis draws its previews
    * from the same, with the data read in (`liveSpec`).
    */
+  /** The data Insert Chart takes: the selection, or the data around the active cell; null on an empty cell. */
+  insertRange(): Range | null {
+    const sheet = this.c.sheet
+    const sel = this.c.selection.ranges[0]
+    const single = sel.r0 === sel.r1 && sel.c0 === sel.c1
+    const range = single ? currentRegion(sheet, this.c.selection.active) : { ...sel }
+    const empty = single && sheet.cells.get(range.r0, range.c0)?.value === undefined && range.r0 === range.r1
+    return empty ? null : range
+  }
+
+  /**
+   * The Insert Chart dialog's picture of a type: the chart Insert would make from the data (Excel's sample when there
+   * is none), or for Change Chart Type the selected chart as that type.
+   */
+  preview(variant: string, change = false): ChartSpec {
+    const accents = themeAccents(this.c.wb.theme)
+    const chart = change ? this.active() : null
+    if (chart) return { ...withVariant(this.liveSpec(chart), variant), accents }
+    const { spec, refs } = this.draft(variant, this.insertRange())
+    if (!refs) return { ...withVariant(defaultChartSpec(variant), variant), accents }
+    return { ...withSheetData(spec, readChartData(this.c.wb.sheets, this.c.wb.styles, refs)), accents }
+  }
+
+  /** Recommended Charts for the data Insert would take (or the selected chart's). */
+  recommended(change = false): string[] {
+    const chart = change ? this.active() : null
+    const spec = chart ? this.liveSpec(chart) : this.preview("column")
+    const range = chart ? null : this.insertRange()
+    const sheet = this.c.sheet
+    // X values: a first column of numbers under its heading, with more columns beside it.
+    let numericX = false
+    if (range && range.c1 > range.c0 && range.r1 > range.r0) {
+      numericX = true
+      for (let r = range.r0 + 1; r <= range.r1 && numericX; r++)
+        if (typeof sheet.cells.get(r, range.c0)?.value !== "number") numericX = false
+    }
+    if (!chart && !range) return DEFAULT_RECOMMENDED
+    return recommendCharts({ categories: spec.categories, series: spec.series, numericX })
+  }
+
   draft(variant: string, range: Range | null): { spec: ChartSpec; refs: ChartRefs | null } {
     const sheet = this.c.sheet
     const refs = range ? chartRefsFor(sheet, range) : null

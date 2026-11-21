@@ -2,13 +2,14 @@ import { renderChart } from "@cells/chart"
 import { isChart, type SheetChart } from "@cells/core"
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import type { SheetController } from "@/sheet/controller"
+import { ChartPartMark, chartPartAt } from "./ChartPartMark"
 
 /** Room around the chart, as Excel leaves a margin around a chart sheet's chart. */
 const MARGIN = 16
 
 /**
  * A chart sheet: its one chart filling the window (Excel's Zoom to Fit), on the workspace colour. The chart is always
- * selected, so the Chart Design and Format tabs show.
+ * selected, so the Chart Design and Format tabs show; a click picks a part, a double-click formats it.
  */
 export function ChartSheetView({ controller, active }: { controller: SheetController; active: boolean }) {
   const version = useSyncExternalStore(controller.subscribe, controller.getVersion)
@@ -44,9 +45,17 @@ export function ChartSheetView({ controller, active }: { controller: SheetContro
       tabIndex={0}
     >
       {svg ? (
-        <div className="chart-sheet-chart" style={{ width: w, height: h }}>
+        <div
+          className="chart-sheet-chart"
+          style={{ width: w, height: h }}
+          onPointerDown={(e) => {
+            if (e.button === 0) controller.charts.setPart(chartPartAt(e.target))
+          }}
+          onDoubleClick={() => controller.charts.openFormatPane()}
+        >
           {/* The renderer draws the chart's inside; the frame is ours, as on a worksheet. */}
           <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden dangerouslySetInnerHTML={{ __html: svg }} />
+          <ChartPartMark part={controller.charts.part} />
         </div>
       ) : null}
     </div>

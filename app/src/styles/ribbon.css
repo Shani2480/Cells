@@ -3997,3 +3997,17 @@
   padding: 8px 12px;
   color: var(--app-ribbon-muted);
 }
+
+/* The chart part picked for Format: boxed as Excel boxes a title, an axis or each bar of a series. */
+.chart-part-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.chart-part-mark {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--chart-select, #8a8a8a);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.85);
+}

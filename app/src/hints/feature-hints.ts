@@ -81,6 +81,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Move Chart puts the chart on a chart sheet, where it fills the window and prints across the page. F11 makes one straight from the selected data, and Excel opens it as a chart sheet too.",
     target: "Move Chart",
   },
+  {
+    id: "chart-format",
+    title: "New: Format any part of a chart",
+    text: "Click a chart, then click its title, an axis, a series or the legend to pick it (or choose it in Chart Elements). Shape Fill, Shape Outline and Text Fill colour just that part; double-click it for all its options. Excel keeps the look.",
+    target: "Format Selection",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

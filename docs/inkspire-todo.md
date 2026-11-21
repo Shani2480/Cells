@@ -54,3 +54,9 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       tree editing (`@cells/core` `smartart.ts`), the parts read and written (`@cells/io` `xlsx/smartart.ts`: the frame
       needs `wp:inline`/`wp:anchor` instead of `xdr`), the layout engine that draws them as Excel does
       (`app/src/drawing/smartart.ts`, to move into a package before sharing), and the dialog and Text Pane.
+- [ ] I14. **Chart part formats kept on reopen.** `@cells/chart` `xml.ts` now writes each part's text size and bold,
+      line widths and the plot area's border, and `readChartSpace` reads them back (`readPartFormats`), keeping only
+      what differs from the chart style so Word's and Excel's theme colours don't become overrides. Inkspire's copy
+      (`editor/chart-spec.ts` and its XML) reads back only fills, so a title colour or a line weight set in Word's
+      Format pane is lost on reopening; the same change fixes it. Cells' Recommended Charts rules
+      (`app/src/sheet/chart-recommend.ts`) could also feed Word's Insert Chart dialog.

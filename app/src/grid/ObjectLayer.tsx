@@ -1,3 +1,4 @@
+import { ChartPartMark, chartPartAt } from "./ChartPartMark"
 import { renderChart } from "@cells/chart"
 import {
   isChart,
@@ -539,7 +540,10 @@ export function ObjectLayer({
               if (!isChart(o) && o.kind === "slicer" && slicerPress(event, o, p.box)) return
               if (!isChart(o) && o.kind === "timeline" && timelinePress(event, o, p.box)) return
               if (isChart(o) && pivotButtonPress(event, o)) return
+              // A click on a chart already selected picks the part under it (Excel's first click is the chart).
+              const picked = isChart(o) && single && event.button === 0 ? chartPartAt(event.target) : null
               begin(event, o, "move")
+              if (isChart(o) && event.button === 0) controller.charts.setPart(picked ?? "chartArea")
             }}
             onPointerMove={(event) => timelineMove(event) || move(event)}
             onPointerUp={() => timelineEnd() || end()}
@@ -549,7 +553,14 @@ export function ObjectLayer({
               setDrag(null)
             }}
             onDoubleClick={(event) => {
-              if (isChart(o) || o.kind === "slicer" || o.kind === "timeline") return
+              if (isChart(o)) {
+                // Format the part double-clicked (Excel's Format pane): the one its press picked, as the chart is
+                // drawn again between the clicks and the event's target is then the frame.
+                event.stopPropagation()
+                controller.charts.openFormatPane()
+                return
+              }
+              if (o.kind === "slicer" || o.kind === "timeline") return
               event.stopPropagation()
               // A signature line opens its setup (signing needs a digital ID, which Cells doesn't have).
               if (o.kind === "picture" && o.signature) controller.shell.openDialog?.(`signatureSetup:${o.id}`)
@@ -566,6 +577,7 @@ export function ObjectLayer({
             >
               <Picture svg={p.svg} w={p.box.w} h={p.box.h} className={isChart(o) ? "chart-svg" : "object-svg"} />
             </div>
+            {single && isChart(o) && !dragging ? <ChartPartMark part={controller.charts.part} /> : null}
             {turn?.id === o.id ? <ModelPreview model={turn.model} frame={p.box} zoom={zoom} /> : null}
             {editing ? (
               <TextEditor

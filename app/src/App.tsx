@@ -53,6 +53,7 @@ import { useShellKind } from "@/phone/shell-choice"
 import { Ribbon, type RibbonHandle } from "@/ribbon/Ribbon"
 import {
   CHART_DESIGN,
+  CHART_FORMAT,
   PIVOT_CHART_ANALYZE,
   EQUATION,
   HELP,
@@ -165,6 +166,8 @@ import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
 import { MacrosDialog } from "@/shell/MacrosDialog"
 import { ChartSheetView } from "@/grid/ChartSheetView"
 import { MoveChartDialog } from "@/shell/MoveChartDialog"
+import { ChartFormatPane } from "@/shell/ChartFormatPane"
+import { InsertChartDialog, type ChartDialogStart } from "@/shell/InsertChartDialog"
 import { ExistingConnectionsDialog, FromWebDialog, NavigatorDialog } from "@/shell/GetDataDialogs"
 import { QueryEditorDialog } from "@/shell/QueryEditorDialog"
 import { DataModelDialog, RelationshipsDialog } from "@/shell/DataModelDialogs"
@@ -202,8 +205,8 @@ const TABS_IN_SPARKLINE = [...TABS, SPARKLINE]
 const TABS_IN_SLICER = [...TABS, SLICER]
 const TABS_IN_TIMELINE = [...TABS, TIMELINE]
 const TABS_IN_TABLE_SPARKLINE = [...TABS, TABLE_DESIGN, SPARKLINE]
-const TABS_IN_CHART = [...TABS, CHART_DESIGN]
-const TABS_IN_PIVOT_CHART = [...TABS, PIVOT_CHART_ANALYZE, CHART_DESIGN]
+const TABS_IN_CHART = [...TABS, CHART_DESIGN, CHART_FORMAT]
+const TABS_IN_PIVOT_CHART = [...TABS, PIVOT_CHART_ANALYZE, CHART_DESIGN, CHART_FORMAT]
 const TABS_IN_SHAPE = [...TABS, SHAPE_FORMAT]
 const TABS_IN_EQUATION = [...TABS, SHAPE_FORMAT, EQUATION]
 const TABS_IN_PICTURE = [...TABS, PICTURE_FORMAT]
@@ -292,6 +295,7 @@ type DialogState =
   | { kind: "describePivot" }
   | { kind: "feedback"; mode: "feedback" | "support" }
   | { kind: "createPivot"; source?: string; mode?: "source" | "move" | "chart"; chartType?: string }
+  | { kind: "insertChart"; start?: ChartDialogStart; change?: boolean }
   | { kind: "pivotValue"; index: number }
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
   | { kind: "pivotField"; field: number }
@@ -1047,6 +1051,10 @@ function WorkbookWindow({
     else if (kind === "recommendPivots")
       setDialog({ kind: "recommendPivots", source: name.slice(kind.length + 1) || undefined })
     else if (kind === "createPivotChart") setDialog({ kind: "createPivot", mode: "chart", chartType: arg })
+    else if (kind === "insertChart")
+      // insertChart, insertChart:all, insertChart:<family> ("More Column Charts...").
+      setDialog({ kind: "insertChart", start: arg === "all" ? { tab: "all" } : arg ? { family: arg } : {} })
+    else if (kind === "changeChartType") setDialog({ kind: "insertChart", change: true })
     else if (kind === "pivotValue") setDialog({ kind: "pivotValue", index: Number(arg) })
     else if (kind === "pivotShowAs") {
       const [index, as] = arg.split("/")
@@ -1282,6 +1290,10 @@ function WorkbookWindow({
     smartArt && controller.objects.textPaneOpen ? (
       <SmartArtTextPane key={smartArt.id} controller={controller} onDone={focusGrid} />
     ) : null
+  const chartFormatPane =
+    controller.charts.formatPaneOpen && controller.charts.active() ? (
+      <ChartFormatPane controller={controller} onDone={focusGrid} />
+    ) : null
   const ribbonTabs = controller.charts.activePivot()
     ? TABS_IN_PIVOT_CHART
     : controller.charts.active()
@@ -1394,6 +1406,7 @@ function WorkbookWindow({
               {controller.accessibilityOpen ? accessibilityPane : null}
               {controller.thesaurusOpen ? <ThesaurusPane controller={controller} onDone={focusGrid} /> : null}
               {controller.objects.paneOpen ? <SelectionPane controller={controller} onDone={focusGrid} /> : null}
+              {chartFormatPane}
               {smartArtPane}
               {controller.audit.watchOpen ? <WatchWindow controller={controller} onDone={focusGrid} /> : null}
               {controller.data.queriesOpen ? queriesPane : null}
@@ -1416,6 +1429,7 @@ function WorkbookWindow({
         ) : null}
         {shell === "phone" && controller.accessibilityOpen ? accessibilityPane : null}
         {shell === "phone" ? smartArtPane : null}
+        {shell === "phone" ? chartFormatPane : null}
         {shell === "phone" && controller.objects.paneOpen ? (
           <SelectionPane controller={controller} onDone={focusGrid} />
         ) : null}
@@ -1752,6 +1766,14 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "dataModel" ? <DataModelDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "moveChart" ? <MoveChartDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "insertChart" ? (
+          <InsertChartDialog
+            controller={controller}
+            change={dialog.change}
+            start={dialog.start}
+            onClose={closeDialog}
+          />
+        ) : null}
         {dialog?.kind === "existingConnections" ? (
           <ExistingConnectionsDialog controller={controller} onClose={closeDialog} />
         ) : null}

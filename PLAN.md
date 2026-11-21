@@ -490,7 +490,22 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     Cells open there as chart sheets with their series. Hint and Help topic "A chart on a sheet of its own".
     Limits: the chart sheet's cell-based ribbon buttons (Home, Formulas…) stay on and do nothing useful; printing
     and PDF of a chart sheet aren't done yet; a chart sheet holds one chart (Excel allows more on top).
-  - ⬜ Chart Format tab, Insert Chart dialog, Page Layout view and Page Break Preview, picture crop and corrections,
+  - ✅ Chart Format tab: click a chart, then a part (title, axis, series, legend…) to pick it, or choose it in Chart
+    Elements; it's boxed. Shape Fill, Shape Outline (colour and weight), Text Fill and Reset to Match Style change just
+    that part; Format Selection or a double-click opens the Format pane (fill, border or line, font, and the part's
+    options: title text, axis bounds and number format, legend position, label contents, gap width and overlap,
+    slice angle and explosion, smoothing and markers). Arrange and Size as for shapes. The chart XML now writes and
+    reads back every part's text size and bold, line widths and the plot area's border, keeping only what differs
+    from the style (Excel's own charts gain no overrides). Checked in Excel 365: each value shows there as set, and
+    Excel's resave comes back the same. Hint and Help topic "Format any part of a chart".
+    Limits: no Shape Styles or WordArt galleries, Shape Effects, gradients or Text Outline (Cells' charts don't draw
+    them); value-axis lines, legend and title fills aren't drawn, so they aren't offered.
+  - ✅ Insert Chart dialog (Recommended Charts, the Charts launcher, each gallery's "More … Charts...", and Chart
+    Design › Change Chart Type): Recommended Charts lists the types that suit the data (scatter for x-y pairs, line
+    for long or dated runs, pie for one small series, a combo with a second axis for series of very different sizes),
+    each with a preview of the selected data and Excel's line on what it's for; All Charts has every type by family.
+    Limits: no Templates or custom Combo (series by series) page; Maps aren't offered (Cells has no map charts).
+  - ⬜ Page Layout view and Page Break Preview, picture crop and corrections,
     PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,

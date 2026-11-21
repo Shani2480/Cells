@@ -1,10 +1,13 @@
-import { themeAccents } from "@/sheet/charts"
+import { chartPartCan, themeAccents } from "@/sheet/charts"
+import { ColorPanel } from "./colors"
 import {
   palettesFor,
   CHART_STYLES,
   QUICK_LAYOUTS,
   chartElements,
+  chartParts,
   chartVariant,
+  partLabel,
   defaultChartSpec,
   renderChart,
   textAsBars,
@@ -88,7 +91,18 @@ const GALLERIES: Record<string, { sections: Section[]; more: string }> = {
   },
 }
 
-/** Excel's names for the galleries' last rows (the Insert Chart dialog they open isn't built yet). */
+/** The All Charts family each gallery's last row opens the Insert Chart dialog on. */
+const MORE_FAMILIES: Record<string, string> = {
+  ChartTypeColumnInsertDialog: "column",
+  ChartTypeLineInsertDialog: "line",
+  ChartTypePieInsertDialog: "pie",
+  ChartTypeHierarchyInsertDialog: "treemap",
+  ChartTypeStatisticalInsertDialog: "histogram",
+  ChartTypeScatterInsertDialog: "scatter",
+  ChartTypeStockInsertDialog: "stock",
+}
+
+/** Excel's names for the galleries' last rows. */
 const MORE_LABELS: Record<string, string> = {
   ChartTypeColumnInsertDialog: "More Column Charts...",
   ChartTypeLineInsertDialog: "More Line Charts...",
@@ -98,19 +112,6 @@ const MORE_LABELS: Record<string, string> = {
   ChartTypeScatterInsertDialog: "More Scatter Charts...",
   ChartTypeStockInsertDialog: "More Stock Charts...",
 }
-
-/** Recommended Charts: the common types, as Excel offers them first for most data. */
-const RECOMMENDED = [
-  "column",
-  "line",
-  "pie",
-  "hbar",
-  "area",
-  "scatter",
-  "column-stacked",
-  "doughnut",
-  "combo-column-line",
-]
 
 /** A chart type's picture: the type drawn small, without its title, legend or axes, as Excel's gallery icons. */
 export const ChartTypeIcon = memo(function ChartTypeIcon({ id, size = 40 }: { id: string; size?: number }) {
@@ -224,6 +225,29 @@ const pivotChart = (env: RibbonEnv, id: string) => {
 }
 const inChart = (env: RibbonEnv) => env.c.charts.active() !== null
 
+const CHART_WEIGHTS = [0.25, 0.5, 0.75, 1, 1.5, 2.25, 3, 4.5, 6]
+
+/**
+ * A colour for the picked part's fill, outline or text. "No Fill" and "No Outline" draw none; Automatic gives the
+ * text back to the style.
+ */
+function partColorMenu(field: "fill" | "line" | "color", noneLabel: string, label: string): MenuEntry {
+  return {
+    panel: (env, close) => (
+      <ColorPanel
+        noneLabel={noneLabel}
+        theme={env.c.wb.theme}
+        current={env.c.charts.partFormat()[field]}
+        onPick={(hex) => {
+          close()
+          const color = hex ? hex.toLowerCase() : field === "color" ? undefined : "none"
+          env.c.charts.formatPart({ [field]: color }, label)
+        }}
+      />
+    ),
+  }
+}
+
 /** A grid of chart previews to pick a change from (Quick Layout, Chart Styles, Change Colors). */
 function previewGrid(
   items: { key: string; label: string; spec: (s: ChartSpec) => ChartSpec; swatch?: ReactNode }[],
@@ -306,8 +330,12 @@ export function chartCommands(): Command[] {
     },
   }
   for (const g of galleries) Object.assign(g, named[g.id])
-  // "More … Charts...": the Insert Chart dialog isn't built; Recommended Charts offers every type meanwhile.
-  const more = Object.values(GALLERIES).map((g): Command => ({ id: g.more, label: MORE_LABELS[g.more] ?? g.more }))
+  // "More … Charts...": the Insert Chart dialog's All Charts, on the gallery's family.
+  const more = Object.values(GALLERIES).map((g): Command => ({
+    id: g.more,
+    label: MORE_LABELS[g.more] ?? g.more,
+    run: (env) => env.dialog(`insertChart:${MORE_FAMILIES[g.more] ?? "column"}`),
+  }))
   return [
     ...galleries,
     ...more,
@@ -316,7 +344,7 @@ export function chartCommands(): Command[] {
       label: "Recommended Charts",
       description: "Want us to recommend a good chart to showcase your data? Just select data in your sheet.",
       keytip: "R",
-      menu: [galleryPanel([{ heading: "Recommended Charts", ids: RECOMMENDED }], insert)],
+      run: (env) => env.dialog("insertChart"),
     },
 
     {
@@ -471,12 +499,84 @@ export function chartCommands(): Command[] {
       description: "Change to a different type of chart.",
       keytip: "C",
       enabled: inChart,
+      run: (env) => env.dialog("changeChartType"),
+    },
+    // ── Format (the chart's) ──
+    {
+      id: "ChartFormatElements",
+      label: "Chart Elements",
+      description: "Select a part of the chart to format it: its title, an axis, a series, the legend…",
+      keytip: "E",
+      enabled: inChart,
+      field: {
+        width: 150,
+        value: (env) => {
+          const spec = env.c.charts.spec()
+          return spec ? partLabel(spec, env.c.charts.part) : ""
+        },
+        commit: (env, text) => {
+          const spec = env.c.charts.spec()
+          if (!spec) return
+          const want = text.trim().toLowerCase()
+          const part = chartParts(spec).find((p) => p.id === text || p.label.toLowerCase() === want)
+          if (part) env.c.charts.setPart(part.id)
+        },
+        options: (env) => {
+          const spec = env.c.charts.spec()
+          return spec ? chartParts(spec).map((p) => ({ label: p.label, value: p.id })) : []
+        },
+      },
+    },
+    {
+      id: "ChartFormatSelection",
+      label: "Format Selection",
+      description: "Open the Format pane for the part of the chart picked in Chart Elements, to fine-tune it.",
+      keytip: "M",
+      enabled: inChart,
+      run: (env) => env.c.charts.openFormatPane(),
+    },
+    {
+      id: "ChartResetToMatchStyle",
+      label: "Reset to Match Style",
+      description: "Clear the picked part's own formatting, so it looks as the chart style draws it again.",
+      keytip: "A",
+      enabled: (env) => inChart(env) && Object.keys(env.c.charts.partFormat()).length > 0,
+      run: (env) => env.c.charts.resetPart(),
+    },
+    {
+      id: "ChartShapeFill",
+      label: "Shape Fill",
+      description: "Fill the picked part of the chart (the chart area, plot area, a series or a point) with a colour.",
+      keytip: "SI",
+      enabled: (env) => inChart(env) && chartPartCan(env.c.charts.part).fill,
+      menu: [partColorMenu("fill", "No Fill", "Shape Fill")],
+    },
+    {
+      id: "ChartShapeOutline",
+      label: "Shape Outline",
+      description: "Choose the colour and weight of the picked part's outline or line.",
+      keytip: "SO",
+      enabled: (env) => inChart(env) && chartPartCan(env.c.charts.part).line,
       menu: [
-        galleryPanel(
-          Object.values(GALLERIES).flatMap((g) => g.sections),
-          (env, id) => env.c.charts.setVariant(id),
-        ),
+        partColorMenu("line", "No Outline", "Shape Outline"),
+        "-",
+        { heading: "Weight" },
+        ...CHART_WEIGHTS.map((w) => `ChartShapeOutlineWeight:${w}`),
       ],
+    },
+    ...CHART_WEIGHTS.map((w): Command => ({
+      id: `ChartShapeOutlineWeight:${w}`,
+      label: `${w} pt`,
+      run: (env) => env.c.charts.formatPart({ lineWidth: w }, "Outline Weight"),
+      pressed: (env) => env.c.charts.partFormat().lineWidth === w,
+    })),
+    {
+      id: "ChartTextFill",
+      label: "Text Fill",
+      description: "Colour the text of the picked part: the title, an axis, the legend or the data labels.",
+      keytip: "TI",
+      enabled: (env) => inChart(env) && chartPartCan(env.c.charts.part).text,
+      menu: [partColorMenu("color", "Automatic", "Text Fill")],
     },
     {
       id: "ChartMove",
