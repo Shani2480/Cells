@@ -150,6 +150,11 @@ export class Sheet {
    * printed, as in Excel.
    */
   background?: string
+  /**
+   * A chart sheet (Insert Chart's F11, Move Chart › New sheet): a sheet that is one chart, its first object, drawn to
+   * fill the window and the printed page. It has no cells of its own.
+   */
+  chartSheet = false
   /** Hidden sheets keep their contents and formulas; their tab is not shown. */
   hidden = false
   readonly cells = new CellStore()

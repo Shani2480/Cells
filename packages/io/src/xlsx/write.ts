@@ -46,6 +46,7 @@ import {
   CT_THREADED,
   CT_VML,
   CT_WORKSHEET,
+  CT_CHARTSHEET,
   NS_MAIN,
   NS_R,
   REL_APP,
@@ -63,6 +64,7 @@ import {
   REL_THREADED,
   REL_VML,
   REL_WORKSHEET,
+  REL_CHARTSHEET,
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
 import { boxOf, isSignatureLine, putPicture, REL_IMAGE, writeDrawing } from "./drawing"
@@ -509,6 +511,36 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
   }
 
   wb.sheets.forEach((sheet, i) => {
+    if (sheet.chartSheet) {
+      // A chart sheet: its view, margins and the drawing with its one chart.
+      const cs = source?.chartSheets?.get(sheet)
+      const partName = cs?.partName ?? freeName((n) => `/xl/chartsheets/sheet${n}.xml`)
+      taken.add(partKey(partName))
+      relGroups.set(partKey(partName), [])
+      const drawing = writeDrawing(
+        wb,
+        sheet,
+        partName,
+        cs?.drawing,
+        {
+          put,
+          removeTree,
+          addRel,
+          rels,
+          freeName,
+          putBytes: (name, contentType, data) => parts.set(partKey(name), { name, contentType, data }),
+          fileName: fileName.split(/[\\/]/).pop(),
+        },
+        true,
+      )
+      const view = views[i] ?? DEFAULT_VIEW
+      put(partName, CT_CHARTSHEET, chartSheetXml(sheet, i === active || view.selected, view.zoom, drawing))
+      const rid = addRel(main, REL_CHARTSHEET, partName)
+      sheetEntries.push(
+        `<sheet${attrText({ name: sheet.name, sheetId: i + 1, state: sheet.hidden ? "hidden" : undefined })} r:id="${rid}"/>`,
+      )
+      return
+    }
     const s = source?.sheets.get(sheet)
     const partName = s?.partName ?? freeName((n) => `/xl/worksheets/sheet${n}.xml`)
     // Rebuild the sheet's relationships: kept ones, then the notes' parts.
@@ -1071,4 +1103,18 @@ function bookViewsXml(source: XlsxSource | null, active: number): string {
   const rest = views!.children.filter((c) => c !== first).map((c) => raw(doc, c))
   tag += rest.join("")
   return `${doc.source.slice(views!.start, views!.tagEnd)}${tag}</${views!.name}>`
+}
+
+/** A chart sheet's part: its view (zoomed to fit the window, as Excel opens one), margins, paper and drawing. */
+function chartSheetXml(sheet: Sheet, selected: boolean, zoom: number, drawing: string | null): string {
+  const m = sheet.pageSetup.margins
+  const zoomAttr = zoom && zoom !== 1 ? ` zoomScale="${Math.round(zoom * 100)}"` : ""
+  return (
+    `<chartsheet xmlns="${NS_MAIN}" xmlns:r="${NS_R}"><sheetPr/>` +
+    `<sheetViews><sheetView${selected ? ` tabSelected="1"` : ""}${zoomAttr} workbookViewId="0" zoomToFit="1"/></sheetViews>` +
+    `<pageMargins left="${m.left}" right="${m.right}" top="${m.top}" bottom="${m.bottom}" header="${m.header}" footer="${m.footer}"/>` +
+    `<pageSetup orientation="${sheet.pageSetup.orientation}"/>` +
+    (drawing ? `<drawing r:id="${drawing}"/>` : "") +
+    `</chartsheet>`
+  )
 }

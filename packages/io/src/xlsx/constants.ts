@@ -9,6 +9,7 @@ export const NS_XDA = "http://schemas.microsoft.com/office/spreadsheetml/2017/dy
 const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/"
 export const REL_OFFICE_DOCUMENT = REL + "officeDocument"
 export const REL_WORKSHEET = REL + "worksheet"
+export const REL_CHARTSHEET = REL + "chartsheet"
 export const REL_STYLES = REL + "styles"
 export const REL_SHARED_STRINGS = REL + "sharedStrings"
 export const REL_THEME = REL + "theme"
@@ -25,6 +26,7 @@ export const REL_PERSON = "http://schemas.microsoft.com/office/2017/10/relations
 
 const CT = "application/vnd.openxmlformats-officedocument.spreadsheetml."
 export const CT_WORKSHEET = CT + "worksheet+xml"
+export const CT_CHARTSHEET = CT + "chartsheet+xml"
 export const CT_STYLES = CT + "styles+xml"
 export const CT_SHARED_STRINGS = CT + "sharedStrings+xml"
 export const CT_METADATA = CT + "sheetMetadata+xml"

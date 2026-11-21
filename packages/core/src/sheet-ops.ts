@@ -59,6 +59,7 @@ export type SheetSnapshot = {
   pivots?: PivotTable[]
   tabColor?: string
   background?: string
+  chartSheet?: boolean
   hidden: boolean
 }
 
@@ -98,6 +99,7 @@ export function snapshotSheet(sheet: Sheet): SheetSnapshot {
     pivots: copyPivotTables(sheet.pivots),
     tabColor: sheet.tabColor,
     background: sheet.background,
+    ...(sheet.chartSheet ? { chartSheet: true } : {}),
     hidden: sheet.hidden,
   }
 }
@@ -138,6 +140,7 @@ function sheetFrom(s: SheetSnapshot): Sheet {
   sheet.pivots = copyPivotTables(s.pivots ?? [])
   sheet.tabColor = s.tabColor
   sheet.background = s.background
+  sheet.chartSheet = s.chartSheet ?? false
   sheet.hidden = s.hidden
   return sheet
 }
@@ -271,4 +274,50 @@ export function sheetNameProblem(name: string, others: string[]): string | null 
 export function nextSheetName(names: string[]): string {
   const taken = new Set(names.map((n) => n.toLowerCase()))
   for (let n = names.length + 1; ; n++) if (!taken.has(`sheet${n}`)) return `Sheet${n}`
+}
+
+/** The next free "ChartN" for a new chart sheet (Excel counts the names already taken). */
+export function nextChartSheetName(names: string[]): string {
+  const taken = new Set(names.map((n) => n.toLowerCase()))
+  for (let n = 1; ; n++) if (!taken.has(`chart${n}`)) return `Chart${n}`
+}
+
+/**
+ * A new chart sheet holding `chart` (Move Chart › New sheet, F11), for an addSheet op: no cells, printed across the
+ * page. The chart keeps the size Excel gives a chart sheet's chart.
+ */
+export function chartSheetSnapshot(name: string, chart: SheetChart): SheetSnapshot {
+  const host = new Sheet(name)
+  const placed: SheetChart = {
+    ...chart,
+    anchor: chartAnchorAt(host, CHART_SHEET_SIZE.w, CHART_SHEET_SIZE.h),
+  }
+  const pageSetup = { ...host.pageSetup, orientation: "landscape" as const }
+  return {
+    name,
+    cells: [],
+    rows: [],
+    cols: [],
+    rowStyles: [],
+    colStyles: [],
+    merges: [],
+    objects: [placed],
+    pageSetup,
+    chartSheet: true,
+    hidden: false,
+  }
+}
+
+/** A chart sheet's chart in pixels at 100% (Excel's 8666807 × 6290272 EMU). */
+export const CHART_SHEET_SIZE = { w: 910, h: 660 }
+
+/** An anchor from the sheet's top-left corner, `w` × `h` pixels. */
+function chartAnchorAt(sheet: Sheet, w: number, h: number): SheetChart["anchor"] {
+  const corner = (px: number, axis: "cols" | "rows") => {
+    const line = sheet[axis].indexAt(px)
+    return { line, off: px - sheet[axis].offset(line) }
+  }
+  const c = corner(w, "cols")
+  const r = corner(h, "rows")
+  return { from: { col: 0, row: 0, x: 0, y: 0 }, to: { col: c.line, row: r.line, x: c.off, y: r.off } }
 }

@@ -163,6 +163,8 @@ import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
 import { MacrosDialog } from "@/shell/MacrosDialog"
+import { ChartSheetView } from "@/grid/ChartSheetView"
+import { MoveChartDialog } from "@/shell/MoveChartDialog"
 import { ExistingConnectionsDialog, FromWebDialog, NavigatorDialog } from "@/shell/GetDataDialogs"
 import { QueryEditorDialog } from "@/shell/QueryEditorDialog"
 import { DataModelDialog, RelationshipsDialog } from "@/shell/DataModelDialogs"
@@ -227,6 +229,7 @@ type DialogState =
         | "fromWeb"
         | "existingConnections"
         | "relationships"
+        | "moveChart"
         | "dataModel"
         | "arrangeWindows"
         | "object"
@@ -1071,6 +1074,7 @@ function WorkbookWindow({
       kind === "fromWeb" ||
       kind === "existingConnections" ||
       kind === "relationships" ||
+      kind === "moveChart" ||
       kind === "dataModel" ||
       kind === "arrangeWindows" ||
       kind === "object" ||
@@ -1263,7 +1267,13 @@ function WorkbookWindow({
     <WindowsArea
       windows={doc.windows}
       baseTitle={doc.title}
-      grid={(c, active) => <GridView key={doc.windows.key(c)} controller={c} active={active} onContextMenu={setMenu} />}
+      grid={(c, active) =>
+        c.sheet.chartSheet ? (
+          <ChartSheetView key={`chart-${doc.windows.key(c)}`} controller={c} active={active} />
+        ) : (
+          <GridView key={doc.windows.key(c)} controller={c} active={active} onContextMenu={setMenu} />
+        )
+      }
     />
   )
   const drawings = controller.objects.drawings()
@@ -1741,6 +1751,7 @@ function WorkbookWindow({
           <RelationshipsDialog controller={controller} onClose={closeDialog} onManage={() => openDialog("dataModel")} />
         ) : null}
         {dialog?.kind === "dataModel" ? <DataModelDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "moveChart" ? <MoveChartDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "existingConnections" ? (
           <ExistingConnectionsDialog controller={controller} onClose={closeDialog} />
         ) : null}

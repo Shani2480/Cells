@@ -2109,9 +2109,10 @@ export class SheetController {
         else this.shell.openDialog?.("spelling")
         return true
       case "F11":
-        // Shift+F11 inserts a sheet (F11 alone makes a chart sheet: not built yet).
-        if (!shift || primary || alt) return false
-        this.sheets.insert()
+        // Shift+F11 inserts a sheet; F11 alone makes a chart of the data on a chart sheet (Alt+F1: on this sheet).
+        if (primary || alt) return false
+        if (shift) this.sheets.insert()
+        else this.charts.insertSheet()
         return true
       case "F5":
         // Shift+F5 is Find, as in Excel.

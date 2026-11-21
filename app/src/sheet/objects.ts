@@ -105,6 +105,8 @@ export class ObjectCommands {
 
   /** The one object selected (null with none or several). */
   active(): SheetObject | null {
+    // A chart sheet's chart is always the one selected.
+    if (this.c.sheet.chartSheet) return this.c.sheet.objects.find(isChart) ?? null
     return this.selected.length === 1 ? (this.find(this.selected[0]) ?? null) : null
   }
 

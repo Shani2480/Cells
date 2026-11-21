@@ -116,6 +116,8 @@ export function readDrawing(
   slicers?: ReadonlyMap<string, SlicerRead>,
   /** The sheet's timelines by name (absent: timelines are kept as read). */
   timelines?: ReadonlyMap<string, TimelineRead>,
+  /** A chart sheet's drawing, whose chart sits in an absolute anchor. */
+  chartSheet = false,
 ): DrawingSource {
   const doc = parseTree(xml)
   const source: DrawingSource = {
@@ -283,11 +285,12 @@ export function readDrawing(
         continue
       }
     }
-    const rid = anchor.local === "twoCellAnchor" ? chartRelOf(anchor) : undefined
+    const sheetChart = chartSheet && anchor.local === "absoluteAnchor"
+    const rid = anchor.local === "twoCellAnchor" || sheetChart ? chartRelOf(anchor) : undefined
     const rel = rid ? rels.find((r) => r.id === rid && r.type === CHART_RELATIONSHIP) : undefined
     const chartXml = text(rel?.partName)
-    const from = corner(kid(anchor, "from"))
-    const to = corner(kid(anchor, "to"))
+    const from = sheetChart ? placed?.anchor.from : corner(kid(anchor, "from"))
+    const to = sheetChart ? placed?.anchor.to : corner(kid(anchor, "to"))
     const spec = chartXml ? readChartSpace(chartXml) : null
     // A stand-in Excel writes for a VML shape (an embedded object, a form control): Cells writes the VML side.
     if (!spec && /compatExt\b[^>]*\bspid="_x0000_s\d+"/.test(raw(doc, anchor))) continue
@@ -433,6 +436,8 @@ export function writeDrawing(
   sheetPart: string,
   source: DrawingSource | undefined,
   out: DrawingWriter,
+  /** A chart sheet's drawing: its chart goes in an absolute anchor, as Excel writes it. */
+  chartSheet = false,
 ): string | null {
   const used = new Set<number>()
   // Signature lines and embedded objects go in the VML drawing (vml.ts, ole-objects.ts), not this one.
@@ -552,7 +557,7 @@ export function writeDrawing(
     }
     if (was) used.add(chart.id)
     const rid = out.addRel(partName, CHART_RELATIONSHIP, part)
-    anchors.push(anchorXml(chart, ++shapeId, rid))
+    anchors.push(chartSheet ? absoluteChartXml(sheet, chart, ++shapeId, rid) : anchorXml(chart, ++shapeId, rid))
   }
   if (source) for (const [id, c] of source.charts) if (!used.has(id)) out.removeTree(c.partName)
   const open = source?.rootTag ?? `<xdr:wsDr xmlns:xdr="${NS_XDR}" xmlns:a="${NS_A}"`
@@ -652,6 +657,27 @@ function isDecorative(nv: XNode | undefined): boolean {
     return v === "1" || v === "true"
   }
   return false
+}
+
+/** Excel's size for a chart sheet's chart (it fills the window; the file keeps a size all the same). */
+const CHART_SHEET_EMU = { cx: 8666807, cy: 6290272 }
+
+/** A chart sheet's chart: at the top left, its size as read (Excel's own size for a new one). */
+function absoluteChartXml(sheet: Sheet, chart: SheetChart, id: number, rid: string): string {
+  const box = boxOf(sheet, chart.anchor)
+  const cx = box.w > 0 ? Math.round(box.w * EMU) : CHART_SHEET_EMU.cx
+  const cy = box.h > 0 ? Math.round(box.h * EMU) : CHART_SHEET_EMU.cy
+  return anchorXml(chart, id, rid)
+    .replace(
+      /^<xdr:twoCellAnchor\b([^>]*)>/,
+      `<xdr:absoluteAnchor$1><xdr:pos x="0" y="0"/><xdr:ext cx="${cx}" cy="${cy}"/>`,
+    )
+    .replace(/<xdr:from>.*?<\/xdr:to>/, "")
+    .replace(
+      /<xdr:cNvGraphicFramePr\/>/,
+      `<xdr:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></xdr:cNvGraphicFramePr>`,
+    )
+    .replace(/<\/xdr:twoCellAnchor>$/, "</xdr:absoluteAnchor>")
 }
 
 function anchorXml(chart: SheetChart, id: number, rid: string): string {

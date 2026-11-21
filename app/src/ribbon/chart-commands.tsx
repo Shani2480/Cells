@@ -481,8 +481,10 @@ export function chartCommands(): Command[] {
     {
       id: "ChartMove",
       label: "Move Chart",
-      description: "Move this chart to another sheet in the workbook.",
+      description: "Move this chart to a chart sheet of its own, or onto another sheet in the workbook.",
       keytip: "M",
+      run: (env) => env.dialog("moveChart"),
+      enabled: (env) => env.c.charts.active() !== null && !env.c.charts.activePivot(),
     },
   ]
 }

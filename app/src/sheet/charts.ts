@@ -21,6 +21,10 @@ import {
   type Sheet,
   type SheetChart,
   type Theme,
+  type Op,
+  chartSheetSnapshot,
+  nextChartSheetName,
+  sheetNameProblem,
 } from "@cells/core"
 import {
   defaultChartSpec,
@@ -74,6 +78,8 @@ export class ChartCommands {
    * selection when it's one chart.
    */
   get selected(): number | null {
+    // A chart sheet is its chart: it's always the one selected.
+    if (this.c.sheet.chartSheet) return this.c.sheet.charts[0]?.id ?? null
     const ids = this.c.objects.selected
     if (ids.length !== 1) return null
     return this.c.sheet.charts.some((ch) => ch.id === ids[0]) ? ids[0] : null
@@ -133,6 +139,91 @@ export class ChartCommands {
   private replace(chart: SheetChart, next: SheetChart | null, label: string) {
     const charts = this.c.sheet.charts.map((x) => (x.id === chart.id ? next : x)).filter((x): x is SheetChart => !!x)
     return this.commit(charts, label)
+  }
+
+  // ── Move Chart and chart sheets ──
+
+  /**
+   * Chart Design › Move Chart › New sheet: the selected chart on a chart sheet of its own named `name`, before the
+   * sheet it was on (a chart sheet is renamed). False with Excel's reason in an alert when the name is taken.
+   */
+  moveToNewSheet(name: string): boolean {
+    const chart = this.active()
+    const clean = name.trim()
+    if (!chart || !clean) return false
+    const from = this.c.sheetIndex
+    const sheet = this.c.sheet
+    if (sheet.chartSheet) {
+      const problem = this.c.sheets.rename(from, clean)
+      if (problem) this.c.shell.alert(problem)
+      return !problem
+    }
+    const problem = sheetNameProblem(
+      clean,
+      this.c.wb.sheets.map((s) => s.name),
+    )
+    if (problem) {
+      this.c.shell.alert(problem)
+      return false
+    }
+    const ops: Op[] = [
+      { kind: "objects", sheet: from, objects: sheet.objects.filter((o) => o !== chart) },
+      { kind: "addSheet", sheet: from, name: clean, snapshot: chartSheetSnapshot(clean, chart) },
+    ]
+    this.moveOps(ops, from)
+    return true
+  }
+
+  /**
+   * Move Chart › Object in: the selected chart onto worksheet `target` (an index), at the top left of what it shows,
+   * the size Excel gives a new chart. A chart sheet it leaves goes.
+   */
+  moveToSheet(target: number): boolean {
+    const chart = this.active()
+    const to = this.c.wb.sheets[target]
+    const from = this.c.sheetIndex
+    if (!chart || !to || to.chartSheet || target === from) return false
+    const placed: SheetChart = {
+      ...copyChart(chart),
+      anchor: anchorOf(to, { x: (2 * to.cols.size(0)) / 3, y: to.rows.size(0), w: CHART_WIDTH, h: CHART_HEIGHT }),
+    }
+    const ops: Op[] = [{ kind: "objects", sheet: target, objects: [...to.objects, placed] }]
+    if (this.c.sheet.chartSheet) ops.push({ kind: "removeSheet", sheet: from })
+    else ops.push({ kind: "objects", sheet: from, objects: this.c.sheet.objects.filter((o) => o !== chart) })
+    const after = this.c.sheet.chartSheet && target > from ? target - 1 : target
+    this.moveOps(ops, after)
+    this.select(chart.id)
+    return true
+  }
+
+  /** F11: a chart of the selection (or the data around the active cell) on a new chart sheet before this one. */
+  insertSheet(variant = "column"): boolean {
+    if (this.c.sheet.chartSheet) return false
+    if (this.c.edit) this.c.commitEdit()
+    const sheet = this.c.sheet
+    const sel = this.c.selection.ranges[0]
+    const single = sel.r0 === sel.r1 && sel.c0 === sel.c1
+    const range = single ? currentRegion(sheet, this.c.selection.active) : { ...sel }
+    const empty = single && sheet.cells.get(range.r0, range.c0)?.value === undefined && range.r0 === range.r1
+    const { spec, refs } = this.draft(variant, empty ? null : range)
+    const name = nextChartSheetName(this.c.wb.sheets.map((s) => s.name))
+    const chart: SheetChart = {
+      id: nextChartId(this.c.wb.sheets),
+      name: "Chart 1",
+      anchor: { from: { col: 0, row: 0, x: 0, y: 0 }, to: { col: 0, row: 0, x: 0, y: 0 } },
+      spec: spec as unknown as Record<string, unknown>,
+      refs,
+    }
+    const at = this.c.sheetIndex
+    this.moveOps([{ kind: "addSheet", sheet: at, name, snapshot: chartSheetSnapshot(name, chart) }], at, "Insert Chart")
+    this.c.shell.showTab?.("TabChartDesign")
+    return true
+  }
+
+  private moveOps(ops: Op[], sheetAfter: number, label = "Move Chart") {
+    if (this.c.edit) this.c.commitEdit()
+    this.c.transact(ops, { label, before: this.c.selection, sheetAfter })
+    this.c.activate(sheetAfter)
   }
 
   // ── PivotChart Analyze ──
@@ -272,7 +363,7 @@ export class ChartCommands {
     }
     this.clip = { token: info.token, chart: copyChart(chart) }
     const html = chartHtml(spec, variantOf(spec), size, picture, info)
-    if (cut) this.delete()
+    if (cut && !this.c.sheet.chartSheet) this.delete()
     return { text: spec.title?.show && spec.title.text ? spec.title.text : chart.name, html }
   }
 
@@ -325,7 +416,8 @@ export class ChartCommands {
 
   delete() {
     const chart = this.active()
-    if (!chart) return
+    // A chart sheet's chart goes with its sheet (Delete Sheet), as in Excel.
+    if (!chart || this.c.sheet.chartSheet) return
     this.replace(chart, null, "Delete Chart")
     this.select(null)
   }

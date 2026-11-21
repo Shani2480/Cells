@@ -36,6 +36,7 @@ import {
   REL_THREADED,
   REL_VML,
   REL_WORKSHEET,
+  REL_CHARTSHEET,
 } from "./constants"
 import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from "./dom"
 
@@ -97,7 +98,12 @@ export type SheetSource = {
   pageExtras?: PageSetupExtras
 }
 
+/** A chart sheet's parts as read, so a save writes it back in the same place. */
+export type ChartSheetSource = { partName: string; drawing?: DrawingSource }
+
 export type XlsxSource = {
+  /** Chart sheets' parts. */
+  chartSheets?: WeakMap<Sheet, ChartSheetSource>
   pkg: OpcPackage
   workbook: XDoc
   styles: StylesIn | null
@@ -349,6 +355,51 @@ export async function openXlsx(
   const views: SheetView[] = []
   const customSheetViews = new Map<Sheet, CustomSheetViewRead[]>()
   const sheetSources = new WeakMap<Sheet, SheetSource>()
+  const chartSheetSources = new WeakMap<Sheet, ChartSheetSource>()
+  /** A chart sheet: its one chart (from its drawing), its zoom, and whether it's the selected tab. */
+  const readChartSheet = (partName: string, sheet: Sheet, nextId: () => number) => {
+    const xml = partText(pkg, partName)
+    if (!xml) return null
+    const root = parseTree(xml).root
+    const view = kid(kid(root, "sheetViews"), "sheetView")
+    const rels = relationshipsFor(pkg, partName)
+    const drawingRel = rels.find((r) => r.id === at(kid(root, "drawing"), "id", NS_R) && r.type === REL_DRAWING)
+    const drawingXml = partText(pkg, drawingRel?.partName)
+    const drawing =
+      drawingRel?.partName && drawingXml
+        ? readDrawing(
+            drawingRel.partName,
+            drawingXml,
+            relationshipsFor(pkg, drawingRel.partName),
+            sheet,
+            (name) => partText(pkg, name),
+            nextId,
+            warnings,
+            undefined,
+            undefined,
+            undefined,
+            true,
+          )
+        : undefined
+    if (!sheet.charts.length) return null
+    sheet.chartSheet = true
+    // Chart sheets print across the page unless the file says otherwise.
+    sheet.pageSetup.orientation = at(kid(root, "pageSetup"), "orientation") === "portrait" ? "portrait" : "landscape"
+    const m = kid(root, "pageMargins")
+    if (m)
+      for (const k of ["left", "right", "top", "bottom", "header", "footer"] as const) {
+        const v = Number(at(m, k))
+        if (Number.isFinite(v)) sheet.pageSetup.margins[k] = v
+      }
+    // The chart is the sheet: the other objects Excel allows on a chart sheet (shapes over it) aren't kept.
+    sheet.objects = [sheet.charts[0]]
+    const zoom = Number(at(view, "zoomScale") ?? 100)
+    return {
+      source: { partName, drawing } as ChartSheetSource,
+      zoom: Number.isFinite(zoom) && zoom > 0 ? zoom / 100 : 1,
+      selected: at(view, "tabSelected") === "1",
+    }
+  }
   let dynamic = false
   // Progress: by the size of the sheet parts, which hold nearly all of a big file.
   const sizes = sheetNodes.map((node) => {
@@ -364,6 +415,15 @@ export async function openXlsx(
     sheet.hidden = state !== "visible"
     const rid = at(node, "id", NS_R)
     const rel = wbRels.find((r) => r.id === rid)
+    if (rel?.partName && rel.type === REL_CHARTSHEET) {
+      const read = readChartSheet(rel.partName, sheet, () => ++chartIds)
+      if (read) {
+        chartSheetSources.set(sheet, read.source)
+        views.push({ ...DEFAULT_VIEW, zoom: read.zoom, selected: read.selected })
+        before += sizes[i]
+        continue
+      }
+    }
     if (!rel?.partName || rel.type !== REL_WORKSHEET) {
       warnings.push(`${sheet.name} is a chart sheet or dialog sheet; Cells opens it as an empty sheet.`)
       views.push({ ...DEFAULT_VIEW })
@@ -838,6 +898,7 @@ export async function openXlsx(
       rich,
       keptNames,
       sheets: sheetSources,
+      chartSheets: chartSheetSources,
       dynamic,
       keptConnections,
       mashup,

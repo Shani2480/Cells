@@ -75,6 +75,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Get Data reads a table, a CSV or JSON file on the web, or a web page's tables, and the Query Editor filters, sorts and trims it before it loads. Refresh brings in the latest, and Excel can refresh it too.",
     target: "Get Data",
   },
+  {
+    id: "chart-sheets",
+    title: "New: A chart on a sheet of its own",
+    text: "Move Chart puts the chart on a chart sheet, where it fills the window and prints across the page. F11 makes one straight from the selected data, and Excel opens it as a chart sheet too.",
+    target: "Move Chart",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

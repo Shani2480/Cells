@@ -481,8 +481,18 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     Excel trusts only its binary model (xl/model/item.data, an Analysis Services backup): without it, it opens an
     empty model even when workbook.xml lists the tables and relationships, and with it, it ignores the XML; so
     Cells can't change the model, and keeps it as Excel wrote it. Also: disabled dialog buttons now look disabled.
-  - ⬜ Move Chart (with chart sheets, section 3).
-- ⬜ Then the thinner features above.
+  - ✅ Move Chart (with chart sheets, below).
+- 🔄 Then the thinner features above:
+  - ✅ Chart sheets and Move Chart: chart sheets in a file are read and saved (they used to be dropped), and show
+    their chart filling the window with the chart tabs open. Chart Design › Move Chart puts a chart on a new chart
+    sheet (named Chart1, …) or onto another worksheet; F11 makes a chart of the selection on a new chart sheet.
+    Undo covers both. Checked in Excel 365: Excel's own chart sheet survives a round trip, and chart sheets made in
+    Cells open there as chart sheets with their series. Hint and Help topic "A chart on a sheet of its own".
+    Limits: the chart sheet's cell-based ribbon buttons (Home, Formulas…) stay on and do nothing useful; printing
+    and PDF of a chart sheet aren't done yet; a chart sheet holds one chart (Excel allows more on top).
+  - ⬜ Chart Format tab, Insert Chart dialog, Page Layout view and Page Break Preview, picture crop and corrections,
+    PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
+    .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 
