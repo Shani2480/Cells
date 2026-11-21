@@ -433,8 +433,9 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
   Manager), MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY, ISOMITTED; built-in functions passed by name (=BYROW(A1:C3,
   SUM)); saved with Excel's `_xlpm.` prefixes (`functions/lambda.ts`, a `call` node in the parser). 88 Excel cases
   and an Excel-made file.
-- ⬜ Wave 5, part 2: GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE (not in the Excel build used for checking: built from
-  Microsoft's documentation, with our own tests).
+- ✅ Wave 5, part 2: GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE (`functions/groupby.ts`), built from Microsoft's
+  documentation with our own tests (the Excel build used for checking doesn't have them); `_xleta.` for functions
+  passed by name in xlsx.
 - ⬜ Wave 6: text, information and matrix (REGEX*, ARRAYTOTEXT, VALUETOTEXT, ENCODEURL, CELL, INFO, MUNIT, MINVERSE,
   MDETERM, SERIESSUM, MULTINOMIAL, ACOT, COTH, CSCH, SECH, …).
 - ⬜ The greyed-out ribbon buttons; then the thinner features above.
@@ -448,6 +449,9 @@ for x ≥ 8; Cells is closer to the true value there, so the two differ in the 5
 Excel's YIELD and ODDFYIELD stop iterating early (agree to 9 digits); a few Excel bond results fit none of its
 documented conventions (two actual/actual COUPDAYS periods at month ends, ODDF* long first periods on actual/360 and
 actual/365) and are listed in `tests/excel-golden/known-differences.json`.
+GROUPBY/PIVOTBY: one function at a time (an HSTACK of functions isn't supported yet); field_relationship 1 drops
+subtotals but sorts as a hierarchy; generated headers ("Row Field 1", "Value") and an all-blank TRIMRANGE (#REF!)
+follow our reading of the documentation, not a check in Excel. Trim references (A1:.E10) aren't parsed yet.
 
 ---
 

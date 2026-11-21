@@ -45,4 +45,11 @@ describe("formula text in files", () => {
       expect(formulaFromFile(file)).toBe(cells)
     }
   })
+
+  it("marks built-in functions passed by name, and the newest functions", () => {
+    expect(formulaToFile("=BYROW(A1:C3,SUM)")).toBe("_xlfn.BYROW(A1:C3,_xleta.SUM)")
+    expect(formulaFromFile("_xlfn.BYROW(A1:C3,_xleta.SUM)")).toBe("=BYROW(A1:C3,SUM)")
+    expect(formulaToFile("=GROUPBY(A2:A9,C2:C9,PERCENTOF)")).toBe("_xlfn.GROUPBY(A2:A9,C2:C9,_xleta.PERCENTOF)")
+    expect(formulaToFile("=ROWS(TRIMRANGE(A:A))")).toBe("ROWS(_xlfn.TRIMRANGE(A:A))")
+  })
 })

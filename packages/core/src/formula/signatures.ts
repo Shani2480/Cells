@@ -468,6 +468,12 @@ const TABLE: Record<string, string> = {
   BYCOL: "array, lambda|A LAMBDA applied to each column, one result per column.",
   MAKEARRAY: "rows, columns, lambda|An array made by a LAMBDA(row, column).",
   ISOMITTED: "argument|TRUE when a LAMBDA parameter was left out of the call.",
+  GROUPBY:
+    "row_fields, values, function, [field_headers], [total_depth], [sort_order], [filter_array], [field_relationship]|A summary of values grouped by row fields, with totals.",
+  PIVOTBY:
+    "row_fields, col_fields, values, function, [field_headers], [row_total_depth], [row_sort_order], [col_total_depth], [col_sort_order], [filter_array], [relative_to]|A summary of values grouped by row and column fields, with totals.",
+  PERCENTOF: "data_subset, data_all|The sum of a subset as a share of the sum of all.",
+  TRIMRANGE: "range, [trim_rows], [trim_cols]|A range without the blank rows and columns at its edges.",
   BESSELJ: "x, n|The Bessel function Jn(x).",
   BESSELY: "x, n|The Bessel function Yn(x).",
   BESSELI: "x, n|The modified Bessel function In(x).",

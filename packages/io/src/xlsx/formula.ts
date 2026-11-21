@@ -1,4 +1,4 @@
-import { tokenize } from "@cells/core"
+import { FUNCTION_INFO, tokenize } from "@cells/core"
 import { FUTURE_FUNCTIONS } from "./constants"
 
 /**
@@ -7,11 +7,11 @@ import { FUTURE_FUNCTIONS } from "./constants"
  * through them as `_xlpm.f(2)`).
  */
 
-const PREFIX = /^(?:_xlfn\.|_xlws\.|_xlpm\.)+/i
+const PREFIX = /^(?:_xlfn\.|_xlws\.|_xlpm\.|_xleta\.)+/i
 
 /** A formula from a file (no "=") as Cells keeps it: "=" and no prefixes. */
 export function formulaFromFile(text: string): string {
-  if (!/_xl(?:fn|ws|pm)\./i.test(text)) return "=" + text
+  if (!/_xl(?:fn|ws|pm|eta)\./i.test(text)) return "=" + text
   let out = "="
   for (const t of tokenize(text)) out += t.kind === "func" || t.kind === "name" ? t.text.replace(PREFIX, "") : t.text
   return out
@@ -30,7 +30,10 @@ export function formulaToFile(input: string): string {
       const prefix = params.has(upper) ? "_xlpm." : FUTURE_FUNCTIONS[upper]
       out += prefix ? prefix + t.text : t.text
     } else if (t.kind === "name" && params.has(t.text.toUpperCase())) out += "_xlpm." + t.text
-    else out += t.text
+    else if (t.kind === "name" && FUNCTION_INFO.has(t.text.toUpperCase())) {
+      // A built-in function passed by name (=BYROW(A1:C3,SUM)): Excel marks it _xleta.
+      out += "_xleta." + t.text
+    } else out += t.text
   }
   return out
 }
