@@ -475,9 +475,13 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
   - ✅ Fixed: a workbook with Excel's Data Model (or any connection Excel stamped with xr16:uid) wouldn't open in
     Excel after Cells saved it (connections.xml lost its namespace declarations). The model (xl/model/item.data)
     and its relationships are kept as Excel wrote them. Checked in Excel 365.
-  - ⬜ Relationships, Manage Data Model, Move Chart. Excel trusts only its binary model (xl/model/item.data, an
-    Analysis Services backup): without it, it opens an empty model even when workbook.xml lists the tables and
-    relationships, and with it, it ignores the XML. So relationships made in Cells can't reach Excel.
+  - ✅ Data › Relationships and Manage Data Model show Excel's Data Model (read-only, the user's choice): Manage
+    Relationships lists them (New/Edit/Delete off); the Data Model window has a Diagram View (tables, their
+    columns, a line per relationship, keys marked) and a Data View (each table's rows from its workbook table).
+    Excel trusts only its binary model (xl/model/item.data, an Analysis Services backup): without it, it opens an
+    empty model even when workbook.xml lists the tables and relationships, and with it, it ignores the XML; so
+    Cells can't change the model, and keeps it as Excel wrote it. Also: disabled dialog buttons now look disabled.
+  - ⬜ Move Chart (with chart sheets, section 3).
 - ⬜ Then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).

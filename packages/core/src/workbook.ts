@@ -1,3 +1,4 @@
+import type { DataModel } from "./data-model"
 import type { WorkbookQuery } from "./power-query"
 import type { ExternalBook } from "./links"
 import { CalcEngine, cellOfKey, type CalcMode } from "./calc/engine"
@@ -122,6 +123,8 @@ export class Workbook<Meta = unknown> {
    * Workbook turns it off (and drops the history when saving), as Excel does; not undoable, like Excel's.
    */
   legacyShared = false
+  /** Excel's Data Model as read (shown, not changed: it stays in the file as Excel wrote it); null without one. */
+  dataModel: DataModel | null = null
   /** The VBA project's modules as read from an .xlsm or .xls (the project itself stays in the file as it was). */
   vba: VbaModule[] = []
   /** The PivotTables' caches (their data as last refreshed), shared by the sheets' PivotTables by id. */

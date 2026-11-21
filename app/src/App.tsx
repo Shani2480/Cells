@@ -165,6 +165,7 @@ import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
 import { MacrosDialog } from "@/shell/MacrosDialog"
 import { ExistingConnectionsDialog, FromWebDialog, NavigatorDialog } from "@/shell/GetDataDialogs"
 import { QueryEditorDialog } from "@/shell/QueryEditorDialog"
+import { DataModelDialog, RelationshipsDialog } from "@/shell/DataModelDialogs"
 import { SignatureSetupDialog } from "@/shell/SignatureSetupDialog"
 import { ObjectDialog } from "@/shell/ObjectDialog"
 import { ArrangeWindowsDialog, CompareSideBySideDialog, UnhideWindowDialog } from "@/shell/WindowDialogs"
@@ -225,6 +226,8 @@ type DialogState =
         | "queryNavigator"
         | "fromWeb"
         | "existingConnections"
+        | "relationships"
+        | "dataModel"
         | "arrangeWindows"
         | "object"
         | "unhideWindow"
@@ -1067,6 +1070,8 @@ function WorkbookWindow({
       kind === "queryNavigator" ||
       kind === "fromWeb" ||
       kind === "existingConnections" ||
+      kind === "relationships" ||
+      kind === "dataModel" ||
       kind === "arrangeWindows" ||
       kind === "object" ||
       kind === "unhideWindow" ||
@@ -1732,6 +1737,10 @@ function WorkbookWindow({
         {dialog?.kind === "queryEditor" ? <QueryEditorDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "queryNavigator" ? <NavigatorDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "fromWeb" ? <FromWebDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "relationships" ? (
+          <RelationshipsDialog controller={controller} onClose={closeDialog} onManage={() => openDialog("dataModel")} />
+        ) : null}
+        {dialog?.kind === "dataModel" ? <DataModelDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "existingConnections" ? (
           <ExistingConnectionsDialog controller={controller} onClose={closeDialog} />
         ) : null}

@@ -15,6 +15,10 @@ import {
   isChart,
   objectName,
   type Table,
+  sourceTable,
+  type DataModel,
+  type ModelRelationship,
+  type ModelTable,
 } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
@@ -33,7 +37,9 @@ import {
   REL_VML,
   REL_WORKSHEET,
 } from "./constants"
-import { at, kid, kids, parseTree, raw, type Kept, type XDoc } from "./dom"
+import { at, kid, kids, parseTree, raw, type Kept, type XDoc, type XNode } from "./dom"
+
+const DATA_MODEL_EXT = "{FCE2AD5D-F65C-4FA6-A056-5C36A1767C68}"
 import { readVmlSignatures } from "./vml"
 import { embedFrom, readOleObjects, REL_OLE_OBJECT, REL_PACKAGE, vmlAnchor, vmlImageRel } from "./ole-objects"
 import { pictureUrl, readDrawing, REL_DRAWING, REL_IMAGE, type DrawingSource } from "./drawing"
@@ -739,6 +745,7 @@ export async function openXlsx(
     names.push(def)
   }
   wb.names.replace(names)
+  wb.dataModel = readDataModel(root, connections)
 
   // Text links: each query table placed by its sheet-level name; Cells writes those three parts anew.
   const modelled = new Set<number>()
@@ -842,4 +849,40 @@ export async function openXlsx(
     },
     warnings: [...new Set(warnings)],
   }
+}
+
+const unescapeAttr = (v: string) =>
+  v.replace(/&(lt|gt|quot|apos|amp);/g, (_, e: string) => ({ lt: "<", gt: ">", quot: '"', apos: "'", amp: "&" })[e]!)
+
+/**
+ * Excel's Data Model as workbook.xml mirrors it (x15:dataModel): its tables, each traced through its worksheet
+ * connection's range name to the workbook table it loads, and the relationships. Null without a model.
+ */
+function readDataModel(root: XNode, connections: Map<number, { xml: string }>): DataModel | null {
+  const ext = kids(kid(root, "extLst"), "ext").find((e) => at(e, "uri")?.toUpperCase() === DATA_MODEL_EXT)
+  const model = kid(ext, "dataModel")
+  if (!model) return null
+  const names = new Map(kids(kid(root, "definedNames"), "definedName").map((n) => [at(n, "name") ?? "", n.text]))
+  const rangeName = new Map<string, string>()
+  for (const c of connections.values()) {
+    const name = /^<connection\b[^>]*\bname="([^"]*)"/.exec(c.xml)?.[1]
+    const source = /<x15:rangePr\b[^>]*\bsourceName="([^"]*)"/.exec(c.xml)?.[1]
+    if (name && source) rangeName.set(unescapeAttr(name), unescapeAttr(source))
+  }
+  const tables: ModelTable[] = kids(kid(model, "modelTables"), "modelTable").map((t) => {
+    const connection = at(t, "connection") ?? ""
+    const range = rangeName.get(connection)
+    return {
+      name: at(t, "name") ?? at(t, "id") ?? "",
+      connection,
+      source: range ? sourceTable(names.get(range)) : null,
+    }
+  })
+  const relationships: ModelRelationship[] = kids(kid(model, "modelRelationships"), "modelRelationship").map((r) => ({
+    fromTable: at(r, "fromTable") ?? "",
+    fromColumn: at(r, "fromColumn") ?? "",
+    toTable: at(r, "toTable") ?? "",
+    toColumn: at(r, "toColumn") ?? "",
+  }))
+  return { tables, relationships }
 }

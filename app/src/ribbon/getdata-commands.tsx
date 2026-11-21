@@ -110,5 +110,19 @@ export function getDataCommands(): Command[] {
       keytip: "X",
       run: (env) => env.dialog("existingConnections"),
     },
+    {
+      id: "AsppRelationships",
+      label: "Relationships",
+      description: "See how the tables in the Data Model are related, so a PivotTable can combine them.",
+      keytip: "RN",
+      run: (env) => env.dialog("relationships"),
+    },
+    {
+      id: "DataModelManage",
+      label: "Manage Data Model",
+      description: "See the Data Model's tables, their data, and a diagram of how they relate.",
+      keytip: "M",
+      run: (env) => env.dialog("dataModel"),
+    },
   ]
 }

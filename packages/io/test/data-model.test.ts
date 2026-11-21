@@ -30,3 +30,21 @@ describe("Data Model in xlsx", () => {
     expect(connections).toMatch(/mc:Ignorable="[^"]*xr16/)
   })
 })
+
+describe("Data Model, read", () => {
+  it("lists the model's tables with the workbook tables they load, and the relationships", async () => {
+    const { workbook } = await openXlsx(bytes, "data-model.xlsx")
+    expect(workbook.dataModel).toEqual({
+      tables: [
+        { name: "Orders", connection: "WorksheetConnection_Orders", source: "Orders" },
+        { name: "Products", connection: "WorksheetConnection_Products", source: "Products" },
+      ],
+      relationships: [{ fromTable: "Orders", fromColumn: "ProductID", toTable: "Products", toColumn: "ProductID" }],
+    })
+  })
+
+  it("has no model in a workbook without one", async () => {
+    const pq = new Uint8Array(readFileSync(new URL("./fixtures/excel/power-query.xlsx", import.meta.url)))
+    expect((await openXlsx(pq, "pq.xlsx")).workbook.dataModel).toBeNull()
+  })
+})
