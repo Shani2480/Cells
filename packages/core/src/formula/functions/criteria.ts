@@ -75,3 +75,14 @@ export function wildcardPattern(text: string): RegExp | null {
 function escape(ch: string) {
   return ch.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")
 }
+
+/** A criteria-range condition (Advanced Filter and the D* functions) from a criteria cell: plain text matches the start of the text ("Sm" is Sm*). */
+export function advancedCriterion(value: Scalar | undefined): ((v: Scalar) => boolean) | null {
+  if (value === undefined || value === "") return null
+  if (typeof value !== "string") return compileCriteria(value)
+  const m = /^(<=|>=|<>|<|>|=)?(.*)$/s.exec(value)!
+  if (m[1]) return compileCriteria(value)
+  // A number written as text matches the number; other text begins the cell's text.
+  if (textToNumber(value) !== null) return compileCriteria(value)
+  return compileCriteria(`${value.replace(/[*?~]$/, (c) => (c === "~" ? "~~" : c))}*`)
+}

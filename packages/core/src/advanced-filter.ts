@@ -1,9 +1,8 @@
 import type { Range } from "./address"
 import { shiftRange, ValueContext } from "./conditional"
 import { copyFormula } from "./formula/adjust"
-import { textToNumber } from "./formula/coerce"
 import { evaluateFormula } from "./formula/evaluate"
-import { compileCriteria } from "./formula/functions/criteria"
+import { advancedCriterion } from "./formula/functions/criteria"
 import { parseFormula } from "./formula/parser"
 import { isMatrix, isRef, type Scalar } from "./formula/types"
 import type { CellWrite } from "./ops"
@@ -46,16 +45,7 @@ export function shiftAdvancedFilter(
 const textOf = (v: CellValue | undefined): string =>
   v === undefined ? "" : typeof v === "object" ? v.error : String(v)
 
-/** An Advanced Filter condition from a criteria cell: plain text matches the start of the text ("Sm" is Sm*). */
-export function advancedCriterion(value: CellValue | undefined): ((v: Scalar) => boolean) | null {
-  if (value === undefined || value === "") return null
-  if (typeof value !== "string") return compileCriteria(value as Scalar)
-  const m = /^(<=|>=|<>|<|>|=)?(.*)$/s.exec(value)!
-  if (m[1]) return compileCriteria(value)
-  // A number written as text matches the number; other text begins the cell's text.
-  if (textToNumber(value) !== null) return compileCriteria(value)
-  return compileCriteria(`${value.replace(/[*?~]$/, (c) => (c === "~" ? "~~" : c))}*`)
-}
+export { advancedCriterion }
 
 type Condition = { col: number; test: (v: Scalar) => boolean } | { formula: string }
 

@@ -426,7 +426,9 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
   at-maturity securities, TBILL*, odd first and last periods (ODDF*, ODDL*), DB, DDB, VDB, AMORDEGRC, AMORLINC,
   CUMIPMT, CUMPRINC, DOLLARDE/FR, FVSCHEDULE, ISPMT, MIRR, PDURATION, RRI (`functions/bonds.ts`,
   `depreciation.ts`), with Excel's own day counts and fractional-period rules worked out from 1384 Excel cases.
-- ⬜ Wave 4: database (D* functions).
+- ✅ Wave 4: database (12): DSUM, DAVERAGE, DCOUNT, DCOUNTA, DGET, DMAX, DMIN, DPRODUCT, DSTDEV, DSTDEVP, DVAR,
+  DVARP with Advanced Filter's criteria ranges, computed criteria included (`functions/database.ts`); a Database
+  category in Insert Function. 262 Excel cases.
 - ⬜ Wave 5: LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY, ISOMITTED; GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE.
 - ⬜ Wave 6: text, information and matrix (REGEX*, ARRAYTOTEXT, VALUETOTEXT, ENCODEURL, CELL, INFO, MUNIT, MINVERSE,
   MDETERM, SERIESSUM, MULTINOMIAL, ACOT, COTH, CSCH, SECH, …).

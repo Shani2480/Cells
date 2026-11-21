@@ -34,7 +34,7 @@ export function median(ns: number[]): Scalar {
 }
 numbersFn("MEDIAN", median)
 
-function variance(ns: number[], sample: boolean): Scalar {
+export function variance(ns: number[], sample: boolean): Scalar {
   const n = ns.length
   if (n === 0 || (sample && n === 1)) return DIV0
   // Excel's own formula, Σx² − (Σx)²/n (checked bit for bit: STDEV(0.1,0.2,0.3) is 0.09999999999999994).
