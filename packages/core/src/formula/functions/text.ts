@@ -348,7 +348,7 @@ scalarFn("DOLLAR", 1, 2, (a) => {
   if (isError(d)) return d
   const digits = Math.max(0, d)
   return formatWithCode(
-    x,
+    d < 0 ? Math.sign(x) * Math.round(Math.abs(x) / 10 ** -d) * 10 ** -d : x,
     `$#,##0${digits ? "." + "0".repeat(digits) : ""};($#,##0${digits ? "." + "0".repeat(digits) : ""})`,
   ).text
 })

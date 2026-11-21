@@ -436,8 +436,12 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
 - ✅ Wave 5, part 2: GROUPBY, PIVOTBY, PERCENTOF, TRIMRANGE (`functions/groupby.ts`), built from Microsoft's
   documentation with our own tests (the Excel build used for checking doesn't have them); `_xleta.` for functions
   passed by name in xlsx.
-- ⬜ Wave 6: text, information and matrix (REGEX*, ARRAYTOTEXT, VALUETOTEXT, ENCODEURL, CELL, INFO, MUNIT, MINVERSE,
-  MDETERM, SERIESSUM, MULTINOMIAL, ACOT, COTH, CSCH, SECH, …).
+- ✅ Wave 6: text, information, matrix and web (39 functions): REGEXTEST/REGEXEXTRACT/REGEXREPLACE, ARRAYTOTEXT,
+  VALUETOTEXT, ENCODEURL, FILTERXML, BAHTTEXT, PHONETIC, ASC, DBCS, the *B text functions, USDOLLAR, CELL, INFO,
+  MUNIT, MDETERM, MINVERSE, SERIESSUM, MULTINOMIAL, ACOT, ACOTH, COTH, CSCH, SECH (`matrix.ts`, `text-more.ts`,
+  `cell-info.ts`, `filterxml.ts`); 203 Excel cases; a Web category in Insert Function and More Functions. DOLLAR with
+  negative decimals now rounds to tens/hundreds as Excel does.
+- ⏸ Not planned: WEBSERVICE and IMAGE (need the network during calculation), JIS (Japanese Excel only).
 - ⬜ The greyed-out ribbon buttons; then the thinner features above.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
@@ -452,6 +456,11 @@ actual/365) and are listed in `tests/excel-golden/known-differences.json`.
 GROUPBY/PIVOTBY: one function at a time (an HSTACK of functions isn't supported yet); field_relationship 1 drops
 subtotals but sorts as a hierarchy; generated headers ("Row Field 1", "Value") and an all-blank TRIMRANGE (#REF!)
 follow our reading of the documentation, not a check in Excel. Trim references (A1:.E10) aren't parsed yet.
+REGEX* use JavaScript regular expressions rather than Excel's PCRE2 (no inline (?i), possessive quantifiers or
+\K); FILTERXML covers XPath 1.0's paths, predicates and common functions, not namespaces. ASC, DBCS and the *B
+functions behave as in a language without double-byte characters (as Excel does there); PHONETIC gives #N/A, as no
+cell carries furigana. CELL("filename") and INFO("directory") are empty, CELL without a reference uses the formula's
+own cell (Excel: the last changed cell), INFO("recalc") always says Automatic.
 
 ---
 

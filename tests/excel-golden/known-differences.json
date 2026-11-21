@@ -12,5 +12,6 @@
   "=BYCOL({1,2;3,4},SUM)": "Eta-reduced lambdas: this Excel build (16.0.17932) predates passing a built-in function by name to MAP, REDUCE, BYROW and the like (#NAME?); current Excel 365 accepts it, as Cells does, and GROUPBY/PIVOTBY need it.",
   "=MAP(A1:A3,ABS)": "Eta-reduced lambdas: this Excel build (16.0.17932) predates passing a built-in function by name to MAP, REDUCE, BYROW and the like (#NAME?); current Excel 365 accepts it, as Cells does, and GROUPBY/PIVOTBY need it.",
   "=REDUCE(0,{1,2,3},SUM)": "Eta-reduced lambdas: this Excel build (16.0.17932) predates passing a built-in function by name to MAP, REDUCE, BYROW and the like (#NAME?); current Excel 365 accepts it, as Cells does, and GROUPBY/PIVOTBY need it.",
-  "=ISERROR(LAMBDA(x,x))": "A LAMBDA given to ISERROR: Excel treats the function as a value that is no error (FALSE); Cells' scalar arguments see an uncalled LAMBDA as #VALUE! (TRUE)."
+  "=ISERROR(LAMBDA(x,x))": "A LAMBDA given to ISERROR: Excel treats the function as a value that is no error (FALSE); Cells' scalar arguments see an uncalled LAMBDA as #VALUE! (TRUE).",
+  "=CELL(\"width\",A1)": "The Excel run sets every column to 40 characters wide (and makes that the standard width); our fixture keeps the default width, so we give {8,TRUE}."
 }

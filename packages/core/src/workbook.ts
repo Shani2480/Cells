@@ -6,7 +6,7 @@ import type { PivotCache } from "./pivot/model"
 import { applyOp, type Change, type Op } from "./ops"
 import type { CellValue } from "./values"
 import { Sheet } from "./sheet"
-import { StyleTable } from "./styles"
+import { StyleTable, type CellStyle } from "./styles"
 import { NameTable, type SheetList } from "./names"
 import type { WorkbookProtection } from "./protection"
 import type { Node } from "./formula/ast"
@@ -152,6 +152,11 @@ export class Workbook<Meta = unknown> {
     this.undoLimit = undoLimit
     this.calc = new CalcEngine(this)
     this.calculator = new LocalCalculator(this.calc)
+  }
+  /** A cell's format as the calculation engine sees it (CELL("format"), CELL("protect")…). */
+  cellStyle(sheet: number, row: number, col: number): CellStyle {
+    const s = this.sheets[sheet]
+    return s ? this.styles.get(s.styleAt(row, col)) : {}
   }
 
   /** The engine's hook: a defined name's formula, parsed. */

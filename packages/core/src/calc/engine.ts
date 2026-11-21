@@ -1,3 +1,4 @@
+import type { CellStyle } from "../styles"
 import { MAX_COLS, MAX_ROWS, type Range } from "../address"
 import type { Sheet } from "../sheet"
 import { errorValue, isError, type CellValue } from "../values"
@@ -74,6 +75,8 @@ export interface CalcHost {
   readonly links?: { list: ExternalBook[] }
   /** The PivotTables' caches (GETPIVOTDATA reads PivotTables). */
   readonly pivotCaches?: readonly PivotCache[]
+  /** A cell's format (for CELL). */
+  cellStyle?(sheet: number, row: number, col: number): CellStyle
 }
 
 /**
@@ -114,6 +117,16 @@ export class CalcEngine {
   tableList: { sheet: number; table: Table }[] = []
 
   /** The PivotTable whose cells (its report filters too) hold a cell, with its cache. */
+  cellInfo(sheet: number, row: number, col: number) {
+    const s = this.host.sheets[sheet]
+    return {
+      style: this.host.cellStyle?.(sheet, row, col) ?? {},
+      width: s ? s.cols.storedSize(col) : 64,
+      hidden: s ? s.cols.isHidden(col) : false,
+      custom: s ? s.cols.hasCustomSize(col) : false,
+    }
+  }
+
   pivotAt(sheet: number, row: number, col: number): { table: PivotTable; cache: PivotCache } | null {
     for (const table of this.host.sheets[sheet]?.pivots ?? []) {
       const cache = this.host.pivotCaches?.find((c) => c.id === table.cacheId)
@@ -1166,6 +1179,9 @@ class WhatIfContext implements EvalContext {
   pivotAt(sheet: number, row: number, col: number) {
     return this.base.pivotAt(sheet, row, col)
   }
+  cellInfo(sheet: number, row: number, col: number) {
+    return this.base.cellInfo(sheet, row, col)
+  }
 }
 
 const toScalar = (v: CellValue | undefined): Scalar => (v === undefined ? null : v)
@@ -1201,6 +1217,10 @@ class FormulaContext implements EvalContext {
 
   pivotAt(sheet: number, row: number, col: number) {
     return this.engine.pivotAt(sheet, row, col)
+  }
+
+  cellInfo(sheet: number, row: number, col: number) {
+    return this.engine.cellInfo(sheet, row, col)
   }
 
   cell(sheet: number, row: number, col: number): Scalar {

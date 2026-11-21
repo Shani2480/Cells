@@ -84,13 +84,21 @@ export function formulaCommands(): Command[] {
     {
       id: "FunctionsMoreInsertGallery",
       label: "More Functions",
-      description: "Browse and select from lists of statistical, engineering, information and compatibility functions.",
-      menu: ["FunctionsStatistical", "FunctionsEngineering", "FunctionsInformation", "FunctionsCompatibility"],
+      description:
+        "Browse and select from lists of statistical, engineering, information, compatibility and web functions.",
+      menu: [
+        "FunctionsStatistical",
+        "FunctionsEngineering",
+        "FunctionsInformation",
+        "FunctionsCompatibility",
+        "FunctionsWeb",
+      ],
     },
     library("FunctionsStatistical", "Statistical", "Statistical functions.", "Statistical"),
     library("FunctionsEngineering", "Engineering", "Engineering functions.", "Engineering"),
     library("FunctionsInformation", "Information", "Information functions.", "Information"),
     library("FunctionsCompatibility", "Compatibility", "Functions kept for older workbooks.", "Compatibility"),
+    library("FunctionsWeb", "Web", "Functions for web addresses and XML.", "Web"),
     {
       id: "NameDefineMenu",
       label: "Define Name",

@@ -111,6 +111,15 @@
         "YIELD",
         "ODDFYIELD"
       ]
+    },
+    {
+      "relative": 3e-15,
+      "why": "MULTINOMIAL: Excel works through logarithms of factorials (=MULTINOMIAL(1,2,3) is 59.99999999999993 there); ours multiplies exactly and gives 60. MDETERM and MINVERSE take elimination steps in a different order.",
+      "functions": [
+        "MULTINOMIAL",
+        "MDETERM",
+        "MINVERSE"
+      ]
     }
   ]
 }

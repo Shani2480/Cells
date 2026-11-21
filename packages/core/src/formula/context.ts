@@ -1,3 +1,4 @@
+import type { CellStyle } from "../styles"
 import type { Node } from "./ast"
 import type { Area, Scalar, Value } from "./types"
 import type { Table } from "../table/table"
@@ -42,6 +43,12 @@ export interface EvalContext {
   tables?(): readonly { sheet: number; table: Table }[]
   /** The PivotTable whose cells (its report filters too) hold a cell, for GETPIVOTDATA. */
   pivotAt?(sheet: number, row: number, col: number): { table: PivotTable; cache: PivotCache } | null
+  /** A cell's format and its column's width in pixels, for CELL. */
+  cellInfo?(
+    sheet: number,
+    row: number,
+    col: number,
+  ): { style: CellStyle; width: number; hidden: boolean; custom: boolean }
   /** Names bound by LET (and LAMBDA parameters). */
   bound?: Map<string, Value>
 }
