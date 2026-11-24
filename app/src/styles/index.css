@@ -4179,6 +4179,33 @@ html.is-phone .pivot-chip-button {
   padding-left: 22px;
 }
 
+/* PivotTable Options' six tabs stay on one line each. */
+.fc-tabs:has(+ .pivot-settings-page) .fc-tab {
+  white-space: nowrap;
+  padding-inline: 8px;
+}
+.pivot-options-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.pivot-options-line select {
+  flex: 1;
+}
+.pivot-options-num {
+  width: 64px;
+}
+.pivot-alt-text {
+  display: grid;
+  gap: 4px;
+}
+.pivot-alt-text textarea {
+  height: 96px;
+  padding-block: 4px;
+  resize: vertical;
+  font: inherit;
+}
 .pivot-settings-row {
   display: grid;
   align-items: center;

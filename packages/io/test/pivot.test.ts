@@ -9,6 +9,7 @@ import {
   newPivotField,
   pivotCellLook,
   pivotLayout,
+  pivotOptions,
   pivotStyleDef,
   PIVOT_STYLE_GROUPS,
   rangeGroupItems,
@@ -125,6 +126,84 @@ describe("PivotTables in xlsx", () => {
       ["Per Cost", "Amount/'Unit Cost'"],
     ])
     expect(wb.pivotCaches[0].records[0]).toHaveLength(7)
+  })
+
+  it("reads PivotTable Options as Excel 365 saved them, shows its cells and merges, writes them back (pivot-options.xlsx)", async () => {
+    const read = await openXlsx(fixture("pivot-options.xlsx"), "pivot-options.xlsx")
+    const wb = read.workbook
+    expect(expectCellsAsExcel(wb)).toBe(2)
+    const merged = wb.sheets.find((s) => s.name === "Merged")!
+    const indented = wb.sheets.find((s) => s.name === "Indented")!
+    const [m] = merged.pivots
+    const [i] = indented.pivots
+    expect(m).toMatchObject({
+      mergeLabels: true,
+      fieldPrintTitles: true,
+      altText: "Sales by region",
+      altTextSummary: "Each product's total, by kind & year.",
+    })
+    expect(m.indent).toBeUndefined()
+    expect(m.multipleFieldFilters).toBeUndefined()
+    expect(i).toMatchObject({
+      indent: 3,
+      pageOverThenDown: true,
+      pageWrap: 2,
+      multipleFieldFilters: true,
+      customListSort: false,
+      fieldListSortAscending: true,
+    })
+    // Excel's merged label cells are the layout's, and its compact labels carry the indent.
+    const key = (r: { r0: number; c0: number; r1: number; c1: number }) => `${r.r0},${r.c0},${r.r1},${r.c1}`
+    const layout = pivotLayout(m, cacheOf(wb, m))
+    expect(merged.merges.all.map(key).sort()).toEqual(layout.merges.map(key).sort())
+    expect(layout.merges.length).toBeGreaterThan(4)
+    const clips = pivotLayout(i, cacheOf(wb, i)).cells.find((c) => c.value === "Clips")!
+    expect(wb.styles.get(indented.cells.style(clips.row, clips.col)).indent).toBe(clips.indent)
+    expect(clips.indent).toBe(3)
+    // Written anew, the definitions say what Excel's did.
+    for (const sheet of wb.sheets)
+      sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    const saved = await saveXlsx(wb, { source: read.source })
+    const tables = [...(await parts(saved))].filter(([n]) => /pivotTable\d+\.xml$/.test(n)).map(([, x]) => x)
+    const of = (name: string) => tables.find((x) => x.includes(`name="${name}"`))!
+    for (const attr of [
+      'pageWrap="2"',
+      'pageOverThenDown="1"',
+      'indent="2"',
+      'fieldListSortAscending="1"',
+      'customListSort="0"',
+    ])
+      expect(of("Indented")).toContain(attr)
+    expect(of("Indented")).not.toContain("multipleFieldFilters")
+    expect(of("Indented")).toContain('rowPageCount="2" colPageCount="2"')
+    for (const attr of ['mergeItem="1"', 'fieldPrintTitles="1"', 'indent="0"', 'multipleFieldFilters="0"'])
+      expect(of("Merged")).toContain(attr)
+    expect(of("Merged")).toContain(
+      `altText="Sales by region" altTextSummary="Each product's total, by kind &amp; year."`,
+    )
+    const again = (await openXlsx(saved, "again.xlsx")).workbook
+    expect(again.sheets.map((s) => s.pivots.map((t) => pivotOptions(t, cacheOf(again, t))))).toEqual(
+      wb.sheets.map((s) => s.pivots.map((t) => pivotOptions(t, cacheOf(wb, t)))),
+    )
+  })
+
+  it("reads a PivotTable saved without its source data, and saves it without again (pivot-nodata.xlsx)", async () => {
+    const read = await openXlsx(fixture("pivot-nodata.xlsx"), "pivot-nodata.xlsx")
+    const wb = read.workbook
+    const cache = wb.pivotCaches[0]
+    expect(cache).toMatchObject({ saveData: false, missingItemsLimit: 0, records: [] })
+    expect(wb.sheets[0].pivots[0]).toMatchObject({
+      mergeLabels: true,
+      printDrill: true,
+      showDataTips: false,
+    })
+    wb.pivotCaches = [{ ...cache, refreshOnLoad: true }]
+    const files = await parts(await saveXlsx(wb, { source: read.source }))
+    expect([...files.keys()].some((n) => /pivotCacheRecords/.test(n))).toBe(false)
+    const def = [...files].find(([n]) => /pivotCacheDefinition\d+\.xml$/.test(n))![1]
+    expect(def).toContain('saveData="0"')
+    expect(def).toContain('missingItemsLimit="0"')
+    expect(def).not.toContain("r:id=")
   })
 
   it("reads calculated items, and the engine shows Excel's cells; writes them back (pivot-calcitems.xlsx)", async () => {

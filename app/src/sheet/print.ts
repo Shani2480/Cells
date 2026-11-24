@@ -6,6 +6,7 @@ import {
   MARGIN_PRESETS,
   pageBreaks,
   paginate,
+  pivotLayout,
   type PageMargins,
   type PageSetup,
   type Pagination,
@@ -151,7 +152,31 @@ export class PrintCommands {
     // Printed headings: the row numbers' column fits the last row number printed (pt).
     const used = setup.printArea?.at(-1)?.r1 ?? sheet.cells.usedBounds()?.r1 ?? 0
     const headings = { width: Math.max(20, String(used + 1).length * 6 + 9), height: 15 }
-    return paginate(sheet, setup, { defaultPaper: this.defaultPaper, headings, ...options })
+    return paginate(sheet, this.withPivotTitles(sheet, setup), {
+      defaultPaper: this.defaultPaper,
+      headings,
+      ...options,
+    })
+  }
+
+  /**
+   * PivotTable Options › Printing › Set print titles: with no print titles of its own, the sheet prints a PivotTable's
+   * header rows and row label columns on every page (the first such PivotTable's, as Excel).
+   */
+  private withPivotTitles(sheet: Sheet, setup: PageSetup): PageSetup {
+    if (setup.titleRows || setup.titleCols) return setup
+    for (const table of sheet.pivots) {
+      const cache = this.c.wb.pivotCaches.find((x) => x.id === table.cacheId)
+      if (!table.fieldPrintTitles || !cache) continue
+      const layout = pivotLayout(table, cache)
+      const { r0, c0 } = layout.range
+      return {
+        ...setup,
+        titleRows: layout.firstDataRow > 0 ? [r0, r0 + layout.firstDataRow - 1] : null,
+        titleCols: layout.firstDataCol > 0 ? [c0, c0 + layout.firstDataCol - 1] : null,
+      }
+    }
+    return setup
   }
 
   // ── Page Layout › Page Setup ──

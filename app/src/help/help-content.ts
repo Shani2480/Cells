@@ -69,6 +69,11 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     where: "PivotTable Analyze › Calculations › Fields, Items, & Sets",
     keywords: "pivottable calculated item formula items solve order list formulas difference east west",
   },
+  "pivot-options-layout": {
+    where: "PivotTable Analyze › PivotTable › Options",
+    keywords:
+      "pivottable options merge center labels indent compact report filter area over then down fields per column preserve formatting multiple filters custom lists classic layout field list sort print titles save source data retain items alt text title description",
+  },
   "pivot-sort-by-value": {
     where: "Right-click a PivotTable value › Sort, or a field's dropdown › More Sort Options",
     keywords: "pivottable sort value largest smallest more sort options manual order grand total",

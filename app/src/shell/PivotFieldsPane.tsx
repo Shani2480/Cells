@@ -10,6 +10,7 @@ import {
   type PivotArea,
   type PivotCache,
   type PivotTable,
+  compareSortText,
 } from "@cells/core"
 import { ChevronDown, Columns3, Filter, Rows3, Sigma, Sparkles, X } from "lucide-react"
 import { useState, type CSSProperties, type DragEvent, type ReactNode } from "react"
@@ -120,6 +121,9 @@ export function PivotFieldsPane({
   const fields = cache.fields
     .map((_, f) => f)
     .filter((f) => !query || pivotFieldName(table, cache, f).toLowerCase().includes(query))
+  // PivotTable Options › Display › Field List: Sort A to Z (else in data source order).
+  if (table.fieldListSortAscending)
+    fields.sort((a, b) => compareSortText(pivotFieldName(table, cache, a), pivotFieldName(table, cache, b)))
 
   let drag: Drag | null = null
   const startDrag = (e: DragEvent, d: Drag) => {

@@ -498,12 +498,16 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     const def = was?.partName ?? freeName((n) => `/xl/pivotCache/pivotCacheDefinition${n}.xml`)
     taken.add(partKey(def))
     if (!same) {
-      const records = was?.recordsPart ?? freeName((n) => `/xl/pivotCache/pivotCacheRecords${n}.xml`)
-      taken.add(partKey(records))
       relGroups.set(partKey(def), [])
-      const recordsRel = addRel(def, REL_PIVOT_RECORDS, records)
-      put(def, CT_PIVOT_CACHE, pivotCacheXml(out, recordsRel, numFmt))
-      put(records, CT_PIVOT_RECORDS, pivotRecordsXml(out))
+      // Save source data with file off: the definition alone, no records part.
+      if (out.saveData === false) put(def, CT_PIVOT_CACHE, pivotCacheXml(out, "", numFmt))
+      else {
+        const records = was?.recordsPart ?? freeName((n) => `/xl/pivotCache/pivotCacheRecords${n}.xml`)
+        taken.add(partKey(records))
+        const recordsRel = addRel(def, REL_PIVOT_RECORDS, records)
+        put(def, CT_PIVOT_CACHE, pivotCacheXml(out, recordsRel, numFmt))
+        put(records, CT_PIVOT_RECORDS, pivotRecordsXml(out))
+      }
       cacheWritten.set(cache.id, out)
     }
     cachePart.set(cache.id, def)

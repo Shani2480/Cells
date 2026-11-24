@@ -1,5 +1,6 @@
 import { CALC_ITEM_FNS, calcItemValue } from "./calc-items"
 import type { Range } from "../address"
+import { customListPlace } from "../fill"
 import { wildcardRegExp } from "../filter"
 import { errorValue, type CellError, type CellValue } from "../values"
 import {
@@ -16,6 +17,7 @@ import {
 import { showAsNumFmt, showValueAs, type ShowAsContext } from "./show-as"
 import { calcFieldInputs, calcFieldValue } from "./calculated"
 import { fieldShared, recordXs } from "./group"
+import { pivotPageGrid } from "./sheet"
 
 /**
  * The PivotTable engine: the cells a PivotTable shows, worked out from its cache and settings the way Excel lays them
@@ -82,6 +84,8 @@ export type PivotLayout = {
   cells: PivotCell[]
   rowItems: PivotAxisItem[]
   colItems: PivotAxisItem[]
+  /** Merge and center cells with labels: the label cells merged (none when the option is off). */
+  merges: Range[]
 }
 
 /** A line of an axis while it is worked out. */
@@ -247,7 +251,15 @@ function fieldItems(table: PivotTable, cache: PivotCache, f: number): FieldItems
       const vb = names[b] ?? values[b]
       // Blanks stay last either way.
       const blanks = Number(rank(va) === 4) - Number(rank(vb) === 4)
-      return blanks || sign * comparePivotValues(va, vb)
+      if (blanks) return blanks
+      // Use Custom Lists when sorting: days and months go first, in the lists' order (Jan before Feb), as Excel 365.
+      if (table.customListSort !== false) {
+        const pa = typeof va === "string" ? customListPlace(va) : null
+        const pb = typeof vb === "string" ? customListPlace(vb) : null
+        if (pa && pb) return sign * (pa.list - pb.list || pa.index - pb.index)
+        if (pa || pb) return sign * (pa ? -1 : 1)
+      }
+      return sign * comparePivotValues(va, vb)
     })
   }
   const calc = new Map<number, number>()
@@ -566,6 +578,26 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   const cells: PivotCell[] = []
   const put = (row: number, col: number, role: PivotCellRole, value?: CellValue, extra?: Partial<PivotCell>) =>
     cells.push({ row: top + row, col: left + col, role, ...(value !== undefined ? { value } : {}), ...extra })
+  // Merge and center cells with labels: from a label's cell (relative) to the last cell it covers.
+  const merges: Range[] = []
+  const merge = (r0: number, c0: number, r1: number, c1: number) => {
+    if (table.mergeLabels && (r1 > r0 || c1 > c0))
+      merges.push({ r0: top + r0, c0: left + c0, r1: top + r1, c1: left + c1 })
+  }
+  /** The last of `lines` from `i` on inside the item at level `j` of line `i` (its inner items' lines and totals). */
+  const groupEnd = (lines: Line[], i: number, j: number) => {
+    const path = lines[i].path
+    let end = i
+    while (
+      end + 1 < lines.length &&
+      lines[end + 1].t !== "grand" &&
+      lines[end + 1].t !== "blank" &&
+      lines[end + 1].path.length > j + 1 &&
+      path.slice(0, j + 1).every((p, k) => lines[end + 1].path[k] === p)
+    )
+      end++
+    return end
+  }
   const dataName = (i: number) => table.values[i]?.name ?? ""
   const label = (f: number, pos: number): CellValue =>
     f === VALUES_FIELD ? dataName(pos) : itemLabel(items.get(f)!, pos)
@@ -624,9 +656,13 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   colLines.forEach((line, ci) => {
     const col = labelCols + ci
     if (!n) return
-    if (line.t === "grand") return put(colLevelRow(0), col, "grandLabel", grandLabel(line, dataInCols))
+    if (line.t === "grand") {
+      merge(colLevelRow(0), col, headerRow, col)
+      return put(colLevelRow(0), col, "grandLabel", grandLabel(line, dataInCols))
+    }
     if (line.t !== "data") {
       const level = line.path.length - 1
+      merge(colLevelRow(level), col, headerRow, col)
       return put(
         colLevelRow(level),
         col,
@@ -641,12 +677,14 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     line.path.forEach((pos, j) => {
       const same =
         prev !== undefined && prev.path.length > j && prev.path.slice(0, j + 1).every((p, k) => p === line.path[k])
-      if (!same) put(colLevelRow(j), col, "colItem", label(colFields[j], pos), itemOf("col", colFields, j, pos, true))
+      if (same) return
+      merge(colLevelRow(j), col, colLevelRow(j), labelCols + groupEnd(colLines, ci, j))
+      put(colLevelRow(j), col, "colItem", label(colFields[j], pos), itemOf("col", colFields, j, pos, true))
     })
   })
 
   // ── Rows ──
-  const indentOf = (j: number) => labelCol.slice(0, j).filter((c) => c === labelCol[j]).length
+  const indentOf = (j: number) => labelCol.slice(0, j).filter((c) => c === labelCol[j]).length * (table.indent ?? 1)
   const statsFor = makeStats(table, cache, items, filtered.both)
   const realRowFields = rowFields.filter((f) => f !== VALUES_FIELD)
   const realColFields = colFields.filter((f) => f !== VALUES_FIELD)
@@ -669,9 +707,12 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   rowLines.forEach((line, ri) => {
     const row = headerRows + ri
     if (line.t === "blank") return
-    if (line.t === "grand") put(row, 0, "grandLabel", grandLabel(line, dataInRows))
-    else if (line.t !== "data") {
+    if (line.t === "grand") {
+      merge(row, 0, row, labelCols - 1)
+      put(row, 0, "grandLabel", grandLabel(line, dataInRows))
+    } else if (line.t !== "data") {
       const level = line.path.length - 1
+      merge(row, labelCol[level], row, labelCols - 1)
       put(
         row,
         labelCol[level],
@@ -691,11 +732,14 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
         const show =
           j === own ||
           (labelCol[j] !== labelCol[own] && ((field && !field.outline && started) || (field?.repeatLabels ?? false)))
-        if (show)
-          put(row, labelCol[j], "rowItem", label(rowFields[j], pos), {
-            ...(indentOf(j) ? { indent: indentOf(j) } : {}),
-            ...itemOf("row", rowFields, j, pos, started || j === own),
-          })
+        if (!show) return
+        // Merged, a tabular outer item's label covers its inner items' lines down to its total.
+        if (j < own && started && !field?.repeatLabels)
+          merge(row, labelCol[j], headerRows + groupEnd(rowLines, ri, j), labelCol[j])
+        put(row, labelCol[j], "rowItem", label(rowFields[j], pos), {
+          ...(indentOf(j) ? { indent: indentOf(j) } : {}),
+          ...itemOf("row", rowFields, j, pos, started || j === own),
+        })
       })
     }
     // The values of the line.
@@ -726,26 +770,30 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
 
   // ── Report filters, above the table with a blank row between ──
   const pageCount = table.pages.length
+  const grid = pivotPageGrid(table)
   table.pages.forEach((page, i) => {
-    const row = -(pageCount + 1) + i
+    const spot = grid.at(i)
+    const row = -(grid.rows + 1) + spot.row
+    const col = spot.col * 3
     const fi = items.get(page.field)
-    put(row, 0, "pageLabel", pivotFieldName(table, cache, page.field))
+    put(row, col, "pageLabel", pivotFieldName(table, cache, page.field))
     let shown: CellValue = "(All)"
     if (fi && page.item !== null) shown = itemLabel(fi, page.item)
     else if (fi && fi.hidden.size) {
       const visible = fi.order
       shown = visible.length === 1 ? itemLabel(fi, visible[0]) : "(Multiple Items)"
     }
-    put(row, 1, "pageValue", shown)
+    put(row, col + 1, "pageValue", shown)
   })
 
+  const pagesRange = { r0: top - grid.rows - 1, c0: left, r1: top - 2, c1: left + grid.cols * 3 - 2 }
   const width = labelCols + colLines.length
   const height = headerRows + rowLines.length
   if (!rowFields.length && !colFields.length && !table.values.length)
     // An empty PivotTable: Excel keeps 18 rows by 3 columns for its placeholder, and only report filters show.
     return {
       range: { r0: top, c0: left, r1: top + EMPTY_PIVOT.rows - 1, c1: left + EMPTY_PIVOT.cols - 1 },
-      pages: pageCount ? { r0: top - pageCount - 1, c0: left, r1: top - 2, c1: left + 1 } : null,
+      pages: pageCount ? pagesRange : null,
       firstHeaderRow: 1,
       firstDataRow: 1,
       firstDataCol: 0,
@@ -753,10 +801,11 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
       cells: cells.filter((c) => c.role === "pageLabel" || c.role === "pageValue"),
       rowItems: [],
       colItems: [],
+      merges: [],
     }
   return {
     range: { r0: top, c0: left, r1: top + height - 1, c1: left + Math.max(width, 1) - 1 },
-    pages: pageCount ? { r0: top - pageCount - 1, c0: left, r1: top - 2, c1: left + 1 } : null,
+    pages: pageCount ? pagesRange : null,
     firstHeaderRow: valuesRowHidden ? 0 : 1,
     firstDataRow: headerRows,
     firstDataCol: labelCols,
@@ -764,6 +813,7 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
     cells,
     rowItems: axisItems(rowLines, dataInRows),
     colItems: axisItems(colLines, dataInCols),
+    merges,
   }
 }
 

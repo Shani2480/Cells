@@ -1,4 +1,4 @@
-import { wildcardRegExp, type PivotChoices, type PivotFilterTarget } from "@cells/core"
+import { pivotFilterGroup, wildcardRegExp, type PivotChoices, type PivotFilterTarget } from "@cells/core"
 import { ArrowDownAZ, ArrowUpAZ, Check, ChevronRight, FunnelX, Search } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
@@ -119,19 +119,19 @@ export function PivotFilterMenu({
     onClose()
     controller.shell.pivotFilterDialog?.({ kind, row, col, field, op, sheet })
   }
-  const current = choices.filter
   /** A label filter belongs to Label Filters; a value filter and Top 10 to Value Filters. */
-  const isOf = (kind: "label" | "value") => Boolean(current) && (current!.kind === "label") === (kind === "label")
+  const filterOf = (kind: "label" | "value") => choices.filters.find((x) => pivotFilterGroup(x) === kind)
   const subItems = (kind: "label" | "value"): SubItem[] => {
     const out: SubItem[] = []
-    if (isOf(kind))
+    const current = filterOf(kind)
+    if (current)
       out.push(
         {
           kind: "item",
           label: "Clear Filter",
           run: () => {
             onClose()
-            pivots.setFilter(row, col, field, null)
+            pivots.setFilter(row, col, field, null, kind)
           },
         },
         { kind: "separator" },
@@ -169,7 +169,7 @@ export function PivotFilterMenu({
       }}
       onClick={() => setSubmenu(id)}
     >
-      <span className="fm-row-icon">{isOf(id) ? <Check size={14} /> : null}</span>
+      <span className="fm-row-icon">{filterOf(id) ? <Check size={14} /> : null}</span>
       <span>{label}</span>
       <ChevronRight className="fm-row-more" size={14} strokeWidth={1.6} />
     </button>

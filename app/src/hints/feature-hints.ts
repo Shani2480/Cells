@@ -129,6 +129,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Fields, Items, & Sets › Calculated Item adds an item worked out from the field's other items, such as =East-West, in every cell and total. Solve Order decides which one counts where two meet, and List Formulas lists them on a sheet.",
     target: "Fields, Items, & Sets",
   },
+  {
+    id: "pivot-options-layout",
+    title: "New: More PivotTable Options",
+    text: "PivotTable Options can now merge and center the labels, set the compact indent, lay the report filters out across, sort days and months in calendar order, allow two filters on a field, set print titles and give the PivotTable Alt Text.",
+    target: "Options",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

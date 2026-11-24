@@ -1,6 +1,7 @@
 import { fieldShared } from "./group"
 import type { CellValue } from "../values"
 import { comparePivotValues, pivotFieldName, type PivotCell } from "./engine"
+import { pivotPageGrid } from "./sheet"
 import {
   VALUES_FIELD,
   type PivotCache,
@@ -49,9 +50,12 @@ export function pivotFilterTarget(
   return null
 }
 
-/** The report filter a page value cell belongs to (they are laid out top down, in the order of `pages`). */
+/** The report filter a page value cell belongs to (laid out in the order of `pages`, as pivotPageGrid places them). */
 function pageIndexOf(table: PivotTable, cell: PivotCell): number {
-  return cell.row - (table.at.row - table.pages.length - 1)
+  const grid = pivotPageGrid(table)
+  const row = cell.row - (table.at.row - grid.rows - 1)
+  const col = Math.floor((cell.col - table.at.col) / 3)
+  return table.pages.findIndex((_, i) => grid.at(i).row === row && grid.at(i).col === col)
 }
 
 /** One item in a dropdown's list. */
@@ -74,6 +78,8 @@ export type PivotChoices = {
   multipleItems: boolean
   /** The field's Label Filter, Value Filter or Top 10, if any. */
   filter: PivotFilter | null
+  /** Every Label Filter, Value Filter or Top 10 on the field (two with Allow multiple filters per field). */
+  filters: PivotFilter[]
   /** Some item is unticked, a filter is set, or a report filter has a pick: the button shows a funnel. */
   filtered: boolean
 }
@@ -143,6 +149,7 @@ export function pivotChoices(
     picked,
     multipleItems: field.multipleItems,
     filter: fieldFilter(table, f),
+    filters: (table.filters ?? []).filter((x) => x.field === f && x.kind !== "date"),
     filtered: picked !== null || items.some((i) => i.hidden) || fieldFilter(table, f) !== null,
   }
 }
@@ -289,13 +296,28 @@ export type PivotFilterSpec = PivotFilter extends infer F
     : never
   : never
 
+/** The submenu a filter belongs to: Label Filters, or Value Filters (value filters and Top 10). */
+export const pivotFilterGroup = (filter: { kind: PivotFilter["kind"] }): "label" | "value" =>
+  filter.kind === "label" ? "label" : "value"
+
 /**
  * The table with field `f`'s filter set to `spec` (null: removed, the submenus' Clear Filter). A new filter replaces
- * the field's old one, as Excel's does while "Allow multiple filters per field" is off; ticked items stay as they are.
+ * the field's old one, as Excel's does while "Allow multiple filters per field" is off; with it on, only the one of
+ * its submenu (`group`: the submenu cleared). Ticked items stay as they are.
  */
-export function withFieldFilter(table: PivotTable, f: number, spec: PivotFilterSpec | null): PivotTable {
+export function withFieldFilter(
+  table: PivotTable,
+  f: number,
+  spec: PivotFilterSpec | null,
+  group?: "label" | "value",
+): PivotTable {
   const old = table.filters ?? []
-  const others = old.filter((x) => x.field !== f)
+  const of = spec ? pivotFilterGroup(spec) : group
+  const others = old.filter(
+    (x) =>
+      x.field !== f ||
+      (table.multipleFieldFilters && of !== undefined && x.kind !== "date" && pivotFilterGroup(x) !== of),
+  )
   if (!spec && others.length === old.length) return table
   const filters = [...others]
   if (spec) {

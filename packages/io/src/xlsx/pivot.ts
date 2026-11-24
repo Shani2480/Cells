@@ -5,6 +5,7 @@ import {
   inRecords,
   parseRange,
   pivotLayout,
+  pivotPageGrid,
   rangeName,
   SHOW_AS_BASE_FIELD,
   SHOW_AS_BASE_ITEM,
@@ -141,6 +142,9 @@ export function readPivotCache(
   }
   const records = recordsXml ? readRecords(recordsXml, fields) : []
   const cache: PivotCache = { id, source, fields, records, refreshOnLoad: truthy(at(root, "refreshOnLoad"), false) }
+  if (!truthy(at(root, "saveData"), true)) cache.saveData = false
+  const limit = Number(at(root, "missingItemsLimit") ?? NaN)
+  if (Number.isInteger(limit) && limit >= 0) cache.missingItemsLimit = limit
   // Calculated items, in solve order: a formula and the one shared item it makes (Excel's only shape).
   const calcNodes = kids(kid(root, "calculatedItems"), "calculatedItem")
   if (calcNodes.length) {
@@ -453,6 +457,7 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
     ...(truthy(at(root, "useAutoFormatting"), false) ? {} : { autoFit: false as const }),
     ...(filters.length ? { filters } : {}),
     ...(hideValuesRow(root) ? { hideValuesRow: true as const } : {}),
+    ...readTableOptions(root),
     style: {
       name: at(style, "name") ?? null,
       rowHeaders: truthy(at(style, "showRowHeaders"), false),
@@ -465,6 +470,41 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
 }
 
 const X14_TABLE = "{962EF5D1-5CA2-4c93-8EF4-DBF5C05439D2}"
+
+/**
+ * PivotTable Options the definition keeps, as the model does: only those apart from Excel's default for a new
+ * PivotTable (the file's defaults differ for some: indent, multipleFieldFilters, itemPrintTitles).
+ */
+function readTableOptions(root: XNode): Partial<PivotTable> {
+  const out: Partial<PivotTable> = {}
+  const on = (attr: string, fileDefault: boolean) => truthy(at(root, attr), fileDefault)
+  if (on("mergeItem", false)) out.mergeLabels = true
+  // Excel keeps one less than the characters per level, wrapping at 128 (127: none); left out, 1 (two characters).
+  const indent = (Number(at(root, "indent") ?? 1) + 1) % 128
+  if (Number.isInteger(indent) && indent !== 1) out.indent = indent
+  if (on("pageOverThenDown", false)) out.pageOverThenDown = true
+  const wrap = Number(at(root, "pageWrap") ?? 0)
+  if (Number.isInteger(wrap) && wrap > 0) out.pageWrap = wrap
+  if (!on("preserveFormatting", true)) out.preserveFormatting = false
+  if (on("multipleFieldFilters", true)) out.multipleFieldFilters = true
+  if (!on("customListSort", true)) out.customListSort = false
+  if (!on("showDataTips", true)) out.showDataTips = false
+  if (on("gridDropZones", false)) out.gridDropZones = true
+  if (!on("showItems", true)) out.showItems = false
+  if (on("fieldListSortAscending", false)) out.fieldListSortAscending = true
+  if (on("printDrill", false)) out.printDrill = true
+  if (!on("itemPrintTitles", false)) out.itemPrintTitles = false
+  if (on("fieldPrintTitles", false)) out.fieldPrintTitles = true
+  const x14 = kid(
+    kids(kid(root, "extLst"), "ext").find((e) => at(e, "uri") === X14_TABLE),
+    "pivotTableDefinition",
+  )
+  const alt = at(x14, "altText")
+  const summary = at(x14, "altTextSummary")
+  if (alt) out.altText = alt
+  if (summary) out.altTextSummary = summary
+  return out
+}
 
 /** Excel 365's Show the Values row off, kept in the x14 extension of the definition (written back with the extLst). */
 function hideValuesRow(root: XNode): boolean {
@@ -817,8 +857,10 @@ export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId:
   return (
     `<pivotCacheDefinition xmlns="${NS_MAIN}" xmlns:r="${NS_R}"` +
     attrText({
-      "r:id": recordsRelId,
+      "r:id": cache.saveData === false ? undefined : recordsRelId,
+      saveData: cache.saveData === false ? 0 : undefined,
       refreshOnLoad: cache.refreshOnLoad || undefined,
+      missingItemsLimit: cache.missingItemsLimit,
       createdVersion: 8,
       refreshedVersion: 8,
       minRefreshableVersion: 3,
@@ -965,8 +1007,8 @@ export function pivotTableXml(
       firstHeaderRow: layout.firstHeaderRow,
       firstDataRow: layout.firstDataRow,
       firstDataCol: layout.firstDataCol,
-      rowPageCount: table.pages.length || undefined,
-      colPageCount: table.pages.length ? 1 : undefined,
+      rowPageCount: table.pages.length ? pivotPageGrid(table).rows : undefined,
+      colPageCount: table.pages.length ? pivotPageGrid(table).cols : undefined,
     })}/>`,
     pivotFields: `<pivotFields count="${fields.length}">${fields.join("")}</pivotFields>`,
     rowFields: fieldList("rowFields", table.rows),
@@ -1032,9 +1074,17 @@ export function pivotTableXml(
     useAutoFormatting: table.autoFit === false ? undefined : 1,
     rowGrandTotals: table.rowGrandTotals ? undefined : 0,
     colGrandTotals: table.colGrandTotals ? undefined : 0,
-    itemPrintTitles: 1,
+    printDrill: table.printDrill ? 1 : undefined,
+    showDataTips: table.showDataTips === false ? 0 : undefined,
+    preserveFormatting: table.preserveFormatting === false ? 0 : undefined,
+    pageWrap: table.pageWrap || undefined,
+    pageOverThenDown: table.pageOverThenDown ? 1 : undefined,
+    itemPrintTitles: table.itemPrintTitles === false ? undefined : 1,
+    fieldPrintTitles: table.fieldPrintTitles ? 1 : undefined,
+    mergeItem: table.mergeLabels ? 1 : undefined,
+    showItems: table.showItems === false ? 0 : undefined,
     createdVersion: 8,
-    indent: 0,
+    indent: ((table.indent ?? 1) + 127) % 128,
     compact: table.compact ? undefined : 0,
     compactData: table.compactData ? undefined : 0,
     outline: table.outline ? 1 : undefined,
@@ -1042,18 +1092,48 @@ export function pivotTableXml(
     enableDrill: table.enableDrill === false ? 0 : undefined,
     showDrill: table.showDrill === false ? 0 : undefined,
     showHeaders: table.showHeaders === false ? 0 : undefined,
-    multipleFieldFilters: 0,
+    multipleFieldFilters: table.multipleFieldFilters ? undefined : 0,
+    gridDropZones: table.gridDropZones ? 1 : undefined,
+    fieldListSortAscending: table.fieldListSortAscending ? 1 : undefined,
+    customListSort: table.customListSort === false ? 0 : undefined,
     rowHeaderCaption: c.rowHeader,
     colHeaderCaption: c.colHeader,
   })
-  // A PivotTable made in Cells says Excel 365's "no Values row" the way Excel does; a read one keeps its extLst.
-  if (table.hideValuesRow && !kept.some((k) => k.local === "extLst"))
-    generated.extLst =
-      `<extLst><ext uri="${X14_TABLE}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">` +
-      `<x14:pivotTableDefinition hideValuesRow="1" xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main"/>` +
-      `</ext></extLst>`
+  // Excel 365's "no Values row" and the Alt Text live in the x14 extension; a read one keeps the rest of its extLst.
+  const extLst = tableExtLst(table, kept.find((k) => k.local === "extLst")?.xml)
+  if (extLst !== undefined) generated.extLst = extLst
   const body = TABLE_ORDER.map((local) => generated[local] ?? kept.find((k) => k.local === local)?.xml ?? "").join("")
   return `<pivotTableDefinition xmlns="${NS_MAIN}"${attrs}>${body}</pivotTableDefinition>`
+}
+
+const X14_TABLE_ATTRS = ["hideValuesRow", "altText", "altTextSummary"]
+
+/**
+ * The definition's extLst with the x14 pivotTableDefinition saying the table's hideValuesRow and Alt Text (undefined:
+ * none needed and none read). A read one keeps its other extensions and the x14 element's other attributes and
+ * children.
+ */
+function tableExtLst(table: PivotTable, read: string | undefined): string | undefined {
+  const ours = attrText({
+    hideValuesRow: table.hideValuesRow ? 1 : undefined,
+    altText: table.altText,
+    altTextSummary: table.altTextSummary,
+  })
+  const fresh =
+    `<ext uri="${X14_TABLE}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">` +
+    `<x14:pivotTableDefinition${ours} xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main"/></ext>`
+  if (read === undefined) return ours ? `<extLst>${fresh}</extLst>` : undefined
+  const ext = new RegExp(`<((?:\\w+:)?)ext\\b[^>]*uri="${X14_TABLE.replace(/[{}]/g, "\\$&")}"[^>]*>`).exec(read)
+  if (!ext) return ours ? read.replace(/^(<(?:\w+:)?extLst\b[^>]*>)/, `$1${fresh}`) : read
+  const from = ext.index + ext[0].length
+  const el = /<((?:\w+:)?)pivotTableDefinition\b([^>]*?)(\/?)>/.exec(read.slice(from))
+  if (!el) return read
+  let attrs = el[2]
+  for (const name of X14_TABLE_ATTRS) attrs = attrs.replace(new RegExp(`\\s${name}="[^"]*"`), "")
+  const start = from + el.index
+  return (
+    read.slice(0, start) + `<${el[1]}pivotTableDefinition${ours}${attrs}${el[3]}>` + read.slice(start + el[0].length)
+  )
 }
 
 /** The value field an `<autoSortScope>` sorts by, when it is Excel's plain "by this value field" scope. */

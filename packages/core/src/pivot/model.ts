@@ -76,6 +76,10 @@ export type PivotCache = {
    * meet. Each is a shared item of its field (`x`) that no record points at.
    */
   calcItems?: PivotCalcItem[]
+  /** PivotTable Options › Data › Save source data with file (saveData); false: the file keeps no records. */
+  saveData?: false
+  /** Data › Number of items to retain per field (missingItemsLimit): 0 None, 1048576 Max; none: Automatic. Kept. */
+  missingItemsLimit?: number
 }
 
 /** A calculated item: its field, its shared item, and its formula as a file keeps it (Product[Pens]+Product[Ink]*2). */
@@ -292,6 +296,41 @@ export type PivotTable = {
   showDrill?: false
   /** Analyze › Show › Field Headers (Excel's showHeaders): false hides the Row/Column Labels headers and their buttons. */
   showHeaders?: false
+  // PivotTable Options, as Excel keeps them (left out: Excel's default for a new PivotTable).
+  /** Layout & Format › Merge and center cells with labels (Excel's mergeItem): in tabular form, and the column labels. */
+  mergeLabels?: true
+  /**
+   * Layout & Format › When in compact form indent row labels: characters per level, 0 to 127; none: 1, Excel 365's.
+   * The file keeps one less (Excel's indent, 0 to 127, wrapping: 127 is 0 characters; a file leaving it out means 2).
+   */
+  indent?: number
+  /** Layout & Format › Display fields in report filter area: Over, Then Down (Excel's pageOverThenDown). */
+  pageOverThenDown?: true
+  /** Layout & Format › Report filter fields per column (per row, Over Then Down); none or 0: all in one (pageWrap). */
+  pageWrap?: number
+  /** Layout & Format › Preserve cell formatting on update (preserveFormatting); false: a refresh clears the formats. */
+  preserveFormatting?: false
+  /** Totals & Filters › Allow multiple filters per field (multipleFieldFilters): a label filter and a value filter. */
+  multipleFieldFilters?: true
+  /** Totals & Filters › Use Custom Lists when sorting (customListSort); false only when off. */
+  customListSort?: false
+  /** Display › Show contextual tooltips (showDataTips); false only when off. Kept: Cells shows none. */
+  showDataTips?: false
+  /** Display › Classic PivotTable layout (gridDropZones). */
+  gridDropZones?: true
+  /** Display › Display item labels when no fields are in the values area (showItems); false only when off. Kept. */
+  showItems?: false
+  /** Display › Field List: Sort A to Z (fieldListSortAscending), rather than in data source order. */
+  fieldListSortAscending?: true
+  /** Printing › Print expand/collapse buttons when displayed (printDrill). Kept: Cells prints none. */
+  printDrill?: true
+  /** Printing › Repeat row labels on each printed page (itemPrintTitles); false only when off. Kept. */
+  itemPrintTitles?: false
+  /** Printing › Set print titles (fieldPrintTitles): the table's headers repeat on each printed page. */
+  fieldPrintTitles?: true
+  /** Alt Text › Title and Description (x14 altText, altTextSummary). */
+  altText?: string
+  altTextSummary?: string
   style: PivotTableStyle
   /**
    * The file part the PivotTable was read from: saving finds what Cells keeps unread there by it, so a renamed

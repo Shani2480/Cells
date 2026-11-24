@@ -75,6 +75,8 @@ import {
   CALC_ITEM_NOT_FIELD,
   calcItemDisplay,
   calcItemsBlocked,
+  pivotMissingItemsLimit,
+  pivotPagesHeight,
   canHaveCalcItems,
   withCalcItem,
   withoutCalcItem,
@@ -116,6 +118,10 @@ const GETPIVOTDATA_KEY = "cells.generateGetPivotData"
 
 /** Excel's message when a new PivotTable would sit over another. */
 export const PIVOT_OVERLAP_MESSAGE = "A PivotTable report cannot overlap another PivotTable report."
+
+/** Excel's message for a change to a PivotTable saved without its source data (Save source data with file off). */
+export const PIVOT_NO_DATA_MESSAGE =
+  "The PivotTable report was saved without the underlying data. Use the Refresh Data command to update the report."
 
 /** Where Create PivotTable puts the new PivotTable. */
 /** Recommended PivotTables with nothing to work from. */
@@ -1018,9 +1024,22 @@ export class PivotCommands {
     if (!at) return null
     const next = withPivotOptions(at.table, this.c.sheet, options)
     if (typeof next === "string") return next
-    const caches = this.c.wb.pivotCaches.map((x) =>
-      x === at.cache && x.refreshOnLoad !== options.refreshOnLoad ? { ...x, refreshOnLoad: options.refreshOnLoad } : x,
-    )
+    const limit = pivotMissingItemsLimit(options.missingItems)
+    const caches = this.c.wb.pivotCaches.map((x) => {
+      if (x !== at.cache) return x
+      if (
+        x.refreshOnLoad === options.refreshOnLoad &&
+        (x.saveData !== false) === options.saveData &&
+        x.missingItemsLimit === limit
+      )
+        return x
+      const out: PivotCache = { ...x, refreshOnLoad: options.refreshOnLoad }
+      if (options.saveData) delete out.saveData
+      else out.saveData = false
+      if (limit === undefined) delete out.missingItemsLimit
+      else out.missingItemsLimit = limit
+      return out
+    })
     const extra: Op[] = caches.some((x, i) => x !== this.c.wb.pivotCaches[i]) ? [{ kind: "pivotCaches", caches }] : []
     this.relayout(at, next, "PivotTable Options", extra)
     return null
@@ -1138,7 +1157,7 @@ export class PivotCommands {
     if (newSheet) sheets.splice(to, 0, new Sheet(name))
     const fromAfter = newSheet ? from + 1 : from
     const top = newSheet ? { row: 2, col: 0 } : dest.at
-    const pagesRows = at.table.pages.length ? at.table.pages.length + 1 : 0
+    const pagesRows = pivotPagesHeight(at.table)
     const moved = { ...at.table, at: { row: top.row + pagesRows, col: top.col } }
     const before = to === fromAfter ? at.table : null
     const others = sheets[to].pivots.filter((t) => t !== at.table)
@@ -1204,7 +1223,7 @@ export class PivotCommands {
       const table: PivotTable = {
         ...copy,
         name: nextPivotName(sheets),
-        at: { row: at.table.pages.length + 1, col: 0 },
+        at: { row: pivotPagesHeight(at.table), col: 0 },
       }
       delete table.part
       // Its name counts as taken for the next one.
@@ -1558,9 +1577,10 @@ export class PivotCommands {
   }
 
   /** A Label Filter, Value Filter or Top 10 on a field (null: removed), from the submenus and their dialogs. */
-  setFilter(row: number, col: number, field: number, spec: PivotFilterSpec | null): boolean {
+  setFilter(row: number, col: number, field: number, spec: PivotFilterSpec | null, group?: "label" | "value"): boolean {
     const at = this.cellAt(row, col)
-    return at ? this.relayout(at, withFieldFilter(at.table, field, spec), spec ? "Filter" : "Clear Filter") : false
+    const next = at && withFieldFilter(at.table, field, spec, group)
+    return at && next ? this.relayout(at, next, spec ? "Filter" : "Clear Filter") : false
   }
 
   /** Clear Filter From "Field": ticked items and the field's filter both. */
@@ -1693,6 +1713,11 @@ export class PivotCommands {
     extra: Op[] = [],
   ): boolean {
     if (next === at.table && !extra.length) return false
+    // Saved without its source data, a PivotTable can't change until it is refreshed (as in Excel).
+    if (at.cache.saveData === false && !at.cache.records.length && !extra.length) {
+      this.c.shell.alert(PIVOT_NO_DATA_MESSAGE)
+      return false
+    }
     // With calculated items Excel won't take an Average (StdDev, Var) or a field summarized twice.
     const blocked = at.cache.calcItems?.length ? calcItemsBlocked([next]) : null
     if (blocked && !calcItemsBlocked([at.table])) {

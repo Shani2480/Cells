@@ -54,12 +54,11 @@ export function PivotFilterDialog({
   const pivots = controller.pivots.on(request.sheet)
   const choices = pivots.choices(row, col, field)
   const measures = pivots.valueNames(row, col)
-  const current = choices?.filter
-  const same = current?.kind === request.kind ? current : null
+  const same = choices?.filters.find((x) => x.kind === request.kind) ?? null
   const [op, setOp] = useState<string>(request.op ?? (same && same.kind !== "top" ? same.op : "equal"))
   const [value, setValue] = useState(same && same.kind !== "top" ? String(same.value) : "")
   const [value2, setValue2] = useState(same && same.kind !== "top" ? String(same.value2 ?? "") : "")
-  const [measure, setMeasure] = useState(same && same.kind !== "label" ? same.measure : 0)
+  const [measure, setMeasure] = useState(same && (same.kind === "value" || same.kind === "top") ? same.measure : 0)
   const [top, setTop] = useState(same?.kind === "top" ? same.top : true)
   const [count, setCount] = useState(same?.kind === "top" ? String(same.value) : "10")
   const [by, setBy] = useState<"count" | "percent" | "sum">(same?.kind === "top" ? same.by : "count")

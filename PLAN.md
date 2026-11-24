@@ -577,8 +577,27 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       Excel lists the formulas in the same solve order, and refreshes three PivotTables (crossing items, Count and
       Max, nested fields) to the same cells. Hint and Help topic. Limits: a calculated item can't be picked in a report
       filter; it shows no details (as Excel); sorting by a value leaves it last.
-    - ⬜ The rest of PivotTable Options (merge labels, classic layout, report filter layout, printing, Alt Text), New PivotTable
-      Style.
+    - ✅ The rest of PivotTable Options, now Excel's six tabs. Layout & Format: Merge and center cells with labels
+      (merged and centred as Excel 365 does, measured: tabular outer items down over their items, totals across the
+      label columns, column items across theirs and column totals down; turned off they come apart and lose the
+      centring), the compact indent (0–127 characters), report filters Down, Then Over or Over, Then Down with so many
+      per column or row (the filter buttons follow), Preserve cell formatting on update. Totals & Filters: Allow
+      multiple filters per field (a label filter and a value filter together; each submenu clears its own), Use
+      Custom Lists when sorting (days and months first, in calendar order, then the rest A to Z, as Excel). Display:
+      contextual tooltips, Classic PivotTable layout (turns tabular form on), item labels with no values, Field List
+      Sort A to Z or data source order (the Fields pane follows). Printing: Set print titles (the table's header rows
+      and label columns repeat on each page while the sheet has no print titles of its own), with the two other
+      print options kept. Data: Save source data with file (off: no records saved; such a file asks for Refresh
+      before changes, Excel's message), items to retain (Automatic, None, Max). Alt Text: title and description. All
+      read and written as Excel does (the file's own defaults differ from Excel's for indent, multiple filters and
+      repeat row labels; Alt Text and hideValuesRow now written into a read file's x14 extension too). Excel-made
+      fixtures `pivot-options.xlsx` and `pivot-nodata.xlsx`. Checked in Excel 365: no repair, every option read back,
+      and three PivotTables (merged classic, indented with filters over then down, months sorted by custom lists)
+      keep every cell, merge, alignment and indent when Excel refreshes them. Hint and Help topic. Limits: no
+      contextual tooltips or +/− buttons in print (kept for Excel); Classic layout's drag-into-the-grid isn't there
+      (the Fields pane does it); "Show properties in tooltips" and "Show items with no data" (field-level in Cells)
+      are not on these tabs.
+    - ⬜ New PivotTable Style.
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,

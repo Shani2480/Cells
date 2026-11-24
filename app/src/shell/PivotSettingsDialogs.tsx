@@ -597,11 +597,19 @@ export function FieldSettingsDialog({
   )
 }
 
-type OptionsTab = "layout" | "totals" | "display" | "data"
+type OptionsTab = "layout" | "totals" | "display" | "printing" | "data" | "alt"
+
+/** A whole number from a box, held to Excel's range (NaN while it is being typed: the old value stays). */
+const wholeIn = (text: string, min: number, max: number, old: number) => {
+  const n = Math.round(Number(text))
+  return text.trim() === "" || !Number.isFinite(n) ? old : Math.max(min, Math.min(max, n))
+}
 
 /**
- * PivotTable Options: the name; Layout & Format (error and empty cell captions, autofit), Totals & Filters (grand
- * totals), Display (+/− buttons, the Values row) and Data (show details, refresh when the file opens).
+ * PivotTable Options, as Excel's: the name; Layout & Format (merged labels, the compact indent, how the report
+ * filters are laid out, error and empty cell captions, autofit, keeping formats), Totals & Filters (grand totals,
+ * multiple filters per field, custom lists), Display, Printing, Data (saving the source data, show details, refresh
+ * on open, items kept) and Alt Text.
  */
 export function PivotOptionsDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
   const at = controller.pivots.activeWithCache()
@@ -615,7 +623,7 @@ export function PivotOptionsDialog({ controller, onClose }: { controller: SheetC
     onClose()
   }
   return (
-    <Dialog title="PivotTable Options" onCancel={onClose} onAccept={accept} width={440}>
+    <Dialog title="PivotTable Options" onCancel={onClose} onAccept={accept} width={520}>
       <div className="goal-seek-fields">
         <label className="dialog-label" htmlFor="pivot-name">
           PivotTable Name:
@@ -633,73 +641,251 @@ export function PivotOptionsDialog({ controller, onClose }: { controller: SheetC
           { id: "layout", label: "Layout & Format" },
           { id: "totals", label: "Totals & Filters" },
           { id: "display", label: "Display" },
+          { id: "printing", label: "Printing" },
           { id: "data", label: "Data" },
+          { id: "alt", label: "Alt Text" },
         ]}
         tab={tab}
         setTab={setTab}
       >
         {tab === "layout" ? (
-          <fieldset className="dialog-group">
-            <legend>Format</legend>
-            <div className="pivot-settings-row">
-              <Check label="For error values show:" checked={o.showError} set={(showError) => set({ showError })} />
-              <input
-                className="dialog-field"
-                aria-label="Error value caption"
-                disabled={!o.showError}
-                value={o.errorCaption}
-                onChange={(e) => set({ errorCaption: e.target.value })}
-              />
-            </div>
-            <div className="pivot-settings-row">
+          <>
+            <fieldset className="dialog-group">
+              <legend>Layout</legend>
               <Check
-                label="For empty cells show:"
-                checked={o.showMissing}
-                set={(showMissing) => set({ showMissing })}
+                label="Merge and center cells with labels"
+                checked={o.mergeLabels}
+                set={(mergeLabels) => set({ mergeLabels })}
               />
-              <input
-                className="dialog-field"
-                aria-label="Empty cell caption"
-                disabled={!o.showMissing}
-                value={o.missingCaption}
-                onChange={(e) => set({ missingCaption: e.target.value })}
+              <div className="pivot-options-line">
+                <label htmlFor="pivot-indent">When in compact form indent row labels:</label>
+                <input
+                  id="pivot-indent"
+                  className="dialog-field pivot-options-num"
+                  type="number"
+                  min={0}
+                  max={127}
+                  value={o.indent}
+                  onChange={(e) => set({ indent: wholeIn(e.target.value, 0, 127, o.indent) })}
+                />
+                <span>character(s)</span>
+              </div>
+              <div className="pivot-options-line">
+                <label htmlFor="pivot-page-order">Display fields in report filter area:</label>
+                <select
+                  id="pivot-page-order"
+                  className="dialog-field"
+                  value={o.pageOverThenDown ? "over" : "down"}
+                  onChange={(e) => set({ pageOverThenDown: e.target.value === "over" })}
+                >
+                  <option value="down">Down, Then Over</option>
+                  <option value="over">Over, Then Down</option>
+                </select>
+              </div>
+              <div className="pivot-options-line">
+                <label htmlFor="pivot-page-wrap">
+                  {o.pageOverThenDown ? "Report filter fields per row:" : "Report filter fields per column:"}
+                </label>
+                <input
+                  id="pivot-page-wrap"
+                  className="dialog-field pivot-options-num"
+                  type="number"
+                  min={0}
+                  max={255}
+                  value={o.pageWrap}
+                  onChange={(e) => set({ pageWrap: wholeIn(e.target.value, 0, 255, o.pageWrap) })}
+                />
+              </div>
+            </fieldset>
+            <fieldset className="dialog-group">
+              <legend>Format</legend>
+              <div className="pivot-settings-row">
+                <Check label="For error values show:" checked={o.showError} set={(showError) => set({ showError })} />
+                <input
+                  className="dialog-field"
+                  aria-label="Error value caption"
+                  disabled={!o.showError}
+                  value={o.errorCaption}
+                  onChange={(e) => set({ errorCaption: e.target.value })}
+                />
+              </div>
+              <div className="pivot-settings-row">
+                <Check
+                  label="For empty cells show:"
+                  checked={o.showMissing}
+                  set={(showMissing) => set({ showMissing })}
+                />
+                <input
+                  className="dialog-field"
+                  aria-label="Empty cell caption"
+                  disabled={!o.showMissing}
+                  value={o.missingCaption}
+                  onChange={(e) => set({ missingCaption: e.target.value })}
+                />
+              </div>
+              <Check label="Autofit column widths on update" checked={o.autoFit} set={(autoFit) => set({ autoFit })} />
+              <Check
+                label="Preserve cell formatting on update"
+                checked={o.preserveFormatting}
+                set={(preserveFormatting) => set({ preserveFormatting })}
               />
-            </div>
-            <Check label="Autofit column widths on update" checked={o.autoFit} set={(autoFit) => set({ autoFit })} />
-          </fieldset>
+            </fieldset>
+          </>
         ) : null}
         {tab === "totals" ? (
-          <fieldset className="dialog-group">
-            <legend>Grand Totals</legend>
-            <Check
-              label="Show grand totals for rows"
-              checked={o.colGrandTotals}
-              set={(colGrandTotals) => set({ colGrandTotals })}
-            />
-            <Check
-              label="Show grand totals for columns"
-              checked={o.rowGrandTotals}
-              set={(rowGrandTotals) => set({ rowGrandTotals })}
-            />
-          </fieldset>
+          <>
+            <fieldset className="dialog-group">
+              <legend>Grand Totals</legend>
+              <Check
+                label="Show grand totals for rows"
+                checked={o.colGrandTotals}
+                set={(colGrandTotals) => set({ colGrandTotals })}
+              />
+              <Check
+                label="Show grand totals for columns"
+                checked={o.rowGrandTotals}
+                set={(rowGrandTotals) => set({ rowGrandTotals })}
+              />
+            </fieldset>
+            <fieldset className="dialog-group">
+              <legend>Filters</legend>
+              <Check
+                label="Allow multiple filters per field"
+                checked={o.multipleFieldFilters}
+                set={(multipleFieldFilters) => set({ multipleFieldFilters })}
+              />
+            </fieldset>
+            <fieldset className="dialog-group">
+              <legend>Sorting</legend>
+              <Check
+                label="Use Custom Lists when sorting"
+                checked={o.customListSort}
+                set={(customListSort) => set({ customListSort })}
+              />
+            </fieldset>
+          </>
         ) : null}
         {tab === "display" ? (
+          <>
+            <fieldset className="dialog-group">
+              <legend>Display</legend>
+              <Check
+                label="Show expand/collapse buttons"
+                checked={o.showDrill}
+                set={(showDrill) => set({ showDrill })}
+              />
+              <Check
+                label="Show contextual tooltips"
+                checked={o.showDataTips}
+                set={(showDataTips) => set({ showDataTips })}
+              />
+              <Check
+                label="Classic PivotTable layout (enables dragging of fields in the grid)"
+                checked={o.gridDropZones}
+                set={(gridDropZones) => set({ gridDropZones })}
+              />
+              <Check label="Show the Values row" checked={o.valuesRow} set={(valuesRow) => set({ valuesRow })} />
+              <Check
+                label="Display item labels when no fields are in the values area"
+                checked={o.showItems}
+                set={(showItems) => set({ showItems })}
+              />
+            </fieldset>
+            <fieldset className="dialog-group">
+              <legend>Field List</legend>
+              <label className="dialog-radio">
+                <input
+                  type="radio"
+                  name="pivot-field-list-order"
+                  checked={o.fieldListSortAscending}
+                  onChange={() => set({ fieldListSortAscending: true })}
+                />
+                Sort A to Z
+              </label>
+              <label className="dialog-radio">
+                <input
+                  type="radio"
+                  name="pivot-field-list-order"
+                  checked={!o.fieldListSortAscending}
+                  onChange={() => set({ fieldListSortAscending: false })}
+                />
+                Sort in data source order
+              </label>
+            </fieldset>
+          </>
+        ) : null}
+        {tab === "printing" ? (
           <fieldset className="dialog-group">
-            <legend>Display</legend>
-            <Check label="Show expand/collapse buttons" checked={o.showDrill} set={(showDrill) => set({ showDrill })} />
-            <Check label="Show the Values row" checked={o.valuesRow} set={(valuesRow) => set({ valuesRow })} />
+            <legend>Print</legend>
+            <Check
+              label="Print expand/collapse buttons when displayed on PivotTable"
+              checked={o.printDrill}
+              set={(printDrill) => set({ printDrill })}
+            />
+            <Check
+              label="Repeat row labels on each printed page"
+              checked={o.itemPrintTitles}
+              set={(itemPrintTitles) => set({ itemPrintTitles })}
+            />
+            <Check
+              label="Set print titles"
+              checked={o.fieldPrintTitles}
+              set={(fieldPrintTitles) => set({ fieldPrintTitles })}
+            />
           </fieldset>
         ) : null}
         {tab === "data" ? (
-          <fieldset className="dialog-group">
-            <legend>PivotTable Data</legend>
-            <Check
-              label="Refresh data when opening the file"
-              checked={o.refreshOnLoad}
-              set={(refreshOnLoad) => set({ refreshOnLoad })}
+          <>
+            <fieldset className="dialog-group">
+              <legend>PivotTable Data</legend>
+              <Check label="Save source data with file" checked={o.saveData} set={(saveData) => set({ saveData })} />
+              <Check label="Enable show details" checked={o.enableDrill} set={(enableDrill) => set({ enableDrill })} />
+              <Check
+                label="Refresh data when opening the file"
+                checked={o.refreshOnLoad}
+                set={(refreshOnLoad) => set({ refreshOnLoad })}
+              />
+            </fieldset>
+            <fieldset className="dialog-group">
+              <legend>Retain items deleted from the data source</legend>
+              <div className="pivot-options-line">
+                <label htmlFor="pivot-missing-items">Number of items to retain per field:</label>
+                <select
+                  id="pivot-missing-items"
+                  className="dialog-field"
+                  value={o.missingItems}
+                  onChange={(e) => set({ missingItems: e.target.value as PivotOptions["missingItems"] })}
+                >
+                  <option value="auto">Automatic</option>
+                  <option value="none">None</option>
+                  <option value="max">Max</option>
+                </select>
+              </div>
+            </fieldset>
+          </>
+        ) : null}
+        {tab === "alt" ? (
+          <div className="pivot-alt-text">
+            <label className="dialog-label" htmlFor="pivot-alt-title">
+              Title
+            </label>
+            <input
+              id="pivot-alt-title"
+              className="dialog-field"
+              value={o.altText}
+              onChange={(e) => set({ altText: e.target.value })}
             />
-            <Check label="Enable show details" checked={o.enableDrill} set={(enableDrill) => set({ enableDrill })} />
-          </fieldset>
+            <label className="dialog-label" htmlFor="pivot-alt-description">
+              Description
+            </label>
+            <textarea
+              id="pivot-alt-description"
+              className="dialog-field"
+              rows={5}
+              value={o.altTextSummary}
+              onChange={(e) => set({ altTextSummary: e.target.value })}
+            />
+          </div>
         ) : null}
       </Tabs>
     </Dialog>

@@ -43,8 +43,35 @@ export function copyPivotCache(c: PivotCache): PivotCache {
 export function pivotArea(t: PivotTable): Range {
   const loc = t.location
   if (!t.pages.length) return { ...loc }
-  return { r0: Math.max(0, loc.r0 - t.pages.length - 1), c0: loc.c0, r1: loc.r1, c1: Math.max(loc.c1, loc.c0 + 1) }
+  const grid = pivotPageGrid(t)
+  return {
+    r0: Math.max(0, loc.r0 - grid.rows - 1),
+    c0: loc.c0,
+    r1: loc.r1,
+    c1: Math.max(loc.c1, loc.c0 + grid.cols * 3 - 2),
+  }
 }
+
+/**
+ * How the report filters are laid out above the table (PivotTable Options › Layout & Format): Down, Then Over fills
+ * columns of `pageWrap` filters, Over, Then Down rows of them (none or 0: one column, or one row). Each filter takes
+ * its label and value cells and a gap column; `at` is filter `i`'s line and column group.
+ */
+export function pivotPageGrid(t: Pick<PivotTable, "pages" | "pageWrap" | "pageOverThenDown">) {
+  const n = t.pages.length
+  const run = Math.min(n, t.pageWrap || n)
+  const across = Math.max(1, Math.ceil(n / Math.max(1, run)))
+  const over = t.pageOverThenDown === true
+  return {
+    rows: over ? across : run,
+    cols: over ? run : across,
+    at: (i: number) => (over ? { row: Math.floor(i / run), col: i % run } : { row: i % run, col: Math.floor(i / run) }),
+  }
+}
+
+/** The rows the report filters take above the table, the blank row under them included (0 with none). */
+export const pivotPagesHeight = (t: Pick<PivotTable, "pages" | "pageWrap" | "pageOverThenDown">) =>
+  t.pages.length ? pivotPageGrid(t).rows + 1 : 0
 
 const overlaps = (a: Range, b: Range) => a.r0 <= b.r1 && a.r1 >= b.r0 && a.c0 <= b.c1 && a.c1 >= b.c0
 

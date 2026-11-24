@@ -212,16 +212,50 @@ export type PivotOptions = {
   showMissing: boolean
   missingCaption: string
   autoFit: boolean
+  mergeLabels: boolean
+  /** Characters per level, 0 to 127. */
+  indent: number
+  pageOverThenDown: boolean
+  /** Report filter fields per column (per row, Over Then Down), 0 to 255; 0: all in one. */
+  pageWrap: number
+  preserveFormatting: boolean
   /** Totals & Filters. */
   rowGrandTotals: boolean
   colGrandTotals: boolean
+  multipleFieldFilters: boolean
+  customListSort: boolean
   /** Display. */
   showDrill: boolean
+  showDataTips: boolean
   valuesRow: boolean
-  /** Data. */
+  gridDropZones: boolean
+  showItems: boolean
+  fieldListSortAscending: boolean
+  /** Printing. */
+  printDrill: boolean
+  itemPrintTitles: boolean
+  fieldPrintTitles: boolean
+  /** Data (the last three belong to the cache: the caller's). */
   enableDrill: boolean
   refreshOnLoad: boolean
+  saveData: boolean
+  /** Number of items to retain per field: "auto", "none" or "max". */
+  missingItems: "auto" | "none" | "max"
+  /** Alt Text. */
+  altText: string
+  altTextSummary: string
 }
+
+/** Excel's Max for Number of items to retain per field (missingItemsLimit). */
+export const PIVOT_MISSING_ITEMS_MAX = 1048576
+
+/** The cache's missingItemsLimit as the dialog's choice, and back. */
+export function pivotMissingItems(cache: PivotCache): PivotOptions["missingItems"] {
+  if (cache.missingItemsLimit === undefined) return "auto"
+  return cache.missingItemsLimit === 0 ? "none" : "max"
+}
+export const pivotMissingItemsLimit = (choice: PivotOptions["missingItems"]) =>
+  choice === "auto" ? undefined : choice === "none" ? 0 : PIVOT_MISSING_ITEMS_MAX
 
 /** The options a PivotTable has now, for the dialog. */
 export function pivotOptions(table: PivotTable, cache: PivotCache): PivotOptions {
@@ -232,12 +266,30 @@ export function pivotOptions(table: PivotTable, cache: PivotCache): PivotOptions
     showMissing: table.showMissing,
     missingCaption: table.captions.missing ?? "",
     autoFit: table.autoFit !== false,
+    mergeLabels: table.mergeLabels === true,
+    indent: table.indent ?? 1,
+    pageOverThenDown: table.pageOverThenDown === true,
+    pageWrap: table.pageWrap ?? 0,
+    preserveFormatting: table.preserveFormatting !== false,
     rowGrandTotals: table.rowGrandTotals,
     colGrandTotals: table.colGrandTotals,
+    multipleFieldFilters: table.multipleFieldFilters === true,
+    customListSort: table.customListSort !== false,
     showDrill: table.showDrill !== false,
+    showDataTips: table.showDataTips !== false,
     valuesRow: !table.hideValuesRow,
+    gridDropZones: table.gridDropZones === true,
+    showItems: table.showItems !== false,
+    fieldListSortAscending: table.fieldListSortAscending === true,
+    printDrill: table.printDrill === true,
+    itemPrintTitles: table.itemPrintTitles !== false,
+    fieldPrintTitles: table.fieldPrintTitles === true,
     enableDrill: table.enableDrill !== false,
     refreshOnLoad: cache.refreshOnLoad,
+    saveData: cache.saveData !== false,
+    missingItems: pivotMissingItems(cache),
+    altText: table.altText ?? "",
+    altTextSummary: table.altTextSummary ?? "",
   }
 }
 
@@ -264,16 +316,52 @@ export function withPivotOptions(table: PivotTable, sheet: Sheet, options: Pivot
     rowGrandTotals: options.rowGrandTotals,
     colGrandTotals: options.colGrandTotals,
   }
-  const flag = <K extends "autoFit" | "showDrill" | "enableDrill">(key: K, on: boolean) => {
+  // Options kept only when they differ from Excel's default: `false` ones default on, `true` ones off.
+  type Off = "autoFit" | "showDrill" | "enableDrill" | "preserveFormatting" | "customListSort" | "showDataTips"
+  type On = "mergeLabels" | "pageOverThenDown" | "multipleFieldFilters" | "fieldListSortAscending" | "printDrill"
+  const flag = (key: Off | "showItems" | "itemPrintTitles", on: boolean) => {
     if (on) delete next[key]
-    else next[key] = false as PivotTable[K]
+    else next[key] = false
   }
-  flag("autoFit", options.autoFit)
-  flag("showDrill", options.showDrill)
-  flag("enableDrill", options.enableDrill)
+  const onFlag = (key: On | "gridDropZones" | "fieldPrintTitles", on: boolean) => {
+    if (on) next[key] = true
+    else delete next[key]
+  }
+  for (const key of [
+    "autoFit",
+    "showDrill",
+    "enableDrill",
+    "preserveFormatting",
+    "customListSort",
+    "showDataTips",
+    "showItems",
+    "itemPrintTitles",
+  ] as const)
+    flag(key, options[key])
+  for (const key of [
+    "mergeLabels",
+    "pageOverThenDown",
+    "multipleFieldFilters",
+    "fieldListSortAscending",
+    "printDrill",
+    "gridDropZones",
+    "fieldPrintTitles",
+  ] as const)
+    onFlag(key, options[key])
   if (options.valuesRow) delete next.hideValuesRow
   else next.hideValuesRow = true
-  return next
+  const indent = Math.max(0, Math.min(127, Math.round(options.indent)))
+  if (indent === 1) delete next.indent
+  else next.indent = indent
+  const wrap = Math.max(0, Math.min(255, Math.round(options.pageWrap)))
+  if (wrap) next.pageWrap = wrap
+  else delete next.pageWrap
+  for (const key of ["altText", "altTextSummary"] as const) {
+    if (options[key]) next[key] = options[key]
+    else delete next[key]
+  }
+  // Classic PivotTable layout turned on puts every field in tabular form, as Excel's dialog does.
+  return options.gridDropZones && !table.gridDropZones ? withReportLayout(next, "tabular") : next
 }
 
 // ── The Design tab's Layout group, and Analyze › Clear ──

@@ -265,3 +265,11 @@ are never made up by the model.
    gives Excel's cells and writes Excel's XML byte for byte. Six value-sorted PivotTables made in Cells: 0 validator
    errors, no repair in Excel 365, and Excel's own refresh leaves every cell as Cells wrote it. Not yet: a More Sort
    Options dialog to pick the value by hand (only the AI and Excel's files set it).
+
+   PivotTable Options, complete (Phase 8): `PivotTable` keeps mergeLabels, indent, pageOverThenDown, pageWrap,
+   preserveFormatting, multipleFieldFilters, customListSort, showDataTips, gridDropZones, showItems,
+   fieldListSortAscending, printDrill, itemPrintTitles, fieldPrintTitles, altText and altTextSummary (only when they
+   differ from Excel's new-PivotTable default); `PivotCache` keeps saveData and missingItemsLimit. The layout returns
+   `merges`; `pivotCellsPlan` merges, centres and unmerges with the cells; `pivotPageGrid` places the report filters
+   (`pivotArea`, the filter buttons and Move/Report Filter Pages use it). Excel keeps the indent one less, wrapping
+   (127 is 0 characters; none means 2).

@@ -22,6 +22,19 @@ const LISTS: string[][] = [
   ],
 ]
 
+/**
+ * Where text stands in Excel's built-in custom lists (days and months, ignoring case), for sorting by them: the list
+ * and the place in it, or null.
+ */
+export function customListPlace(text: string): { list: number; index: number } | null {
+  const t = text.trim().toLowerCase()
+  for (let list = 0; list < LISTS.length; list++) {
+    const index = LISTS[list].findIndex((x) => x.toLowerCase() === t)
+    if (index >= 0) return { list, index }
+  }
+  return null
+}
+
 type Item =
   | { kind: "number"; value: number }
   | { kind: "list"; list: number; index: number; text: string }

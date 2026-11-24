@@ -274,6 +274,8 @@ export type PivotCellsPlan = {
  * The cells a PivotTable shows, written into its sheet: its old cells cleared (formats kept), the new layout's
  * values written with the value fields' number formats.
  */
+const inside = (a: Range, b: Range) => a.r0 >= b.r0 && a.r1 <= b.r1 && a.c0 >= b.c0 && a.c1 <= b.c1
+
 export function pivotCellsPlan(
   sheets: readonly Sheet[],
   styles: StyleTable,
@@ -292,6 +294,8 @@ export function pivotCellsPlan(
    * A cell's style with the indent the layout gives it (Excel saves compact labels' indent in the cells' formats, so
    * a label moving to another line takes its indent along, and what's left behind loses it).
    */
+  // Preserve cell formatting on update off: the table's cells lose the formats given them.
+  const base = (row: number, col: number) => (t.preserveFormatting === false ? 0 : sheet.cells.style(row, col))
   const indented = (style: number, indent: number | undefined) => {
     const now = styles.get(style)
     if ((now.indent ?? 0) === (indent ?? 0)) return style
@@ -301,7 +305,7 @@ export function pivotCellsPlan(
     return styles.intern(next)
   }
   const keep = (row: number, col: number) => {
-    const style = indented(sheet.cells.style(row, col), undefined)
+    const style = indented(base(row, col), undefined)
     return style ? { style } : undefined
   }
   if (before) {
@@ -327,9 +331,27 @@ export function pivotCellsPlan(
           : { r0: r, c0: c, r1: r, c1: c }
       }
     }
+  // Merge and center cells with labels: merged labels are centred both ways; with it turned off they go back to
+  // Excel's default alignment (as Excel does).
+  const merged = new Set(layout.merges.map((m) => `${m.r0},${m.c0}`))
+  const unmerging = before?.mergeLabels === true
+  const aligned = (style: number, row: number, col: number) => {
+    const now = styles.get(style)
+    if (merged.has(`${row},${col}`)) {
+      if (now.hAlign === "center" && now.vAlign === "center") return style
+      return styles.intern({ ...now, hAlign: "center", vAlign: "center" })
+    }
+    if (!unmerging || (now.hAlign === undefined && now.vAlign === undefined)) return style
+    const next = { ...now }
+    delete next.hAlign
+    delete next.vAlign
+    return styles.intern(next)
+  }
   for (const cell of layout.cells) {
     if (cell.value === undefined) continue
-    let style = indented(sheet.cells.style(cell.row, cell.col), cell.indent)
+    let style = indented(base(cell.row, cell.col), cell.indent)
+    if (cell.role !== "value" && cell.role !== "subtotalValue" && cell.role !== "grandValue")
+      style = aligned(style, cell.row, cell.col)
     if (cell.numFmt) style = styles.intern({ ...styles.get(style), numberFormat: cell.numFmt })
     writes.set(`${cell.row},${cell.col}`, {
       row: cell.row,
@@ -338,6 +360,10 @@ export function pivotCellsPlan(
     })
   }
   const ops: Op[] = [{ kind: "setCells", sheet: sheetIndex, cells: [...writes.values()] }]
+  // The merges go with the table: the old ones (in its old cells) come apart, the new ones are made.
+  const gone = old && before?.mergeLabels ? sheet.merges.overlapping(old).filter((m) => inside(m, old)) : []
+  if (gone.length) ops.push({ kind: "unmerge", sheet: sheetIndex, ranges: gone })
+  if (layout.merges.length) ops.push({ kind: "merge", sheet: sheetIndex, ranges: layout.merges.map((m) => ({ ...m })) })
   return { ops, table: t, layout, overwrites }
 }
 
