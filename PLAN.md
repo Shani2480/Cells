@@ -399,7 +399,7 @@ The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables h
   sends nothing, no workbook content). File › Help and File › Feedback too (phones have no Help tab).
 - ⬜ Next: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project.
 - ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: a More Sort Options dialog for PivotTables,
-  Field Headers, Show Report Filter Pages, calculated items, new PivotTable styles).
+  Field Headers, calculated items, new PivotTable styles).
 
 **Known limits:** sorting a PivotTable by a value is set only by the AI or by Excel's files (no dialog yet). Help's
 shortcut list is written by hand (`help-content.ts`): a new shortcut has to be added there too. Show me can't point
@@ -551,7 +551,17 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     Limits: the look is close, not Excel's pixels; one effect at a time (as Excel's ribbon; a file with two keeps
     the second as it was, and its corrections then can't change in Cells); a resized picture keeps the effect at the
     size it was made for until it's changed.
-  - ⬜ PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
+  - 🔄 PivotTable extras, in parts:
+    - ✅ Show Report Filter Pages (PivotTable Analyze › Options ▾): a dialog lists the report filters; OK makes a
+      sheet for each item (only the ticked ones when several can be ticked), named after the item as Excel names it
+      (an item that can't name a sheet gets "SheetN", a name taken gets " (2)"), placed before the PivotTable's sheet
+      in the filter's order, each with a copy of the PivotTable at A1 showing that item; one undo step. Excel 365's
+      own run on the same data gave the same sheets, names, order and PivotTable names; Cells' result opens in Excel
+      without repair and refreshes to the same cells. Hint and Help topic.
+    - ⬜ More Sort Options (sort by a value), calculated items with Solve Order and List Formulas, the rest of
+      PivotTable Options (merge labels, classic layout, report filter layout, printing, Alt Text), New PivotTable
+      Style.
+  - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).

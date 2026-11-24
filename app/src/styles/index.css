@@ -5701,3 +5701,10 @@ button.rel-row:hover,
   background: var(--app-hover);
   outline: none;
 }
+
+/* PivotTable Analyze › Options › Show Report Filter Pages */
+.report-pages-list {
+  height: 120px;
+  margin-top: 4px;
+  overflow: auto;
+}

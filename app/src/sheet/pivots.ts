@@ -70,6 +70,8 @@ import {
   withSort,
   pivotCellAt,
   pivotCellsPlan,
+  reportFilterPages,
+  reportPageSheetName,
   pivotOverwriteMessage,
   readPivotSource,
   refreshedCache,
@@ -783,10 +785,19 @@ export class PivotCommands {
    * Autofit column widths on update: the columns of each PivotTable the ops lay out on the active sheet fit its cells
    * (wider or narrower, as in Excel), in the same undo step. An empty PivotTable keeps the widths it has.
    */
-  private fitColumns(entry: Parameters<SheetController["wb"]["amend"]>[0], ops: readonly Op[]) {
-    const fit = this.c.columnFit
-    const s = this.c.sheetIndex
-    if (!fit) return
+  /** Autofits the columns of the PivotTables `ops` lays out on the active sheet (or on `sheets`), as Excel does. */
+  private fitColumns(
+    entry: Parameters<SheetController["wb"]["amend"]>[0],
+    ops: readonly Op[],
+    sheets: readonly number[] = [this.c.sheetIndex],
+  ) {
+    for (const s of sheets) this.fitSheetColumns(entry, ops, s)
+  }
+
+  private fitSheetColumns(entry: Parameters<SheetController["wb"]["amend"]>[0], ops: readonly Op[], s: number) {
+    const columnFit = this.c.columnFit
+    if (!columnFit) return
+    const fit = (c: number, rows: { r0: number; r1: number }) => columnFit(c, rows, s)
     const sizes = new Map<number, number>()
     for (const op of ops) {
       if (op.kind !== "pivots" || op.sheet !== s) continue
@@ -807,7 +818,7 @@ export class PivotCommands {
           }
       }
     }
-    const cols = this.c.sheet.cols
+    const cols = this.c.wb.sheets[s].cols
     const entries = [...sizes]
       .filter(([c, size]) => Math.abs(size - cols.size(c)) >= 1)
       .map(([index, size]) => ({ index, size, hidden: false }))
@@ -1018,6 +1029,73 @@ export class PivotCommands {
     if (plan.overwrites) this.c.shell.confirm(pivotOverwriteMessage(this.c.printFile.fileName, sheets[to].name), go)
     else go()
     return null
+  }
+
+  // ── Show Report Filter Pages ──
+
+  /** The active PivotTable's report filters, for Show Report Filter Pages (none: it's off). */
+  reportFilters(): { field: number; name: string }[] {
+    const at = this.activeWithCache()
+    if (!at) return []
+    return at.table.pages.map((p) => ({ field: p.field, name: pivotFieldName(at.table, at.cache, p.field) }))
+  }
+
+  /**
+   * Show Report Filter Pages: a new sheet for each item of report filter `f`, named after it, with a copy of the
+   * PivotTable at A1 showing that item; the sheets go before the PivotTable's, in the filter's order, and the first
+   * is shown. Excel makes them from the last item back, so their default names and PivotTable names count up that
+   * way. One undo step.
+   */
+  showReportFilterPages(f: number): boolean {
+    const at = this.activeWithCache()
+    if (!at) return false
+    const items = reportFilterPages(at.table, at.cache, f, (v, numFmt) => displayText(v, numFmt ?? "General"))
+    if (!items.length) return false
+    const wb = this.c.wb
+    const from = this.c.sheetIndex
+    const sheets = [...wb.sheets]
+    const made: { index: number; table: PivotTable }[] = []
+    for (const item of [...items].reverse()) {
+      const names = sheets.map((s) => s.name)
+      const name = reportPageSheetName(item.label, names, nextSheetName(names))
+      sheets.splice(from, 0, new Sheet(name))
+      const copy = withPagePick(at.table, at.cache, f, item.x)
+      const table: PivotTable = {
+        ...copy,
+        name: nextPivotName(sheets),
+        at: { row: at.table.pages.length + 1, col: 0 },
+      }
+      delete table.part
+      // Its name counts as taken for the next one.
+      sheets[from] = Object.assign(new Sheet(name), { pivots: [table] })
+      made.forEach((m) => m.index++)
+      made.push({ index: from, table })
+    }
+    made.sort((a, b) => a.index - b.index)
+    const ops: Op[] = []
+    for (const m of made) ops.push({ kind: "addSheet", sheet: m.index, name: sheets[m.index].name })
+    // The PivotTables are laid out on the new sheets as they'll be (empty but for their PivotTable).
+    const final = [...wb.sheets]
+    made.forEach((m) => final.splice(m.index, 0, new Sheet(sheets[m.index].name)))
+    for (const m of made) {
+      const plan = pivotCellsPlan(final, wb.styles, m.index, null, m.table, at.cache)
+      ops.push(...plan.ops, { kind: "pivots", sheet: m.index, tables: [plan.table] })
+    }
+    if (this.c.edit) this.c.commitEdit()
+    const entry = this.c.transact(ops, {
+      label: "Show Report Filter Pages",
+      before: this.c.selection,
+      sheetAfter: from,
+    })
+    if (!entry) return false
+    this.fitColumns(
+      entry,
+      ops,
+      made.map((m) => m.index),
+    )
+    this.c.activate(from)
+    this.c.goTo({ r0: 0, c0: 0, r1: 0, c1: 0 })
+    return true
   }
 
   /**

@@ -111,6 +111,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Select a picture and use Artistic Effects to make it look like a pencil sketch, a painting, glass, cement and 18 more. Artistic Effects Options sets how strong the effect is and how much of the picture shows through.",
     target: "Artistic Effects",
   },
+  {
+    id: "pivot-report-pages",
+    title: "New: A sheet for each report filter item",
+    text: "In a PivotTable with a report filter, the arrow under Options has Show Report Filter Pages: it makes a sheet for each of the filter's items, each with a copy of the PivotTable showing just that item.",
+    target: "Options",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

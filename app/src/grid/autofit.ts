@@ -38,9 +38,10 @@ export function autofitColumnWidth(
   col: number,
   measure: (text: string) => number,
   rows: { r0: number; r1: number } = { r0: 0, r1: MAX_ROWS - 1 },
+  sheet = controller.sheetIndex,
 ): number | null {
   let widest = 0
-  controller.sheet.cells.forEach(
+  ;(controller.wb.sheets[sheet] ?? controller.sheet).cells.forEach(
     { r0: rows.r0, r1: rows.r1, c0: col, c1: col },
     (_row, _col, data) => {
       const style = controller.wb.styles.get(data.style ?? 0)

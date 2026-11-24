@@ -195,7 +195,7 @@ export function GridView({
           controller.setLineSize("rows", [row], fittedRowHeight(controller, row, measure), true)
     }
     controller.rowFit = (row) => fittedRowHeight(controller, row, measure)
-    controller.columnFit = (col, rows) => autofitColumnWidth(controller, col, measure, rows)
+    controller.columnFit = (col, rows, sheet) => autofitColumnWidth(controller, col, measure, rows, sheet)
     return () => {
       controller.shownText = null
       controller.autofit = null

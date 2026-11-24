@@ -65,6 +65,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     keywords:
       "picture image photo artistic effects sketch pencil chalk marker paint brush strokes watercolor sponge blur glass cement texturizer mosaic bubbles film grain glow edges plastic wrap cutout photocopy pastels line drawing light screen crisscross etching",
   },
+  "pivot-report-pages": {
+    where: "PivotTable Analyze › PivotTable › Options (in a PivotTable)",
+    keywords: "pivottable report filter pages sheet each item split copy show report filter pages",
+  },
   "chart-sheets": {
     where: "Chart Design › Location (select a chart first)",
     keywords: "chart sheet move chart f11 new sheet object in full window",

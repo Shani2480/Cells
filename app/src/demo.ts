@@ -30,6 +30,13 @@ export function loadDemo(controller: SheetController, name: string | null) {
     return objectsDemo(controller)
   }
   if (name === "pictures") return picturesDemo(controller)
+  if (name === "pivot") {
+    loadDemo(controller, "small")
+    // Total by Product, with Region as a report filter, on a new sheet.
+    const recipe = { title: "", rows: [2], cols: [], values: [5], pages: [1] }
+    controller.pivots.create("Sheet1!A1:F30", { kind: "newSheet" }, undefined, recipe)
+    return
+  }
   if (name === "notes") {
     loadDemo(controller, "small")
     return notesDemo(controller)

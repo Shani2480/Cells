@@ -131,12 +131,15 @@ export function pivotCommands(): Command[] {
       enabled: inPivot,
       run: (env) => env.dialog("pivotOptions"),
     },
-    later(
-      "PivotTableShowReportFilterPages",
-      "Show Report Filter Pages...",
-      "Make a sheet for each report filter item.",
-      "P",
-    ),
+    {
+      id: "PivotTableShowReportFilterPages",
+      label: "Show Report Filter Pages...",
+      description:
+        "Make a sheet for each item of a report filter, each with a copy of the PivotTable showing that item.",
+      keytip: "P",
+      enabled: (env) => env.c.pivots.reportFilters().length > 0,
+      run: (env) => env.dialog("reportFilterPages"),
+    },
     {
       id: "PivotTableGetPivotData",
       label: "Generate GetPivotData",

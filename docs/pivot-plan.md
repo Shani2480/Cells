@@ -104,8 +104,8 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    style options; `ribbon/pivot-commands.tsx`, `PIVOT_ANALYZE` / `PIVOT_DESIGN`, the PivotTable style gallery
    (thumbnails drawn by the grid's own style code). Five PivotTables laid out by the Design tab open in Excel 365
    without repairs and refresh to the same cells. Greyed out until their steps: grouping (5), calculated fields (5),
-   PivotChart (6), slicers, timelines and Recommended PivotTables (7); not built: Show Report Filter Pages, Generate
-   GetPivotData, Field Headers, New PivotTable Style.
+   PivotChart (6), slicers, timelines and Recommended PivotTables (7); not built then: Show Report Filter Pages (done in
+   Phase 8), Generate GetPivotData, Field Headers, New PivotTable Style.
    _Touch, Defer Layout Update and Delete done:_ a menu on every field of the list (Add to Report Filter / Row
    Labels / Column Labels / Values, also on right-click), menus placed on the window above or below their row,
    finger-sized rows and buttons on coarse pointers, the pane over the whole phone screen (Field List in the phone's

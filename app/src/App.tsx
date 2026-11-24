@@ -177,6 +177,7 @@ import { ObjectDialog } from "@/shell/ObjectDialog"
 import { ArrangeWindowsDialog, CompareSideBySideDialog, UnhideWindowDialog } from "@/shell/WindowDialogs"
 import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
 import { AltTextDialog } from "@/shell/AltTextDialog"
+import { ReportFilterPagesDialog } from "@/shell/ReportFilterPagesDialog"
 import { FormatPictureDialog, type FormatPicturePart } from "@/shell/FormatPictureDialog"
 import { AllowEditRangesDialog, UnlockRangeDialog } from "@/shell/EditRangesDialogs"
 import { loadDemo } from "./demo"
@@ -227,6 +228,7 @@ type DialogState =
         | "moveCopySheet"
         | "unhideSheet"
         | "zoom"
+        | "reportFilterPages"
         | "fillAcross"
         | "customViews"
         | "macros"
@@ -1106,6 +1108,7 @@ function WorkbookWindow({
       kind === "moveCopySheet" ||
       kind === "unhideSheet" ||
       kind === "zoom" ||
+      kind === "reportFilterPages" ||
       kind === "fillAcross" ||
       kind === "customViews" ||
       kind === "macros" ||
@@ -1658,6 +1661,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "signatureSetup" ? (
           <SignatureSetupDialog controller={controller} editing={dialog.editing} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "reportFilterPages" ? (
+          <ReportFilterPagesDialog controller={controller} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "formatPicture" ? (
           <FormatPictureDialog controller={controller} part={dialog.part} onClose={closeDialog} />
