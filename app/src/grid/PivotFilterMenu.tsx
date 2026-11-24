@@ -239,6 +239,23 @@ export function PivotFilterMenu({
             </span>
             <span>{sortLabels[1]}</span>
           </button>
+          {sheet === undefined || sheet === controller.sheetIndex ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="fm-row"
+              onPointerEnter={() => setSubmenu(null)}
+              onClick={() => {
+                onClose()
+                // The dialog works on the PivotTable of the active cell.
+                controller.goTo({ r0: row, c0: col, r1: row, c1: col })
+                controller.shell.openDialog?.(`pivotSort:${field}`)
+              }}
+            >
+              <span className="fm-row-icon" />
+              <span>More Sort Options...</span>
+            </button>
+          ) : null}
           <div className="menu-separator" role="separator" />
           <button
             type="button"

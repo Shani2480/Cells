@@ -1,6 +1,7 @@
 import type { Sheet } from "../sheet"
-import { pivotFieldName, pivotLayout } from "./engine"
-import { pivotFilterTarget } from "./filter"
+import { pivotFieldName, pivotLayout, type PivotAxisItem } from "./engine"
+import { fullItems, pivotFilterTarget } from "./filter"
+import { fieldShared } from "./group"
 import { showAsNumFmt } from "./show-as"
 import {
   newPivotField,
@@ -356,4 +357,68 @@ export function withAllCleared(t: PivotTable, cache: PivotCache): PivotTable {
   }
   delete next.filters
   return next
+}
+
+/**
+ * What Sort works on at a cell of a PivotTable (the cell menu's Sort, Data › Sort): a label sorts its field by the
+ * labels (`by` null); a value cell sorts the field of its row by that value field (`by`, an index into `values`), or
+ * the field of its column when it's in the Grand Total row. Null where Cells can't sort as Excel would: a value under
+ * one column item (Excel sorts by that column alone; Cells sorts by the totals only).
+ */
+export function pivotSortTarget(
+  table: PivotTable,
+  cache: PivotCache,
+  row: number,
+  col: number,
+): { field: number; by: number | null } | null {
+  const layout = pivotLayout(table, cache)
+  const cell = layout.cells.find((c) => c.row === row && c.col === col)
+  if (!cell) return null
+  if (cell.item) return { field: cell.item.field, by: null }
+  if (cell.role === "rowHeader" || cell.role === "colHeader") {
+    const field = pivotFilterTarget(table, cache, cell)?.fields.find((f) => f >= 0)
+    return field === undefined ? null : { field, by: null }
+  }
+  if (!cell.lines) return null
+  const target = pivotSettingsTarget(table, cache, row, col)
+  if (target?.kind !== "value") return null
+  const [ri, ci] = cell.lines
+  const rowLine = layout.rowItems[ri]
+  const colLine = layout.colItems[ci]
+  const real = (axis: number[]) => axis.some((f) => f >= 0)
+  /** The field a line belongs to: its deepest item's, stepping past the Values entry. */
+  const fieldOf = (axis: number[], line: PivotAxisItem | undefined) => {
+    if (!line || line.t === "grand" || line.t === "blank") return null
+    for (let level = line.r + line.x.length - 1; level >= 0; level--) if (axis[level] >= 0) return axis[level]
+    return null
+  }
+  const totalsOnly = (axis: number[], line: PivotAxisItem | undefined) => !real(axis) || !line || line.t === "grand"
+  const rowField = fieldOf(table.rows, rowLine)
+  if (rowField !== null && totalsOnly(table.cols, colLine)) return { field: rowField, by: target.index }
+  const colField = fieldOf(table.cols, colLine)
+  if (colField !== null && totalsOnly(table.rows, rowLine)) return { field: colField, by: target.index }
+  return null
+}
+
+/**
+ * Field `f` set to Manual sort keeping the order it shows now (a sort by value leaves the items in label order
+ * underneath): its items stored in the order they first appear in the table, as Excel keeps them.
+ */
+export function withManualAsShown(table: PivotTable, cache: PivotCache, f: number): PivotTable {
+  const field = table.fields[f]
+  if (!field || field.sort === "manual") return table
+  const shown: number[] = []
+  for (const cell of pivotLayout(table, cache).cells)
+    if (cell.item?.field === f && !shown.includes(cell.item.x)) shown.push(cell.item.x)
+  const all = fullItems(field, fieldShared(cache, f).length)
+  const rank = (x: number) => {
+    const i = shown.indexOf(x)
+    return i < 0 ? shown.length : i
+  }
+  const items = all.map((item, i) => ({ item, i })).sort((a, b) => rank(a.item.x) - rank(b.item.x) || a.i - b.i)
+  const next: PivotField = { ...field, sort: "manual", items: items.map((e) => e.item) }
+  delete next.sortBy
+  const fields = [...table.fields]
+  fields[f] = next
+  return { ...table, fields }
 }

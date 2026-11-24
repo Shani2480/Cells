@@ -117,6 +117,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "In a PivotTable with a report filter, the arrow under Options has Show Report Filter Pages: it makes a sheet for each of the filter's items, each with a copy of the PivotTable showing just that item.",
     target: "Options",
   },
+  {
+    id: "pivot-sort-by-value",
+    title: "New: Sort a PivotTable by its values",
+    text: "Right-click a value in a PivotTable and pick Sort to order its items by that value, or use More Sort Options to choose the value field, or to keep them in the order you arrange.",
+    target: "Field Settings",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

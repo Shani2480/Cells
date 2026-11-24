@@ -40,6 +40,7 @@ import {
   withFiltersCleared,
   type Range,
   pivotSettingsTarget,
+  pivotSortTarget,
   withFieldSettings,
   withPivotOptions,
   withValueSettings,
@@ -68,6 +69,8 @@ import {
   withPagePick,
   withShownItems,
   withSort,
+  withValueSort,
+  withManualAsShown,
   pivotCellAt,
   pivotCellsPlan,
   reportFilterPages,
@@ -1443,6 +1446,65 @@ export class PivotCommands {
   sortField(row: number, col: number, field: number, sort: PivotSort): boolean {
     const at = this.cellAt(row, col)
     return at ? this.relayout(at, withSort(at.table, at.cache, field, sort), "Sort") : false
+  }
+
+  // ── Sort in a PivotTable (cell menu, Data tab, More Sort Options) ──
+
+  /** What Sort does at the active cell of the active PivotTable (null: not in one, or nothing to sort there). */
+  sortTarget(): { field: number; by: number | null } | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const { row, col } = this.c.selection.active
+    return pivotSortTarget(at.table, at.cache, row, col)
+  }
+
+  /**
+   * Sort A to Z / Z to A at the active cell: a label's field by its labels, or a value's field by that value (the
+   * cell menu's Sort and Data › Sort in a PivotTable, as Excel's).
+   */
+  sortActive(descending: boolean): boolean {
+    const at = this.activeWithCache()
+    const target = this.sortTarget()
+    if (!at || !target) return false
+    const sort = descending ? "descending" : "ascending"
+    const next =
+      target.by === null
+        ? withSort(at.table, at.cache, target.field, sort)
+        : withValueSort(at.table, target.field, target.by, sort)
+    return this.relayout(at, next, "Sort")
+  }
+
+  /** The Sort dialog (More Sort Options) for field `f` of the active PivotTable: its name, how it's sorted and the choices. */
+  sortDialog(f: number): {
+    name: string
+    sort: PivotSort
+    by: number | null
+    values: string[]
+  } | null {
+    const at = this.activeWithCache()
+    const field = at?.table.fields[f]
+    if (!at || !field) return null
+    return {
+      name: pivotFieldName(at.table, at.cache, f),
+      sort: field.sort,
+      by: field.sort !== "manual" && field.sortBy !== undefined && at.table.values[field.sortBy] ? field.sortBy : null,
+      values: at.table.values.map((v) => v.name),
+    }
+  }
+
+  /** The Sort dialog's OK: field `f` kept as arranged (manual), or sorted by its labels (`by` null) or a value field. */
+  setSort(f: number, sort: PivotSort, by: number | null): boolean {
+    const at = this.activeWithCache()
+    if (!at || !at.table.fields[f]) return false
+    // Manual after a sort keeps the order shown (on the rows or columns; a report filter's pick follows its item).
+    const axis = at.table.fields[f].axis
+    const next =
+      sort === "manual" && (axis === "row" || axis === "col")
+        ? withManualAsShown(at.table, at.cache, f)
+        : sort === "manual" || by === null
+          ? withSort(at.table, at.cache, f, sort)
+          : withValueSort(at.table, f, by, sort)
+    return this.relayout(at, next, "Sort")
   }
 
   /**

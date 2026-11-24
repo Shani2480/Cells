@@ -398,10 +398,10 @@ The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables h
   the features; Contact Support and Feedback open a pre-filled GitHub issue the person reviews and submits (Cells
   sends nothing, no workbook content). File › Help and File › Feedback too (phones have no Help tab).
 - ⬜ Next: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project.
-- ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: a More Sort Options dialog for PivotTables,
-  Field Headers, calculated items, new PivotTable styles).
+- ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: Field Headers, calculated items, new
+  PivotTable styles).
 
-**Known limits:** sorting a PivotTable by a value is set only by the AI or by Excel's files (no dialog yet). Help's
+**Known limits:** Help's
 shortcut list is written by hand (`help-content.ts`): a new shortcut has to be added there too. Show me can't point
 on phones (the pane fills the screen), and Show Training says so when a feature's button isn't on screen.
 
@@ -558,7 +558,14 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       in the filter's order, each with a copy of the PivotTable at A1 showing that item; one undo step. Excel 365's
       own run on the same data gave the same sheets, names, order and PivotTable names; Cells' result opens in Excel
       without repair and refreshes to the same cells. Hint and Help topic.
-    - ⬜ More Sort Options (sort by a value), calculated items with Solve Order and List Formulas, the rest of
+    - ✅ Sorting by a value: Sort on a PivotTable value (cell menu, Data › Sort A to Z / Z to A) orders the field of
+      its row by that value (of its column in the Grand Total row), as Excel's; More Sort Options (cell menu,
+      a field's dropdown, Data › Sort) is Excel's Sort (Field) dialog: Manual (keeps the order shown), Ascending or
+      Descending by the field's labels or a value field, with its summary line. Checked in Excel 365: no repair,
+      Excel reads each sort (field, direction, value field) and refreshes to the same cells. Hint and Help topic.
+      Limits: by the grand totals only (Excel can also sort by the values of one column, and has a More Options
+      dialog for that and for first-key sort order); a value under one column item says so instead of sorting.
+    - ⬜ Calculated items with Solve Order and List Formulas, the rest of
       PivotTable Options (merge labels, classic layout, report filter layout, printing, Alt Text), New PivotTable
       Style.
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,

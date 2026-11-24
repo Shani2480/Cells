@@ -92,6 +92,11 @@ function sortKeyBy(index: number, descending: boolean, by?: SortBy): SortKey {
  * Data › Sort & Filter: Sort A to Z / Z to A on the data around the active cell, the Sort dialog's sort, and the
  * AutoFilter (its dropdowns, Clear and Reapply).
  */
+
+/** Sort at a PivotTable cell Cells can't sort (a value under one column item, a blank cell). */
+export const PIVOT_SORT_MESSAGE =
+  "Cells sorts a PivotTable by its labels or by its grand totals. Select a label, or a value in the Grand Total column or row, and then sort."
+
 export class DataCommands {
   constructor(private readonly c: SheetController) {}
 
@@ -166,6 +171,11 @@ export class DataCommands {
 
   /** Sort A to Z (Z to A) on the active cell's column. Asks first when the selection has data beside it. */
   quickSort(descending: boolean) {
+    // In a PivotTable, the field of the cell is sorted (its labels, or by the value), as Excel's.
+    if (this.c.pivots.active()) {
+      if (!this.c.pivots.sortActive(descending)) this.c.shell.alert(PIVOT_SORT_MESSAGE)
+      return
+    }
     const selected = this.sortRange()
     const single = this.c.selection.ranges[0]
     const multi = single.r0 !== single.r1 || single.c0 !== single.c1
@@ -184,6 +194,12 @@ export class DataCommands {
 
   /** Data › Sort: the Sort dialog on the data around the selection (asking first when there's more beside it). */
   openSortDialog() {
+    if (this.c.pivots.active()) {
+      const target = this.c.pivots.sortTarget()
+      if (target) this.c.shell.openDialog?.(`pivotSort:${target.field}`)
+      else this.c.shell.alert(PIVOT_SORT_MESSAGE)
+      return
+    }
     const selected = this.sortRange()
     const single = this.c.selection.ranges[0]
     const multi = single.r0 !== single.r1 || single.c0 !== single.c1

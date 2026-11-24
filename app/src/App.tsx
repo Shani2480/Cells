@@ -178,6 +178,7 @@ import { ArrangeWindowsDialog, CompareSideBySideDialog, UnhideWindowDialog } fro
 import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
 import { AltTextDialog } from "@/shell/AltTextDialog"
 import { ReportFilterPagesDialog } from "@/shell/ReportFilterPagesDialog"
+import { PivotSortDialog } from "@/shell/PivotSortDialog"
 import { FormatPictureDialog, type FormatPicturePart } from "@/shell/FormatPictureDialog"
 import { AllowEditRangesDialog, UnlockRangeDialog } from "@/shell/EditRangesDialogs"
 import { loadDemo } from "./demo"
@@ -305,6 +306,7 @@ type DialogState =
   | { kind: "pivotValue"; index: number }
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
   | { kind: "pivotField"; field: number }
+  | { kind: "pivotSort"; field: number }
   | { kind: "pivotOptions" }
   | { kind: "pivotCalcField" }
   | { kind: "pivotGroup" }
@@ -839,6 +841,26 @@ function WorkbookWindow({
       ]
     }
     const sortItems = (): MenuItem[] => {
+      if (controller.pivots.active()) {
+        // In a PivotTable, Sort orders the field of the cell (by its labels, or by the value clicked), as Excel's.
+        const target = controller.pivots.sortTarget()
+        const names = data.labels()
+        return [
+          act(
+            names.ascending,
+            () => void controller.pivots.sortActive(false),
+            !target,
+            pictureFor("SortAscendingExcel", 16),
+          ),
+          act(
+            names.descending,
+            () => void controller.pivots.sortActive(true),
+            !target,
+            pictureFor("SortDescendingExcel", 16),
+          ),
+          act("More Sort Options...", () => openDialog(`pivotSort:${target?.field ?? 0}`), !target),
+        ]
+      }
       const names = data.labels()
       return [
         act(names.ascending, () => data.quickSort(false), false, pictureFor("SortAscendingExcel", 16)),
@@ -1094,6 +1116,7 @@ function WorkbookWindow({
       const [index, as] = arg.split("/")
       setDialog({ kind: "pivotShowAs", index: Number(index), as: as as PivotShowAs })
     } else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
+    else if (kind === "pivotSort") setDialog({ kind: "pivotSort", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
     else if (kind === "pivotCalcField") setDialog({ kind: "pivotCalcField" })
     else if (kind === "pivotGroup") setDialog({ kind: "pivotGroup" })
@@ -1604,6 +1627,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "pivotShowAs" ? (
           <ShowValuesAsDialog controller={controller} index={dialog.index} as={dialog.as} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "pivotSort" ? (
+          <PivotSortDialog controller={controller} field={dialog.field} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotField" ? (
           <FieldSettingsDialog controller={controller} field={dialog.field} onClose={closeDialog} />
