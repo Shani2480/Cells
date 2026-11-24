@@ -30,6 +30,8 @@ import {
   type SmartArtPath,
   inkFromPixels,
   inkPoints,
+  correctionsOf,
+  type PictureAdjust,
 } from "@cells/core"
 import { layoutSmartArt } from "@/drawing/smartart"
 import { renderModel } from "@/drawing/model3d"
@@ -92,6 +94,12 @@ export class ObjectCommands {
   inkHidden = false
   /** The picture being cropped (Picture Format › Crop): its crop handles are shown until Esc, Enter or a click away. */
   cropping: number | null = null
+  /** Set Transparent Color: the picture whose next click picks the colour. */
+  pickingColor: number | null = null
+  /** A picture with corrections applied (a PNG data URL); the browser's canvas, or a stand-in in tests. */
+  correct: (src: string, a: PictureAdjust) => Promise<string> = (src, a) =>
+    import("@/drawing/picture-adjust").then((m) => m.correctPicture(src, a))
+  private adjusting = 0
   private lastInk: { sheet: number; id: number; time: number } | null = null
 
   constructor(private readonly c: SheetController) {}
@@ -139,6 +147,7 @@ export class ObjectCommands {
     this.selected = next
     if (this.editing !== null && !next.includes(this.editing)) this.editing = null
     if (this.cropping !== null && !next.includes(this.cropping)) this.cropping = null
+    if (this.pickingColor !== null && !next.includes(this.pickingColor)) this.pickingColor = null
     this.c.changed()
   }
 
@@ -889,6 +898,121 @@ export class ObjectCommands {
     })
   }
 
+  // ── Corrections, Color, Transparency (Picture Format › Adjust) ──
+
+  /** The one picture selected, when its look can be adjusted (not an icon, a 3D model, a signature line or an object). */
+  adjustable(): SheetPicture | null {
+    const p = this.croppable()
+    return p && !p.icon && !p.svg && !p.src.startsWith("data:image/svg") ? p : null
+  }
+
+  /**
+   * Whether Cells can change a picture's corrections: it needs the original, and Excel's may be an HD Photo (which
+   * browsers can't read) or carry artistic effects Cells doesn't draw. Its colour and transparency can still change.
+   */
+  canCorrect(p: SheetPicture | null = this.adjustable()): boolean {
+    return !!p && !p.original?.startsWith("data:image/vnd.ms-photo") && !p.adjust?.effects?.length
+  }
+
+  /**
+   * Changes the selected picture's adjustments (`undefined` takes one away), as one undo step. Corrections are baked
+   * into the picture, from the original, which is kept beside it; that takes a moment, so this waits for it.
+   */
+  async setAdjust(change: Partial<PictureAdjust>, label: string): Promise<boolean> {
+    const p = this.adjustable()
+    if (!p) return false
+    const next: PictureAdjust = { ...p.adjust, ...change }
+    for (const key of Object.keys(next) as (keyof PictureAdjust)[]) {
+      const v = next[key]
+      const neutral =
+        v === undefined ||
+        (key === "saturation" && v === 1) ||
+        (key === "temperature" && v === 6500) ||
+        ((key === "bright" || key === "contrast" || key === "sharpen" || key === "transparency") && !v)
+      if (neutral) delete next[key]
+    }
+    const before = correctionsOf(p.adjust)
+    const after = correctionsOf(next)
+    let src = p.src
+    let original = p.original
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      if (!this.canCorrect(p)) return false
+      const base = p.original ?? p.src
+      const token = ++this.adjusting
+      src = after ? await this.correct(base, after) : base
+      // A later change wins; a picture deleted meanwhile is left alone.
+      if (token !== this.adjusting || !this.find(p.id)) return false
+      original = after ? base : undefined
+    }
+    return this.update(
+      label,
+      (o) => {
+        if (isChart(o) || o.kind !== "picture") return
+        if (Object.keys(next).length) o.adjust = next
+        else delete o.adjust
+        o.src = src
+        if (original) o.original = original
+        else delete o.original
+      },
+      [p.id],
+    )
+  }
+
+  /**
+   * Reset Picture: the picture as it came, its corrections, colour, transparency, shape and border gone; with `size`
+   * (Reset Picture & Size) also its crop, turn and size. One undo step.
+   */
+  resetPicture(size: boolean) {
+    const p = this.croppable()
+    if (!p) return
+    const box = this.box(p)
+    this.update(
+      size ? "Reset Picture & Size" : "Reset Picture",
+      (o) => {
+        if (isChart(o) || o.kind !== "picture") return
+        if (o.original) o.src = o.original
+        delete o.original
+        delete o.adjust
+        delete o.geometry
+        delete o.line
+        if (!size || !o.natural) return
+        delete o.crop
+        delete o.rotation
+        o.anchor = anchorOf(this.c.sheet, { ...box, w: o.natural.w, h: o.natural.h })
+      },
+      [p.id],
+    )
+  }
+
+  /** Set Transparent Color: the next click on the picture picks the colour (false: stop waiting). */
+  pickColor(on = true) {
+    const p = on ? this.adjustable() : null
+    this.pickingColor = p ? p.id : null
+    this.c.changed()
+  }
+
+  /**
+   * Set Transparent Color: the colour at a point of the picture waiting for it (fractions of its frame) becomes
+   * see-through. Flips and the crop are undone to find the pixel.
+   */
+  async pickColorAt(fx: number, fy: number): Promise<boolean> {
+    const p = this.pickingColor !== null ? this.find(this.pickingColor) : null
+    this.pickingColor = null
+    this.c.changed()
+    if (!p || isChart(p) || p.kind !== "picture") return false
+    if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return false
+    const c = p.crop ?? { l: 0, t: 0, r: 0, b: 0 }
+    const x = p.flipH ? 1 - fx : fx
+    const y = p.flipV ? 1 - fy : fy
+    const ix = c.l + x * (1 - c.l - c.r)
+    const iy = c.t + y * (1 - c.t - c.b)
+    const { pixelColor } = await import("@/drawing/picture-adjust")
+    const color = await pixelColor(p.src, ix, iy).catch(() => null)
+    if (!color || !this.find(p.id)) return false
+    this.select([p.id])
+    return this.setAdjust({ transparentColor: color }, "Set Transparent Color")
+  }
+
   // ── Text ──
 
   startText(id: number) {
@@ -1172,6 +1296,7 @@ export class ObjectCommands {
   /** Keys while objects are selected (true: handled). */
   key(key: string, primary: boolean, shift: boolean): boolean {
     if (this.cropping !== null && (key === "Escape" || key === "Enter")) return (this.endCrop(), true)
+    if (this.pickingColor !== null && key === "Escape") return (this.pickColor(false), true)
     if (!this.selected.length) {
       if (key === "Escape" && this.pending) return (this.cancelPending(), true)
       if (key === "Escape" && this.pen) return (this.usePen(null), true)

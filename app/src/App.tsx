@@ -177,6 +177,7 @@ import { ObjectDialog } from "@/shell/ObjectDialog"
 import { ArrangeWindowsDialog, CompareSideBySideDialog, UnhideWindowDialog } from "@/shell/WindowDialogs"
 import { WorkbookStatisticsDialog } from "@/shell/WorkbookStatisticsDialog"
 import { AltTextDialog } from "@/shell/AltTextDialog"
+import { FormatPictureDialog, type FormatPicturePart } from "@/shell/FormatPictureDialog"
 import { AllowEditRangesDialog, UnlockRangeDialog } from "@/shell/EditRangesDialogs"
 import { loadDemo } from "./demo"
 import { FileCommands, type SaveChoice } from "@/file/commands"
@@ -279,6 +280,7 @@ type DialogState =
   | { kind: "createTable"; init: CreateTableInit }
   | { kind: "selectData" }
   | { kind: "altText"; chartId: number }
+  | { kind: "formatPicture"; part: FormatPicturePart }
   | { kind: "signatureSetup"; editing?: number }
   | { kind: "pageSetup"; tab: PageSetupTab }
   | { kind: "resizeTable"; range: Range }
@@ -1144,6 +1146,8 @@ function WorkbookWindow({
       setDialog({ kind: "ai", tool: arg })
     else if (kind === "options") setDialog({ kind: "options", page: arg === "ai" ? "ai" : undefined })
     else if (kind === "altText" && arg) setDialog({ kind: "altText", chartId: Number(arg) })
+    else if (kind === "formatPicture" && (arg === "corrections" || arg === "color" || arg === "transparency"))
+      setDialog({ kind: "formatPicture", part: arg })
     else if (kind === "openObject" && arg) void openObject(Number(arg))
     else if (kind === "signatureSetup") setDialog({ kind: "signatureSetup", editing: arg ? Number(arg) : undefined })
     else if (kind === "pageSetup") setDialog({ kind: "pageSetup", tab: (arg as PageSetupTab) ?? "page" })
@@ -1651,6 +1655,9 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "signatureSetup" ? (
           <SignatureSetupDialog controller={controller} editing={dialog.editing} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "formatPicture" ? (
+          <FormatPictureDialog controller={controller} part={dialog.part} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "altText" ? (
           <AltTextDialog controller={controller} chartId={dialog.chartId} onClose={closeDialog} />

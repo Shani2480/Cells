@@ -40,6 +40,7 @@ import { objectKey, objectWithMathXml, readObject } from "./shapes"
 import { isEmbeddedObject } from "./ole-objects"
 import { CT_GLB, model3dNode, readModel3d, REL_MODEL3D } from "./model3d"
 import { slicerFrameName, slicerFrameXml, type SlicerRead } from "./slicers"
+import { IMG_PROPS_EXT, REL_HDPHOTO } from "./picture-adjust"
 import { timelineFrameName, timelineFrameXml, type TimelineRead } from "./timelines"
 import { CT_DGM, readSmartArt, REL_DGM, smartArtFrameXml, smartArtRelIds } from "./smartart"
 
@@ -77,6 +78,8 @@ export type DrawingSource = {
   images: Map<string, string>
   /** The 3D models read, by relationship id (likewise). */
   models?: Map<string, Uint8Array>
+  /** Corrected pictures' originals read, by relationship id (likewise). */
+  layers?: Map<string, string>
   /** The ink parts' relationships Cells read: dropped, and written anew for the ink still there. */
   inkRels?: Set<string>
 }
@@ -128,6 +131,7 @@ export function readDrawing(
     charts: new Map(),
     images: new Map(),
     models: new Map(),
+    layers: new Map(),
   }
   const model = (rid: string) => {
     const rel = rels.find((r) => r.id === rid && r.type === REL_MODEL3D)
@@ -142,6 +146,14 @@ export function readDrawing(
     if (!part) return undefined
     const url = pictureUrl(rel!.partName!, part)
     source.images.set(rid, url)
+    return url
+  }
+  const layer = (rid: string) => {
+    const rel = rels.find((r) => r.id === rid && (r.type === REL_HDPHOTO || r.type === REL_IMAGE))
+    const part = bytes(rel?.partName)
+    if (!part) return undefined
+    const url = pictureUrl(rel!.partName!, part)
+    source.layers!.set(rid, url)
     return url
   }
   let unread = 0
@@ -245,7 +257,7 @@ export function readDrawing(
     const read3d = modelNode && modelPic ? readModel3d(doc, modelNode, model) : null
     const content = mathShape ?? (read3d ? modelPic : undefined) ?? anchor.children.find((c) => OBJECTS.has(c.local))
     if (placed && content && content.local !== "graphicFrame") {
-      const object = readObject(content, { nextId, image, doc }, isDecorative)
+      const object = readObject(content, { nextId, image, layer, doc }, isDecorative)
       if (object) {
         object.anchor = placed.anchor
         if (placed.placement) object.placement = placed.placement
@@ -257,6 +269,18 @@ export function readDrawing(
           .map((e) => at(kid(e, "svgBlip"), "embed", NS_R))
           .find(Boolean)
         if (svg) embeds.svg = svg
+        const layerRid = at(
+          kid(
+            kid(
+              kids(kid(blip, "extLst"), "ext").find((e) => at(e, "uri")?.toUpperCase() === IMG_PROPS_EXT),
+              "imgProps",
+            ),
+            "imgLayer",
+          ),
+          "embed",
+          NS_R,
+        )
+        if (layerRid) embeds.layer = layerRid
         if (read3d && object.kind === "picture") {
           object.model3d = read3d.model
           embeds.model = read3d.rid
@@ -476,6 +500,7 @@ export function writeDrawing(
   // A picture written again uses its part; a new one gets a part of its own (one per picture data in this save).
   const newImages = new Map<string, string>()
   const newModels = new Map<Uint8Array, string>()
+  const newLayers = new Map<string, string>()
   const writer = {
     nextId: () => ++shapeId,
     imageRel: (src: string, was?: string) => {
@@ -484,6 +509,18 @@ export function writeDrawing(
       if (rid) return rid
       rid = out.addRel(partName, REL_IMAGE, putPicture(src, out))
       newImages.set(src, rid)
+      return rid
+    },
+    layerRel: (original: string, was?: string) => {
+      if (was && source?.layers?.get(was) === original && rels.some((r) => r.id === was)) return was
+      let rid = newLayers.get(original)
+      if (rid) return rid
+      const data = dataUrlBytes(original)
+      const ext = PICTURE_TYPES[data?.mime ?? ""] ?? "png"
+      const media = out.freeName((n) => `/xl/media/hdphoto${n}.${ext}`)
+      out.putBytes(media, data?.mime ?? "image/png", data?.bytes ?? new Uint8Array())
+      rid = out.addRel(partName, REL_HDPHOTO, media)
+      newLayers.set(original, rid)
       return rid
     },
     modelRel: (data: Uint8Array, was?: string) => {

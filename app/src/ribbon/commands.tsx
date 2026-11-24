@@ -42,6 +42,7 @@ import {
 } from "./tabs"
 import { chartCommands } from "./chart-commands"
 import { objectCommands } from "./object-commands"
+import { pictureAdjustCommands } from "./picture-adjust-commands"
 import { tableCommands } from "./table-commands"
 
 const large = { size: 32, strokeWidth: 1.25 }
@@ -421,6 +422,7 @@ export function allCommands(): Command[] {
     ...pivotCommands(),
     ...chartCommands(),
     ...objectCommands(),
+    ...pictureAdjustCommands(),
     ...pageLayoutCommands(),
     ...themeCommands(),
     ...windowCommands(),

@@ -17,6 +17,7 @@ import {
   type Theme,
 } from "@cells/core"
 import { presetGeometry } from "./geometry"
+import { pictureFilter, pictureOpacity } from "./picture-filter"
 
 /**
  * Shapes, text boxes, pictures and groups drawn as SVG markup at their size (pixels at 100%), for the sheet, for
@@ -301,16 +302,20 @@ export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, 
     const shape = o.geometry ? presetGeometry(o.geometry, w, h) : null
     const outline = shape?.paths.join(" ")
     const clipId = `pic${o.id}clip`
-    const clip = outline
-      ? `<defs><clipPath id="${clipId}"><path d="${outline}" fill-rule="evenodd"/></clipPath></defs>`
-      : ""
+    // Color and Transparency (Office 2007's adjustments), drawn as a filter and the picture's opacity.
+    const fxId = `pic${o.id}fx`
+    const fx = pictureFilter(fxId, o.adjust, theme)
+    const opacity = pictureOpacity(o.adjust)
+    const defs = (outline ? `<clipPath id="${clipId}"><path d="${outline}" fill-rule="evenodd"/></clipPath>` : "") + fx
+    const clip = defs ? `<defs>${defs}</defs>` : ""
+    const look = (fx ? ` filter="url(#${fxId})"` : "") + (opacity !== null ? ` opacity="${n(opacity)}"` : "")
     const line = !o.line
       ? ""
       : outline
         ? `<path d="${outline}" fill="none" fill-rule="evenodd"${strokeAttr(o.line, theme)}/>`
         : `<rect x="0" y="0" width="${n(w)}" height="${n(h)}" fill="none"${strokeAttr(o.line, theme)}/>`
     return (
-      `${clip}<svg x="0" y="0" width="${n(w)}" height="${n(h)}" overflow="hidden"><image href="${esc(href)}" x="${n(-c.l * fw)}" y="${n(-c.t * fh)}" width="${n(fw)}" height="${n(fh)}" preserveAspectRatio="none"${outline ? ` clip-path="url(#${clipId})"` : ""}/></svg>` +
+      `${clip}<svg x="0" y="0" width="${n(w)}" height="${n(h)}" overflow="hidden"><image href="${esc(href)}" x="${n(-c.l * fw)}" y="${n(-c.t * fh)}" width="${n(fw)}" height="${n(fh)}" preserveAspectRatio="none"${look}${outline ? ` clip-path="url(#${clipId})"` : ""}/></svg>` +
       line
     )
   }

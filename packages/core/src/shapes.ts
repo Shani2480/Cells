@@ -218,10 +218,60 @@ export type SheetPicture = ObjectBase & {
   crop?: { l: number; t: number; r: number; b: number }
   /** Crop to Shape: the preset shape the picture is cut to ("ellipse", "heart"…); absent for a rectangle. */
   geometry?: string
+  /** Picture Format › Adjust: corrections, colour and transparency. */
+  adjust?: PictureAdjust
+  /**
+   * The picture as it came, when Office 2010's corrections are applied: `src` is then the corrected picture, as Office
+   * keeps it (a14:imgLayer). Excel's own may be an HD Photo (image/vnd.ms-photo), which Cells keeps but can't draw.
+   */
+  original?: string
   line?: ShapeLine
   /** An icon (Insert › Icons): drawn from SVG, recoloured with Graphics Fill. */
   icon?: boolean
 }
+
+/**
+ * A picture's adjustments (Picture Format › Corrections, Color, Transparency). The first ones are Office 2010's: they
+ * are baked into the picture (`src`), the original kept beside it. The rest are applied when the picture is drawn.
+ */
+export type PictureAdjust = {
+  /** Brightness and contrast, -1 to 1 (0: as it is). */
+  bright?: number
+  contrast?: number
+  /** Sharpen (above 0) or soften (below), -1 to 1. */
+  sharpen?: number
+  /** Colour saturation: 1 as it is, 0 grey, up to 4. */
+  saturation?: number
+  /** Colour tone in kelvin: 6500 as it is; lower is cooler, higher warmer (as Office names them). */
+  temperature?: number
+  /** Office's other image effects (artistic effects…) as the file had them, written back unchanged. */
+  effects?: string[]
+  /** Recolor: drawn from the picture's brightness. */
+  recolor?: PictureRecolor
+  /** Office 2007's Brightness and Contrast (a:lum), -1 to 1; Washout is bright 0.7, contrast -0.7. */
+  lum?: { bright: number; contrast: number }
+  /** 0 to 1. */
+  transparency?: number
+  /** Set Transparent Color: the colour ("RRGGBB") shown as see-through. */
+  transparentColor?: string
+}
+
+/** A duotone colour as Office writes one: a theme or RGB colour, or black or white, changed by tint, shade and satMod. */
+export type DuotoneColor = {
+  rgb?: string
+  theme?: ThemeSlot
+  preset?: "black" | "white"
+  tint?: number
+  shade?: number
+  satMod?: number
+}
+
+export type PictureRecolor =
+  | { kind: "grayscale" }
+  /** Black and White: lighter than `threshold` (0–1) is white. */
+  | { kind: "blackWhite"; threshold: number }
+  /** Sepia and the Dark and Light Variations: black to the first colour, white to the second. */
+  | { kind: "duotone"; colors: [DuotoneColor, DuotoneColor] }
 
 export type SheetGroup = ObjectBase & {
   kind: "group"
@@ -361,6 +411,7 @@ export function copyObject<T extends SheetObject>(o: T): T {
   } else if (out.kind === "picture") {
     const p = o as SheetPicture
     if (p.crop) out.crop = { ...p.crop }
+    if (p.adjust) out.adjust = copyAdjust(p.adjust)
     if (p.natural) out.natural = { ...p.natural }
     if (p.line) out.line = copyLine(p.line)
     if (p.signature) out.signature = { ...p.signature }
@@ -623,6 +674,42 @@ export function dataUrlBytes(url: string): { mime: string; bytes: Uint8Array } |
   return { mime: m[1], bytes: bytes.subarray(0, n) }
 }
 
+/** A copy of a picture's adjustments, nothing shared. */
+export function copyAdjust(a: PictureAdjust): PictureAdjust {
+  const out: PictureAdjust = { ...a }
+  if (a.effects) out.effects = [...a.effects]
+  if (a.lum) out.lum = { ...a.lum }
+  if (a.recolor?.kind === "duotone")
+    out.recolor = { kind: "duotone", colors: [{ ...a.recolor.colors[0] }, { ...a.recolor.colors[1] }] }
+  else if (a.recolor) out.recolor = { ...a.recolor }
+  return out
+}
+
+/** The corrections only (what's baked into the picture), or null when there are none. */
+export function correctionsOf(a: PictureAdjust | undefined): PictureAdjust | null {
+  if (!a) return null
+  const out: PictureAdjust = {}
+  if (a.bright) out.bright = a.bright
+  if (a.contrast) out.contrast = a.contrast
+  if (a.sharpen) out.sharpen = a.sharpen
+  if (a.saturation !== undefined && a.saturation !== 1) out.saturation = a.saturation
+  if (a.temperature !== undefined && a.temperature !== 6500) out.temperature = a.temperature
+  return Object.keys(out).length ? out : null
+}
+
+/** True when the adjustments include Office 2010's corrections, which are baked into the picture. */
+export function hasCorrections(a: PictureAdjust | undefined): boolean {
+  return (
+    !!a &&
+    (!!a.bright ||
+      !!a.contrast ||
+      !!a.sharpen ||
+      (a.saturation ?? 1) !== 1 ||
+      (a.temperature ?? 6500) !== 6500 ||
+      !!a.effects?.length)
+  )
+}
+
 /** The file extension for a picture type. */
 export const PICTURE_TYPES: Record<string, string> = {
   "image/png": "png",
@@ -634,6 +721,7 @@ export const PICTURE_TYPES: Record<string, string> = {
   "image/x-emf": "emf",
   "image/x-wmf": "wmf",
   "image/webp": "webp",
+  "image/vnd.ms-photo": "wdp",
 }
 
 /** An ink object's strokes in sheet pixels for a box. */

@@ -4125,3 +4125,93 @@
   border-color: var(--app-field-focus);
   background: var(--app-selected, var(--app-hover));
 }
+
+/* Picture Format › Corrections, Color and Transparency galleries */
+.picture-gallery {
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  padding: 2px 6px 6px;
+}
+
+.picture-gallery-note {
+  max-width: 380px;
+  margin: 4px 2px;
+  color: var(--app-text-muted, inherit);
+  font-size: 12px;
+}
+
+.picture-gallery-grid {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.picture-gallery-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+.picture-gallery-item:hover:not(:disabled),
+.picture-gallery-item:focus-visible {
+  border-color: var(--app-theme-primary);
+  background: var(--app-theme-light);
+}
+
+.picture-gallery-item.is-current {
+  border-color: var(--app-field-focus);
+  background: var(--app-selected, var(--app-hover));
+}
+
+.picture-gallery-item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* A picture's tile has a checkerboard behind it, so its transparency shows. */
+.picture-tile-svg {
+  background: repeating-conic-gradient(#d8d8d8 0 25%, #fff 0 50%) 0 0 / 8px 8px;
+}
+
+/* Set Transparent Color: the pen cursor over the picture. */
+.object-frame.is-picking-color,
+.object-frame.is-picking-color * {
+  cursor: crosshair !important;
+}
+
+/* Format Picture: a slider and a number per setting */
+.format-picture-fields {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.format-picture-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 92px;
+  align-items: center;
+  gap: 8px;
+}
+
+.format-picture-number {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.format-picture-number .dialog-field {
+  width: 64px;
+  text-align: right;
+}
+
+.format-picture-row input[type="range"] {
+  accent-color: var(--app-theme-primary);
+}

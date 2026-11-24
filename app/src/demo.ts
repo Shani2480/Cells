@@ -324,8 +324,16 @@ function picturesDemo(c: SheetController) {
     `<path d="M0 130 Q60 80 120 120 T240 110 T320 120 V200 H0Z" fill="#5d9c59"/>` +
     `<path d="M0 160 Q90 130 170 155 T320 150 V200 H0Z" fill="#3f7a46"/>` +
     `<ellipse cx="110" cy="178" rx="70" ry="12" fill="#4a8fc9"/></svg>`
-  const src = `data:image/svg+xml;base64,${btoa(markup)}`
-  c.objects.insertPicture(src, { w: 320, h: 200 })
+  // A photo-like picture (PNG), as Corrections and Color take pictures, not SVG graphics.
+  const image = new Image()
+  image.onload = () => {
+    const canvas = document.createElement("canvas")
+    canvas.width = 320
+    canvas.height = 200
+    canvas.getContext("2d")!.drawImage(image, 0, 0)
+    c.objects.insertPicture(canvas.toDataURL("image/png"), { w: 320, h: 200 })
+  }
+  image.src = `data:image/svg+xml;base64,${btoa(markup)}`
 }
 
 function objectsDemo(c: SheetController) {

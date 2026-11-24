@@ -650,7 +650,14 @@ export const PICTURE_FORMAT: Tab = {
   keytip: "JP",
   contextual: true,
   groups: [
-    { id: "GroupPictureAdjust", label: "Adjust", columns: [smalls(S("PictureReset"))] },
+    {
+      id: "GroupPictureAdjust",
+      label: "Adjust",
+      columns: [
+        L("PictureCorrectionsGallery"),
+        smalls(S("PictureColorGallery"), S("PictureTransparencyGallery"), S("PictureResetMenu")),
+      ],
+    },
     { id: "GroupPictureStyles", label: "Picture Styles", columns: [smalls(S("PictureBorderColorPicker"))] },
     { id: "GroupPictureAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
     ARRANGE,

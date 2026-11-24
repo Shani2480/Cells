@@ -526,8 +526,23 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     now leaves the keyboard on the sheet (it went back to the menu's button, so Esc and arrows did nothing).
     Limits: no Format Picture › Crop fields (picture and crop position in inches); 3D models, signature lines and
     embedded objects' icons can't be cropped (Excel doesn't crop the first two either).
-  - ⬜ Picture corrections (Corrections, Color, Artistic Effects, Transparency), PivotTable extras, searchable PDF
-    text, notes that move with inserted cells, Name Box lists, live Flash Fill, .xlsb and .ods.
+  - ✅ Picture corrections (Picture Format › Adjust): Corrections (Sharpen/Soften and a 5 × 5 Brightness/Contrast
+    gallery), Color (Saturation, Color Tone, Recolor: Grayscale, Sepia, Washout, Black and White 25/50/75% and the
+    Dark and Light variations of the theme colours; Set Transparent Color, a click on the picture), Transparency
+    (0–95%), each gallery showing the selected picture at each setting, plus Picture Corrections / Color /
+    Transparency Options (a slider and a number per setting). Reset Picture is now a menu: Reset Picture (look) and
+    Reset Picture & Size. Corrections are baked into the picture as Excel does, from the original kept beside it (a
+    PNG; Excel's own may be an HD Photo): brightness, contrast and colour tone with Excel's own curves (measured in
+    Excel 365), saturation exactly, sharpen and soften close. Colour and transparency are drawn as Office 2007 draws
+    them (formulas fitted to Excel's PDF output), so they print and export too. Saved as Excel does (a:grayscl,
+    a:biLevel, a:duotone, a:lum, a:alphaModFix, a:clrChange; a14:imgProps with the original as an hdphoto layer);
+    checked in Excel 365: no repair, Excel reads every setting back (PictureEffects, ColorType, brightness and
+    contrast, the transparent colour), and Excel's resave reads back the same in Cells. Hint and Help topic
+    "Corrections, Color and Transparency for pictures". Limits: no Artistic Effects (Excel's are kept and saved as
+    they are, and then the picture's corrections can't be changed in Cells, as when its original is an HD Photo);
+    Set Transparent Color takes the exact colour (as Excel); icons and SVG pictures can't be adjusted.
+  - ⬜ Artistic Effects, PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists,
+    live Flash Fill, .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

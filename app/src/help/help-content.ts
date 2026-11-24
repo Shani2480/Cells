@@ -55,6 +55,11 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     where: "Picture Format › Size (select a picture first)",
     keywords: "picture image photo crop cut trim shape circle aspect ratio square fill fit frame",
   },
+  "picture-corrections": {
+    where: "Picture Format › Adjust (select a picture first)",
+    keywords:
+      "picture image photo corrections sharpen soften brightness contrast color colour saturation tone temperature recolor grayscale sepia washout black white transparency transparent background reset",
+  },
   "chart-sheets": {
     where: "Chart Design › Location (select a chart first)",
     keywords: "chart sheet move chart f11 new sheet object in full window",

@@ -255,3 +255,79 @@ describe("Picture Format › Crop", () => {
     expect(o.cropping).toBeNull()
   })
 })
+
+describe("Picture Format › Corrections, Color and Transparency", () => {
+  const stand = (src: string, a: object) => Promise.resolve(`${src}#${JSON.stringify(a)}`)
+
+  it("bakes corrections into the picture from its original, as one undo step each", async () => {
+    const { c, o } = setup()
+    o.correct = stand
+    o.insertPicture(PNG, { w: 40, h: 20 })
+    expect(await o.setAdjust({ bright: 0.2, contrast: -0.2 }, "Brightness/Contrast")).toBe(true)
+    const p = o.picture()!
+    expect(p.adjust).toEqual({ bright: 0.2, contrast: -0.2 })
+    expect(p.original).toBe(PNG)
+    expect(p.src).toBe(`${PNG}#{"bright":0.2,"contrast":-0.2}`)
+    // A second correction starts again from the original, not the corrected picture.
+    await o.setAdjust({ saturation: 2 }, "Color Saturation")
+    expect(o.picture()!.src).toBe(`${PNG}#{"bright":0.2,"contrast":-0.2,"saturation":2}`)
+    // Colour and transparency are drawn, not baked in: the picture stays.
+    const before = o.picture()!.src
+    await o.setAdjust({ transparency: 0.5, recolor: { kind: "grayscale" } }, "Transparency")
+    expect(o.picture()!.src).toBe(before)
+    expect(o.picture()!.adjust).toMatchObject({ transparency: 0.5, recolor: { kind: "grayscale" } })
+    // Back to neutral: the original is the picture again.
+    await o.setAdjust({ bright: 0, contrast: 0, saturation: 1, transparency: 0, recolor: undefined }, "Reset")
+    expect(o.picture()!.src).toBe(PNG)
+    expect(o.picture()!.original).toBeUndefined()
+    expect(o.picture()!.adjust).toBeUndefined()
+    c.undo()
+    expect(o.picture()!.adjust).toMatchObject({ transparency: 0.5 })
+  })
+
+  it("lets a later change win while a correction is being made", async () => {
+    const { o } = setup()
+    let release: () => void = () => {}
+    o.correct = (src, a) =>
+      a.bright === 0.4 ? new Promise((done) => (release = () => done(stand(src, a)))) : stand(src, a)
+    o.insertPicture(PNG, { w: 40, h: 20 })
+    const slow = o.setAdjust({ bright: 0.4 }, "Brightness")
+    const fast = o.setAdjust({ bright: 0.2 }, "Brightness")
+    expect(await fast).toBe(true)
+    release()
+    expect(await slow).toBe(false)
+    expect(o.picture()!.adjust).toEqual({ bright: 0.2 })
+  })
+
+  it("keeps Excel's corrections when their original can't be opened, but still changes transparency", async () => {
+    const { o } = setup()
+    o.correct = stand
+    o.insertPicture(PNG, { w: 40, h: 20 })
+    o.update("Excel", (x) => {
+      if (isChart(x) || x.kind !== "picture") return
+      x.adjust = { bright: 0.2 }
+      x.original = "data:image/vnd.ms-photo;base64,AA=="
+    })
+    expect(o.canCorrect()).toBe(false)
+    expect(await o.setAdjust({ bright: 0.4 }, "Brightness")).toBe(false)
+    expect(await o.setAdjust({ transparency: 0.3 }, "Transparency")).toBe(true)
+    expect(o.picture()!.adjust).toEqual({ bright: 0.2, transparency: 0.3 })
+  })
+
+  it("resets the picture to how it came, with or without its size", async () => {
+    const { o } = setup()
+    o.correct = stand
+    o.insertPicture(PNG, { w: 40, h: 20 })
+    await o.setAdjust({ sharpen: 0.25, transparency: 0.5 }, "Sharpen")
+    o.cropToShape("ellipse")
+    o.resetPicture(false)
+    const p = o.picture()!
+    expect([p.src, p.adjust, p.original, p.geometry]).toEqual([PNG, undefined, undefined, undefined])
+  })
+
+  it("only adjusts pictures, not icons", () => {
+    const { o } = setup()
+    o.insertPicture("data:image/svg+xml;base64,PHN2Zy8+", { w: 10, h: 10 })
+    expect(o.adjustable()).toBeNull()
+  })
+})

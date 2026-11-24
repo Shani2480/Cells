@@ -19,6 +19,7 @@ import { at, kid, kids, type XDoc, type XNode } from "./dom"
 import { mathFallbackText, mathLook, mathParaXml, NS_A14, readMath } from "./omml"
 import type { MathList, Model3D } from "@cells/core"
 import { model3dObjectXml } from "./model3d"
+import { adjustBlipXml, imgPropsExtXml, readPictureAdjust } from "./picture-adjust"
 
 /**
  * DrawingML shapes, pictures and groups in a sheet's drawing (xdr:sp, xdr:cxnSp, xdr:pic, xdr:grpSp): read into
@@ -337,6 +338,8 @@ export type ObjectReader = {
   doc?: XDoc
   /** A picture's data URL from its relationship id (undefined: missing). */
   image(rid: string): string | undefined
+  /** A corrected picture's original (its a14:imgLayer, an HD Photo or any picture) from its relationship id. */
+  layer?(rid: string): string | undefined
 }
 
 type Common = Pick<DrawingObject, "id" | "name" | "rotation" | "flipH" | "flipV" | "hidden" | "altText" | "decorative">
@@ -484,6 +487,11 @@ export function readObject(
       if (svg) pic.svg = svg
     }
     if (pic.svg || src.startsWith("data:image/svg")) pic.icon = true
+    // Corrections, Color and Transparency.
+    const { adjust, layerRid } = readPictureAdjust(blip, r.doc)
+    if (adjust) pic.adjust = adjust
+    const original = layerRid ? r.layer?.(layerRid) : undefined
+    if (original) pic.original = original
     return pic
   }
   if (node.local === "grpSp") {
@@ -528,6 +536,8 @@ export type ObjectWriter = {
   /** Equations as their linear text (the fallback for readers without Office Math). */
   mathAsText?: boolean
   imageRel(src: string, was?: string): string
+  /** A corrected picture's original as an a14:imgLayer relationship (Office's hdphoto type). */
+  layerRel?(original: string, was?: string): string
   /** A 3D model's file as a relationship (the same part when it is the one read as `was`); absent in groups. */
   modelRel?(data: Uint8Array, was?: string): string
   decorativeXml(o: DrawingObject, id: number): string
@@ -591,9 +601,15 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
   }
   if (o.kind === "picture") {
     const rid = w.imageRel(o.src, o.source?.rels?.embed)
-    const svg = o.svg
-      ? `<a:extLst><a:ext uri="${SVG_EXT}"><asvg:svgBlip xmlns:asvg="${NS_ASVG}" xmlns:r="${NS_R}" r:embed="${w.imageRel(o.svg, o.source?.rels?.svg)}"/></a:ext></a:extLst>`
+    // The blip's extensions: the corrections with the original (a14:imgLayer), and an icon's SVG.
+    const layer =
+      o.original && o.adjust && w.layerRel
+        ? imgPropsExtXml(o.adjust, w.layerRel(o.original, o.source?.rels?.layer))
+        : ""
+    const svgExt = o.svg
+      ? `<a:ext uri="${SVG_EXT}"><asvg:svgBlip xmlns:asvg="${NS_ASVG}" xmlns:r="${NS_R}" r:embed="${w.imageRel(o.svg, o.source?.rels?.svg)}"/></a:ext>`
       : ""
+    const svg = adjustBlipXml(o.adjust) + (layer || svgExt ? `<a:extLst>${layer}${svgExt}</a:extLst>` : "")
     if (o.model3d && w.modelRel) {
       // Office's picture of the model, which nothing can change but the model's view.
       const locks = `noGrp="1" noRot="1" noChangeAspect="1" noMove="1" noResize="1" noEditPoints="1" noAdjustHandles="1" noChangeArrowheads="1" noChangeShapeType="1" noCrop="1"`
@@ -657,7 +673,7 @@ export function objectKey(o: DrawingObject): string {
   return JSON.stringify(o, (k, v: unknown) =>
     k === "source" || k === "anchor" || k === "id"
       ? undefined
-      : (k === "src" || k === "svg") && typeof v === "string"
+      : (k === "src" || k === "svg" || k === "original") && typeof v === "string"
         ? `${v.length}:${v.slice(-64)}`
         : v instanceof Uint8Array
           ? `${v.length}:${Array.from(v.subarray(-32)).join(",")}`

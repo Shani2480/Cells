@@ -99,6 +99,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Select a picture and use Crop: drag the black handles to cut its sides, or drag the picture to show another part. The arrow under Crop cuts it to a circle or any shape, crops to 1:1, 16:9 and more, and fills or fits the frame.",
     target: "Crop",
   },
+  {
+    id: "picture-corrections",
+    title: "New: Corrections, Color and Transparency for pictures",
+    text: "Select a picture and use Corrections to sharpen it or change its brightness and contrast, Color to change its saturation and tone or recolour it (grayscale, sepia, a theme colour), and Transparency to let what's behind it show. Set Transparent Color, under Color, clears one colour you click. Excel opens them all as they are.",
+    target: "Corrections",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

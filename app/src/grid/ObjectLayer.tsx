@@ -544,13 +544,27 @@ export function ObjectLayer({
         return (
           <div
             key={o.id}
-            className={`object-frame${ink ? " is-ink" : ""}${erasing?.has(o.id) ? " is-erasing" : ""}${isChart(o) ? " is-chart chart-frame" : ""}${!isChart(o) && (o.kind === "slicer" || o.kind === "timeline") ? " is-slicer" : ""}${selected ? " is-selected" : ""}`}
+            className={`object-frame${objects.pickingColor === o.id ? " is-picking-color" : ""}${ink ? " is-ink" : ""}${erasing?.has(o.id) ? " is-erasing" : ""}${isChart(o) ? " is-chart chart-frame" : ""}${!isChart(o) && (o.kind === "slicer" || o.kind === "timeline") ? " is-slicer" : ""}${selected ? " is-selected" : ""}`}
             style={{ ...toScreen(o, p.box), transform: rotation ? `rotate(${rotation}deg)` : undefined }}
             role="img"
             aria-label={o.name}
             data-object={o.id}
             data-chart={isChart(o) ? o.id : undefined}
             onPointerDown={(event) => {
+              if (objects.pickingColor === o.id && event.button === 0) {
+                // Set Transparent Color: the point clicked, as fractions of the frame (turned back if turned).
+                event.stopPropagation()
+                const r = event.currentTarget.getBoundingClientRect()
+                const a = (-rotation * Math.PI) / 180
+                const dx = event.clientX - (r.left + r.width / 2)
+                const dy = event.clientY - (r.top + r.height / 2)
+                const w = p.box.w * zoom
+                const h = p.box.h * zoom
+                const fx = 0.5 + (dx * Math.cos(a) - dy * Math.sin(a)) / w
+                const fy = 0.5 + (dx * Math.sin(a) + dy * Math.cos(a)) / h
+                void objects.pickColorAt(fx, fy)
+                return
+              }
               if (!isChart(o) && o.kind === "slicer" && slicerPress(event, o, p.box)) return
               if (!isChart(o) && o.kind === "timeline" && timelinePress(event, o, p.box)) return
               if (isChart(o) && pivotButtonPress(event, o)) return

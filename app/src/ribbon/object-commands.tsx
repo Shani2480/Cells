@@ -574,23 +574,27 @@ export function objectCommands(): Command[] {
       run: (env) => env.c.objects.fillOrFit("fit"),
     },
     {
+      id: "PictureResetMenu",
+      label: "Reset Picture",
+      description:
+        "Discard all the formatting changes made to this picture: corrections, colour, transparency and shape.",
+      keytip: "Q",
+      enabled: (env) => !!env.c.objects.adjustable() || !!env.c.objects.picture()?.natural,
+      run: (env) => env.c.objects.resetPicture(false),
+      menu: ["PictureReset", "PictureResetAndSize"],
+    },
+    {
       id: "PictureReset",
       label: "Reset Picture",
-      description: "Discard the size, crop and shape changes made to this picture.",
-      keytip: "Q",
-      enabled: (env) => !!env.c.objects.picture()?.natural,
-      run: (env) => {
-        const p = env.c.objects.picture()
-        if (!p?.natural) return
-        const box = env.c.objects.box(p)
-        env.c.objects.update("Reset Picture", (o) => {
-          if (isChart(o) || o.kind !== "picture") return
-          delete o.crop
-          delete o.geometry
-          delete o.rotation
-        })
-        env.c.objects.place(new Map([[p.id, { ...box, w: p.natural.w, h: p.natural.h }]]), "Reset Picture")
-      },
+      enabled: (env) => !!env.c.objects.croppable(),
+      run: (env) => env.c.objects.resetPicture(false),
+    },
+    {
+      id: "PictureResetAndSize",
+      label: "Reset Picture & Size",
+      description: "Discard the formatting and the size changes made to this picture, its crop and turn included.",
+      enabled: (env) => !!env.c.objects.croppable()?.natural,
+      run: (env) => env.c.objects.resetPicture(true),
     },
 
     // ── Size ──
