@@ -608,9 +608,17 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       styles (custom table styles from Excel files) are read and drawn too. `<tableStyles>` and its dxfs read and
       written as Excel writes them (kept as they were when unchanged). Excel-made fixture `pivot-custom-style.xlsx`.
       Checked in Excel 365: a Cells-made style opens without repair, as the default, with its stripe size, and Excel
-      draws the PivotTable's header and Grand Total as Cells does. Hint and Help topic. Limits: no New Table Style
-      dialog yet (custom table styles are read, drawn and kept); theme colours in a style are kept as the colours they
-      show.
+      draws the PivotTable's header and Grand Total as Cells does. Hint and Help topic. Limits: theme colours in a
+      style are kept as the colours they show.
+    - ✅ New Table Style: the same dialog for tables (Excel's 13 table elements, "Table Style 1", "Set as default
+      table style for this document"), from Table Design › Quick Styles and Home › Format as Table. Both galleries
+      show the workbook's table styles as Custom, with the right-click menu (Format as Table's has no Apply, as
+      Excel's). Insert › Table, Ctrl+T and Quick Analysis take the default table style. Delete puts tables back on
+      Medium 2 and drops the default (measured in Excel); style names are shared with PivotTable styles. Excel-made
+      fixture `table-custom-style.xlsx`; Excel 365 draws its stripes (two rows, then one) as Cells does, and opens a
+      Cells-made table style without repair as the default. Fixed with it: Table Design's gallery drew its thumbnails
+      without their fills (the table's own range went into the sample), and a table could be made over a PivotTable
+      (now refused with Excel's message).
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,

@@ -6,52 +6,70 @@ import {
   newCustomStyleName,
   PIVOT_STYLE_ELEMENTS,
   pivotStyleDef,
+  TABLE_STYLE_ELEMENTS,
+  tableStyleDef,
   type CustomTableStyle,
   type PivotStyleDef,
+  type TableStyleDef,
   type TableStyleElement,
 } from "@cells/core"
 import { cn } from "@/lib/cn"
 import { PivotStyleThumb } from "@/ribbon/pivot-styles"
+import { TableStyleThumb } from "@/ribbon/table-styles"
 import type { SheetController } from "@/sheet/controller"
+import type { StyleKind } from "@/sheet/custom-styles"
 import { Dialog } from "./Dialog"
 import { ElementFormatDialog } from "./format-cells/ElementFormatDialog"
 
-/** How the dialog was opened: New PivotTable Style, Modify (a custom style), Duplicate (any style). */
-export type PivotStyleRequest = { mode: "new" } | { mode: "modify"; name: string } | { mode: "duplicate"; name: string }
+/** How the dialog was opened: New Table (PivotTable) Style, Modify (a custom style), Duplicate (any style). */
+export type CustomStyleRequest = { kind: StyleKind } & (
+  { mode: "new" } | { mode: "modify"; name: string } | { mode: "duplicate"; name: string }
+)
 
-const PREVIEW_OPTIONS = { rowHeaders: true, colHeaders: true, rowStripes: true, colStripes: true, lastColumn: true }
+const PIVOT_PREVIEW = { rowHeaders: true, colHeaders: true, rowStripes: true, colStripes: true, lastColumn: true }
+const TABLE_PREVIEW = {
+  header: true,
+  totals: true,
+  firstColumn: true,
+  lastColumn: true,
+  rowStripes: true,
+  columnStripes: true,
+}
 
 /**
- * New PivotTable Style (and Modify / Duplicate from the gallery), as Excel's: a name, the Table Element list with
- * Format and Clear, Stripe Size for the stripes, the element's formatting in words, a preview, and Set as default
- * PivotTable style for this document.
+ * New Table Style and New PivotTable Style (and Modify / Duplicate from the galleries), as Excel's: a name, the
+ * Table Element list with Format and Clear, Stripe Size for the stripes, the element's formatting in words, a
+ * preview, and Set as default table (PivotTable) style for this document.
  */
-export function PivotStyleDialog({
+export function CustomStyleDialog({
   controller,
   request,
   onClose,
 }: {
   controller: SheetController
-  request: PivotStyleRequest
+  request: CustomStyleRequest
   onClose: () => void
 }) {
-  const styles = controller.pivotStyles
+  const pivot = request.kind === "pivot"
+  const styles = pivot ? controller.pivotStyles : controller.tableStyles
+  const elementList = pivot ? PIVOT_STYLE_ELEMENTS : TABLE_STYLE_ELEMENTS
   const theme = controller.wb.theme
   const [draft, setDraft] = useState<CustomTableStyle>(() => {
     const all = controller.wb.tableStyles.styles
-    if (request.mode === "new") return { name: newCustomStyleName(all), table: false, pivot: true, elements: {} }
+    const fresh = { table: !pivot, pivot }
+    if (request.mode === "new")
+      return { name: newCustomStyleName(all, pivot ? "PivotTable Style" : "Table Style"), ...fresh, elements: {} }
     const source = styles.get(request.name)
-    const elements = structuredClone(
-      (source?.elements ?? pivotStyleDef(request.name, theme) ?? {}) as Record<string, TableStyleElement>,
-    )
+    const builtIn = pivot ? pivotStyleDef(request.name, theme) : tableStyleDef(request.name, theme)
+    const elements = structuredClone((source?.elements ?? builtIn ?? {}) as Record<string, TableStyleElement>)
     return request.mode === "modify"
       ? { ...structuredClone(source!), elements }
-      : { name: duplicateStyleName(request.name, all), table: false, pivot: true, elements }
+      : { name: duplicateStyleName(request.name, all), ...fresh, elements }
   })
   const [isDefault, setIsDefault] = useState(() => request.mode === "modify" && styles.defaultStyle() === request.name)
-  const [picked, setPicked] = useState(PIVOT_STYLE_ELEMENTS[0].key)
+  const [picked, setPicked] = useState(elementList[0].key)
   const [formatting, setFormatting] = useState(false)
-  const element = PIVOT_STYLE_ELEMENTS.find((e) => e.key === picked)!
+  const element = elementList.find((e) => e.key === picked)!
   const current = draft.elements[picked]
   const setElement = (e: TableStyleElement | null) => {
     const elements = { ...draft.elements }
@@ -64,7 +82,8 @@ export function PivotStyleDialog({
     if (problem) return controller.shell.alert(problem)
     onClose()
   }
-  const title = request.mode === "modify" ? "Modify PivotTable Style" : "New PivotTable Style"
+  const what = pivot ? "PivotTable Style" : "Table Style"
+  const title = request.mode === "modify" ? `Modify ${what}` : `New ${what}`
   return (
     <>
       <Dialog title={title} onCancel={onClose} onAccept={accept} width={520}>
@@ -86,7 +105,7 @@ export function PivotStyleDialog({
               Table Element:
             </span>
             <div className="dialog-list pivot-style-list" role="listbox" aria-labelledby="pivot-style-elements-label">
-              {PIVOT_STYLE_ELEMENTS.map((e) => (
+              {elementList.map((e) => (
                 <button
                   key={e.key}
                   type="button"
@@ -116,7 +135,11 @@ export function PivotStyleDialog({
           <div className="pivot-style-side">
             <span className="dialog-label">Preview</span>
             <div className="pivot-style-preview" data-keep-light>
-              <PivotStyleThumb style={null} options={PREVIEW_OPTIONS} def={draft.elements as PivotStyleDef} scale={2} />
+              {pivot ? (
+                <PivotStyleThumb style={null} options={PIVOT_PREVIEW} def={draft.elements as PivotStyleDef} scale={2} />
+              ) : (
+                <TableStyleThumb style={null} options={TABLE_PREVIEW} def={draft.elements as TableStyleDef} scale={2} />
+              )}
             </div>
             {element.stripe ? (
               <label className="pivot-style-stripe">
@@ -148,7 +171,7 @@ export function PivotStyleDialog({
         </fieldset>
         <label className="dialog-radio">
           <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
-          Set as default PivotTable style for this document
+          Set as default {pivot ? "PivotTable" : "table"} style for this document
         </label>
       </Dialog>
       {formatting ? (

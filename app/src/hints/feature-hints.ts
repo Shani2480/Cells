@@ -141,6 +141,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Make a PivotTable style of your own: PivotTable Styles › New PivotTable Style. Right-click a style to modify, duplicate or delete it, or to make it the default for new PivotTables.",
     target: "PivotTable Styles",
   },
+  {
+    id: "table-new-style",
+    title: "New: Your own table styles",
+    text: "Make a table style of your own: Table Design › Quick Styles › New Table Style. Right-click a style to modify, duplicate or delete it, or to make it the default for new tables.",
+    target: "Quick Styles",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

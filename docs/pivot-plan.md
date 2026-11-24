@@ -272,6 +272,8 @@ are never made up by the model.
    and the elements' dxfs (subtotal and subheading types mapped to Cells' names) and writes them anew only when they
    changed. App: `sheet/pivot-styles.ts` (save, remove, setDefault, each one undo step), `PivotStyleDialog`,
    `ElementFormatDialog` (the Format Cells tabs in differential mode), the gallery's Custom group and style menu.
+   New Table Style shares all of it: `sheet/custom-styles.ts` (`CustomStyleCommands` per kind, `c.tableStyles` and
+   `c.pivotStyles`), `shell/CustomStyleDialog.tsx`, `ribbon/style-menu.ts`.
 
    PivotTable Options, complete (Phase 8): `PivotTable` keeps mergeLabels, indent, pageOverThenDown, pageWrap,
    preserveFormatting, multipleFieldFilters, customListSort, showDataTips, gridDropZones, showItems,

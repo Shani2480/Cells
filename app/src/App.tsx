@@ -1,5 +1,5 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
-import { PivotStyleDialog, type PivotStyleRequest } from "./shell/PivotStyleDialog"
+import { CustomStyleDialog, type CustomStyleRequest } from "./shell/CustomStyleDialog"
 import {
   isChart,
   isEquation,
@@ -312,7 +312,7 @@ type DialogState =
   | { kind: "pivotSort"; field: number }
   | { kind: "pivotCalcItem"; field: number }
   | { kind: "pivotOptions" }
-  | { kind: "pivotStyle"; request: PivotStyleRequest }
+  | { kind: "customStyle"; request: CustomStyleRequest }
   | { kind: "pivotCalcField" }
   | { kind: "pivotSolveOrder" }
   | { kind: "pivotGroup" }
@@ -1125,13 +1125,18 @@ function WorkbookWindow({
     else if (kind === "pivotSort") setDialog({ kind: "pivotSort", field: Number(arg) })
     else if (kind === "pivotCalcItem") setDialog({ kind: "pivotCalcItem", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
-    else if (kind === "pivotStyle") {
-      // pivotStyle:new, or pivotStyle:modify:<name> / pivotStyle:duplicate:<name> (a name may hold colons).
-      const rest = name.slice("pivotStyle:".length)
+    else if (kind === "pivotStyle" || kind === "tableStyle") {
+      // pivotStyle:new, or pivotStyle:modify:<name> / pivotStyle:duplicate:<name> (a name may hold colons); the same
+      // for tableStyle.
+      const rest = name.slice(kind.length + 1)
       const style = rest.slice(rest.indexOf(":") + 1)
+      const styleKind = kind === "pivotStyle" ? "pivot" : "table"
       setDialog({
-        kind: "pivotStyle",
-        request: arg === "modify" || arg === "duplicate" ? { mode: arg, name: style } : { mode: "new" },
+        kind: "customStyle",
+        request:
+          arg === "modify" || arg === "duplicate"
+            ? { kind: styleKind, mode: arg, name: style }
+            : { kind: styleKind, mode: "new" },
       })
     } else if (kind === "pivotCalcField") setDialog({ kind: "pivotCalcField" })
     else if (kind === "pivotSolveOrder") setDialog({ kind: "pivotSolveOrder" })
@@ -1651,8 +1656,8 @@ function WorkbookWindow({
           <FieldSettingsDialog controller={controller} field={dialog.field} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotOptions" ? <PivotOptionsDialog controller={controller} onClose={closeDialog} /> : null}
-        {dialog?.kind === "pivotStyle" ? (
-          <PivotStyleDialog controller={controller} request={dialog.request} onClose={closeDialog} />
+        {dialog?.kind === "customStyle" ? (
+          <CustomStyleDialog controller={controller} request={dialog.request} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotGroup" ? <GroupingDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "pivotCalcItem" ? (

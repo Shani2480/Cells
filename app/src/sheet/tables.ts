@@ -1,7 +1,6 @@
 import {
   copyTable,
   currentRegion,
-  DEFAULT_TABLE_STYLE,
   guessHeader,
   nameProblem,
   nextTableId,
@@ -25,6 +24,7 @@ import {
   fillInputOp,
   tableRows,
   tableStyleDef,
+  pivotArea,
 } from "@cells/core"
 import type { SheetController } from "./controller"
 
@@ -36,6 +36,9 @@ export type TableOption = "header" | "totals" | "rowStripes" | "columnStripes" |
 
 export const OVERLAP_TABLE = "A table can't overlap another table."
 export const OVERLAP_MERGED = "A table can't overlap a range that contains merged cells."
+/** Excel's message for a table over a PivotTable (measured in Excel 365). */
+export const OVERLAP_PIVOT =
+  "A table cannot overlap a range that contains a PivotTable report, query results, protected cells or another table."
 export const CONVERT_QUESTION = "Do you want to convert the table to a normal range?"
 export const RESIZE_HEADER =
   "The headers must remain in the same row and the resulting table range must overlap the original table range."
@@ -192,11 +195,14 @@ export class TableCommands {
    * Insert › Table (Ctrl+T or Ctrl+L) or a style from Format as Table: the Create Table dialog on the data around
    * the selection. Inside a table, a style from the gallery restyles it instead.
    */
-  openCreate(style = DEFAULT_TABLE_STYLE) {
+  openCreate(picked?: string) {
     if (this.c.edit) this.c.commitEdit()
+    // Insert › Table and Ctrl+T take the workbook's default table style (Set As Default), else Medium 2.
+    const fallback = this.c.tableStyles.defaultStyle()
+    const style = picked ?? fallback
     const inside = this.active()
     if (inside) {
-      if (style !== DEFAULT_TABLE_STYLE || inside.style !== style) this.setStyle(style)
+      if (style !== fallback || inside.style !== style) this.setStyle(style)
       return
     }
     const sel = this.c.selection.ranges[0]
@@ -219,6 +225,8 @@ export class TableCommands {
     const index = this.c.sheetIndex
     if (tableOverlaps(sheet, range)) return OVERLAP_TABLE
     if (sheet.merges.overlapping(range).length) return OVERLAP_MERGED
+    const hits = (a: Range) => a.r0 <= range.r1 && a.r1 >= range.r0 && a.c0 <= range.c1 && a.c1 >= range.c0
+    if (sheet.pivots.some((p) => hits(pivotArea(p)))) return OVERLAP_PIVOT
     const ops: Op[] = []
     const width = range.c1 - range.c0 + 1
     let r = { ...range }

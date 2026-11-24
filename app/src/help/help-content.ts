@@ -86,6 +86,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     where: "PivotTable Design › PivotTable Styles › New PivotTable Style (in a PivotTable)",
     keywords: "pivottable style new custom own modify duplicate delete default format element stripe",
   },
+  "table-new-style": {
+    where: "Table Design › Quick Styles › New Table Style (in a table), or Home › Format as Table",
+    keywords: "table style new custom own modify duplicate delete default format element stripe quick styles",
+  },
   "chart-sheets": {
     where: "Chart Design › Location (select a chart first)",
     keywords: "chart sheet move chart f11 new sheet object in full window",

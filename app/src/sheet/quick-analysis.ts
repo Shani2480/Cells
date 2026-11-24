@@ -2,7 +2,6 @@ import {
   chartRefsFor,
   columnName,
   currentRegion,
-  DEFAULT_TABLE_STYLE,
   guessHeader,
   isDateFormat,
   rangeName,
@@ -451,7 +450,7 @@ export class QuickAnalysis {
     const [what, a, b] = id.split(":")
     if (what === "total") return this.totalOps(shape, a as TotalSide, b as TotalKind).ops
     if (what === "table") {
-      const ops = this.c.tables.createOps(shape.range, shape.header, DEFAULT_TABLE_STYLE)
+      const ops = this.c.tables.createOps(shape.range, shape.header, this.c.tableStyles.defaultStyle())
       return typeof ops === "string" ? null : ops
     }
     if (what === "spark") {
@@ -527,7 +526,7 @@ export class QuickAnalysis {
       if (problem) this.c.shell.alert(problem)
       return
     }
-    if (what === "table") return void this.c.tables.create(shape.range, shape.header, DEFAULT_TABLE_STYLE)
+    if (what === "table") return void this.c.tables.create(shape.range, shape.header, this.c.tableStyles.defaultStyle())
     if (what === "total") {
       const { ops, cells } = this.totalOps(shape, a as TotalSide, b as TotalKind)
       const taken = cells.some((w) => {

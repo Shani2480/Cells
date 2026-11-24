@@ -76,6 +76,23 @@ export const PIVOT_STYLE_ELEMENTS: { key: string; label: string; stripe?: true }
   { key: "lastColumn", label: "Grand Total Column" },
 ]
 
+/** The elements of New Table Style's Table Element list, in Excel's order, with its names. */
+export const TABLE_STYLE_ELEMENTS: { key: string; label: string; stripe?: true }[] = [
+  { key: "wholeTable", label: "Whole Table" },
+  { key: "firstColumnStripe", label: "First Column Stripe", stripe: true },
+  { key: "secondColumnStripe", label: "Second Column Stripe", stripe: true },
+  { key: "firstRowStripe", label: "First Row Stripe", stripe: true },
+  { key: "secondRowStripe", label: "Second Row Stripe", stripe: true },
+  { key: "lastColumn", label: "Last Column" },
+  { key: "firstColumn", label: "First Column" },
+  { key: "headerRow", label: "Header Row" },
+  { key: "totalRow", label: "Total Row" },
+  { key: "firstHeaderCell", label: "First Header Cell" },
+  { key: "lastHeaderCell", label: "Last Header Cell" },
+  { key: "firstTotalCell", label: "First Total Cell" },
+  { key: "lastTotalCell", label: "Last Total Cell" },
+]
+
 /** Excel's messages for a style name. */
 export const STYLE_NAME_TAKEN = "This style name already exists."
 export const STYLE_NAME_EMPTY = "Type a name for the style."
@@ -98,7 +115,7 @@ export function customStyleNameProblem(
   return null
 }
 
-/** The name New PivotTable Style offers: "PivotTable Style 1", 2… the first one free. */
+/** The name New PivotTable Style offers: "PivotTable Style 1", 2… the first one free ("Table Style 1" for tables). */
 export function newCustomStyleName(styles: readonly CustomTableStyle[], base = "PivotTable Style"): string {
   const taken = new Set(styles.map((s) => s.name.toLowerCase()))
   let n = 1

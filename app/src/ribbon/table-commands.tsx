@@ -1,4 +1,5 @@
 import { selectRange, tableAt, tableRows } from "@cells/core"
+import { customStyleMenu } from "./style-menu"
 import type { TableOption } from "@/sheet/tables"
 import type { Command, RibbonEnv } from "./registry"
 import { FormatAsTableIcon } from "./icons"
@@ -61,6 +62,8 @@ export function tableCommands(): Command[] {
                 close()
                 env.c.tables.openCreate(style ?? undefined)
               }}
+              custom={env.c.tableStyles.list()}
+              menuFor={(style) => customStyleMenu(env, "table", style, close)}
             />
           ),
         },
@@ -155,7 +158,11 @@ export function tableCommands(): Command[] {
       keytip: "S",
       enabled: inTable,
       largeIcon: (env) => (
-        <TableStyleThumb style={env.c.tables.active()?.style ?? "TableStyleMedium2"} theme={env.c.wb.theme} />
+        <TableStyleThumb
+          style={env.c.tables.active()?.style ?? "TableStyleMedium2"}
+          theme={env.c.wb.theme}
+          custom={env.c.tableStyles.list()}
+        />
       ),
       menu: [
         {
@@ -171,6 +178,8 @@ export function tableCommands(): Command[] {
                   close()
                   env.c.tables.setStyle(style)
                 }}
+                custom={env.c.tableStyles.list()}
+                menuFor={(style) => customStyleMenu(env, "table", style, close, (s) => env.c.tables.setStyle(s))}
               />
             )
           },
@@ -191,8 +200,12 @@ export function tableCommands(): Command[] {
         if (table) env.dialog(`createPivot:${table.name}`)
       },
     },
-    // New Table Style needs custom table styles (not built yet).
-    { id: "TableStyleNew", label: "New Table Style..." },
+    {
+      id: "TableStyleNew",
+      label: "New Table Style...",
+      description: "Make a table style of your own for this workbook.",
+      run: (env) => env.dialog("tableStyle:new"),
+    },
     {
       id: "PivotTableNewStyle",
       label: "New PivotTable Style...",

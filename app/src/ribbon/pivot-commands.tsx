@@ -1,5 +1,4 @@
 import {
-  DEFAULT_PIVOT_STYLE,
   pivotReportLayout,
   pivotSubtotalsShown,
   withBlankLines,
@@ -10,8 +9,8 @@ import {
   type PivotReportLayout,
   type PivotTable,
 } from "@cells/core"
-import type { MenuItem } from "@/shell/ContextMenu"
 import type { Command, RibbonEnv } from "./registry"
+import { customStyleMenu } from "./style-menu"
 import { PivotStyleGallery, PivotStyleThumb } from "./pivot-styles"
 
 const inPivot = (env: RibbonEnv) => env.c.pivots.active() !== null
@@ -578,7 +577,11 @@ export function pivotCommands(): Command[] {
       keytip: "S",
       enabled: inPivot,
       largeIcon: (env) => (
-        <PivotStyleThumb style={table(env)?.style.name ?? "PivotStyleLight16"} theme={env.c.wb.theme} />
+        <PivotStyleThumb
+          style={table(env)?.style.name ?? "PivotStyleLight16"}
+          theme={env.c.wb.theme}
+          custom={env.c.pivotStyles.list()}
+        />
       ),
       menu: [
         {
@@ -594,7 +597,7 @@ export function pivotCommands(): Command[] {
                   env.c.pivots.setStyle(style)
                 }}
                 custom={env.c.pivotStyles.list()}
-                menuFor={(style) => pivotStyleMenu(env, style, close)}
+                menuFor={(style) => customStyleMenu(env, "pivot", style, close, (s) => env.c.pivots.setStyle(s))}
               />
             )
           },
@@ -612,36 +615,5 @@ export function pivotCommands(): Command[] {
       enabled: inPivot,
       run: (env) => void env.c.pivots.setStyle(null),
     },
-  ]
-}
-
-/** A PivotTable style's right-click menu in the gallery; Modify and Delete only for the workbook's own styles. */
-function pivotStyleMenu(env: RibbonEnv, style: string | null, close: () => void): MenuItem[] {
-  const styles = env.c.pivotStyles
-  const own = style !== null && !!styles.get(style)
-  const item = (label: string, onSelect: () => void, disabled = false): MenuItem => ({
-    kind: "item",
-    label,
-    disabled,
-    onSelect: () => {
-      close()
-      onSelect()
-    },
-  })
-  return [
-    item("Apply", () => env.c.pivots.setStyle(style)),
-    { kind: "separator" },
-    item("Modify...", () => env.dialog(`pivotStyle:modify:${style}`), !own),
-    item("Duplicate...", () => env.dialog(`pivotStyle:duplicate:${style}`), style === null),
-    item(
-      "Delete",
-      () =>
-        env.c.shell.confirm(`Do you want to delete the style ${style}?`, () => {
-          if (style) styles.remove(style)
-        }),
-      !own,
-    ),
-    { kind: "separator" },
-    item("Set As Default", () => styles.setDefault(style ?? DEFAULT_PIVOT_STYLE), style === null),
   ]
 }
