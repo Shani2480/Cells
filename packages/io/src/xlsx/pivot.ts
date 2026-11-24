@@ -13,6 +13,7 @@ import {
   type PivotAxisItem,
   type PivotCache,
   type PivotCacheField,
+  type PivotCalcItem,
   type PivotField,
   type PivotFilter,
   type PivotLabelOp,
@@ -97,7 +98,7 @@ export function readPivotCache(
   if (!src || (at(src, "type") ?? "worksheet") !== "worksheet") return null
   const ws = kid(src, "worksheetSource")
   if (!ws || at(ws, "id", NS_R)) return null
-  if (kid(root, "cacheHierarchies") || kid(root, "calculatedItems") || kid(root, "calculatedMembers")) return null
+  if (kid(root, "cacheHierarchies") || kid(root, "calculatedMembers")) return null
   let source: PivotCache["source"]
   const name = at(ws, "name")
   if (name) source = { kind: "name", name }
@@ -140,6 +141,23 @@ export function readPivotCache(
   }
   const records = recordsXml ? readRecords(recordsXml, fields) : []
   const cache: PivotCache = { id, source, fields, records, refreshOnLoad: truthy(at(root, "refreshOnLoad"), false) }
+  // Calculated items, in solve order: a formula and the one shared item it makes (Excel's only shape).
+  const calcNodes = kids(kid(root, "calculatedItems"), "calculatedItem")
+  if (calcNodes.length) {
+    const calcItems: PivotCalcItem[] = []
+    for (const node of calcNodes) {
+      const area = kid(node, "pivotArea")
+      const refs = kids(kid(area, "references"), "reference")
+      const xs = kids(refs[0], "x")
+      const field = Number(at(refs[0], "field"))
+      const x = Number(at(xs[0], "v") ?? 0)
+      const formula = at(node, "formula")
+      if (refs.length !== 1 || xs.length !== 1 || formula === undefined || !fields[field]?.items?.[x]) return null
+      if (at(area, "type") !== undefined && at(area, "type") !== "normal") return null
+      calcItems.push({ field, x, formula })
+    }
+    cache.calcItems = calcItems
+  }
   const x14 = kids(kid(root, "extLst"), "ext").find((e) => at(e, "uri") === X14_CACHE)
   const slicerId = Number(at(kid(x14, "pivotCacheDefinition"), "pivotCacheId"))
   if (x14 && Number.isFinite(slicerId)) cache.slicerId = slicerId
@@ -316,7 +334,7 @@ export function readPivotTable(xml: string, numberFormat: (id: number) => string
     for (const item of kids(kid(f, "items"), "item")) {
       const t = at(item, "t")
       if (t === undefined || t === "data") {
-        if (t === "data" || at(item, "f") === "1") return null
+        if (t === "data") return null
         const it: PivotField["items"][number] = { x: Number(at(item, "x") ?? 0) }
         if (truthy(at(item, "h"), false)) it.hidden = true
         if (!truthy(at(item, "sd"), true)) it.collapsed = true
@@ -787,7 +805,10 @@ export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId:
       })()
       return `<cacheField${attrs}><sharedItems${sharedItemsAttrs(values, dates)}/>${group}</cacheField>`
     }
-    const items = f.items.map((v) => valueXml(v, dates)).join("")
+    const calc = new Set((cache.calcItems ?? []).filter((ci) => ci.field === i).map((ci) => ci.x))
+    const items = f.items
+      .map((v, x) => (calc.has(x) ? valueXml(v, dates).replace("/>", ' f="1"/>') : valueXml(v, dates)))
+      .join("")
     return (
       `<cacheField${attrs}><sharedItems${sharedItemsAttrs(f.items, dates)} count="${f.items.length}">` +
       `${items}</sharedItems>${group}</cacheField>`
@@ -805,11 +826,25 @@ export function pivotCacheXml(cache: PivotCache, recordsRelId: string, numFmtId:
     }) +
     `><cacheSource type="worksheet">${src}</cacheSource>` +
     `<cacheFields count="${fields.length}">${fields.join("")}</cacheFields>` +
+    calcItemsXml(cache) +
     (cache.slicerId !== undefined
       ? `<extLst><ext uri="${X14_CACHE}" xmlns:x14="${NS_X14}"><x14:pivotCacheDefinition pivotCacheId="${cache.slicerId}"/></ext></extLst>`
       : "") +
     `</pivotCacheDefinition>`
   )
+}
+
+/** The cache's calculatedItems, in solve order, each pointing at its shared item as Excel writes it. */
+function calcItemsXml(cache: PivotCache): string {
+  const list = cache.calcItems ?? []
+  if (!list.length) return ""
+  const items = list.map(
+    (ci) =>
+      `<calculatedItem${attrText({ formula: ci.formula })}><pivotArea cacheIndex="1" outline="0" fieldPosition="0">` +
+      `<references count="1"><reference field="${ci.field}" count="1"><x v="${ci.x}"/></reference></references>` +
+      `</pivotArea></calculatedItem>`,
+  )
+  return `<calculatedItems count="${items.length}">${items.join("")}</calculatedItems>`
 }
 
 /** The records: shared items by index, other values inline. */
@@ -906,9 +941,10 @@ export function pivotTableXml(
     if (listed) {
       // Every shared item, once: the field's own order, then any it doesn't list yet.
       const items = fullItems(f, sharedCount(cache, i))
+      const calc = new Set((cache.calcItems ?? []).filter((ci) => ci.field === i).map((ci) => ci.x))
       const xml = items.map(
         (it) =>
-          `<item${attrText({ n: it.name, h: it.hidden ? 1 : undefined, sd: it.collapsed ? 0 : undefined, x: it.x })}/>`,
+          `<item${attrText({ n: it.name, h: it.hidden ? 1 : undefined, sd: it.collapsed ? 0 : undefined, f: calc.has(it.x) ? 1 : undefined, x: it.x })}/>`,
       )
       if (custom.length) for (const fn of custom) xml.push(`<item t="${FN_ITEM[fn]}"/>`)
       else if (hasDefault) xml.push(`<item t="default"/>`)

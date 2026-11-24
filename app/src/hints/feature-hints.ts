@@ -123,6 +123,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Right-click a value in a PivotTable and pick Sort to order its items by that value, or use More Sort Options to choose the value field, or to keep them in the order you arrange.",
     target: "Field Settings",
   },
+  {
+    id: "pivot-calculated-items",
+    title: "New: Calculated items",
+    text: "Fields, Items, & Sets › Calculated Item adds an item worked out from the field's other items, such as =East-West, in every cell and total. Solve Order decides which one counts where two meet, and List Formulas lists them on a sheet.",
+    target: "Fields, Items, & Sets",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

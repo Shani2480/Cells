@@ -127,6 +127,33 @@ describe("PivotTables in xlsx", () => {
     expect(wb.pivotCaches[0].records[0]).toHaveLength(7)
   })
 
+  it("reads calculated items, and the engine shows Excel's cells; writes them back (pivot-calcitems.xlsx)", async () => {
+    const read = await openXlsx(fixture("pivot-calcitems.xlsx"), "pivot-calcitems.xlsx")
+    const wb = read.workbook
+    expect(expectCellsAsExcel(wb)).toBe(1)
+    // In solve order (Diff was moved first in Excel).
+    expect(wb.pivotCaches[0].calcItems).toEqual([
+      { field: 1, x: 2, formula: "Region[East]-Region[West]" },
+      { field: 0, x: 4, formula: "Product[Pens]+Product[Ink]*2" },
+    ])
+    // Written anew (the table changed), they read back the same and show the same cells.
+    for (const sheet of wb.sheets)
+      sheet.pivots = sheet.pivots.map((t) => ({ ...t, style: { ...t.style, rowStripes: !t.style.rowStripes } }))
+    wb.pivotCaches = wb.pivotCaches.map((c) => ({ ...c, refreshOnLoad: !c.refreshOnLoad }))
+    const saved = await saveXlsx(wb, { source: read.source })
+    const files = await parts(saved)
+    const def = [...files].find(([n]) => /pivotCacheDefinition\d+\.xml$/.test(n))![1]
+    expect(def).toContain('<s v="Writing" f="1"/>')
+    expect(def).toContain(
+      '<calculatedItem formula="Region[East]-Region[West]"><pivotArea cacheIndex="1" outline="0" fieldPosition="0">',
+    )
+    const table = [...files].find(([n]) => /pivotTable\d+\.xml$/.test(n))![1]
+    expect(table).toContain('<item f="1" x="4"/>')
+    const again = (await openXlsx(saved, "again.xlsx")).workbook
+    expect(again.pivotCaches[0].calcItems).toEqual(wb.pivotCaches[0].calcItems)
+    expect(expectCellsAsExcel(again)).toBe(1)
+  })
+
   it("reads grouped fields, and the engine shows Excel's cells (pivot-group.xlsx)", async () => {
     const { workbook: wb } = await openXlsx(fixture("pivot-group.xlsx"), "pivot-group.xlsx")
     expect(wb.pivotCaches).toHaveLength(8)

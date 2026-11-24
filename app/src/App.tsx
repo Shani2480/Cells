@@ -102,6 +102,8 @@ import {
   PivotOptionsDialog,
   ShowValuesAsDialog,
   CalculatedFieldDialog,
+  CalculatedItemDialog,
+  SolveOrderDialog,
   GroupingDialog,
   ValueFieldSettingsDialog,
 } from "@/shell/PivotSettingsDialogs"
@@ -307,8 +309,10 @@ type DialogState =
   | { kind: "pivotShowAs"; index: number; as: PivotShowAs }
   | { kind: "pivotField"; field: number }
   | { kind: "pivotSort"; field: number }
+  | { kind: "pivotCalcItem"; field: number }
   | { kind: "pivotOptions" }
   | { kind: "pivotCalcField" }
+  | { kind: "pivotSolveOrder" }
   | { kind: "pivotGroup" }
   | { kind: "findReplace"; tab: "find" | "replace"; n: number }
   | { kind: "goToSpecial" }
@@ -1117,8 +1121,10 @@ function WorkbookWindow({
       setDialog({ kind: "pivotShowAs", index: Number(index), as: as as PivotShowAs })
     } else if (kind === "pivotField") setDialog({ kind: "pivotField", field: Number(arg) })
     else if (kind === "pivotSort") setDialog({ kind: "pivotSort", field: Number(arg) })
+    else if (kind === "pivotCalcItem") setDialog({ kind: "pivotCalcItem", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
     else if (kind === "pivotCalcField") setDialog({ kind: "pivotCalcField" })
+    else if (kind === "pivotSolveOrder") setDialog({ kind: "pivotSolveOrder" })
     else if (kind === "pivotGroup") setDialog({ kind: "pivotGroup" })
     else if (kind === "insert" || kind === "delete") setDialog({ kind })
     else if (kind === "size") sizeDialog(arg as "rows" | "cols")
@@ -1636,6 +1642,10 @@ function WorkbookWindow({
         ) : null}
         {dialog?.kind === "pivotOptions" ? <PivotOptionsDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "pivotGroup" ? <GroupingDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "pivotCalcItem" ? (
+          <CalculatedItemDialog controller={controller} field={dialog.field} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "pivotSolveOrder" ? <SolveOrderDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "pivotCalcField" ? (
           <CalculatedFieldDialog controller={controller} onClose={closeDialog} />
         ) : null}

@@ -148,8 +148,8 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    Calculated Field (Name with Add/Modify, Formula, Delete, Fields with Insert Field); a new field goes into the
    active PivotTable's values. Refresh keeps calculated fields after the source's columns; Show Details leaves them
    out; they can only be values. A file where Cells modified one and added another opens in Excel 365 without
-   repairs, Excel reads the five formulas and refreshes all three PivotTables to the same cells. Not yet: calculated
-   items, Solve Order, List Formulas.
+   repairs, Excel reads the five formulas and refreshes all three PivotTables to the same cells. Calculated items,
+   Solve Order and List Formulas came in Phase 8 (core `pivot/calc-items.ts`, `PivotCache.calcItems`).
    _Grouping done:_ core `pivot/group.ts`; `PivotCacheField.group` (range or discrete). Excel 365's model, from
    `fixtures/excel/pivot-group.xlsx` (8 PivotTables, each on its own cache): numbers are grouped on the field itself
    (`rangePr` with startNum/endNum/groupInterval); dates by Seconds … Years go to new fields "Months (Date)" etc.

@@ -71,7 +71,15 @@ export type PivotCache = {
   refreshOnLoad: boolean
   /** Excel 2010's id for the cache, which PivotTable slicers name it by (x14 pivotCacheId). */
   slicerId?: number
+  /**
+   * Calculated items (Fields, Items & Sets › Calculated Item), in solve order: the last one listed wins where two
+   * meet. Each is a shared item of its field (`x`) that no record points at.
+   */
+  calcItems?: PivotCalcItem[]
 }
+
+/** A calculated item: its field, its shared item, and its formula as a file keeps it (Product[Pens]+Product[Ink]*2). */
+export type PivotCalcItem = { field: number; x: number; formula: string }
 
 /** How a value field summarizes (Value Field Settings › Summarize Values By). */
 export type PivotFn =

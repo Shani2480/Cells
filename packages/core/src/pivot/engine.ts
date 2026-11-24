@@ -1,3 +1,4 @@
+import { CALC_ITEM_FNS, calcItemValue } from "./calc-items"
 import type { Range } from "../address"
 import { wildcardRegExp } from "../filter"
 import { errorValue, type CellError, type CellValue } from "../values"
@@ -201,6 +202,8 @@ type FieldItems = {
   names: (string | undefined)[]
   /** The item position of each record. */
   ofRecord: Int32Array
+  /** Calculated items: item position → index in the cache's `calcItems`. */
+  calc: Map<number, number>
 }
 
 function fieldItems(table: PivotTable, cache: PivotCache, f: number): FieldItems {
@@ -247,7 +250,12 @@ function fieldItems(table: PivotTable, cache: PivotCache, f: number): FieldItems
       return blanks || sign * comparePivotValues(va, vb)
     })
   }
-  return { values, xs, order, hidden, collapsed, names, ofRecord }
+  const calc = new Map<number, number>()
+  cache.calcItems?.forEach((ci, k) => {
+    const pos = ci.field === f ? posOfShared.get(ci.x) : undefined
+    if (pos !== undefined) calc.set(pos, k)
+  })
+  return { values, xs, order, hidden, collapsed, names, ofRecord, calc }
 }
 
 /** An item's label: its typed name, or its value ("(blank)" for empty). */
@@ -311,6 +319,13 @@ function sortedByValue(
     .map((x) => x.pos)
 }
 
+/** The items under any of `nodes` (what a calculated item holds inside it: its siblings' inner items). */
+function mergedNode(nodes: Node[]): Node {
+  const children = new Map<number, Node[]>()
+  for (const n of nodes) for (const [pos, child] of n.children) children.set(pos, [...(children.get(pos) ?? []), child])
+  return { children: new Map([...children].map(([pos, list]) => [pos, mergedNode(list)])) }
+}
+
 function axisLines(
   cache: PivotCache,
   table: PivotTable,
@@ -346,10 +361,16 @@ function axisLines(
     else {
       const fi = items.get(f)!
       const field = table.fields[f]
-      let shown = field.showAll ? fi.order : fi.order.filter((pos) => node.children.has(pos))
+      // A calculated item shows under every item, whether or not the items it names have data there.
+      let shown = field.showAll ? fi.order : fi.order.filter((pos) => node.children.has(pos) || fi.calc.has(pos))
       const by = valueSortOf(table, f)
       if (by) shown = sortedByValue(shown, node, by, cache)
-      children = shown.map((pos) => ({ pos, node: node.children.get(pos) ?? { children: new Map() } }))
+      children = shown.map((pos) => ({
+        pos,
+        node:
+          node.children.get(pos) ??
+          (fi.calc.has(pos) ? mergedNode([...node.children.values()]) : { children: new Map() }),
+      }))
     }
     for (const { pos, node: child } of children) {
       const p = [...path, pos]
@@ -522,6 +543,8 @@ export function pivotDetailRecords(table: PivotTable, cache: PivotCache, cell: P
   }
   add(rowLine, rowFields)
   add(colLine, colFields)
+  // A calculated item's value has no records of its own (Excel won't show details there).
+  if (conditions.some(([fi, pos]) => fi.calc.has(pos))) return null
   return filtered.both.filter((r) => conditions.every(([fi, pos]) => fi.ofRecord[r] === pos))
 }
 
@@ -628,10 +651,11 @@ export function pivotLayout(table: PivotTable, cache: PivotCache): PivotLayout {
   const realRowFields = rowFields.filter((f) => f !== VALUES_FIELD)
   const realColFields = colFields.filter((f) => f !== VALUES_FIELD)
   /** A value field's figure for row items `rows` × column items `cols` (a calculated field's formula on the sums). */
-  const measure = (field: number, fn: PivotFn, rows: readonly number[], cols: readonly number[]) =>
+  const plain = (field: number, fn: PivotFn, rows: readonly number[], cols: readonly number[]) =>
     cache.fields[field]?.formula
       ? calcFieldValue(cache, field, (g) => statsFor.at(rows, cols, g).sum)
       : summarize(statsFor.at(rows, cols, field), fn)
+  const measure = withCalcItems(cache, items, realRowFields, realColFields, filtered.both, plain)
   const showAsContext = (field: number, fn: PivotFn): ShowAsContext => ({
     rowFields: realRowFields,
     colFields: realColFields,
@@ -959,4 +983,137 @@ function makeStats(table: PivotTable, cache: PivotCache, items: Map<number, Fiel
   const forLines = (row: Line, rowFields: number[], col: Line, colFields: number[], field: number): Stats =>
     at(realPath(row, rowFields), realPath(col, colFields), field)
   return Object.assign(forLines, { at, realPath })
+}
+
+// ── Calculated items ──
+
+type Measure = (field: number, fn: PivotFn, rows: readonly number[], cols: readonly number[]) => CellValue | undefined
+
+/** A total of item values put together as `fn` does (Sum and Count add, Max and Min pick); errors carry through. */
+function combine(fn: PivotFn, values: (CellValue | undefined)[]): CellValue | undefined {
+  let out: number | undefined
+  for (const v of values) {
+    if (v === undefined || v === null) continue
+    if (typeof v === "object") return v
+    if (typeof v !== "number") return errorValue("#VALUE!")
+    if (out === undefined) out = v
+    else if (fn === "max") out = Math.max(out, v)
+    else if (fn === "min") out = Math.min(out, v)
+    else if (fn === "product") out *= v
+    else out += v
+  }
+  return out
+}
+
+/**
+ * `plain` (a value field's figure from the records) with the table's calculated items worked out: a cell on a
+ * calculated item takes its formula over the other items' figures in that cell (the item last in solve order, where
+ * two meet); a total with calculated items inside it puts its items' figures together. `plain` itself when the
+ * table shows no calculated item.
+ */
+function withCalcItems(
+  cache: PivotCache,
+  items: Map<number, FieldItems>,
+  rowFields: number[],
+  colFields: number[],
+  records: number[],
+  plain: Measure,
+): Measure {
+  const calcRows = rowFields.map((f) => items.get(f)!.calc)
+  const calcCols = colFields.map((f) => items.get(f)!.calc)
+  if (![...calcRows, ...calcCols].some((m) => m.size)) return plain
+  const keyOf = (path: readonly number[]) => path.map((p) => `${p},`).join("")
+  /** The items with data under each path of items on an axis. */
+  const childrenOf = (fields: number[]) => {
+    const map = new Map<string, Set<number>>()
+    for (const r of records) {
+      let key = ""
+      for (const f of fields) {
+        const pos = items.get(f)!.ofRecord[r]
+        let set = map.get(key)
+        if (!set) map.set(key, (set = new Set()))
+        set.add(pos)
+        key += `${pos},`
+      }
+    }
+    return map
+  }
+  const rowKids = childrenOf(rowFields)
+  const colKids = childrenOf(colFields)
+  /** The items with data under `path` (under a calculated item: those under any of its siblings). */
+  const realKids = (map: Map<string, Set<number>>, path: readonly number[], fields: number[]): Set<number> => {
+    const j = path.findIndex((pos, k) => items.get(fields[k])!.calc.has(pos))
+    if (j < 0) return map.get(keyOf(path)) ?? new Set()
+    const out = new Set<number>()
+    for (const sibling of map.get(keyOf(path.slice(0, j))) ?? []) {
+      const next = [...path]
+      next[j] = sibling
+      for (const pos of realKids(map, next, fields)) out.add(pos)
+    }
+    return out
+  }
+  /** The items a total over `path` puts together: those with data, and the next field's shown calculated items. */
+  const kids = (map: Map<string, Set<number>>, path: readonly number[], fields: number[]) => {
+    const fi = items.get(fields[path.length])!
+    const out = [...realKids(map, path, fields)]
+    for (const pos of fi.calc.keys()) if (!out.includes(pos) && fi.order.includes(pos)) out.push(pos)
+    return out
+  }
+  const memo = new Map<string, CellValue | undefined>()
+  const value: Measure = (field, fn, rows, cols) => {
+    const key = `${field}|${fn}|${keyOf(rows)}|${keyOf(cols)}`
+    if (memo.has(key)) return memo.get(key)
+    // A formula that comes back to itself.
+    memo.set(key, errorValue("#REF!"))
+    const v = compute(field, fn, rows, cols)
+    memo.set(key, v)
+    return v
+  }
+  const calcIn = (path: readonly number[], calc: Map<number, number>[]) => path.some((pos, j) => calc[j].has(pos))
+  const calcBelow = (path: readonly number[], calc: Map<number, number>[]) =>
+    calc.slice(path.length).some((m) => m.size > 0)
+  const compute: Measure = (field, fn, rows, cols) => {
+    const onCalc = calcIn(rows, calcRows) || calcIn(cols, calcCols)
+    if (!onCalc && !calcBelow(rows, calcRows) && !calcBelow(cols, calcCols)) return plain(field, fn, rows, cols)
+    // Excel works formulas out in the innermost cells only: a total puts its cells together, whatever it's on.
+    if (CALC_ITEM_FNS.includes(fn)) {
+      if (rows.length < rowFields.length)
+        return combine(
+          fn,
+          kids(rowKids, rows, rowFields).map((pos) => value(field, fn, [...rows, pos], cols)),
+        )
+      if (cols.length < colFields.length)
+        return combine(
+          fn,
+          kids(colKids, cols, colFields).map((pos) => value(field, fn, rows, [...cols, pos])),
+        )
+    }
+    if (!onCalc) return plain(field, fn, rows, cols)
+    // The calculated item last in solve order among the cell's items works it out.
+    let best: { row: boolean; j: number; k: number } | null = null
+    const look = (path: readonly number[], calc: Map<number, number>[], row: boolean) =>
+      path.forEach((pos, j) => {
+        const k = calc[j].get(pos)
+        if (k !== undefined && (!best || k > best.k)) best = { row, j, k }
+      })
+    look(rows, calcRows, true)
+    look(cols, calcCols, false)
+    const { row, j, k } = best as unknown as { row: boolean; j: number; k: number }
+    const fi = items.get((row ? rowFields : colFields)[j])!
+    const path = row ? rows : cols
+    const at = (pos: number) => {
+      const next = [...path]
+      next[j] = pos
+      return row ? value(field, fn, next, cols) : value(field, fn, rows, next)
+    }
+    return calcItemValue(cache, k, (ref) => {
+      if (ref.kind === "item") {
+        const pos = fi.xs.indexOf(ref.x)
+        return pos < 0 ? undefined : at(pos)
+      }
+      const i = ref.kind === "at" ? ref.n - 1 : fi.order.indexOf(path[j]) + ref.n
+      return i >= 0 && i < fi.order.length ? at(fi.order[i]) : errorValue("#REF!")
+    })
+  }
+  return value
 }

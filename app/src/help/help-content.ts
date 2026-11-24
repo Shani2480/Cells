@@ -65,6 +65,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     keywords:
       "picture image photo artistic effects sketch pencil chalk marker paint brush strokes watercolor sponge blur glass cement texturizer mosaic bubbles film grain glow edges plastic wrap cutout photocopy pastels line drawing light screen crisscross etching",
   },
+  "pivot-calculated-items": {
+    where: "PivotTable Analyze › Calculations › Fields, Items, & Sets",
+    keywords: "pivottable calculated item formula items solve order list formulas difference east west",
+  },
   "pivot-sort-by-value": {
     where: "Right-click a PivotTable value › Sort, or a field's dropdown › More Sort Options",
     keywords: "pivottable sort value largest smallest more sort options manual order grand total",

@@ -71,6 +71,13 @@ import {
   withSort,
   withValueSort,
   withManualAsShown,
+  CALC_ITEM_GROUPED,
+  CALC_ITEM_NOT_FIELD,
+  calcItemDisplay,
+  calcItemsBlocked,
+  canHaveCalcItems,
+  withCalcItem,
+  withoutCalcItem,
   pivotCellAt,
   pivotCellsPlan,
   reportFilterPages,
@@ -502,6 +509,137 @@ export class PivotCommands {
     const at = this.activeWithCache()
     if (!at) return
     this.run([at.cache.id], "Calculated Field", undefined, { cache: withoutCalcField(at.cache, name) })
+  }
+
+  // ── Calculated items, Solve Order, List Formulas ──
+
+  /**
+   * The field Calculated Item adds to: the active cell's row or column field. Excel's message instead when the cell
+   * isn't on one, or its field can't take calculated items.
+   */
+  calcItemField(): number | string {
+    const at = this.activeWithCache()
+    if (!at) return CALC_ITEM_NOT_FIELD
+    const { row, col } = this.c.selection.active
+    const t = this.settingsTargetAt(row, col)
+    const f = t?.kind === "field" ? t.field : -1
+    const axis = at.table.fields[f]?.axis
+    if (axis !== "row" && axis !== "col") return CALC_ITEM_NOT_FIELD
+    return canHaveCalcItems(at.cache, f) ? f : CALC_ITEM_GROUPED
+  }
+
+  /** The active PivotTable's calculated items, in solve order, with their formulas as Cells shows them (=Pens+Ink). */
+  calcItemList(): { field: number; x: number; name: string; fieldName: string; formula: string }[] {
+    const at = this.activeWithCache()
+    if (!at) return []
+    return (at.cache.calcItems ?? []).map((ci) => ({
+      field: ci.field,
+      x: ci.x,
+      name: String(at.cache.fields[ci.field]?.items?.[ci.x] ?? ""),
+      fieldName: at.cache.fields[ci.field]?.name ?? "",
+      formula: calcItemDisplay(at.cache, ci),
+    }))
+  }
+
+  /**
+   * Calculated Item's Add / Modify: item `name` of field `f` on the active PivotTable's cache, shown by every
+   * PivotTable on it. Excel's message when it can't (its formula, or a PivotTable on the cache with an Average or a
+   * field summarized twice).
+   */
+  setCalcItem(f: number, name: string, formula: string): string | null {
+    const at = this.activeWithCache()
+    if (!at) return null
+    const tables = this.c.wb.sheets.flatMap((s) => s.pivots.filter((t) => t.cacheId === at.cache.id))
+    const blocked = calcItemsBlocked(tables)
+    if (blocked) return blocked
+    const next = withCalcItem(at.cache, f, name, formula)
+    if (typeof next === "string") return next
+    this.run([at.cache.id], "Calculated Item", undefined, { cache: next })
+    return null
+  }
+
+  /** Calculated Item's (or Solve Order's) Delete: the item leaves its field in every PivotTable on the cache. */
+  deleteCalcItem(f: number, x: number) {
+    const at = this.activeWithCache()
+    if (!at) return
+    this.run([at.cache.id], "Delete Calculated Item", undefined, { cache: withoutCalcItem(at.cache, f, x) })
+  }
+
+  /** Solve Order's Move Up / Move Down: calculated item `index` moves `by` places in the solve order. */
+  moveCalcItem(index: number, by: -1 | 1): boolean {
+    const at = this.activeWithCache()
+    const list = at?.cache.calcItems
+    const to = index + by
+    if (!at || !list || !list[index] || !list[to]) return false
+    const calcItems = [...list]
+    ;[calcItems[index], calcItems[to]] = [calcItems[to], calcItems[index]]
+    return this.run([at.cache.id], "Solve Order", undefined, { cache: { ...at.cache, calcItems } })
+  }
+
+  /**
+   * List Formulas: a new sheet, before the PivotTable's, listing its calculated fields and calculated items (each
+   * with its solve order) and Excel's note on the solve order, as Excel lays it out. False when there are none.
+   */
+  listFormulas(): boolean {
+    const at = this.activeWithCache()
+    if (!at) return false
+    const fields = this.calcFields()
+    const items = this.calcItemList()
+    if (!fields.length && !items.length) return false
+    const rows: (string | number)[][] = []
+    const bold: Range[] = []
+    const section = (title: string, second: string, list: { name: string; formula: string }[]) => {
+      if (!list.length) return
+      bold.push(
+        { r0: rows.length, c0: 0, r1: rows.length, c1: 0 },
+        { r0: rows.length + 1, c0: 0, r1: rows.length + 1, c1: 2 },
+      )
+      rows.push([title], ["Solve Order", second, "Formula"])
+      list.forEach((x, i) => rows.push([i + 1, x.name, x.formula]))
+      rows.push([])
+    }
+    section(
+      "Calculated Field",
+      "Field",
+      fields.map((x) => ({ name: x.name, formula: `=${x.formula}` })),
+    )
+    section("Calculated Item", "Item", items)
+    const tableEnd = rows.length - 1
+    rows.push([])
+    bold.push({ r0: rows.length, c0: 0, r1: rows.length, c1: 0 })
+    rows.push(["Note:", "When a cell is updated by more than one formula,"])
+    rows.push(["", "the value is set by the formula with the last solve order."])
+    rows.push([])
+    rows.push(["", "To change the solve order for multiple calculated items or fields,"])
+    rows.push([
+      "",
+      "on the PivotTable Analyze tab, in the Calculations group, click Fields, Items, & Sets, and then click Solve Order.",
+    ])
+    const cells = rows.flatMap((r, row) =>
+      r.flatMap((value, col) => (value === "" ? [] : [{ row, col, data: { value } }])),
+    )
+    const at0 = this.c.sheetIndex
+    const name = nextSheetName(this.c.wb.sheets.map((s) => s.name))
+    const ops: Op[] = [
+      { kind: "addSheet", sheet: at0, name },
+      { kind: "setCells", sheet: at0, cells },
+      { kind: "format", sheet: at0, ranges: bold, patch: { bold: true } },
+    ]
+    if (this.c.edit) this.c.commitEdit()
+    const entry = this.c.transact(ops, { label: "List Formulas", before: this.c.selection, sheetAfter: at0 })
+    if (!entry) return false
+    this.c.activate(at0)
+    // The columns fit the lists (not the note), as Excel's.
+    const fit = this.c.columnFit
+    if (fit) {
+      const entries = [0, 1, 2].flatMap((c) => {
+        const size = fit(c, { r0: 0, r1: tableEnd })
+        return size === null ? [] : [{ index: c, size, hidden: false }]
+      })
+      if (entries.length) this.c.wb.amend(entry, [{ kind: "axis", sheet: at0, axis: "cols", entries }])
+    }
+    this.c.goTo({ r0: 0, c0: 0, r1: 0, c1: 0 })
+    return true
   }
 
   /** Refresh: the active PivotTable's cache, and so every PivotTable that shares it. */
@@ -1555,6 +1693,12 @@ export class PivotCommands {
     extra: Op[] = [],
   ): boolean {
     if (next === at.table && !extra.length) return false
+    // With calculated items Excel won't take an Average (StdDev, Var) or a field summarized twice.
+    const blocked = at.cache.calcItems?.length ? calcItemsBlocked([next]) : null
+    if (blocked && !calcItemsBlocked([at.table])) {
+      this.c.shell.alert(blocked)
+      return false
+    }
     // From a PivotChart's button the PivotTable may be on another sheet: its cells change, the selection stays.
     const away = this.via !== null && this.via !== this.c.sheetIndex
     const s = away ? this.via! : this.c.sheetIndex

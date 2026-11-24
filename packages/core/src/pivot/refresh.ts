@@ -107,10 +107,14 @@ export function refreshedCache(old: PivotCache, data: Exclude<ReturnType<typeof 
     const before = old.fields.find((o) => o.name.toLowerCase() === f.name.toLowerCase())
     // A column without shared items keeps none (the engine finds its values when it needs them).
     if (!before?.items) return { ...f, items: null }
+    // Calculated items stay, after the others.
+    const b = old.fields.indexOf(before)
+    const calc = (old.calcItems ?? []).filter((ci) => ci.field === b).map((ci) => before.items![ci.x])
+    const calcKeys = new Set(calc.map(keyOf))
     const present = new Map<string, PivotValue>()
     for (const r of data.records) {
       const k = keyOf(r[i] ?? null)
-      if (!present.has(k)) present.set(k, r[i] ?? null)
+      if (!present.has(k) && !calcKeys.has(k)) present.set(k, r[i] ?? null)
     }
     const items: PivotValue[] = []
     const seen = new Set<string>()
@@ -122,7 +126,17 @@ export function refreshedCache(old: PivotCache, data: Exclude<ReturnType<typeof 
       }
     }
     for (const [k, v] of present) if (!seen.has(k)) items.push(v)
-    return { ...f, items }
+    return { ...f, items: [...items, ...calc] }
+  })
+  // The calculated items follow their fields and shared items.
+  const calcItems = (old.calcItems ?? []).flatMap((ci) => {
+    const name = old.fields[ci.field]?.name.toLowerCase()
+    const field = fields.findIndex((f) => f.name.toLowerCase() === name)
+    const x =
+      field >= 0
+        ? (fields[field].items?.findIndex((v) => keyOf(v) === keyOf(old.fields[ci.field].items![ci.x])) ?? -1)
+        : -1
+    return x >= 0 ? [{ ...ci, field, x }] : []
   })
   const indexOf = (name: string) => fields.findIndex((f) => f.name.toLowerCase() === name.toLowerCase())
   // Number ranges stay on their column, with the same start, end and labels (new values outside go to < and >).
@@ -156,7 +170,10 @@ export function refreshedCache(old: PivotCache, data: Exclude<ReturnType<typeof 
     if (!fields[base].items && !fields[base].group && inRecords(fields[base], base))
       fields[base] = { ...fields[base], items: fieldShared({ ...old, fields, records: data.records }, base) }
   })
-  return { ...old, fields, records: data.records }
+  const next: PivotCache = { ...old, fields, records: data.records }
+  if (calcItems.length) next.calcItems = calcItems
+  else delete next.calcItems
+  return next
 }
 
 /** A field's item values (its group items, the cache's shared items, or its column's distinct values). */

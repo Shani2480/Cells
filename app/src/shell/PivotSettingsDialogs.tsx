@@ -1,6 +1,7 @@
 import {
   DATE_GROUP_NAMES,
   DATE_PARTS,
+  fieldShared,
   parseInput,
   serialToDate,
   autoDataFieldName,
@@ -972,6 +973,222 @@ export function GroupingDialog({ controller, onClose }: { controller: SheetContr
           <input className="dialog-field" aria-label="By" value={by} onChange={(e) => setBy(e.target.value)} />
         )}
       </fieldset>
+    </Dialog>
+  )
+}
+
+/** An item as a calculated item's formula names it: bare when it is one word, else in single quotes. */
+const formulaItemName = formulaFieldName
+
+/** An item's label in the Items list ("(blank)" for an empty one). */
+const itemText = (v: unknown) =>
+  v === null || v === "" ? "(blank)" : typeof v === "object" && v ? (v as { error: string }).error : String(v)
+
+/**
+ * Insert Calculated Item (Analyze › Fields, Items, & Sets › Calculated Item): a name and a formula over the items of
+ * field `field` (=Pens+Ink*2). Add (Modify for one it has) keeps the dialog open, OK adds and closes, Delete removes
+ * the one named. The items are shared by every PivotTable on the same data.
+ */
+export function CalculatedItemDialog({
+  controller,
+  field,
+  onClose,
+}: {
+  controller: SheetController
+  field: number
+  onClose: () => void
+}) {
+  const pivots = controller.pivots
+  const at = pivots.activeWithCache()
+  const [name, setName] = useState(() => {
+    const used = new Set(at ? fieldShared(at.cache, field).map((v) => itemText(v).toLowerCase()) : [])
+    let n = 1
+    while (used.has(`formula${n}`)) n++
+    return `Formula${n}`
+  })
+  const [formula, setFormula] = useState("= 0")
+  const [pickedField, setPickedField] = useState(field)
+  const [pickedItem, setPickedItem] = useState(0)
+  // Bumped after Add and Delete: the items live on the workbook, not in this dialog.
+  const [, setChanges] = useState(0)
+  const formulaRef = useRef<HTMLInputElement>(null)
+  if (!at) return null
+  const { cache } = at
+  const fieldName = cache.fields[field]?.name ?? ""
+  const existing = pivots.calcItemList().filter((ci) => ci.field === field)
+  const current = existing.find((ci) => ci.name.toLowerCase() === name.trim().toLowerCase())
+  const apply = (): boolean => {
+    const problem = pivots.setCalcItem(field, name, formula)
+    if (problem) {
+      controller.shell.alert(problem)
+      return false
+    }
+    setChanges((n) => n + 1)
+    return true
+  }
+  const insert = (text: string) => {
+    const input = formulaRef.current
+    if (!input) return
+    const start = input.selectionStart ?? formula.length
+    const end = input.selectionEnd ?? formula.length
+    setFormula(formula.slice(0, start) + text + formula.slice(end))
+    requestAnimationFrame(() => {
+      input.focus()
+      input.setSelectionRange(start + text.length, start + text.length)
+    })
+  }
+  const items = fieldShared(cache, pickedField).map((v, x) => ({ value: x, label: itemText(v) }))
+  const insertItem = () => {
+    const item = items.find((i) => i.value === pickedItem)
+    if (!item) return
+    const own = formulaItemName(item.label)
+    // Another field's item is named with its field (the formula then says it can't use it, as Excel's does).
+    insert(pickedField === field ? own : `${formulaFieldName(cache.fields[pickedField].name)}[${own}]`)
+  }
+  return (
+    <Dialog
+      title={`Insert Calculated Item in "${fieldName}"`}
+      onCancel={onClose}
+      onAccept={() => {
+        if (apply()) onClose()
+      }}
+      width={520}
+    >
+      <div className="pivot-calc-grid">
+        <label className="dialog-label" htmlFor="pivot-calc-item-name">
+          Name:
+        </label>
+        <input
+          id="pivot-calc-item-name"
+          className="dialog-field"
+          list="pivot-calc-item-names"
+          autoFocus
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value)
+            const known = existing.find((ci) => ci.name.toLowerCase() === e.target.value.trim().toLowerCase())
+            if (known) setFormula(known.formula)
+          }}
+        />
+        <datalist id="pivot-calc-item-names">
+          {existing.map((ci) => (
+            <option key={ci.name} value={ci.name} />
+          ))}
+        </datalist>
+        <button type="button" className="dialog-btn" onClick={() => apply()}>
+          {current ? "Modify" : "Add"}
+        </button>
+        <label className="dialog-label" htmlFor="pivot-calc-item-formula">
+          Formula:
+        </label>
+        <input
+          id="pivot-calc-item-formula"
+          ref={formulaRef}
+          className="dialog-field"
+          value={formula}
+          onChange={(e) => setFormula(e.target.value)}
+        />
+        <button
+          type="button"
+          className="dialog-btn"
+          disabled={!current}
+          onClick={() => {
+            if (!current) return
+            pivots.deleteCalcItem(current.field, current.x)
+            setChanges((n) => n + 1)
+            setFormula("= 0")
+          }}
+        >
+          Delete
+        </button>
+      </div>
+      <div className="pivot-calc-items">
+        <div>
+          <p className="dialog-label">Fields:</p>
+          <ChoiceList
+            label="Fields"
+            options={cache.fields.map((f, i) => ({ value: i, label: f.name }))}
+            value={pickedField}
+            pick={(f) => {
+              setPickedField(f)
+              setPickedItem(0)
+            }}
+          />
+          <button
+            type="button"
+            className="dialog-btn"
+            onClick={() => insert(formulaFieldName(cache.fields[pickedField]?.name ?? ""))}
+          >
+            Insert Field
+          </button>
+        </div>
+        <div>
+          <p className="dialog-label">Items:</p>
+          <ChoiceList label="Items" options={items} value={pickedItem} pick={setPickedItem} />
+          <button type="button" className="dialog-btn" disabled={!items.length} onClick={insertItem}>
+            Insert Item
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+/**
+ * Calculated Item Solve Order (Analyze › Fields, Items, & Sets › Solve Order): the calculated items in the order
+ * they're worked out (the last one decides where two meet); Move Up, Move Down and Delete change it at once.
+ */
+export function SolveOrderDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
+  const pivots = controller.pivots
+  const [picked, setPicked] = useState(0)
+  const [, setChanges] = useState(0)
+  const list = pivots.calcItemList()
+  const move = (by: -1 | 1) => {
+    if (pivots.moveCalcItem(picked, by)) setPicked(picked + by)
+    setChanges((n) => n + 1)
+  }
+  return (
+    <Dialog
+      title="Calculated Item Solve Order"
+      onCancel={onClose}
+      onAccept={onClose}
+      width={460}
+      acceptLabel="Close"
+      cancelLabel={null}
+    >
+      <p className="dialog-label">Solve order:</p>
+      <ChoiceList
+        label="Solve order"
+        options={list.map((ci, i) => ({ value: i, label: `'${ci.name}' ${ci.formula}` }))}
+        value={list.length ? Math.min(picked, list.length - 1) : undefined}
+        pick={setPicked}
+      />
+      <p className="dialog-hint">
+        If the value of a cell is changed by more than one formula, the value is set by the formula that's last in the
+        solve order.
+      </p>
+      <div className="pivot-solve-buttons">
+        <button type="button" className="dialog-btn" disabled={picked <= 0} onClick={() => move(-1)}>
+          Move Up
+        </button>
+        <button type="button" className="dialog-btn" disabled={picked >= list.length - 1} onClick={() => move(1)}>
+          Move Down
+        </button>
+        <button
+          type="button"
+          className="dialog-btn"
+          disabled={!list[picked]}
+          onClick={() => {
+            const ci = list[picked]
+            if (!ci) return
+            pivots.deleteCalcItem(ci.field, ci.x)
+            setPicked(Math.max(0, picked - 1))
+            setChanges((n) => n + 1)
+          }}
+        >
+          Delete
+        </button>
+      </div>
     </Dialog>
   )
 }

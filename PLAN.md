@@ -398,8 +398,8 @@ The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables h
   the features; Contact Support and Feedback open a pre-filled GitHub issue the person reviews and submits (Cells
   sends nothing, no workbook content). File › Help and File › Feedback too (phones have no Help tab).
 - ⬜ Next: Inkspire's side of the link (`docs/inkspire-todo.md`, I1–I9), done in the Inkspire project.
-- ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: Field Headers, calculated items, new
-  PivotTable styles).
+- ⏸ Later: the lists under "Later" in `docs/next-todo.md` (among them: Field Headers, new PivotTable
+  styles).
 
 **Known limits:** Help's
 shortcut list is written by hand (`help-content.ts`): a new shortcut has to be added there too. Show me can't point
@@ -565,8 +565,19 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       Excel reads each sort (field, direction, value field) and refreshes to the same cells. Hint and Help topic.
       Limits: by the grand totals only (Excel can also sort by the values of one column, and has a More Options
       dialog for that and for first-key sort order); a value under one column item says so instead of sorting.
-    - ⬜ Calculated items with Solve Order and List Formulas, the rest of
-      PivotTable Options (merge labels, classic layout, report filter layout, printing, Alt Text), New PivotTable
+    - ✅ Calculated items (Fields, Items, & Sets › Calculated Item): an item worked out by a formula over its field's
+      other items (=Pens+Ink*2; quoted names, Field[Item], places like Product[1], worksheet functions), shown under
+      every outer item, shared by the PivotTables on the same data. Worked out as Excel 365's, measured: the formula
+      in the innermost cells on the value field's figures (sum, count, max…), every total putting its cells together
+      with the value field's function; where two meet, the one last in Solve Order. Solve Order (Move Up / Down,
+      Delete) and List Formulas (Excel's sheet: calculated fields and items with their solve order, and its note).
+      Excel's rules kept: no Average, StdDev or Var and no field summarized twice; only items of the same field;
+      not on grouped fields. Read and written as Excel does (sharedItems f="1", calculatedItems in solve order); a
+      PivotTable with calculated items used to be kept as it was and is now read. Checked in Excel 365: no repair,
+      Excel lists the formulas in the same solve order, and refreshes three PivotTables (crossing items, Count and
+      Max, nested fields) to the same cells. Hint and Help topic. Limits: a calculated item can't be picked in a report
+      filter; it shows no details (as Excel); sorting by a value leaves it last.
+    - ⬜ The rest of PivotTable Options (merge labels, classic layout, report filter layout, printing, Alt Text), New PivotTable
       Style.
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.

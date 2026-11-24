@@ -5719,3 +5719,26 @@ button.rel-row:hover,
   margin: 0;
   min-height: 2.6em;
 }
+
+/* Insert Calculated Item: the fields and the chosen field's items side by side, each with its Insert button. */
+.pivot-calc-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.pivot-calc-items .pivot-base-list {
+  height: 150px;
+  margin-bottom: 8px;
+}
+
+.pivot-calc-items .dialog-btn {
+  min-width: 96px;
+}
+
+/* Calculated Item Solve Order */
+.pivot-solve-buttons {
+  display: flex;
+  gap: 8px;
+}

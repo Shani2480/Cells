@@ -342,9 +342,34 @@ export function pivotCommands(): Command[] {
       enabled: inPivot,
       run: (env) => env.dialog("pivotCalcField"),
     },
-    later("PivotCalculatedItem", "Calculated Item...", "An item worked out from other items of a field.", "I"),
-    later("PivotSolveOrder", "Solve Order...", "The order calculated items are worked out in.", "S"),
-    later("PivotListFormulas", "List Formulas", "A new sheet listing the calculated fields and items.", "L"),
+    {
+      id: "PivotCalculatedItem",
+      label: "Calculated Item...",
+      description: "Add an item worked out by a formula over the other items of the field, such as =East-West.",
+      keytip: "I",
+      enabled: inPivot,
+      run: (env) => {
+        const f = env.c.pivots.calcItemField()
+        if (typeof f === "string") env.c.shell.alert(f)
+        else env.dialog(`pivotCalcItem:${f}`)
+      },
+    },
+    {
+      id: "PivotSolveOrder",
+      label: "Solve Order...",
+      description: "Choose the order calculated items are worked out in: the last one decides where two meet.",
+      keytip: "S",
+      enabled: (env) => env.c.pivots.calcItemList().length > 0,
+      run: (env) => env.dialog("pivotSolveOrder"),
+    },
+    {
+      id: "PivotListFormulas",
+      label: "List Formulas",
+      description: "Make a sheet listing the calculated fields and items, with their formulas and solve order.",
+      keytip: "L",
+      enabled: (env) => env.c.pivots.calcFields().length + env.c.pivots.calcItemList().length > 0,
+      run: (env) => void env.c.pivots.listFormulas(),
+    },
     later("PivotCreateSet", "Create Set...", "Sets come with data models, which Cells doesn't open.", "C"),
     later("PivotManageSets", "Manage Sets...", "Sets come with data models, which Cells doesn't open.", "M"),
     {

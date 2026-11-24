@@ -83,7 +83,7 @@ export function calcFieldInputs(cache: PivotCache, f: number, seen = new Set<num
 }
 
 /** Only the names bound to the sums: a calculated field's formula can't read cells. */
-class SumsContext implements EvalContext {
+export class SumsContext implements EvalContext {
   sheet = 0
   row = 0
   col = 0
