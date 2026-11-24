@@ -29,6 +29,7 @@ export function loadDemo(controller: SheetController, name: string | null) {
     formatsDemo(controller)
     return objectsDemo(controller)
   }
+  if (name === "pictures") return picturesDemo(controller)
   if (name === "notes") {
     loadDemo(controller, "small")
     return notesDemo(controller)
@@ -314,6 +315,19 @@ function notesDemo(controller: SheetController) {
 }
 
 /** Part 8b's objects on the formats sheet: a signature line and embedded files (made-up names, no real files). */
+/** A made-up landscape picture to crop (Picture Format › Crop): hills, a sun and a lake, 320 × 200. */
+function picturesDemo(c: SheetController) {
+  const markup =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">` +
+    `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ab8e6"/><stop offset="1" stop-color="#e8f3fb"/></linearGradient></defs>` +
+    `<rect width="320" height="200" fill="url(#sky)"/><circle cx="250" cy="52" r="26" fill="#f6c445"/>` +
+    `<path d="M0 130 Q60 80 120 120 T240 110 T320 120 V200 H0Z" fill="#5d9c59"/>` +
+    `<path d="M0 160 Q90 130 170 155 T320 150 V200 H0Z" fill="#3f7a46"/>` +
+    `<ellipse cx="110" cy="178" rx="70" ry="12" fill="#4a8fc9"/></svg>`
+  const src = `data:image/svg+xml;base64,${btoa(markup)}`
+  c.objects.insertPicture(src, { w: 320, h: 200 })
+}
+
 function objectsDemo(c: SheetController) {
   const svg = (markup: string) => `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`
   const at = (row: number, col: number) =>

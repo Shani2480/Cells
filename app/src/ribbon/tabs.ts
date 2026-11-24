@@ -654,7 +654,7 @@ export const PICTURE_FORMAT: Tab = {
     { id: "GroupPictureStyles", label: "Picture Styles", columns: [smalls(S("PictureBorderColorPicker"))] },
     { id: "GroupPictureAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
     ARRANGE,
-    SIZE,
+    { ...SIZE, columns: [L("PictureCropTools", "Crop"), ...SIZE.columns] },
   ],
 }
 

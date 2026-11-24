@@ -51,6 +51,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     command: "HeaderFooterInsert",
     keywords: "header footer page layout view page number date sheet name file print top bottom margin",
   },
+  "picture-crop": {
+    where: "Picture Format › Size (select a picture first)",
+    keywords: "picture image photo crop cut trim shape circle aspect ratio square fill fit frame",
+  },
   "chart-sheets": {
     where: "Chart Design › Location (select a chart first)",
     keywords: "chart sheet move chart f11 new sheet object in full window",

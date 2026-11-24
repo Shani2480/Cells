@@ -297,11 +297,20 @@ export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, 
     const fw = w / Math.max(0.01, 1 - c.l - c.r)
     const fh = h / Math.max(0.01, 1 - c.t - c.b)
     const href = o.svg ?? o.src
-    const line = o.line
-      ? `<rect x="0" y="0" width="${n(w)}" height="${n(h)}" fill="none"${strokeAttr(o.line, theme)}/>`
+    // Crop to Shape: the picture is cut to the shape, and its border follows it.
+    const shape = o.geometry ? presetGeometry(o.geometry, w, h) : null
+    const outline = shape?.paths.join(" ")
+    const clipId = `pic${o.id}clip`
+    const clip = outline
+      ? `<defs><clipPath id="${clipId}"><path d="${outline}" fill-rule="evenodd"/></clipPath></defs>`
       : ""
+    const line = !o.line
+      ? ""
+      : outline
+        ? `<path d="${outline}" fill="none" fill-rule="evenodd"${strokeAttr(o.line, theme)}/>`
+        : `<rect x="0" y="0" width="${n(w)}" height="${n(h)}" fill="none"${strokeAttr(o.line, theme)}/>`
     return (
-      `<svg x="0" y="0" width="${n(w)}" height="${n(h)}" overflow="hidden"><image href="${esc(href)}" x="${n(-c.l * fw)}" y="${n(-c.t * fh)}" width="${n(fw)}" height="${n(fh)}" preserveAspectRatio="none"/></svg>` +
+      `${clip}<svg x="0" y="0" width="${n(w)}" height="${n(h)}" overflow="hidden"><image href="${esc(href)}" x="${n(-c.l * fw)}" y="${n(-c.t * fh)}" width="${n(fw)}" height="${n(fh)}" preserveAspectRatio="none"${outline ? ` clip-path="url(#${clipId})"` : ""}/></svg>` +
       line
     )
   }

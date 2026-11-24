@@ -214,8 +214,10 @@ export type SheetPicture = ObjectBase & {
   svg?: string
   /** Its size in pixels as it came (Reset Picture). */
   natural?: { w: number; h: number }
-  /** Crop from each side, as fractions of the picture (0–1). */
+  /** Crop from each side, as fractions of the picture (0–1; below 0 is empty space around it, as Fit makes). */
   crop?: { l: number; t: number; r: number; b: number }
+  /** Crop to Shape: the preset shape the picture is cut to ("ellipse", "heart"…); absent for a rectangle. */
+  geometry?: string
   line?: ShapeLine
   /** An icon (Insert › Icons): drawn from SVG, recoloured with Graphics Fill. */
   icon?: boolean

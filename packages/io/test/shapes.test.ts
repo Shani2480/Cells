@@ -101,13 +101,22 @@ describe("Excel's shapes.xlsx (shapes, text box, connector, WordArt, group, pict
       src: "data:image/png;base64," + Buffer.from(fixture("shapes").subarray(0, 0)).toString("base64") + "iVBORw0KGgo=",
       placement: "move",
       altText: "Logo",
+      crop: { l: 0.1, t: 0, r: 0.25, b: -0.05 },
+      geometry: "heart",
     }
     sheet.objects.push(shape, picture)
     const again = await openXlsx(await saveXlsx(wb), "x.xlsx")
     const [s, p] = again.workbook.sheets[0].objects as [SheetShape, SheetPicture]
     expect(s).toMatchObject({ geometry: "ellipse", rotation: 45, fill: shape.fill, line: shape.line, anchor })
     expect(s.text!.paragraphs[0]).toEqual(shape.text!.paragraphs[0])
-    expect(p).toMatchObject({ src: picture.src, placement: "move", altText: "Logo" })
+    // Picture Format › Crop: the crop (a negative side is Fit's empty space) and Crop to Shape.
+    expect(p).toMatchObject({
+      src: picture.src,
+      placement: "move",
+      altText: "Logo",
+      crop: picture.crop,
+      geometry: "heart",
+    })
   })
 })
 

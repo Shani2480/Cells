@@ -514,8 +514,20 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     than a page holds lowers the print scale so the page holds it, as Excel does. Hint and Help topic "Type headers
     and footers on the page". Limits: print titles aren't repeated on each page in Page Layout view (they are when
     printing); no Picture element or Options group (different first, odd and even pages; Excel's are kept as read).
-  - ⬜ Picture crop and corrections, PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
-    .xlsb and .ods.
+  - ✅ Picture crop (Picture Format › Size › Crop): Crop shows black handles on the picture's sides and corners; they
+    cut it (Shift on a corner keeps the proportions, outward adds empty space), a drag inside slides the picture
+    under the frame, and the round handles on the faint whole picture size it. Esc, Enter, a double-click or a click
+    away ends cropping; each drag is one undo step, also on flipped and turned pictures. The arrow under Crop has
+    Crop to Shape (every shape in the Shapes gallery but lines; the border follows the shape), Aspect Ratio (Excel's
+    1:1, portrait and landscape ratios, from the middle) and Fill / Fit (in the picture's own proportions). Reset
+    Picture also undoes the shape. Saved as Excel does (srcRect, negative for Fit; prstGeom); checked in Excel 365:
+    no repair, the crops, Oval and Heart read back there as set and draw the same, and Excel's resave reads back
+    the same in Cells. Hint and Help topic "Crop a picture, or cut it to a shape". Also fixed: a ribbon menu command
+    now leaves the keyboard on the sheet (it went back to the menu's button, so Esc and arrows did nothing).
+    Limits: no Format Picture › Crop fields (picture and crop position in inches); 3D models, signature lines and
+    embedded objects' icons can't be cropped (Excel doesn't crop the first two either).
+  - ⬜ Picture corrections (Corrections, Color, Artistic Effects, Transparency), PivotTable extras, searchable PDF
+    text, notes that move with inserted cells, Name Box lists, live Flash Fill, .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

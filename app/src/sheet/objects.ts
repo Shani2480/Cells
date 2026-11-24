@@ -34,6 +34,7 @@ import {
 import { layoutSmartArt } from "@/drawing/smartart"
 import { renderModel } from "@/drawing/model3d"
 import { textSize } from "@/drawing/render"
+import { aspectCrop, fillCrop, fitCrop, flipCrop, fullBox, isNoCrop, NO_CROP, type Crop } from "@/drawing/crop"
 import { anchorOf, chartBox, type ChartBox } from "./charts"
 import type { SheetController } from "./controller"
 
@@ -89,6 +90,8 @@ export class ObjectCommands {
   drawWithTouch = false
   /** Review › Hide Ink: ink isn't shown (a view setting, not saved). */
   inkHidden = false
+  /** The picture being cropped (Picture Format › Crop): its crop handles are shown until Esc, Enter or a click away. */
+  cropping: number | null = null
   private lastInk: { sheet: number; id: number; time: number } | null = null
 
   constructor(private readonly c: SheetController) {}
@@ -135,6 +138,7 @@ export class ObjectCommands {
     if (next.length && this.c.edit) this.c.commitEdit()
     this.selected = next
     if (this.editing !== null && !next.includes(this.editing)) this.editing = null
+    if (this.cropping !== null && !next.includes(this.cropping)) this.cropping = null
     this.c.changed()
   }
 
@@ -802,6 +806,89 @@ export class ObjectCommands {
     return this.selected.map((id) => this.list.find((o) => o.id === id)).filter((o): o is SheetObject => !!o)
   }
 
+  // ── Crop (Picture Format › Size) ──
+
+  /** The one picture selected, when it can be cropped (a 3D model, a signature line or an object's icon can't). */
+  croppable(): SheetPicture | null {
+    const p = this.picture()
+    return p && !p.model3d && !p.signature && !p.embed ? p : null
+  }
+
+  /** Crop: shows the crop handles on the selected picture (again: ends cropping). */
+  toggleCrop() {
+    if (this.cropping !== null) return this.endCrop()
+    const p = this.croppable()
+    if (!p) return
+    if (this.c.edit) this.c.commitEdit()
+    this.cropping = p.id
+    this.c.changed()
+  }
+
+  endCrop() {
+    if (this.cropping === null) return
+    this.cropping = null
+    this.c.changed()
+  }
+
+  /**
+   * A picture's crop as it's seen (flipped pictures keep theirs in the picture's own sides) and its frame, set as one
+   * undo step.
+   */
+  setCrop(id: number, seen: Crop, frame: ChartBox, label = "Crop") {
+    this.update(
+      label,
+      (o) => {
+        if (isChart(o) || o.kind !== "picture") return
+        const crop = flipCrop(seen, o.flipH, o.flipV)
+        if (isNoCrop(crop)) delete o.crop
+        else o.crop = crop
+        o.anchor = anchorOf(this.c.sheet, { ...frame, x: Math.max(0, frame.x), y: Math.max(0, frame.y) })
+      },
+      [id],
+    )
+  }
+
+  /** A picture's crop as it's seen (left is the screen's left, also when it's flipped). */
+  seenCrop(p: SheetPicture): Crop {
+    return flipCrop(p.crop ?? NO_CROP, p.flipH, p.flipV)
+  }
+
+  /** The picture's own proportions (width / height), as it came, or as it's drawn now. */
+  private pictureRatio(p: SheetPicture): number {
+    if (p.natural?.w && p.natural.h) return p.natural.w / p.natural.h
+    const full = fullBox(this.box(p), p.crop)
+    return full.w / full.h
+  }
+
+  /** Crop › Fill and Fit: the picture covers the frame, or fits in it, in its own proportions. */
+  fillOrFit(how: "fill" | "fit") {
+    const p = this.croppable()
+    if (!p) return
+    const frame = this.box(p)
+    const crop = (how === "fill" ? fillCrop : fitCrop)(frame, this.pictureRatio(p))
+    this.setCrop(p.id, crop, frame, how === "fill" ? "Fill" : "Fit")
+  }
+
+  /** Crop › Aspect Ratio: the largest part of the picture in `w`:`h`, from its middle; the crop handles show. */
+  cropToRatio(w: number, h: number) {
+    const p = this.croppable()
+    if (!p) return
+    const next = aspectCrop(this.box(p), this.seenCrop(p), w / h)
+    this.setCrop(p.id, next.crop, next.frame, "Aspect Ratio")
+    this.cropping = p.id
+    this.c.changed()
+  }
+
+  /** Crop › Crop to Shape: the picture cut to a preset shape ("rect" goes back to a rectangle). */
+  cropToShape(geometry: string) {
+    if (!this.croppable()) return
+    this.update("Crop to Shape", (o) => {
+      if (isChart(o) || o.kind !== "picture") return
+      if (geometry === "rect") delete o.geometry
+      else o.geometry = geometry
+    })
+  }
+
   // ── Text ──
 
   startText(id: number) {
@@ -1084,6 +1171,7 @@ export class ObjectCommands {
 
   /** Keys while objects are selected (true: handled). */
   key(key: string, primary: boolean, shift: boolean): boolean {
+    if (this.cropping !== null && (key === "Escape" || key === "Enter")) return (this.endCrop(), true)
     if (!this.selected.length) {
       if (key === "Escape" && this.pending) return (this.cancelPending(), true)
       if (key === "Escape" && this.pen) return (this.usePen(null), true)

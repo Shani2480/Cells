@@ -1,4 +1,5 @@
 import { ChartPartMark, chartPartAt } from "./ChartPartMark"
+import { CropView } from "./CropView"
 import { renderChart } from "@cells/chart"
 import {
   isChart,
@@ -527,6 +528,19 @@ export function ObjectLayer({
         const rotation = isChart(o) ? 0 : drag?.rotation !== undefined && dragging ? drag.rotation : (o.rotation ?? 0)
         const flips = !isChart(o) && (o.flipH || o.flipV) ? ` scale(${o.flipH ? -1 : 1}, ${o.flipV ? -1 : 1})` : ""
         const editing = objects.editing === o.id && !isChart(o) && o.kind === "shape"
+        if (single && objects.cropping === o.id && !isChart(o) && o.kind === "picture")
+          return (
+            <CropView
+              key={o.id}
+              picture={o}
+              frame={p.box}
+              objects={objects}
+              theme={theme}
+              zoom={zoom}
+              screen={(box) => toScreen(o, box)}
+              onDone={onDone}
+            />
+          )
         return (
           <div
             key={o.id}

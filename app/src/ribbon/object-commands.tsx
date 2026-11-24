@@ -4,6 +4,7 @@ import { pickPicture, pictureSize } from "@/drawing/pictures"
 import { WORDART_STYLES } from "@/drawing/wordart"
 import { themeEffectFilter } from "@/drawing/render"
 import { applyShapeStyle, SHAPE_STYLES, type ShapeStyle } from "@/drawing/shape-styles"
+import { ASPECT_RATIOS } from "@/drawing/crop"
 import { ColorPanel, shapeColorOf } from "./colors"
 import type { Command, MenuEntry, RibbonEnv } from "./registry"
 
@@ -118,6 +119,39 @@ const shapesPanel: MenuEntry = {
     </div>
   ),
 }
+
+/** Crop › Crop to Shape: the shapes gallery without its lines, cutting the selected picture to the one picked. */
+const cropShapesPanel: MenuEntry = {
+  panel: (env, close) => (
+    <div className="shape-gallery" role="menu" aria-label="Crop to Shape">
+      {SHAPE_GALLERY.filter((g) => g.group !== "Lines").map((g) => (
+        <div key={g.group}>
+          <div className="color-heading">{g.group}</div>
+          <div className="shape-gallery-row">
+            {g.shapes.map((s) => (
+              <button
+                key={s}
+                type="button"
+                role="menuitem"
+                className={`shape-gallery-item${(env.c.objects.picture()?.geometry ?? "rect") === s ? " is-current" : ""}`}
+                title={SHAPE_LABELS[s] ?? s}
+                aria-label={SHAPE_LABELS[s] ?? s}
+                onClick={() => {
+                  close()
+                  env.c.objects.cropToShape(s)
+                }}
+              >
+                <ShapeIcon geometry={s} />
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  ),
+}
+
+const ratioId = ([w, h]: [number, number]) => `PictureCropAspectRatio${w}x${h}`
 
 const wordArtPanel: MenuEntry = {
   panel: (env, close) => (
@@ -483,9 +517,66 @@ export function objectCommands(): Command[] {
       ],
     },
     {
+      id: "PictureCropTools",
+      label: "Crop",
+      description:
+        "Crop the picture to remove unwanted parts: drag the black handles on its sides and corners, or the picture under them. Press Esc or Enter when done.",
+      keytip: "C",
+      enabled: (env) => !!env.c.objects.croppable(),
+      run: (env) => env.c.objects.toggleCrop(),
+      pressed: (env) => env.c.objects.cropping !== null,
+      menu: ["PictureCrop", "PictureCropToShape", "PictureCropAspectRatio", "-", "PictureFill", "PictureFit"],
+    },
+    {
+      id: "PictureCrop",
+      label: "Crop",
+      keytip: "C",
+      enabled: (env) => !!env.c.objects.croppable(),
+      run: (env) => env.c.objects.toggleCrop(),
+      pressed: (env) => env.c.objects.cropping !== null,
+    },
+    {
+      id: "PictureCropToShape",
+      label: "Crop to Shape",
+      description: "Cut the picture to a shape, such as a circle, a star or an arrow.",
+      keytip: "S",
+      enabled: (env) => !!env.c.objects.croppable(),
+      menu: [cropShapesPanel],
+    },
+    {
+      id: "PictureCropAspectRatio",
+      label: "Aspect Ratio",
+      description: "Crop the picture to a common proportion, from its middle.",
+      keytip: "A",
+      enabled: (env) => !!env.c.objects.croppable(),
+      menu: ASPECT_RATIOS.flatMap((g): MenuEntry[] => [{ heading: g.group }, ...g.ratios.map(ratioId)]),
+    },
+    ...ASPECT_RATIOS.flatMap((g) => g.ratios).map((r): Command => ({
+      id: ratioId(r),
+      label: `${r[0]}:${r[1]}`,
+      enabled: (env) => !!env.c.objects.croppable(),
+      run: (env) => env.c.objects.cropToRatio(r[0], r[1]),
+    })),
+    {
+      id: "PictureFill",
+      label: "Fill",
+      description: "Size the picture so it fills the whole frame, keeping its proportions; what's outside is cropped.",
+      keytip: "L",
+      enabled: (env) => !!env.c.objects.croppable(),
+      run: (env) => env.c.objects.fillOrFit("fill"),
+    },
+    {
+      id: "PictureFit",
+      label: "Fit",
+      description: "Size the picture so all of it fits in the frame, keeping its proportions.",
+      keytip: "F",
+      enabled: (env) => !!env.c.objects.croppable(),
+      run: (env) => env.c.objects.fillOrFit("fit"),
+    },
+    {
       id: "PictureReset",
       label: "Reset Picture",
-      description: "Discard the size and crop changes made to this picture.",
+      description: "Discard the size, crop and shape changes made to this picture.",
       keytip: "Q",
       enabled: (env) => !!env.c.objects.picture()?.natural,
       run: (env) => {
@@ -495,6 +586,7 @@ export function objectCommands(): Command[] {
         env.c.objects.update("Reset Picture", (o) => {
           if (isChart(o) || o.kind !== "picture") return
           delete o.crop
+          delete o.geometry
           delete o.rotation
         })
         env.c.objects.place(new Map([[p.id, { ...box, w: p.natural.w, h: p.natural.h }]]), "Reset Picture")

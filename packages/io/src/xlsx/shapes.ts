@@ -468,6 +468,9 @@ export function readObject(
       const crop = { l: side("l"), t: side("t"), r: side("r"), b: side("b") }
       if (crop.l || crop.t || crop.r || crop.b) pic.crop = crop
     }
+    // Crop to Shape: the picture cut to a preset shape.
+    const prst = at(kid(spPr, "prstGeom"), "prst")
+    if (prst && prst !== "rect") pic.geometry = prst
     const ln = kid(spPr, "ln")
     if (ln) {
       const line = readLine(ln, { color: null, width: 0.75 })
@@ -607,7 +610,7 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
     return (
       `<xdr:pic>${nv("nvPicPr", `<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr>`)}` +
       `<xdr:blipFill><a:blip xmlns:r="${NS_R}" r:embed="${rid}">${svg}</a:blip>${crop}<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>` +
-      `<xdr:spPr>${xfrmXml(o, box)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${o.line ? lineXml(o.line) : ""}</xdr:spPr></xdr:pic>`
+      `<xdr:spPr>${xfrmXml(o, box)}<a:prstGeom prst="${o.geometry ?? "rect"}"><a:avLst/></a:prstGeom>${o.line ? lineXml(o.line) : ""}</xdr:spPr></xdr:pic>`
     )
   }
   // A slicer is written by the drawing (its frame needs the sheet's box); it never sits in a group.

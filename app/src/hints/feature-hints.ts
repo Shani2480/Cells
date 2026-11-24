@@ -93,6 +93,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "In Page Layout view, click above or below a page's cells to type its header or footer right there. The Header & Footer tab adds page numbers, dates and the sheet's name.",
     target: "Header & Footer",
   },
+  {
+    id: "picture-crop",
+    title: "New: Crop a picture, or cut it to a shape",
+    text: "Select a picture and use Crop: drag the black handles to cut its sides, or drag the picture to show another part. The arrow under Crop cuts it to a circle or any shape, crops to 1:1, 16:9 and more, and fills or fits the frame.",
+    target: "Crop",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */
