@@ -1,4 +1,5 @@
-import { memo } from "react"
+import { memo, useState } from "react"
+import { ContextMenu, type MenuItem } from "@/shell/ContextMenu"
 import {
   newPivotTable,
   PIVOT_STYLE_GROUPS,
@@ -9,6 +10,8 @@ import {
   type Border,
   type PivotCache,
   type PivotTable,
+  type CustomTableStyle,
+  type PivotStyleDef,
   type PivotTableStyle,
   type Theme,
 } from "@cells/core"
@@ -57,16 +60,25 @@ export const PivotStyleThumb = memo(function PivotStyleThumb({
   style,
   options = {},
   theme,
+  custom,
+  def: given,
+  scale = 1,
 }: {
   style: string | null
   options?: Partial<PivotTableStyle>
   theme?: Theme
+  /** The workbook's own styles (the gallery's Custom group). */
+  custom?: readonly CustomTableStyle[]
+  /** A style being made (New PivotTable Style's preview), in place of `style`'s. */
+  def?: PivotStyleDef | null
+  /** Drawn larger (the dialog's preview). */
+  scale?: number
 }) {
   const t = sample(style, options)
   const range = pivotLayoutOf(t, SAMPLE_CACHE).range
   const rows = range.r1 - range.r0 + 1
   const cols = range.c1 - range.c0 + 1
-  const def = pivotStyleDef(style, theme)
+  const def = given !== undefined ? given : pivotStyleDef(style, theme, custom)
   const fills: React.ReactNode[] = []
   const marks: React.ReactNode[] = []
   const lines: React.ReactNode[] = []
@@ -114,8 +126,8 @@ export const PivotStyleThumb = memo(function PivotStyleThumb({
   return (
     <svg
       className="table-style-thumb"
-      width={cols * CW + 1}
-      height={rows * RH + 1}
+      width={(cols * CW + 1) * scale}
+      height={(rows * RH + 1) * scale}
       viewBox={`0 0 ${cols * CW + 1} ${rows * RH + 1}`}
       aria-hidden
     >
@@ -140,15 +152,26 @@ export function PivotStyleGallery({
   options,
   theme,
   onPick,
+  custom = [],
+  menuFor,
 }: {
   current: string | null
   options?: Partial<PivotTableStyle>
   theme?: Theme
   onPick: (style: string | null) => void
+  /** The workbook's own styles, shown first as Custom. */
+  custom?: readonly CustomTableStyle[]
+  /** A style's right-click menu (Apply, Modify, Duplicate, Delete, Set As Default). */
+  menuFor?: (style: string | null) => MenuItem[]
 }) {
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+  const groups = custom.length
+    ? [{ label: "Custom", names: custom.map((s) => s.name) }, ...PIVOT_STYLE_GROUPS]
+    : PIVOT_STYLE_GROUPS
   return (
     <div className="table-style-gallery pivot-style-gallery" role="menu" aria-label="PivotTable Styles">
-      {PIVOT_STYLE_GROUPS.map((group) => (
+      {menu ? <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} /> : null}
+      {groups.map((group) => (
         <div key={group.label}>
           <div className="color-heading">{group.label}</div>
           <div className="table-style-grid">
@@ -162,8 +185,15 @@ export function PivotStyleGallery({
                 className={`table-style-item${name === current ? " is-current" : ""}`}
                 data-keep-light
                 onClick={() => onPick(name)}
+                onContextMenu={(e) => {
+                  if (!menuFor) return
+                  e.preventDefault()
+                  // The style's menu, not the ribbon's (Add to Quick Access Toolbar…).
+                  e.stopPropagation()
+                  setMenu({ x: e.clientX, y: e.clientY, items: menuFor(name) })
+                }}
               >
-                <PivotStyleThumb style={name} options={options} theme={theme} />
+                <PivotStyleThumb style={name} options={options} theme={theme} custom={custom} />
               </button>
             ))}
           </div>

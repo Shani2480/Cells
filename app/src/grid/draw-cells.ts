@@ -113,10 +113,14 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   const tablesOn = sheet.tables.length > 0
   // PivotTables: their style lies under the cells' own formats too.
   const pivotsOn = sheet.pivots.length > 0
+  // The workbook's own styles (New PivotTable Style, and custom table styles read from files).
+  const customStyles = controller.wb.tableStyles.styles
   const pivotLookAt = (r: number, c: number) => {
     const t = pivotAt(sheet, r, c)
     const cache = t && controller.wb.pivotCaches.find((x) => x.id === t.cacheId)
-    return t && cache ? pivotCellLook(t, cache, r, c, pivotStyleDef(t.style.name, controller.wb.theme)) : null
+    return t && cache
+      ? pivotCellLook(t, cache, r, c, pivotStyleDef(t.style.name, controller.wb.theme, customStyles))
+      : null
   }
   /** A PivotTable label with a +/− button: its text starts after the button. */
   const buttonAt = (r: number, c: number) => {
@@ -132,7 +136,7 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
     const id = sheet.styleAt(r, c)
     const table = tablesOn ? tableAt(sheet, r, c) : null
     const tableLook = table
-      ? tableCellLook(table, r, c, tableStyleDef(table.style, controller.wb.theme))
+      ? tableCellLook(table, r, c, tableStyleDef(table.style, controller.wb.theme, customStyles))
       : pivotsOn
         ? pivotLookAt(r, c)
         : null

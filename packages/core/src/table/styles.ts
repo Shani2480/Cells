@@ -1,12 +1,17 @@
 import { OFFICE_THEME, rethemeColor, sameLook, type Theme } from "../theme"
-import type { Border, CellStyle } from "../styles"
+import type { Border, CellStyle, Underline } from "../styles"
 import { BUILT_IN_TABLE_STYLES } from "./built-in"
+import { customStyle, type CustomTableStyle } from "./custom-styles"
 import { tableRows, type Table } from "./table"
 
 /** One part of a table style (Excel's tableStyleElement): fill, bold, font colour and borders. */
 export type TableStyleElement = {
   fill?: string
-  bold?: true
+  /** Bold, italic, strikethrough: on, or (a custom style's) explicitly off over an element under it. */
+  bold?: boolean
+  italic?: boolean
+  strike?: boolean
+  underline?: Underline | "none"
   color?: string
   border?: Partial<Record<"left" | "top" | "bottom" | "right" | "vertical" | "horizontal", Border>>
   /** Rows (or columns) per stripe. */
@@ -34,8 +39,14 @@ export type TableStyleDef = Partial<Record<TableStyleElementName, TableStyleElem
  * The built-in style for a name ("TableStyleMedium2"), or null. Its colours are Office's theme colours; with another
  * `theme` they are that theme's, as Excel draws them.
  */
-export function tableStyleDef(name: string | null, theme?: Theme): TableStyleDef | null {
+export function tableStyleDef(
+  name: string | null,
+  theme?: Theme,
+  custom?: readonly CustomTableStyle[],
+): TableStyleDef | null {
   if (!name) return null
+  const own = custom && customStyle(custom, name, "table")
+  if (own) return own.elements as TableStyleDef
   const def = BUILT_IN_TABLE_STYLES[name.replace(/^TableStyle/i, "")] ?? null
   if (!def || !theme || sameLook(theme, OFFICE_THEME)) return def
   let byName = themed.get(theme)
@@ -76,8 +87,27 @@ export const TABLE_STYLE_GROUPS: { label: string; names: string[] }[] = [
 /** What a table style puts on one cell: fill, bold, font colour and the four borders. */
 export type TableCellLook = Pick<
   CellStyle,
-  "fill" | "bold" | "fontColor" | "borderTop" | "borderBottom" | "borderLeft" | "borderRight"
+  | "fill"
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strike"
+  | "fontColor"
+  | "borderTop"
+  | "borderBottom"
+  | "borderLeft"
+  | "borderRight"
 >
+
+/** An element's font over the look so far: bold, italic, underline and strikethrough on or off, and its colour. */
+export function applyElementFont(e: TableStyleElement, out: TableCellLook) {
+  for (const k of ["bold", "italic", "strike"] as const)
+    if (e[k]) out[k] = true
+    else if (e[k] === false) delete out[k]
+  if (e.underline === "none") delete out.underline
+  else if (e.underline) out.underline = e.underline
+  if (e.color) out.fontColor = e.color
+}
 
 type Box = { r0: number; r1: number; c0: number; c1: number }
 
@@ -95,8 +125,7 @@ export function tableCellLook(t: Table, row: number, col: number, def = tableSty
   const apply = (e: TableStyleElement | undefined, box: Box) => {
     if (!e) return
     if (e.fill) out.fill = e.fill
-    if (e.bold) out.bold = true
-    if (e.color) out.fontColor = e.color
+    applyElementFont(e, out)
     const b = e.border
     if (!b) return
     const side = (outer: Border | undefined, inner: Border | undefined, edge: boolean) => (edge ? outer : inner)

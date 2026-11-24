@@ -1,4 +1,5 @@
 import type { WorkbookQuery } from "./power-query"
+import type { TableStyleSet } from "./table/custom-styles"
 import type { Theme } from "./theme"
 import type { PivotCache } from "./pivot/model"
 import type { ExternalBook } from "./links"
@@ -30,6 +31,8 @@ export type SheetList = Sheet[] & {
   look?: { theme: Theme }
   /** The PivotTables' caches. */
   pivotData?: { caches: PivotCache[] }
+  /** The workbook's own table and PivotTable styles. */
+  tableStyleData?: { set: TableStyleSet }
   /** Data › Get Data: the workbook's queries. */
   mashup?: { queries: WorkbookQuery[] }
 }

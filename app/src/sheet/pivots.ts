@@ -779,7 +779,10 @@ export class PivotCommands {
     const made = recipe
       ? pivotFromRecipe(nextPivotName(wb.sheets), raw, at, recipe)
       : { table: newPivotTable(nextPivotName(wb.sheets), raw, at), cache: raw }
-    const { table, cache } = made
+    const { cache } = made
+    // The workbook's default PivotTable style (Set As Default), when it has one.
+    const defaultStyle = wb.tableStyles.defaultPivot
+    const table = defaultStyle ? { ...made.table, style: { ...made.table.style, name: defaultStyle } } : made.table
     const sheets = [...wb.sheets]
     const name = nextSheetName(wb.sheets.map((s) => s.name))
     if (newSheet) sheets.splice(index, 0, new Sheet(name))

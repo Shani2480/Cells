@@ -3,8 +3,11 @@ import type {
   BorderStyle,
   CellStyle,
   CFStyle,
+  CustomTableStyle,
   FontScheme,
   HAlign,
+  TableStyleElement,
+  TableStyleSet,
   ThemeColorRef,
   Underline,
   VAlign,
@@ -13,6 +16,26 @@ import { escapeXml } from "@cells/ooxml"
 import { argb, DEFAULT_THEME_COLORS, resolveColor, type ColorAttrs, type ThemeColors } from "./colors"
 import { BUILTIN_CELL_STYLES, BUILTIN_NUMBER_FORMATS, INDEXED_COLORS, NS_MAIN } from "./constants"
 import { at, attrText, kid, kids, parseTree, raw, startTag, type XDoc, type XNode } from "./dom"
+
+/** Excel's order of table style elements (XlTableStyleElementType), in which it writes them. */
+const ELEMENT_ORDER = [
+  "wholeTable", "headerRow", "totalRow", "firstColumn", "lastColumn", "firstRowStripe", "secondRowStripe",
+  "firstColumnStripe", "secondColumnStripe", "firstHeaderCell", "lastHeaderCell", "firstTotalCell", "lastTotalCell",
+  "firstSubtotalColumn", "secondSubtotalColumn", "thirdSubtotalColumn", "firstSubtotalRow", "secondSubtotalRow",
+  "thirdSubtotalRow", "blankRow", "firstColumnSubheading", "secondColumnSubheading", "thirdColumnSubheading",
+  "firstRowSubheading", "secondRowSubheading", "thirdRowSubheading", "pageFieldLabels", "pageFieldValues",
+] // prettier-ignore
+/** Excel's element types for subtotals and subheadings, by Cells' names ("subtotalRow1" is "firstSubtotalRow"). */
+const XML_ELEMENT = new Map(
+  ["SubtotalColumn", "SubtotalRow", "ColumnSubheading", "RowSubheading"].flatMap((kind) =>
+    ["first", "second", "third"].map((n, i) => [`${kind[0].toLowerCase()}${kind.slice(1)}${i + 1}`, `${n}${kind}`]),
+  ),
+)
+const CELLS_ELEMENT = new Map([...XML_ELEMENT].map(([a, b]) => [b, a]))
+const elementRank = (type: string) => {
+  const i = ELEMENT_ORDER.indexOf(type)
+  return i < 0 ? ELEMENT_ORDER.length : i
+}
 
 /** The font a new workbook uses (Excel 365): Aptos Narrow 11 pt, the theme's minor font. */
 export const DEFAULT_FONT = { name: "Aptos Narrow", size: 11 }
@@ -134,18 +157,20 @@ export class StylesIn {
     return out
   }
 
+  private borderSide(n: XNode | undefined, local: string): Border | undefined {
+    const s = kid(n, local)
+    const style = at(s, "style")
+    if (!style || !BORDER_STYLES.has(style)) return undefined
+    const color = this.color(kid(s, "color"))
+    if (!color) return { style: style as BorderStyle }
+    const ref = themeRef(kid(s, "color"))
+    return ref ? { style: style as BorderStyle, color, theme: ref } : { style: style as BorderStyle, color }
+  }
+
   private border(n: XNode | undefined): Partial<CellStyle> {
     const out: Partial<CellStyle> = {}
     if (!n) return out
-    const side = (local: string): Border | undefined => {
-      const s = kid(n, local)
-      const style = at(s, "style")
-      if (!style || !BORDER_STYLES.has(style)) return undefined
-      const color = this.color(kid(s, "color"))
-      if (!color) return { style: style as BorderStyle }
-      const ref = themeRef(kid(s, "color"))
-      return ref ? { style: style as BorderStyle, color, theme: ref } : { style: style as BorderStyle, color }
-    }
+    const side = (local: string) => this.borderSide(n, local)
     const sides = [
       ["borderLeft", side("left") ?? side("start")],
       ["borderRight", side("right") ?? side("end")],
@@ -228,6 +253,75 @@ export class StylesIn {
     const p = kid(kid(dxf, "fill"), "patternFill")
     if (!p || at(p, "patternType") === "none") return null
     return this.color(kid(p, "fgColor")) ?? this.color(kid(p, "bgColor"))
+  }
+
+  private tableStyleSet: TableStyleSet | undefined
+
+  /**
+   * The workbook's own table and PivotTable styles (`<tableStyles>`) and its defaults; each element's look from its
+   * dxf as it shows (theme colours as they are now).
+   */
+  tableStyles(): TableStyleSet {
+    if (this.tableStyleSet) return this.tableStyleSet
+    const node = kid(this.doc.root, "tableStyles")
+    const named = (attr: string, builtIn: string) => {
+      const v = at(node, attr)
+      return v && v !== builtIn ? v : null
+    }
+    const styles = kids(node, "tableStyle").map((s): CustomTableStyle => {
+      const elements: Record<string, TableStyleElement> = {}
+      for (const e of kids(s, "tableStyleElement")) {
+        const xmlType = at(e, "type")
+        if (!xmlType) continue
+        const type = CELLS_ELEMENT.get(xmlType) ?? xmlType
+        const el = this.dxfElement(Number(at(e, "dxfId") ?? -1))
+        const size = Number(at(e, "size") ?? 1)
+        if (Number.isInteger(size) && size > 1) el.stripe = size
+        elements[type] = el
+      }
+      return {
+        name: at(s, "name") ?? "",
+        table: !(at(s, "table") === "0" || at(s, "table") === "false"),
+        pivot: !(at(s, "pivot") === "0" || at(s, "pivot") === "false"),
+        elements,
+      }
+    })
+    this.tableStyleSet = {
+      styles,
+      defaultTable: named("defaultTableStyle", "TableStyleMedium2"),
+      defaultPivot: named("defaultPivotStyle", "PivotStyleLight16"),
+    }
+    return this.tableStyleSet
+  }
+
+  /** A table style element's look from dxf `index`: font flags (on or explicitly off), colour, fill, borders. */
+  private dxfElement(index: number): TableStyleElement {
+    const dxf = this.dxfs[index]
+    const out: TableStyleElement = {}
+    if (!dxf) return out
+    const font = kid(dxf, "font")
+    for (const [tag, key] of [
+      ["b", "bold"],
+      ["i", "italic"],
+      ["strike", "strike"],
+    ] as const) {
+      const n = kid(font, tag)
+      if (n) out[key] = on(n)
+    }
+    const u = kid(font, "u")
+    if (u) out.underline = (at(u, "val") ?? "single") as Underline | "none"
+    const color = this.color(kid(font, "color"))
+    if (color) out.color = color
+    const fill = this.fill(kid(dxf, "fill"), true)
+    if (fill) out.fill = fill
+    const b = kid(dxf, "border")
+    const border: NonNullable<TableStyleElement["border"]> = {}
+    for (const side of ["left", "right", "top", "bottom", "vertical", "horizontal"] as const) {
+      const got = this.borderSide(b, side) ?? (side === "left" ? this.borderSide(b, "start") : undefined)
+      if (got) border[side] = got
+    }
+    if (Object.keys(border).length) out.border = border
+    return out
   }
 
   /** The Cells differential format (conditional formatting) of dxf `index`. */
@@ -491,6 +585,65 @@ export class StylesOut {
     return this.dxfs.add(`<dxf>${x}</dxf>`)
   }
 
+  private tableStylesXml: string | undefined
+
+  /**
+   * The workbook's own table and PivotTable styles to write: as read when they haven't changed (the file's XML and
+   * dxfs kept), else written anew, each element's look a new dxf.
+   */
+  setTableStyles(set: TableStyleSet) {
+    const read = this.source?.tableStyles()
+    if (read && JSON.stringify(read) === JSON.stringify(set)) return
+    if (!read && !set.styles.length && !set.defaultPivot && !set.defaultTable) return
+    const styles = set.styles.map((s) => {
+      const xmlType = (k: string) => XML_ELEMENT.get(k) ?? k
+      const keys = Object.keys(s.elements).sort((a, b) => elementRank(xmlType(a)) - elementRank(xmlType(b)))
+      const elements = keys.map((key) => {
+        const e = s.elements[key]
+        const type = xmlType(key)
+        return `<tableStyleElement${attrText({ type, size: e.stripe && e.stripe > 1 ? e.stripe : undefined, dxfId: this.elementDxf(e) })}/>`
+      })
+      return (
+        `<tableStyle${attrText({ name: s.name, pivot: s.pivot ? undefined : 0, table: s.table ? undefined : 0, count: elements.length })}>` +
+        `${elements.join("")}</tableStyle>`
+      )
+    })
+    const attrs = attrText({
+      count: styles.length,
+      defaultTableStyle: set.defaultTable ?? "TableStyleMedium2",
+      defaultPivotStyle: set.defaultPivot ?? "PivotStyleLight16",
+    })
+    this.tableStylesXml = styles.length
+      ? `<tableStyles${attrs}>${styles.join("")}</tableStyles>`
+      : `<tableStyles${attrs}/>`
+  }
+
+  /** A table style element's dxf, as Excel writes one: font (flags on or off, colour), fill's bgColor, borders. */
+  private elementDxf(e: TableStyleElement): number {
+    let font = ""
+    for (const [tag, key] of [
+      ["b", "bold"],
+      ["i", "italic"],
+      ["strike", "strike"],
+    ] as const)
+      if (e[key] !== undefined) font += e[key] ? `<${tag}/>` : `<${tag} val="0"/>`
+    if (e.underline) font += e.underline === "single" ? "<u/>" : `<u val="${e.underline}"/>`
+    if (e.color) font += colorXml("color", e.color)
+    let x = font ? `<font>${font}</font>` : ""
+    if (e.fill) x += `<fill><patternFill>${colorXml("bgColor", e.fill)}</patternFill></fill>`
+    const b = e.border
+    if (b && Object.values(b).some(Boolean)) {
+      const side = (tag: string, s: Border | undefined) =>
+        s
+          ? `<${tag} style="${s.style}">${s.color ? colorXml("color", s.color, s.theme) : `<color indexed="64"/>`}</${tag}>`
+          : ""
+      x +=
+        `<border>${side("left", b.left)}${side("right", b.right)}${side("top", b.top)}${side("bottom", b.bottom)}` +
+        `${side("vertical", b.vertical)}${side("horizontal", b.horizontal)}</border>`
+    }
+    return this.dxfs.add(`<dxf>${x}</dxf>`)
+  }
+
   xml(): string {
     const doc = this.source?.doc
     const open = doc ? startTag(doc, doc.root) : `<styleSheet xmlns="${NS_MAIN}"`
@@ -511,7 +664,7 @@ export class StylesOut {
       section("cellXfs", this.cellXfs.items) +
       section("cellStyles", this.cellStyles) +
       (this.dxfs.items.length ? section("dxfs", this.dxfs.items) : `<dxfs count="0"/>`) +
-      (keep("tableStyles") ||
+      ((this.tableStylesXml ?? keep("tableStyles")) ||
         `<tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>`) +
       keep("colors") +
       keep("extLst") +

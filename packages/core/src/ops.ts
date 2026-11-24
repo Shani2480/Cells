@@ -1,4 +1,5 @@
 import { copyQueries, type WorkbookQuery } from "./power-query"
+import { copyTableStyleSet, type TableStyleSet } from "./table/custom-styles"
 import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import type { Axis } from "./axis"
 import type { CellData } from "./cell-store"
@@ -119,6 +120,8 @@ export type Op =
   | { kind: "pivots"; sheet: number; tables: PivotTable[] }
   /** The workbook's PivotTable caches (Refresh reads their sources again). */
   | { kind: "pivotCaches"; caches: PivotCache[] }
+  /** The workbook's own table and PivotTable styles and defaults (New, Modify, Duplicate, Delete, Set As Default). */
+  | { kind: "tableStyles"; set: TableStyleSet }
   /** Defined names: the whole list after the change (Define Name, the Name Box). */
   | { kind: "names"; names: DefinedName[] }
   /** The linked workbooks and the values read from them (update, change source, break). */
@@ -171,6 +174,7 @@ export const FORMAT_OPS: ReadonlySet<Op["kind"]> = new Set([
   "sparklines",
   "pivots",
   "pivotCaches",
+  "tableStyles",
 ])
 
 /**
@@ -215,6 +219,16 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       box.caches = op.caches.map(copyPivotCache)
       return {
         inverse: [{ kind: "pivotCaches", caches: before }],
+        change: { sheet: 0, structural: false, format: true },
+      }
+    }
+    case "tableStyles": {
+      const box = (sheets as SheetList).tableStyleData
+      if (!box) throw new Error("No table styles")
+      const before = copyTableStyleSet(box.set)
+      box.set = copyTableStyleSet(op.set)
+      return {
+        inverse: [{ kind: "tableStyles", set: before }],
         change: { sheet: 0, structural: false, format: true },
       }
     }

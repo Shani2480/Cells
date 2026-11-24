@@ -3,6 +3,7 @@ import { SlicerCommands } from "./slicers"
 import { TimelineCommands } from "./timelines"
 import { QuickAnalysis } from "./quick-analysis"
 import { SparklineCommands, type SparklineDialogInit } from "./sparklines"
+import { PivotStyleCommands } from "./pivot-styles"
 import { PivotCommands, type PivotFilterRequest } from "./pivots"
 import { ObjectCommands } from "./objects"
 import { ChartCommands } from "./charts"
@@ -414,6 +415,7 @@ export class SheetController {
   /** Insert › Sparklines and the Sparkline tab. */
   readonly sparklines: SparklineCommands = new SparklineCommands(this)
   readonly pivots: PivotCommands = new PivotCommands(this)
+  readonly pivotStyles: PivotStyleCommands = new PivotStyleCommands(this)
   /** Quick Analysis (Ctrl+Q): the gallery's choices, their previews and the changes they make. */
   readonly quick: QuickAnalysis = new QuickAnalysis(this)
   readonly slicers: SlicerCommands = new SlicerCommands(this)

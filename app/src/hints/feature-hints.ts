@@ -135,6 +135,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "PivotTable Options can now merge and center the labels, set the compact indent, lay the report filters out across, sort days and months in calendar order, allow two filters on a field, set print titles and give the PivotTable Alt Text.",
     target: "Options",
   },
+  {
+    id: "pivot-new-style",
+    title: "New: Your own PivotTable styles",
+    text: "Make a PivotTable style of your own: PivotTable Styles › New PivotTable Style. Right-click a style to modify, duplicate or delete it, or to make it the default for new PivotTables.",
+    target: "PivotTable Styles",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

@@ -105,7 +105,7 @@ PivotTable, so they don't refresh, can't be changed, and an edit in their cells 
    (thumbnails drawn by the grid's own style code). Five PivotTables laid out by the Design tab open in Excel 365
    without repairs and refresh to the same cells. Greyed out until their steps: grouping (5), calculated fields (5),
    PivotChart (6), slicers, timelines and Recommended PivotTables (7); not built then: Show Report Filter Pages (done in
-   Phase 8), Generate GetPivotData, Field Headers, New PivotTable Style.
+   Phase 8), Generate GetPivotData, Field Headers, New PivotTable Style (done in Phase 8).
    _Touch, Defer Layout Update and Delete done:_ a menu on every field of the list (Add to Report Filter / Row
    Labels / Column Labels / Values, also on right-click), menus placed on the window above or below their row,
    finger-sized rows and buttons on coarse pointers, the pane over the whole phone screen (Field List in the phone's
@@ -265,6 +265,13 @@ are never made up by the model.
    gives Excel's cells and writes Excel's XML byte for byte. Six value-sorted PivotTables made in Cells: 0 validator
    errors, no repair in Excel 365, and Excel's own refresh leaves every cell as Cells wrote it. Not yet: a More Sort
    Options dialog to pick the value by hand (only the AI and Excel's files set it).
+
+   New PivotTable Style (Phase 8): `table/custom-styles.ts` holds `CustomTableStyle` (name, table/pivot, elements by
+   Excel's type) and `TableStyleSet` (styles, default table and PivotTable style), the workbook's `tableStyles` box
+   changed by the `tableStyles` op; `pivotStyleDef` / `tableStyleDef` take the custom list. io reads `<tableStyles>`
+   and the elements' dxfs (subtotal and subheading types mapped to Cells' names) and writes them anew only when they
+   changed. App: `sheet/pivot-styles.ts` (save, remove, setDefault, each one undo step), `PivotStyleDialog`,
+   `ElementFormatDialog` (the Format Cells tabs in differential mode), the gallery's Custom group and style menu.
 
    PivotTable Options, complete (Phase 8): `PivotTable` keeps mergeLabels, indent, pageOverThenDown, pageWrap,
    preserveFormatting, multipleFieldFilters, customListSort, showDataTips, gridDropZones, showItems,

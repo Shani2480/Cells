@@ -193,7 +193,12 @@ export function tableCommands(): Command[] {
     },
     // New Table Style needs custom table styles (not built yet).
     { id: "TableStyleNew", label: "New Table Style..." },
-    { id: "PivotTableNewStyle", label: "New PivotTable Style..." },
+    {
+      id: "PivotTableNewStyle",
+      label: "New PivotTable Style...",
+      description: "Make a PivotTable style of your own for this workbook.",
+      run: (env) => env.dialog("pivotStyle:new"),
+    },
     {
       id: "TableStyleClear",
       label: "Clear",

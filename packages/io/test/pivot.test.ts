@@ -571,4 +571,54 @@ describe("PivotTables in xlsx", () => {
     expect(look("Compact", 0, 5)).toBeNull()
     expect(PIVOT_STYLE_GROUPS.flatMap((g) => g.names).filter((n) => pivotStyleDef(n))).toHaveLength(84)
   })
+
+  it("reads a workbook's own PivotTable style, draws with it and writes it back (pivot-custom-style.xlsx)", async () => {
+    const bytes = fixture("pivot-custom-style.xlsx")
+    const read = await openXlsx(bytes, "pivot-custom-style.xlsx")
+    const wb = read.workbook
+    const set = wb.tableStyles
+    expect(set.defaultPivot).toBe("PivotTable Style 1")
+    expect(set.defaultTable).toBeNull()
+    expect(set.styles).toHaveLength(1)
+    const [style] = set.styles
+    expect(style).toMatchObject({ name: "PivotTable Style 1", table: false, pivot: true })
+    // Excel's dxfs: explicit "off" flags kept, the stripe's size, the inside horizontal line.
+    expect(style.elements).toEqual({
+      wholeTable: {
+        border: { bottom: { style: "thin", color: "#404040" }, horizontal: { style: "thin", color: "#C0C0C0" } },
+      },
+      headerRow: { bold: true, italic: false, color: "#FFFFFF", fill: "#1F3F7F" },
+      totalRow: { bold: false, italic: true, strike: true, underline: "single", color: "#C00000" },
+      firstRowStripe: { fill: "#DAE6F2", stripe: 2 },
+      pageFieldLabels: { bold: true, italic: false },
+    })
+    const t = wb.sheets.flatMap((s) => s.pivots).find((p) => p.style.name === "PivotTable Style 1")!
+    const def = pivotStyleDef(t.style.name, wb.theme, set.styles)
+    expect(def?.headerRow?.fill).toBe("#1F3F7F")
+    const layout = pivotLayout(t, cacheOf(wb, t))
+    const head = pivotCellLook(t, cacheOf(wb, t), layout.range.r0, layout.range.c0, def)
+    expect(head).toMatchObject({ fill: "#1F3F7F", bold: true, fontColor: "#FFFFFF" })
+
+    // Unchanged: Excel's XML as it was. Changed: written anew, as Excel writes it, and read back the same.
+    const styles = async (out: Uint8Array) => [...(await parts(out))].find(([n]) => n.endsWith("styles.xml"))![1]
+    const kept = await styles(await saveXlsx(wb, { source: read.source }))
+    expect(kept).toContain('xr9:uid="{473153FD-545C-4EDD-9C26-825EC2B7FEC3}"')
+    wb.tableStyles = {
+      ...set,
+      styles: [...set.styles, { name: "Mine", table: true, pivot: true, elements: { totalRow: { italic: true } } }],
+      defaultPivot: "Mine",
+    }
+    const out = await saveXlsx(wb, { source: read.source })
+    const xml = await styles(out)
+    expect(xml).toMatch(/<tableStyles count="2" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="Mine">/)
+    expect(xml).toMatch(
+      /<tableStyle name="PivotTable Style 1" table="0" count="5"><tableStyleElement type="wholeTable" dxfId="\d+"\/><tableStyleElement type="headerRow"/,
+    )
+    expect(xml).toMatch(/<tableStyleElement type="firstRowStripe" size="2" dxfId="\d+"\/>/)
+    expect(xml).toContain(
+      '<font><b/><i val="0"/><color rgb="FFFFFFFF"/></font><fill><patternFill><bgColor rgb="FF1F3F7F"/></patternFill></fill>',
+    )
+    const again = (await openXlsx(out, "again.xlsx")).workbook
+    expect(again.tableStyles).toEqual(wb.tableStyles)
+  })
 })

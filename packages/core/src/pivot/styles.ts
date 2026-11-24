@@ -1,6 +1,7 @@
 import type { Range } from "../address"
 import { OFFICE_THEME, sameLook, type Theme } from "../theme"
-import { rethemeStyleDef, type TableCellLook, type TableStyleElement } from "../table/styles"
+import { customStyle, type CustomTableStyle } from "../table/custom-styles"
+import { applyElementFont, rethemeStyleDef, type TableCellLook, type TableStyleElement } from "../table/styles"
 import { BUILT_IN_PIVOT_STYLES } from "./built-in-styles"
 import { pivotLayout, type PivotCell, type PivotLayout } from "./engine"
 import type { PivotCache, PivotTable } from "./model"
@@ -52,9 +53,18 @@ export const PIVOT_STYLE_GROUPS: { label: string; names: string[] }[] = ["Light"
 
 const themed = new WeakMap<Theme, Map<string, PivotStyleDef>>()
 
-/** The built-in style for a name ("PivotStyleLight16"), or null; with `theme`, in that theme's colours. */
-export function pivotStyleDef(name: string | null, theme?: Theme): PivotStyleDef | null {
+/**
+ * The style for a name: the workbook's own (`custom`, New PivotTable Style) or a built-in one ("PivotStyleLight16"),
+ * or null; with `theme`, a built-in one in that theme's colours.
+ */
+export function pivotStyleDef(
+  name: string | null,
+  theme?: Theme,
+  custom?: readonly CustomTableStyle[],
+): PivotStyleDef | null {
   if (!name) return null
+  const own = custom && customStyle(custom, name, "pivot")
+  if (own) return own.elements as PivotStyleDef
   const def = BUILT_IN_PIVOT_STYLES[name.replace(/^PivotStyle/i, "")] ?? null
   if (!def || !theme || sameLook(theme, OFFICE_THEME)) return def
   let byName = themed.get(theme)
@@ -154,8 +164,7 @@ export function pivotCellLook(
   const apply = (e: TableStyleElement | undefined, box: Range) => {
     if (!e) return
     if (e.fill) out.fill = e.fill
-    if (e.bold) out.bold = true
-    if (e.color) out.fontColor = e.color
+    applyElementFont(e, out)
     const b = e.border
     if (!b) return
     const top = row === box.r0 ? b.top : b.horizontal
@@ -169,8 +178,11 @@ export function pivotCellLook(
   }
   // The report filters, above the table.
   if (layout.pages && row >= layout.pages.r0 && row <= layout.pages.r1) {
-    if (col === layout.pages.c0) apply(def.pageFieldLabels, { ...layout.pages, c1: col })
-    else if (col === layout.pages.c0 + 1) apply(def.pageFieldValues, { ...layout.pages, c0: col })
+    // Each filter takes a label and a value cell, with a gap column before the next (pivotPageGrid).
+    const at = (col - layout.pages.c0) % 3
+    const cells = layout.cells.some((c) => c.row === row && c.col === col - at)
+    if (cells && at === 0) apply(def.pageFieldLabels, { ...layout.pages, c0: col, c1: col })
+    else if (cells && at === 1) apply(def.pageFieldValues, { ...layout.pages, c0: col, c1: col })
     return out
   }
   if (row < L.r0 || row > L.r1 || col < L.c0 || col > L.c1) return ind ? out : null

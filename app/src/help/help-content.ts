@@ -82,6 +82,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     where: "PivotTable Analyze › PivotTable › Options (in a PivotTable)",
     keywords: "pivottable report filter pages sheet each item split copy show report filter pages",
   },
+  "pivot-new-style": {
+    where: "PivotTable Design › PivotTable Styles › New PivotTable Style (in a PivotTable)",
+    keywords: "pivottable style new custom own modify duplicate delete default format element stripe",
+  },
   "chart-sheets": {
     where: "Chart Design › Location (select a chart first)",
     keywords: "chart sheet move chart f11 new sheet object in full window",

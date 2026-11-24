@@ -1,4 +1,5 @@
 import type { DataModel } from "./data-model"
+import type { TableStyleSet } from "./table/custom-styles"
 import type { WorkbookQuery } from "./power-query"
 import type { ExternalBook } from "./links"
 import { CalcEngine, cellOfKey, type CalcMode } from "./calc/engine"
@@ -136,6 +137,17 @@ export class Workbook<Meta = unknown> {
   set pivotCaches(caches: PivotCache[]) {
     this.pivotData.caches = caches
   }
+  /** The workbook's own table and PivotTable styles and the defaults (use the "tableStyles" op to change them). */
+  readonly tableStyleData: { set: TableStyleSet } = {
+    set: { styles: [], defaultTable: null, defaultPivot: null },
+  }
+  get tableStyles(): TableStyleSet {
+    return this.tableStyleData.set
+  }
+  /** Sets the styles as read from a file. */
+  set tableStyles(set: TableStyleSet) {
+    this.tableStyleData.set = set
+  }
   /** Data › Get Data: the workbook's queries (Power Query), in a box so operations can change them. */
   readonly mashup: { queries: WorkbookQuery[] } = { queries: [] }
   get queries(): WorkbookQuery[] {
@@ -172,6 +184,7 @@ export class Workbook<Meta = unknown> {
     ;(this.sheets as SheetList).links = this.links
     ;(this.sheets as SheetList).look = this.look
     ;(this.sheets as SheetList).pivotData = this.pivotData
+    ;(this.sheets as SheetList).tableStyleData = this.tableStyleData
     ;(this.sheets as SheetList).mashup = this.mashup
     this.undoLimit = undoLimit
     this.calc = new CalcEngine(this)

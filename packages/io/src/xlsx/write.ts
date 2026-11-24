@@ -818,6 +818,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
     addRel(main, REL_CONNECTIONS, name)
   }
 
+  styles.setTableStyles(wb.tableStyles)
   put(stylesName, CT_STYLES, styles.xml())
   addRel(main, REL_STYLES, stylesName)
   if (strings.size) {

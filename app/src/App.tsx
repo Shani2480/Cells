@@ -1,4 +1,5 @@
 import { PageSetupDialog, type PageSetupTab } from "@/shell/PageSetupDialog"
+import { PivotStyleDialog, type PivotStyleRequest } from "./shell/PivotStyleDialog"
 import {
   isChart,
   isEquation,
@@ -311,6 +312,7 @@ type DialogState =
   | { kind: "pivotSort"; field: number }
   | { kind: "pivotCalcItem"; field: number }
   | { kind: "pivotOptions" }
+  | { kind: "pivotStyle"; request: PivotStyleRequest }
   | { kind: "pivotCalcField" }
   | { kind: "pivotSolveOrder" }
   | { kind: "pivotGroup" }
@@ -1123,7 +1125,15 @@ function WorkbookWindow({
     else if (kind === "pivotSort") setDialog({ kind: "pivotSort", field: Number(arg) })
     else if (kind === "pivotCalcItem") setDialog({ kind: "pivotCalcItem", field: Number(arg) })
     else if (kind === "pivotOptions") setDialog({ kind: "pivotOptions" })
-    else if (kind === "pivotCalcField") setDialog({ kind: "pivotCalcField" })
+    else if (kind === "pivotStyle") {
+      // pivotStyle:new, or pivotStyle:modify:<name> / pivotStyle:duplicate:<name> (a name may hold colons).
+      const rest = name.slice("pivotStyle:".length)
+      const style = rest.slice(rest.indexOf(":") + 1)
+      setDialog({
+        kind: "pivotStyle",
+        request: arg === "modify" || arg === "duplicate" ? { mode: arg, name: style } : { mode: "new" },
+      })
+    } else if (kind === "pivotCalcField") setDialog({ kind: "pivotCalcField" })
     else if (kind === "pivotSolveOrder") setDialog({ kind: "pivotSolveOrder" })
     else if (kind === "pivotGroup") setDialog({ kind: "pivotGroup" })
     else if (kind === "insert" || kind === "delete") setDialog({ kind })
@@ -1641,6 +1651,9 @@ function WorkbookWindow({
           <FieldSettingsDialog controller={controller} field={dialog.field} onClose={closeDialog} />
         ) : null}
         {dialog?.kind === "pivotOptions" ? <PivotOptionsDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "pivotStyle" ? (
+          <PivotStyleDialog controller={controller} request={dialog.request} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "pivotGroup" ? <GroupingDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "pivotCalcItem" ? (
           <CalculatedItemDialog controller={controller} field={dialog.field} onClose={closeDialog} />

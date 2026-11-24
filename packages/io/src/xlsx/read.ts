@@ -19,6 +19,7 @@ import {
   type DataModel,
   type ModelRelationship,
   type ModelTable,
+  copyTableStyleSet,
 } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
@@ -281,6 +282,7 @@ export async function openXlsx(
   const vbaBytes = vbaPart ? findPart(pkg, vbaPart)?.data : undefined
   if (vbaBytes) wb.vba = readVbaProject(vbaBytes)
   wb.theme = readTheme(themeXml, theme)
+  if (styles) wb.tableStyles = copyTableStyleSet(styles.tableStyles())
 
   const reuse = new Map<number, number>()
   const xfIds = new Map<number, number>()

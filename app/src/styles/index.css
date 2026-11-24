@@ -900,7 +900,7 @@ html.is-browser .app-window-frame {
 
 .context-menu {
   position: fixed;
-  z-index: 50;
+  z-index: 65; /* over popovers (a gallery's right-click menu) and dialogs */
   min-width: 220px;
   padding: 4px;
   border: 1px solid var(--app-popover-border);
@@ -4179,6 +4179,57 @@ html.is-phone .pivot-chip-button {
   padding-left: 22px;
 }
 
+/* New PivotTable Style: the element list beside the preview. */
+.pivot-style-editor {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  margin: 8px 0;
+}
+.pivot-style-elements,
+.pivot-style-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.dialog-list.pivot-style-list {
+  height: 210px;
+}
+.pivot-style-list .is-formatted {
+  font-weight: 600;
+}
+.pivot-style-buttons {
+  display: flex;
+  gap: 6px;
+}
+.pivot-style-preview {
+  padding: 8px;
+  border: 1px solid var(--app-ribbon-border);
+  background: #fff;
+}
+.pivot-style-stripe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pivot-style-summary {
+  min-height: 1.4em;
+  margin: 2px 0;
+}
+/* A dialog's button at the start of its button row (Format Cells' Clear for a style element). */
+.dialog-btn-start {
+  margin-inline-end: auto;
+}
+.fc-bare {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.fc-bare:disabled {
+  opacity: 0.5;
+}
 /* PivotTable Options' six tabs stay on one line each. */
 .fc-tabs:has(+ .pivot-settings-page) .fc-tab {
   white-space: nowrap;

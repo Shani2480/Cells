@@ -23,7 +23,17 @@ export function Popover({
   align?: "start" | "center" | "end"
 }) {
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={(next) => onOpenChange(next)}>
+    <PopoverPrimitive.Root
+      open={open}
+      onOpenChange={(next, details) => {
+        // A right-click menu opened from inside the popup (a gallery style's) is not a press outside it, nor is the
+        // focus moving to it.
+        const event = details.event as Event | undefined
+        const to = event instanceof FocusEvent ? event.relatedTarget : event?.target
+        if (!next && to instanceof Element && to.closest(".context-menu")) return details.cancel()
+        onOpenChange(next)
+      }}
+    >
       <PopoverPrimitive.Trigger render={trigger} />
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Positioner side={side} align={align} sideOffset={1} className="popover-positioner">

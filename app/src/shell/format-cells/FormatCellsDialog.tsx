@@ -460,7 +460,11 @@ function AlignmentTab({
 const FONT_STYLES = ["Regular", "Italic", "Bold", "Bold Italic"] as const
 const SIZES = ["8", "9", "10", "11", "12", "14", "16", "18", "20", "22", "24", "26", "28", "36", "48", "72"]
 
-function FontTab({ style, set, theme }: TabProps) {
+/**
+ * The Font tab. `differential`: a format laid over others (a table style's element), where Excel offers no font,
+ * size, superscript or subscript.
+ */
+export function FontTab({ style, set, theme, differential }: TabProps & { differential?: boolean }) {
   const font = style.fontName ?? DEFAULT_FONT
   const fontStyle = FONT_STYLES[(style.bold ? 2 : 0) + (style.italic ? 1 : 0)]
   const size = String(style.fontSize ?? 11)
@@ -468,7 +472,7 @@ function FontTab({ style, set, theme }: TabProps) {
   return (
     <div className="fc-font">
       <div className="fc-row fc-font-lists">
-        <div className="fc-column fc-grow">
+        <fieldset className="fc-column fc-grow fc-bare" disabled={differential}>
           <Field label="Font:">
             <input className="dialog-field" value={font} onChange={(e) => set({ fontName: e.target.value || null })} />
           </Field>
@@ -479,7 +483,7 @@ function FontTab({ style, set, theme }: TabProps) {
             onChange={(f) => set({ fontName: f === DEFAULT_FONT ? null : f })}
             render={(f) => <span style={{ fontFamily: `"${f}"` }}>{f}</span>}
           />
-        </div>
+        </fieldset>
         <div className="fc-column">
           <span className="dialog-label">Font style:</span>
           <List
@@ -489,7 +493,7 @@ function FontTab({ style, set, theme }: TabProps) {
             onChange={(s) => set({ bold: s.startsWith("Bold") || null, italic: s.endsWith("Italic") || null })}
           />
         </div>
-        <div className="fc-column fc-size">
+        <fieldset className="fc-column fc-size fc-bare" disabled={differential}>
           <span className="dialog-label">Size:</span>
           <List
             label="Size"
@@ -497,7 +501,7 @@ function FontTab({ style, set, theme }: TabProps) {
             value={size}
             onChange={(s) => set({ fontSize: s === "11" ? null : Number(s) })}
           />
-        </div>
+        </fieldset>
       </div>
       <div className="fc-row">
         <Field label="Underline:">
@@ -542,16 +546,20 @@ function FontTab({ style, set, theme }: TabProps) {
         <fieldset className="dialog-group">
           <legend>Effects</legend>
           <Check label="Strikethrough" checked={!!style.strike} onChange={(v) => set({ strike: v || null })} />
-          <Check
-            label="Superscript"
-            checked={style.vertAlign === "superscript"}
-            onChange={(v) => set({ vertAlign: v ? "superscript" : null })}
-          />
-          <Check
-            label="Subscript"
-            checked={style.vertAlign === "subscript"}
-            onChange={(v) => set({ vertAlign: v ? "subscript" : null })}
-          />
+          {differential ? null : (
+            <>
+              <Check
+                label="Superscript"
+                checked={style.vertAlign === "superscript"}
+                onChange={(v) => set({ vertAlign: v ? "superscript" : null })}
+              />
+              <Check
+                label="Subscript"
+                checked={style.vertAlign === "subscript"}
+                onChange={(v) => set({ vertAlign: v ? "subscript" : null })}
+              />
+            </>
+          )}
         </fieldset>
         <fieldset className="dialog-group fc-grow">
           <legend>Preview</legend>
@@ -595,18 +603,21 @@ const LINE_STYLES: BorderStyle[] = [
   "double",
 ]
 
-function BorderTab({
+export function BorderTab({
   plan,
   multiRow,
   multiCol,
   onChange,
   theme,
+  noDiagonals,
 }: {
   plan: BorderPlan
   multiRow: boolean
   multiCol: boolean
   onChange: (edges: BorderPlan) => void
   theme?: Theme
+  /** A table style element's borders: no diagonals (greyed, as Excel's). */
+  noDiagonals?: boolean
 }) {
   const [pen, setPen] = useState<Border>({ style: "thin" })
   const [colorOpen, setColorOpen] = useState(false)
@@ -773,11 +784,11 @@ function BorderTab({
             {line("diagDown", "M10 10l100 70")}
           </svg>
           <div className="fc-edges-h">
-            {edgeButton("diagUp", "Diagonal up border")}
+            {edgeButton("diagUp", "Diagonal up border", noDiagonals)}
             {edgeButton("left", "Left border")}
             {edgeButton("insideV", "Inside vertical border", !multiCol)}
             {edgeButton("right", "Right border")}
-            {edgeButton("diagDown", "Diagonal down border")}
+            {edgeButton("diagDown", "Diagonal down border", noDiagonals)}
           </div>
         </div>
         <p className="fc-help">
@@ -790,7 +801,7 @@ function BorderTab({
 
 // ── Fill ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-function FillTab({ style, set, theme }: TabProps) {
+export function FillTab({ style, set, theme }: TabProps) {
   return (
     <div className="fc-two">
       <div className="fc-column">

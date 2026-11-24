@@ -597,7 +597,20 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       contextual tooltips or +/− buttons in print (kept for Excel); Classic layout's drag-into-the-grid isn't there
       (the Fields pane does it); "Show properties in tooltips" and "Show items with no data" (field-level in Cells)
       are not on these tabs.
-    - ⬜ New PivotTable Style.
+    - ✅ New PivotTable Style. Excel's dialog: a name ("PivotTable Style 1", 2…), the 25 table elements with Format
+      (Font with no font name or size, Border with inside lines and no diagonals, Fill; Clear), Stripe Size for the
+      four stripes, the element's formatting in words, a live preview and "Set as default PivotTable style for this
+      document". The PivotTable Styles gallery shows the workbook's styles first as Custom; right-click any style for
+      Apply, Modify, Duplicate, Delete and Set As Default. Modify renames the PivotTables with it; Delete puts them back
+      on Light 16 and drops the default (measured in Excel); new PivotTables take the default. Each change is one undo
+      step. A style element can now turn bold, italic, underline and strikethrough on, or off again over the elements
+      below (Excel's val="0"), and the report filter labels and values follow their grid. The workbook's own table
+      styles (custom table styles from Excel files) are read and drawn too. `<tableStyles>` and its dxfs read and
+      written as Excel writes them (kept as they were when unchanged). Excel-made fixture `pivot-custom-style.xlsx`.
+      Checked in Excel 365: a Cells-made style opens without repair, as the default, with its stripe size, and Excel
+      draws the PivotTable's header and Grand Total as Cells does. Hint and Help topic. Limits: no New Table Style
+      dialog yet (custom table styles are read, drawn and kept); theme colours in a style are kept as the colours they
+      show.
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
