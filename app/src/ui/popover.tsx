@@ -27,11 +27,20 @@ export function Popover({
       <PopoverPrimitive.Trigger render={trigger} />
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Positioner side={side} align={align} sideOffset={1} className="popover-positioner">
-          <PopoverPrimitive.Popup className={cn("popover", className)} initialFocus={false}>
+          <PopoverPrimitive.Popup className={cn("popover", className)} initialFocus={false} finalFocus={returnFocus}>
             {children}
           </PopoverPrimitive.Popup>
         </PopoverPrimitive.Positioner>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>
   )
+}
+
+/**
+ * A closed popover gives the focus back to its button, unless something else has taken it meanwhile: a ribbon
+ * command run from a menu puts the keyboard back on the sheet (so Esc then reaches it), and that stays.
+ */
+function returnFocus(): boolean {
+  const active = document.activeElement
+  return !active || active === document.body || !!active.closest(".popover")
 }
