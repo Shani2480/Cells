@@ -538,11 +538,21 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     a:biLevel, a:duotone, a:lum, a:alphaModFix, a:clrChange; a14:imgProps with the original as an hdphoto layer);
     checked in Excel 365: no repair, Excel reads every setting back (PictureEffects, ColorType, brightness and
     contrast, the transparent colour), and Excel's resave reads back the same in Cells. Hint and Help topic
-    "Corrections, Color and Transparency for pictures". Limits: no Artistic Effects (Excel's are kept and saved as
-    they are, and then the picture's corrections can't be changed in Cells, as when its original is an HD Photo);
-    Set Transparent Color takes the exact colour (as Excel); icons and SVG pictures can't be adjusted.
-  - ⬜ Artistic Effects, PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists,
-    live Flash Fill, .xlsb and .ods.
+    "Corrections, Color and Transparency for pictures". Limits: a picture whose original Excel kept as an HD Photo
+    keeps its corrections as they are (colour and transparency still change); Set Transparent Color takes the exact
+    colour (as Excel); icons and SVG pictures can't be adjusted.
+  - ✅ Artistic Effects (Picture Format › Adjust): Excel's 22 effects in a gallery of the selected picture, and
+    Artistic Effects Options (the effect, its transparency and its own setting, with Excel's ranges and defaults).
+    Drawn as look-alikes of Excel's (Office's filters aren't published; compared side by side with Excel 365's on a
+    mock photo), at the size Excel works at (the picture's size on the sheet at 220 dpi), and saved as Excel does
+    (a14:artistic…, defaults left out, in Office's order among the corrections). Checked in Excel 365: no repair,
+    Excel reads each effect, its settings and their order back, and redraws it in its own way once it's changed
+    there; Excel's own effects read and save back the same. Hint and Help topic "Artistic Effects for pictures".
+    Limits: the look is close, not Excel's pixels; one effect at a time (as Excel's ribbon; a file with two keeps
+    the second as it was, and its corrections then can't change in Cells); a resized picture keeps the effect at the
+    size it was made for until it's changed.
+  - ⬜ PivotTable extras, searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
+    .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

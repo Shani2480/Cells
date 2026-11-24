@@ -105,6 +105,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Select a picture and use Corrections to sharpen it or change its brightness and contrast, Color to change its saturation and tone or recolour it (grayscale, sepia, a theme colour), and Transparency to let what's behind it show. Set Transparent Color, under Color, clears one colour you click. Excel opens them all as they are.",
     target: "Corrections",
   },
+  {
+    id: "picture-artistic-effects",
+    title: "New: Artistic Effects for pictures",
+    text: "Select a picture and use Artistic Effects to make it look like a pencil sketch, a painting, glass, cement and 18 more. Artistic Effects Options sets how strong the effect is and how much of the picture shows through.",
+    target: "Artistic Effects",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

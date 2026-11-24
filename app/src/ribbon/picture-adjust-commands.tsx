@@ -1,5 +1,7 @@
 import {
+  ARTISTIC_EFFECTS,
   correctionsOf,
+  type ArtisticEffect,
   type DuotoneColor,
   type PictureAdjust,
   type PictureRecolor,
@@ -8,6 +10,7 @@ import {
 } from "@cells/core"
 import { useEffect, useState } from "react"
 import { objectSvg } from "@/drawing/render"
+import { effectSide } from "@/sheet/objects"
 import type { Command, MenuEntry, RibbonEnv } from "./registry"
 
 /**
@@ -21,19 +24,24 @@ const small = new Map<string, Promise<string>>()
 const corrected = new Map<string, Promise<string>>()
 const keyOf = (src: string) => `${src.length}:${src.slice(-64)}`
 
-/** The picture small (for the galleries), with corrections applied: made once per picture and setting. */
-function preview(base: string, corrections: PictureAdjust | null): Promise<string> {
+const PREVIEW_SIDE = 96
+
+/**
+ * The picture small (for the galleries), with corrections applied: made once per picture and setting. `unit` scales
+ * an artistic effect to the small copy (pixels per pixel of the picture Office would work on).
+ */
+function preview(base: string, corrections: PictureAdjust | null, unit: number): Promise<string> {
   const smallKey = keyOf(base)
   let tiny = small.get(smallKey)
   if (!tiny) {
-    tiny = import("@/drawing/picture-adjust").then((m) => m.correctPicture(base, {}, 96))
+    tiny = import("@/drawing/picture-adjust").then((m) => m.correctPicture(base, {}, { maxSide: PREVIEW_SIDE }))
     small.set(smallKey, tiny)
   }
   if (!corrections) return tiny
-  const key = `${smallKey}|${JSON.stringify(corrections)}`
+  const key = `${smallKey}|${JSON.stringify(corrections)}|${unit}`
   let out = corrected.get(key)
   if (!out) {
-    out = tiny.then((t) => import("@/drawing/picture-adjust").then((m) => m.correctPicture(t, corrections)))
+    out = tiny.then((t) => import("@/drawing/picture-adjust").then((m) => m.correctPicture(t, corrections, { unit })))
     corrected.set(key, out)
   }
   return out
@@ -48,16 +56,18 @@ function PictureTile({ env, picture, adjust }: { env: RibbonEnv; picture: SheetP
   const settings = JSON.stringify(correctionsOf(adjust))
   const [src, setSrc] = useState<string | null>(null)
   const [id] = useState(() => --previewIds)
+  const box = env.c.objects.box(picture)
+  const natural = picture.natural ? Math.max(picture.natural.w, picture.natural.h) : effectSide(box)
+  const unit = Math.round((Math.min(PREVIEW_SIDE, natural) / Math.min(natural, effectSide(box))) * 1000) / 1000
   useEffect(() => {
     let live = true
-    preview(base, JSON.parse(settings) as PictureAdjust | null)
+    preview(base, JSON.parse(settings) as PictureAdjust | null, unit)
       .then((s) => live && setSrc(s))
       .catch(() => live && setSrc(picture.src))
     return () => {
       live = false
     }
-  }, [base, settings, picture.src])
-  const box = env.c.objects.box(picture)
+  }, [base, settings, unit, picture.src])
   const w = 64
   const h = Math.max(24, Math.min(64, Math.round((64 * box.h) / Math.max(1, box.w))))
   const shown: SheetPicture = { ...picture, id, src: src ?? "", adjust, line: undefined }
@@ -249,6 +259,40 @@ const colorPanel: MenuEntry = {
   },
 }
 
+// ── Artistic Effects ──
+
+const artisticPanel: MenuEntry = {
+  panel: (env, close) => {
+    const locked = !env.c.objects.canCorrect()
+    return (
+      <div className="picture-gallery" role="menu" aria-label="Artistic Effects">
+        {locked ? (
+          <div className="picture-gallery-note">
+            Excel's effects on this picture are kept as they are: its original is in a form Cells can't open, or it has
+            more than one effect.
+          </div>
+        ) : null}
+        {section(
+          env,
+          close,
+          "Artistic Effects",
+          [
+            { label: "None", change: { artistic: undefined }, current: (a: PictureAdjust) => !a.artistic },
+            ...(Object.keys(ARTISTIC_EFFECTS) as ArtisticEffect[]).map((effect) => ({
+              label: ARTISTIC_EFFECTS[effect].label,
+              change: { artistic: { effect } },
+              current: (a: PictureAdjust) => a.artistic?.effect === effect,
+            })),
+          ],
+          5,
+          "Artistic Effects",
+          locked,
+        )}
+      </div>
+    )
+  },
+}
+
 // ── Transparency ──
 
 const TRANSPARENCY = [0, 0.15, 0.3, 0.5, 0.65, 0.8, 0.95]
@@ -293,6 +337,14 @@ export function pictureAdjustCommands(): Command[] {
       menu: [colorPanel, "-", "PictureSetTransparentColor", "PictureColorOptions"],
     },
     {
+      id: "PictureArtisticEffectsGallery",
+      label: "Artistic Effects",
+      description: "Add an artistic effect to the picture to make it look more like a sketch or a painting.",
+      keytip: "X",
+      enabled: adjustable,
+      menu: [artisticPanel, "-", "PictureArtisticEffectsOptions"],
+    },
+    {
       id: "PictureTransparencyGallery",
       label: "Transparency",
       description: "Make the picture see-through, so what's behind it shows.",
@@ -314,6 +366,7 @@ export function pictureAdjustCommands(): Command[] {
         ["PictureCorrectionsOptions", "Picture Corrections Options...", "corrections"],
         ["PictureColorOptions", "Picture Color Options...", "color"],
         ["PictureTransparencyOptions", "Picture Transparency Options...", "transparency"],
+        ["PictureArtisticEffectsOptions", "Artistic Effects Options...", "artistic"],
       ] as const
     ).map(([id, label, part]): Command => ({
       id,

@@ -57,6 +57,13 @@ export type AlignTo = "left" | "center" | "right" | "top" | "middle" | "bottom" 
  * selecting, putting in, moving, sizing, turning, their text and look, stacking order, grouping. Charts are
  * objects too: selecting one here selects it for the Chart Design tab.
  */
+/**
+ * The size (longer side, pixels) Office works on a picture's artistic effect at: its size on the sheet at 220 dpi
+ * (Excel brings a larger picture down to it first). `box` is in CSS pixels (96 dpi).
+ */
+export const effectSide = (box: { w: number; h: number }) =>
+  Math.max(1, Math.round((Math.max(box.w, box.h) * 220) / 96))
+
 export class ObjectCommands {
   /** The selected objects' ids (Ctrl+click and Shift+click add more), in the order picked. */
   selected: number[] = []
@@ -97,8 +104,8 @@ export class ObjectCommands {
   /** Set Transparent Color: the picture whose next click picks the colour. */
   pickingColor: number | null = null
   /** A picture with corrections applied (a PNG data URL); the browser's canvas, or a stand-in in tests. */
-  correct: (src: string, a: PictureAdjust) => Promise<string> = (src, a) =>
-    import("@/drawing/picture-adjust").then((m) => m.correctPicture(src, a))
+  correct: (src: string, a: PictureAdjust, maxSide?: number) => Promise<string> = (src, a, maxSide) =>
+    import("@/drawing/picture-adjust").then((m) => m.correctPicture(src, a, { maxSide }))
   private adjusting = 0
   private lastInk: { sheet: number; id: number; time: number } | null = null
 
@@ -939,7 +946,9 @@ export class ObjectCommands {
       if (!this.canCorrect(p)) return false
       const base = p.original ?? p.src
       const token = ++this.adjusting
-      src = after ? await this.correct(base, after) : base
+      // An artistic effect works at the picture's size on the sheet at 220 dpi, as Excel's does.
+      const side = after?.artistic ? effectSide(this.box(p)) : undefined
+      src = after ? await this.correct(base, after, side) : base
       // A later change wins; a picture deleted meanwhile is left alone.
       if (token !== this.adjusting || !this.find(p.id)) return false
       original = after ? base : undefined

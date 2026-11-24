@@ -103,3 +103,47 @@ describe("Picture Format › Color and Transparency, as drawn", () => {
     expect(duotoneRgb({ preset: "white" }, OFFICE_THEME)).toEqual([1, 1, 1])
   })
 })
+
+describe("Picture Format › Artistic Effects", () => {
+  // A small picture with an edge, a gradient and colour.
+  const picture = () => {
+    const w = 24
+    const h = 16
+    const data = new Uint8ClampedArray(w * h * 4)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4
+        data.set(x < 12 ? [200, 60 + y * 8, 40, 255] : [40, 120, 220 - x * 4, 255], i)
+      }
+    return { data, w, h }
+  }
+
+  it("changes the picture with each of Office's 22 effects, the same way each time, keeping its transparency", async () => {
+    const { ARTISTIC_EFFECTS } = await import("@cells/core")
+    const { applyArtistic } = await import("./picture-artistic")
+    const effects = Object.keys(ARTISTIC_EFFECTS) as (keyof typeof ARTISTIC_EFFECTS)[]
+    expect(effects).toHaveLength(22)
+    for (const effect of effects) {
+      const a = picture()
+      const b = picture()
+      applyArtistic(a.data, a.w, a.h, { effect })
+      applyArtistic(b.data, b.w, b.h, { effect })
+      expect([...a.data], effect).toEqual([...b.data])
+      expect([...a.data], effect).not.toEqual([...picture().data])
+      for (let i = 3; i < a.data.length; i += 4) expect(a.data[i]).toBe(255)
+    }
+  })
+
+  it("lets the picture show through by its transparency", async () => {
+    const { applyArtistic } = await import("./picture-artistic")
+    const shown = picture()
+    applyArtistic(shown.data, shown.w, shown.h, { effect: "Cutout", trans: 1 })
+    expect([...shown.data]).toEqual([...picture().data])
+    const half = picture()
+    const full = picture()
+    applyArtistic(half.data, half.w, half.h, { effect: "Cutout", trans: 0.5 })
+    applyArtistic(full.data, full.w, full.h, { effect: "Cutout", trans: 0 })
+    const original = picture().data
+    expect(Math.abs(half.data[0] - (full.data[0] + original[0]) / 2)).toBeLessThanOrEqual(1)
+  })
+})

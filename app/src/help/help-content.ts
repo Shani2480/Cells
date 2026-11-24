@@ -60,6 +60,11 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     keywords:
       "picture image photo corrections sharpen soften brightness contrast color colour saturation tone temperature recolor grayscale sepia washout black white transparency transparent background reset",
   },
+  "picture-artistic-effects": {
+    where: "Picture Format › Adjust (select a picture first)",
+    keywords:
+      "picture image photo artistic effects sketch pencil chalk marker paint brush strokes watercolor sponge blur glass cement texturizer mosaic bubbles film grain glow edges plastic wrap cutout photocopy pastels line drawing light screen crisscross etching",
+  },
   "chart-sheets": {
     where: "Chart Design › Location (select a chart first)",
     keywords: "chart sheet move chart f11 new sheet object in full window",

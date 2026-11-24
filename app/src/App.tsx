@@ -1146,7 +1146,10 @@ function WorkbookWindow({
       setDialog({ kind: "ai", tool: arg })
     else if (kind === "options") setDialog({ kind: "options", page: arg === "ai" ? "ai" : undefined })
     else if (kind === "altText" && arg) setDialog({ kind: "altText", chartId: Number(arg) })
-    else if (kind === "formatPicture" && (arg === "corrections" || arg === "color" || arg === "transparency"))
+    else if (
+      kind === "formatPicture" &&
+      (arg === "corrections" || arg === "color" || arg === "transparency" || arg === "artistic")
+    )
       setDialog({ kind: "formatPicture", part: arg })
     else if (kind === "openObject" && arg) void openObject(Number(arg))
     else if (kind === "signatureSetup") setDialog({ kind: "signatureSetup", editing: arg ? Number(arg) : undefined })

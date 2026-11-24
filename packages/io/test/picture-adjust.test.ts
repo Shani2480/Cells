@@ -35,8 +35,7 @@ describe("Picture Format › Corrections, Color and Transparency in Excel files"
     expect(pic(objects, "BlackWhite").adjust).toEqual({ recolor: { kind: "blackWhite", threshold: 0.5 } })
     expect(pic(objects, "Washout").adjust).toEqual({ lum: { bright: 0.7, contrast: -0.7 } })
     expect(pic(objects, "TransparentColor").adjust).toEqual({ transparentColor: "787878" })
-    // An artistic effect Cells doesn't draw is kept as Excel wrote it.
-    expect(pic(objects, "Pencil").adjust?.effects).toEqual([expect.stringMatching(/^<a14:artisticPencilSketch/)])
+    expect(pic(objects, "Pencil").adjust).toEqual({ artistic: { effect: "PencilSketch" } })
   })
 
   it("writes Excel's pictures back with their originals, also when one is changed", async () => {
@@ -98,5 +97,42 @@ describe("Picture Format › Corrections, Color and Transparency in Excel files"
     expect(again.map((p) => p.adjust)).toEqual(made.map((p) => p.adjust))
     expect(again[0].original).toBe(PNG)
     expect(again[1].original).toBeUndefined()
+  })
+
+  it("reads Excel's artistic effects, their settings and their place among the corrections, and writes them back", async () => {
+    const bytes = new Uint8Array(readFileSync(join(__dirname, "fixtures/excel/artistic-effects.xlsx")))
+    const book = await openXlsx(bytes, "x.xlsx")
+    const objects = book.workbook.sheets[0].objects
+    expect(pic(objects, "Blur").adjust).toEqual({ artistic: { effect: "Blur", amount: 11 } })
+    expect(pic(objects, "Cutout").adjust).toEqual({ artistic: { effect: "Cutout", trans: 0.4, amount: 3 } })
+    expect(pic(objects, "Mosaic").adjust).toEqual({ artistic: { effect: "MosiaicBubbles" } })
+    expect(pic(objects, "BrightThenBlur").adjust).toEqual({ bright: 0.2, artistic: { effect: "Blur", last: true } })
+    // Excel's UI has one at a time; a second is kept as it was.
+    const two = pic(objects, "TwoArtistic").adjust!
+    expect(two.artistic).toEqual({ effect: "Blur" })
+    expect(two.effects).toEqual([expect.stringMatching(/^<a14:artisticPaintBrush/)])
+
+    const { drawing } = await parts(await saveXlsx(book.workbook, { source: book.source }))
+    expect(drawing).toContain(`<a14:imgEffect><a14:artisticBlur radius="11"/></a14:imgEffect>`)
+    expect(drawing).toContain(`<a14:artisticCutout trans="40000" numberOfShades="3"/>`)
+    expect(drawing).toContain(`<a14:artisticMosiaicBubbles/>`)
+    expect(drawing).toContain(
+      `<a14:imgEffect><a14:brightnessContrast bright="20000"/></a14:imgEffect><a14:imgEffect><a14:artisticBlur/></a14:imgEffect>`,
+    )
+    // Office's defaults aren't written.
+    const wb = new Workbook()
+    wb.sheets[0].objects.push({
+      kind: "picture",
+      id: 1,
+      name: "P",
+      anchor: { from: { row: 0, col: 0, x: 0, y: 0 }, to: { row: 2, col: 2, x: 0, y: 0 } },
+      src: PNG,
+      original: PNG,
+      adjust: { artistic: { effect: "CrisscrossEtching", trans: 0.75, amount: 50 }, saturation: 2 },
+    })
+    const mine = await parts(await saveXlsx(wb))
+    expect(mine.drawing).toContain(
+      `<a14:imgEffect><a14:artisticCrisscrossEtching pressure="50"/></a14:imgEffect><a14:imgEffect><a14:saturation`,
+    )
   })
 })

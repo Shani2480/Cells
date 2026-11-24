@@ -228,6 +228,7 @@ const PICTURES: Record<string, LucideIcon> = {
   PictureCorrectionsGallery: L.SunMedium,
   PictureColorGallery: L.Palette,
   PictureTransparencyGallery: L.Blend,
+  PictureArtisticEffectsGallery: L.Brush,
   PictureSetTransparentColor: L.Pipette,
   PictureFormatOptions: L.SlidersHorizontal,
   PictureCropTools: L.Crop,

@@ -331,3 +331,20 @@ describe("Picture Format › Corrections, Color and Transparency", () => {
     expect(o.adjustable()).toBeNull()
   })
 })
+
+describe("Picture Format › Artistic Effects", () => {
+  it("bakes an effect in at the picture's size on the sheet at 220 dpi, as Excel works on it", async () => {
+    const { o } = setup()
+    const sizes: (number | undefined)[] = []
+    o.correct = (src, a, side) => (sizes.push(side), Promise.resolve(`${src}#${JSON.stringify(a)}`))
+    o.insertPicture(PNG, { w: 192, h: 96 })
+    await o.setAdjust({ artistic: { effect: "Blur" } }, "Artistic Effects")
+    expect(o.picture()!.adjust).toEqual({ artistic: { effect: "Blur" } })
+    expect(o.picture()!.original).toBe(PNG)
+    await o.setAdjust({ bright: 0.2 }, "Brightness")
+    expect(sizes).toEqual([440, 440])
+    await o.setAdjust({ artistic: undefined }, "Artistic Effects")
+    expect(sizes[2]).toBeUndefined()
+    expect(o.picture()!.adjust).toEqual({ bright: 0.2 })
+  })
+})

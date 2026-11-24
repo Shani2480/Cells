@@ -244,7 +244,9 @@ export type PictureAdjust = {
   saturation?: number
   /** Colour tone in kelvin: 6500 as it is; lower is cooler, higher warmer (as Office names them). */
   temperature?: number
-  /** Office's other image effects (artistic effects…) as the file had them, written back unchanged. */
+  /** An artistic effect (Picture Format › Artistic Effects), baked into the picture like the corrections. */
+  artistic?: PictureArtistic
+  /** Office's other image effects (background removal…) as the file had them, written back unchanged. */
   effects?: string[]
   /** Recolor: drawn from the picture's brightness. */
   recolor?: PictureRecolor
@@ -257,6 +259,91 @@ export type PictureAdjust = {
 }
 
 /** A duotone colour as Office writes one: a theme or RGB colour, or black or white, changed by tint, shade and satMod. */
+/** Office's artistic effects, by their names in the file (a14:artistic…; Office's own spelling). */
+export type ArtisticEffect =
+  | "Marker"
+  | "PencilGrayscale"
+  | "PencilSketch"
+  | "LineDrawing"
+  | "ChalkSketch"
+  | "PaintStrokes"
+  | "PaintBrush"
+  | "GlowDiffused"
+  | "Blur"
+  | "LightScreen"
+  | "WatercolorSponge"
+  | "FilmGrain"
+  | "MosiaicBubbles"
+  | "Glass"
+  | "Cement"
+  | "Texturizer"
+  | "CrisscrossEtching"
+  | "PastelsSmooth"
+  | "PlasticWrap"
+  | "Cutout"
+  | "Photocopy"
+  | "GlowEdges"
+
+/**
+ * An artistic effect and its two settings: how much of the picture shows through it (`trans`, 0–1) and its own
+ * setting (`amount`, see ARTISTIC_EFFECTS); left out, Office's default. `last`: applied after the corrections (Office
+ * keeps the order they were added in).
+ */
+export type PictureArtistic = { effect: ArtisticEffect; trans?: number; amount?: number; last?: boolean }
+
+/**
+ * Each artistic effect as Excel 365 has it: its name, its setting (the attribute in the file, its label, range and
+ * default) and its default transparency (null: it has none). In Excel's gallery order.
+ */
+export const ARTISTIC_EFFECTS: Record<
+  ArtisticEffect,
+  { label: string; attr: string; setting: string; max: number; amount: number; trans: number | null }
+> = {
+  Marker: { label: "Marker", attr: "size", setting: "Size", max: 100, amount: 97, trans: 0 },
+  PencilGrayscale: {
+    label: "Pencil Grayscale",
+    attr: "pencilSize",
+    setting: "Pencil Size",
+    max: 100,
+    amount: 27,
+    trans: 0,
+  },
+  PencilSketch: { label: "Pencil Sketch", attr: "pressure", setting: "Pressure", max: 100, amount: 22, trans: 0 },
+  LineDrawing: { label: "Line Drawing", attr: "pencilSize", setting: "Pencil Size", max: 100, amount: 0, trans: 0.25 },
+  ChalkSketch: { label: "Chalk Sketch", attr: "pressure", setting: "Pressure", max: 4, amount: 0, trans: 0 },
+  PaintStrokes: { label: "Paint Strokes", attr: "intensity", setting: "Intensity", max: 10, amount: 5, trans: 0 },
+  PaintBrush: { label: "Paint Brush", attr: "brushSize", setting: "Brush Size", max: 10, amount: 2, trans: 0 },
+  GlowDiffused: { label: "Glow Diffused", attr: "intensity", setting: "Intensity", max: 10, amount: 5, trans: 0 },
+  Blur: { label: "Blur", attr: "radius", setting: "Radius", max: 100, amount: 10, trans: null },
+  LightScreen: { label: "Light Screen", attr: "gridSize", setting: "Grid Size", max: 10, amount: 4, trans: 0 },
+  WatercolorSponge: {
+    label: "Watercolor Sponge",
+    attr: "brushSize",
+    setting: "Brush Size",
+    max: 10,
+    amount: 2,
+    trans: 0,
+  },
+  FilmGrain: { label: "Film Grain", attr: "grainSize", setting: "Grain Size", max: 100, amount: 40, trans: 0 },
+  MosiaicBubbles: { label: "Mosaic Bubbles", attr: "pressure", setting: "Pressure", max: 100, amount: 14, trans: 0 },
+  Glass: { label: "Glass", attr: "scaling", setting: "Scaling", max: 100, amount: 34, trans: 0 },
+  Cement: { label: "Cement", attr: "crackSpacing", setting: "Crack Spacing", max: 100, amount: 24, trans: 0 },
+  Texturizer: { label: "Texturizer", attr: "scaling", setting: "Scaling", max: 100, amount: 34, trans: 0 },
+  CrisscrossEtching: {
+    label: "Crisscross Etching",
+    attr: "pressure",
+    setting: "Pressure",
+    max: 100,
+    amount: 30,
+    trans: 0.75,
+  },
+  PastelsSmooth: { label: "Pastels Smooth", attr: "scaling", setting: "Scaling", max: 100, amount: 34, trans: 0 },
+  PlasticWrap: { label: "Plastic Wrap", attr: "smoothness", setting: "Smoothness", max: 10, amount: 5, trans: 0 },
+  Cutout: { label: "Cutout", attr: "numberOfShades", setting: "Number of Shades", max: 6, amount: 2, trans: 0 },
+  Photocopy: { label: "Photocopy", attr: "detail", setting: "Detail", max: 10, amount: 3, trans: 0.3 },
+  GlowEdges: { label: "Glow Edges", attr: "smoothness", setting: "Smoothness", max: 10, amount: 3, trans: 0.15 },
+}
+
 export type DuotoneColor = {
   rgb?: string
   theme?: ThemeSlot
@@ -678,6 +765,7 @@ export function dataUrlBytes(url: string): { mime: string; bytes: Uint8Array } |
 export function copyAdjust(a: PictureAdjust): PictureAdjust {
   const out: PictureAdjust = { ...a }
   if (a.effects) out.effects = [...a.effects]
+  if (a.artistic) out.artistic = { ...a.artistic }
   if (a.lum) out.lum = { ...a.lum }
   if (a.recolor?.kind === "duotone")
     out.recolor = { kind: "duotone", colors: [{ ...a.recolor.colors[0] }, { ...a.recolor.colors[1] }] }
@@ -694,6 +782,7 @@ export function correctionsOf(a: PictureAdjust | undefined): PictureAdjust | nul
   if (a.sharpen) out.sharpen = a.sharpen
   if (a.saturation !== undefined && a.saturation !== 1) out.saturation = a.saturation
   if (a.temperature !== undefined && a.temperature !== 6500) out.temperature = a.temperature
+  if (a.artistic) out.artistic = { ...a.artistic }
   return Object.keys(out).length ? out : null
 }
 
@@ -706,6 +795,7 @@ export function hasCorrections(a: PictureAdjust | undefined): boolean {
       !!a.sharpen ||
       (a.saturation ?? 1) !== 1 ||
       (a.temperature ?? 6500) !== 6500 ||
+      !!a.artistic ||
       !!a.effects?.length)
   )
 }

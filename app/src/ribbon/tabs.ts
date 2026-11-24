@@ -655,7 +655,8 @@ export const PICTURE_FORMAT: Tab = {
       label: "Adjust",
       columns: [
         L("PictureCorrectionsGallery"),
-        smalls(S("PictureColorGallery"), S("PictureTransparencyGallery"), S("PictureResetMenu")),
+        smalls(S("PictureColorGallery"), S("PictureArtisticEffectsGallery"), S("PictureTransparencyGallery")),
+        smalls(S("PictureResetMenu")),
       ],
     },
     { id: "GroupPictureStyles", label: "Picture Styles", columns: [smalls(S("PictureBorderColorPicker"))] },

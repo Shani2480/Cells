@@ -5,7 +5,14 @@
  * blip's picture; the original sits in an a14:imgLayer (an HD Photo in Excel's files; Excel takes a PNG there too, and
  * re-renders from it when the corrections change), with the effects listed in it.
  */
-import type { DuotoneColor, PictureAdjust, PictureRecolor, ThemeSlot } from "@cells/core"
+import {
+  ARTISTIC_EFFECTS,
+  type ArtisticEffect,
+  type DuotoneColor,
+  type PictureAdjust,
+  type PictureRecolor,
+  type ThemeSlot,
+} from "@cells/core"
 import { NS_R } from "./constants"
 import { at, kid, kids, raw, type XDoc, type XNode } from "./dom"
 import { NS_A14 } from "./omml"
@@ -90,7 +97,17 @@ export function readPictureAdjust(
       } else if (fx.local === "sharpenSoften") a.sharpen = pct(at(fx, "amount"))
       else if (fx.local === "saturation") a.saturation = pct(at(fx, "sat"), 1)
       else if (fx.local === "colorTemperature") a.temperature = num(at(fx, "colorTemp"), 6500)
-      else if (doc) (a.effects ??= []).push(raw(doc, fx))
+      else if (fx.local.startsWith("artistic") && fx.local.slice(8) in ARTISTIC_EFFECTS && !a.artistic) {
+        const effect = fx.local.slice(8) as ArtisticEffect
+        const trans = at(fx, "trans")
+        const amount = at(fx, ARTISTIC_EFFECTS[effect].attr)
+        a.artistic = { effect }
+        if (trans !== undefined) a.artistic.trans = pct(trans)
+        if (amount !== undefined) a.artistic.amount = num(amount)
+        // After a correction: Office applies them in the file's order.
+        if (a.bright || a.contrast || a.sharpen || a.saturation !== undefined || a.temperature !== undefined)
+          a.artistic.last = true
+      } else if (doc) (a.effects ??= []).push(raw(doc, fx))
     }
   }
   return { ...(Object.keys(a).length ? { adjust: a } : {}), ...(layerRid ? { layerRid } : {}) }
@@ -124,6 +141,8 @@ function recolorXml(r: PictureRecolor | undefined): string {
 /** The a14:imgProps extension: the original's relationship and the corrections, in the order Office applies them. */
 export function imgPropsExtXml(a: PictureAdjust, layerRid: string): string {
   const effects: string[] = [...(a.effects ?? [])]
+  const artistic = a.artistic ? artisticXml(a.artistic) : ""
+  if (artistic && !a.artistic?.last) effects.push(artistic)
   if (a.sharpen) effects.push(`<a14:sharpenSoften amount="${k(a.sharpen)}"/>`)
   if (a.temperature !== undefined && a.temperature !== 6500)
     effects.push(`<a14:colorTemperature colorTemp="${Math.round(a.temperature)}"/>`)
@@ -132,9 +151,18 @@ export function imgPropsExtXml(a: PictureAdjust, layerRid: string): string {
     const attrs = (a.bright ? ` bright="${k(a.bright)}"` : "") + (a.contrast ? ` contrast="${k(a.contrast)}"` : "")
     effects.push(`<a14:brightnessContrast${attrs}/>`)
   }
+  if (artistic && a.artistic?.last) effects.push(artistic)
   const list = effects.map((e) => `<a14:imgEffect>${e}</a14:imgEffect>`).join("")
   return (
     `<a:ext uri="${IMG_PROPS_EXT}"><a14:imgProps xmlns:a14="${NS_A14}">` +
     `<a14:imgLayer r:embed="${layerRid}">${list}</a14:imgLayer></a14:imgProps></a:ext>`
   )
+}
+
+/** An artistic effect, its settings written only when they're not Office's defaults (as Excel does). */
+function artisticXml(a: NonNullable<PictureAdjust["artistic"]>): string {
+  const spec = ARTISTIC_EFFECTS[a.effect]
+  const trans = a.trans !== undefined && a.trans !== spec.trans ? ` trans="${k(a.trans)}"` : ""
+  const amount = a.amount !== undefined && a.amount !== spec.amount ? ` ${spec.attr}="${Math.round(a.amount)}"` : ""
+  return `<a14:artistic${a.effect}${trans}${amount}/>`
 }

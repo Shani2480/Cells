@@ -9,6 +9,7 @@
  */
 import { correctionsOf, type PictureAdjust } from "@cells/core"
 import { BRIGHTNESS_CONTRAST, TEMPERATURES, TEMPERATURE_CURVES } from "./picture-curves"
+import { applyArtistic } from "./picture-artistic"
 
 export type Curves = { bc: Uint8Array; temps: Uint8Array }
 
@@ -157,8 +158,12 @@ function applyCurves(data: Uint8ClampedArray, curves: [Uint8Array, Uint8Array, U
   }
 }
 
-/** A picture's pixels (RGBA) with its corrections applied, in Office's order. */
-export function correctPixels(data: Uint8ClampedArray, w: number, h: number, a: PictureAdjust, c: Curves) {
+/**
+ * A picture's pixels (RGBA) with its corrections applied, in Office's order: the artistic effect first, unless the
+ * file had it after the corrections. `unit`: pixels per Office pixel, for the artistic effect.
+ */
+export function correctPixels(data: Uint8ClampedArray, w: number, h: number, a: PictureAdjust, c: Curves, unit = 1) {
+  if (a.artistic && !a.artistic.last) applyArtistic(data, w, h, a.artistic, unit)
   if (a.sharpen) sharpenSoften(data, w, h, a.sharpen)
   if (a.temperature !== undefined && a.temperature !== 6500) applyCurves(data, temperatureCurves(c, a.temperature))
   if (a.saturation !== undefined && a.saturation !== 1) saturate(data, a.saturation)
@@ -166,18 +171,21 @@ export function correctPixels(data: Uint8ClampedArray, w: number, h: number, a: 
     const curve = brightnessContrastCurve(c, a.bright ?? 0, a.contrast ?? 0)
     applyCurves(data, [curve, curve, curve])
   }
+  if (a.artistic?.last) applyArtistic(data, w, h, a.artistic, unit)
 }
 
-/**
- * A picture (data URL) with corrections applied, as a PNG data URL, at most `maxSide` pixels across (gallery
- * previews); in the browser (a canvas decodes and encodes it).
- */
 export { correctionsOf }
 
-export async function correctPicture(src: string, a: PictureAdjust, maxSide = Infinity): Promise<string> {
+/** How a picture is corrected: at most `maxSide` pixels across, `unit` pixels for each of Office's. */
+export type CorrectOptions = { maxSide?: number; unit?: number }
+
+/**
+ * A picture (data URL) with corrections applied, as a PNG data URL, in the browser (a canvas decodes and encodes it).
+ */
+export async function correctPicture(src: string, a: PictureAdjust, options: CorrectOptions = {}): Promise<string> {
   const c = await loadCurves()
   const image = await loadImage(src)
-  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
+  const scale = Math.min(1, (options.maxSide ?? Infinity) / Math.max(image.naturalWidth, image.naturalHeight))
   const w = Math.max(1, Math.round(image.naturalWidth * scale))
   const h = Math.max(1, Math.round(image.naturalHeight * scale))
   const canvas = document.createElement("canvas")
@@ -186,7 +194,7 @@ export async function correctPicture(src: string, a: PictureAdjust, maxSide = In
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!
   ctx.drawImage(image, 0, 0, w, h)
   const pixels = ctx.getImageData(0, 0, w, h)
-  correctPixels(pixels.data, w, h, a, c)
+  correctPixels(pixels.data, w, h, a, c, options.unit)
   ctx.putImageData(pixels, 0, 0)
   return canvas.toDataURL("image/png")
 }
