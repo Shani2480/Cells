@@ -271,7 +271,7 @@ export async function drawPage(
   p.textBaseline = "alphabetic"
   setBodyFont(view.wb.theme.fonts.minor)
   for (const pane of layout.panes)
-    drawCells({ painter: p, layout: pane, controller: view, theme: PAPER_THEME, measure })
+    drawCells({ painter: p, layout: pane, controller: view, theme: PAPER_THEME, measure, mono: setup.blackAndWhite })
   if (setup.headings) drawHeadings(p, layout)
 
   // Charts, shapes and pictures on the page, clipped to its cells.
@@ -281,6 +281,8 @@ export async function drawPage(
     p.beginPath()
     p.rect(layout.originX, layout.originY, layout.width - layout.originX, layout.height - layout.originY)
     p.clip()
+    // Black and white: charts, shapes and pictures print in greys, dark colours as black (as Excel prints them).
+    if (setup.blackAndWhite) p.filter = "grayscale(1) contrast(1.6)"
     for (const { img, box, from } of images) {
       // Objects in the titles' rows or columns aren't repeated with them, as in Excel.
       const x = colX(sheet, { ...layout, frozen: null }, from.col) + box.x - sheet.cols.offset(from.col)

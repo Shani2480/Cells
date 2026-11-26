@@ -71,6 +71,8 @@ export type CellDrawOptions = {
   controller: SheetController
   theme: GridTheme
   measure: Measure
+  /** Page Setup's Black and white, when printing: no fills, and text and borders in black (Excel). */
+  mono?: boolean
 }
 
 /** Horizontal padding inside a cell. */
@@ -97,7 +99,7 @@ const DESCENT = 0.26
 /** Line height of wrapped text, as a share of the font's pixel size (15 pt rows for 11 pt text). */
 const LINE = 1.36
 
-export function drawCells({ painter: p, layout, controller, theme, measure }: CellDrawOptions) {
+export function drawCells({ painter: p, layout, controller, theme, measure, mono = false }: CellDrawOptions) {
   const { rows, cols, clip } = layout
   if (!rows.length || !cols.length) return
   const sheet = controller.sheet
@@ -105,7 +107,7 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   const editing = controller.edit
   const darkTheme = !prefersDarkText(theme.background)
   /** Explicit colours as the theme shows them (dark mode turns their lightness around). */
-  const paint = (color: string) => (darkTheme ? darkVariant(color) : color)
+  const paint = (color: string) => (mono ? "#000000" : darkTheme ? darkVariant(color) : color)
   // Conditional formatting: what the rules do to each cell, and the look it gives.
   const cfOn = sheet.conditional.length > 0 || controller.conditional.preview !== null
   const cfOf = (r: number, c: number): CFResult | null => (cfOn ? controller.cfAt(r, c) : null)
@@ -181,7 +183,7 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   const textColor = (look: CellLook, shown: Shown) => {
     const fromFormat = formatColor(shown.color)
     if (fromFormat) return paint(fromFormat)
-    if (look.color) return paint(look.color)
+    if (look.color || mono) return paint(look.color ?? "#000000")
     // Automatic text stays readable on whatever fill the cell shows.
     if (look.fill) return prefersDarkText(paint(look.fill)) ? "#000000" : "#ffffff"
     return theme.text
@@ -263,7 +265,7 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
       const cf = cfOf(row.index, col.index)
       const look = lookAt(row.index, col.index, cf)
       const rect = { x: col.start, y: row.start, w: col.size, h: row.size }
-      if (look.fill) fills.push({ rect, color: paint(look.fill) })
+      if (look.fill && !mono) fills.push({ rect, color: paint(look.fill) })
       if (hasBorder(look)) bordered.push({ rect, look, edges: { top: true, bottom: true, left: true, right: true } })
       if (cf?.bar) bars.push({ rect, bar: cf.bar })
       if (cf?.icon) icons.push({ rect, icon: cf.icon })
@@ -312,7 +314,7 @@ export function drawCells({ painter: p, layout, controller, theme, measure }: Ce
   for (const m of merges) {
     const rect = rectOf(m)
     const look = lookAt(m.r0, m.c0)
-    if (look.fill) fills.push({ rect, color: paint(look.fill) })
+    if (look.fill && !mono) fills.push({ rect, color: paint(look.fill) })
     const corner = (r: number, c: number) => lookOf(styles, sheet.styleAt(r, c))
     const edgeLook: CellLook = {
       ...look,

@@ -236,7 +236,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 - [x] 1 Quiet fixes (links with cut/paste and Insert/Delete Cells, Advanced Filter saved, Select locked cells,
       row refit, wheel by rows)
 - [ ] 2 Verify sweep (`docs/verify-list.md`)
-- [ ] 3 Printing and page layout (first/odd/even headers and Options ✅)
+- [ ] 3 Printing and page layout (first/odd/even headers and Options ✅, black and white ✅)
 - [ ] 4 Shapes and text boxes
 - [ ] 6 Proofing
 - [ ] 7 Themes
@@ -281,7 +281,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 - Allow Edit Ranges: Permissions... (Windows users and groups) isn't offered; a file's permissions are kept as read.
   Refers to cells is typed (no collapse-to-pick button yet).
 
-- Page Layout: print titles aren't repeated on each page in the view (they are when printing); the Header & Footer
+- Page Layout: print titles aren't repeated on each page in the view (they are when printing; Excel doesn't
+  repeat them in the view either, as far as known: not changed in Phase 9); the Header & Footer
   tab has no Picture or Format Picture. ~~No Options group (different first page, odd and even pages, scale with
   document, align with margins).~~ Done in Phase 9.
 
@@ -318,7 +319,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 
 - PDF pages are pictures of the pages, so their text can't be selected or searched.
 - Even-page and first-page headers from Excel files are kept but can't be edited.
-- Black and white printing is saved but not applied to the drawing.
+- ~~Black and white printing is saved but not applied to the drawing.~~ Done in Phase 9.
 - Charts: Format tab, Insert Chart dialog, Move Chart, chart sheets.
 - Flash Fill's live suggestion while typing.
 - Sparklines and `.ods` (both marked optional in PLAN.md).
