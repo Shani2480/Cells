@@ -1,5 +1,8 @@
-import { tesseractRecognizer } from "./pdf/ocr"
-import { androidOcr, mlkitRecognizer } from "./pdf/ocr-android"
+import { tesseractPicture, tesseractRecognizer } from "./pdf/ocr"
+import { androidOcr, mlkitPicture, mlkitRecognizer } from "./pdf/ocr-android"
+import { setClipboardImageReader } from "./pdf/picture"
+import { clipboardImageReader } from "./platform/clipboard-image"
+import { setPictureReader } from "./sheet/picture-data"
 import { fileName, setFileReader, setRecognitionSwitch, setRecognizer, setWebPort } from "./sheet/get-data"
 import { updateSettings, useSettings } from "./settings/settings"
 import React from "react"
@@ -23,9 +26,13 @@ const web =
 const platform = isTauri() ? tauriPlatform() : web
 setWebPort(platform.web)
 setFileReader((path) => platform.files.read({ name: fileName(path), path }))
+setClipboardImageReader(clipboardImageReader(isTauri(), platform.os))
 // Text recognition for scanned PDFs follows its setting (opt-in); a prompt can turn it on, which saves the setting.
 // On Android ML Kit reads them (on the device); elsewhere Tesseract in the web view.
-const recognition = (on: boolean) => setRecognizer(on ? (androidOcr() ? mlkitRecognizer : tesseractRecognizer) : null)
+const recognition = (on: boolean) => {
+  setRecognizer(on ? (androidOcr() ? mlkitRecognizer : tesseractRecognizer) : null)
+  setPictureReader(on ? (androidOcr() ? mlkitPicture : tesseractPicture) : null)
+}
 recognition(useSettings.getState().ocrEnabled)
 useSettings.subscribe((s, before) => s.ocrEnabled !== before.ocrEnabled && recognition(s.ocrEnabled))
 setRecognitionSwitch(() => void updateSettings({ ocrEnabled: true }), androidOcr() ? "device" : "computer")

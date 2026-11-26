@@ -11,7 +11,8 @@
 
 /**
  * A run of text on a page: a piece of a line in one font, or a chunk of recognized text. A recognized chunk gives
- * each word's place (`words`); its words stay one cell unless a column edge runs between them.
+ * each word's place (`words`); its words stay one cell unless a column edge runs between them or they're a column's
+ * gap apart.
  */
 export type PdfRun = {
   text: string
@@ -132,7 +133,10 @@ function phrases(line: Line): Word[][] {
   for (const w of line.words) {
     const last = out[out.length - 1]
     const prev = last?.[last.length - 1]
-    if (prev && ((w.chunk !== undefined && w.chunk === prev.chunk) || w.x0 - prev.x1 < cellGap(w))) last.push(w)
+    const gap = prev ? w.x0 - prev.x1 : 0
+    // A recognized chunk's words stay together, unless the gap between them is a column's (a row read as one chunk).
+    if (prev && ((w.chunk !== undefined && w.chunk === prev.chunk && gap < 1.5 * w.size) || gap < cellGap(w)))
+      last.push(w)
     else out.push([w])
   }
   return out

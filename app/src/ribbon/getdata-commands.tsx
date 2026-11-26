@@ -1,4 +1,5 @@
 import { FileText, Globe, Table2 } from "lucide-react"
+import { canReadClipboardImage } from "@/pdf/picture"
 import { forgetRecentSources, message, recentSources, type RecentSource } from "@/sheet/get-data"
 import type { Command, RibbonEnv } from "./registry"
 
@@ -104,6 +105,31 @@ export function getDataCommands(): Command[] {
       description: "Make a query of the selected table or range, to filter, sort and reshape it into a new table.",
       keytip: "T",
       run: (env) => void env.c.getData.fromTable(),
+    },
+    {
+      id: "DataFromPicture",
+      label: "From Picture",
+      description:
+        "Turn a picture of a table, such as a photo or a screenshot, into cells: Cells reads it, and you check it before it goes in.",
+      keytip: "PI",
+      menu: ["DataFromPictureFile", "DataFromPictureClipboard"],
+      enabled: (env) => Boolean(env.files),
+    },
+    {
+      id: "DataFromPictureFile",
+      label: "Picture From File...",
+      description: "Pick a picture of a table to read into cells.",
+      keytip: "F",
+      run: (env) => void env.files?.importPicture(),
+      enabled: (env) => Boolean(env.files),
+    },
+    {
+      id: "DataFromPictureClipboard",
+      label: "Picture From Clipboard",
+      description: "Read the picture you copied, such as a screenshot of a table, into cells.",
+      keytip: "C",
+      run: (env) => void env.files?.pastePicture(),
+      enabled: (env) => Boolean(env.files) && canReadClipboardImage(),
     },
     {
       id: "PowerQueryRecentSources",

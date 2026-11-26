@@ -642,7 +642,7 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       columns; a browser reads the file again only in the session it was picked in; turned and vertical text is left
       out; Excel's other Pdf.Tables options (EnforceBorderLines, StartPage) are kept but not run.
     - ✅ Scanned pages: text recognition on this device, opt-in ("Read scanned PDFs with text recognition" in the
-      setup's AI step and File › Options › AI, `apps.cells.ocr`). Opening a scanned PDF with it off asks once
+      setup's AI step and File › Options › AI, `apps.cells.ocr`; it covers pictures too). Opening a scanned PDF with it off asks once
       ("This PDF is scanned…"); the Navigator's note on unread scan pages has "Read them with text recognition".
       Tesseract (tesseract.js 7, LSTM, English `best_int` model) runs in a worker in the web view, from files Cells
       ships (`vite.config.ts` copies them to `/ocr/`, nothing fetched from the internet; CSP allows wasm). Pages are
@@ -666,8 +666,20 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       the picker's name (it showed "189117"). On the OnePlus Pad: 0.3–0.6 s a page, the demo scans' tables exactly
       right, 1.2 s from picking the file to the Navigator. ML Kit's answers are kept as a fixture
       (`mlkit-scans.json`). Also: Cells' PDF of pictures now says a grey JPEG is grey (Android drew it blank).
-    - ⬜ Data from Picture (Excel's Data › From Picture): a photo or screenshot of a table into cells, through the
-      same recognition and table finder, with a review step before it goes in.
+    - ✅ Data from Picture (Data › From Picture › Picture From File / Picture From Clipboard): a photo or screenshot
+      of a table into cells, read on this device by the same recognizer (Tesseract on the desktop, ML Kit on
+      Android, which reads the file itself so a photo's EXIF turn and HEIC work) and the same table finder (the text
+      sized to 12 points first, so any picture size gives the same columns). The review shows the picture beside an
+      editable grid: the table found, or everything in the picture when there's more (a title, an address); cells
+      recognition wasn't sure of are marked, Next to Check goes through them, and Insert Data asks while any are
+      unchecked. It goes in at the active cell, as typed in the region (currency and spaced numbers as numbers, a
+      leading = kept as text), a date column written in another order than the region's read in that order
+      (13/01/2026 on a US computer), columns widened where needed, one undo step, asking before replacing data.
+      Turning recognition on is asked once (the same switch, now "scanned PDFs and pictures"). Hint "New: Data from
+      a picture" and a Help topic. Checked in the browser (light, dark, phone, a sideways photo with its EXIF turn)
+      and on the OnePlus Pad: a screenshot and the invoice scan read right in about 1.2 s.
+      Limits: Picture From Clipboard is off on Android (no picture clipboard there); no camera capture yet;
+      English / Latin text only; no Excel file part (it only puts in values).
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,

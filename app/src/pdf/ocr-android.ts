@@ -1,6 +1,7 @@
 import type { OcrLine } from "./ocr"
 import { OCR_DPI, runsFromOcr } from "./ocr"
 import type { Recognizer } from "./pdf"
+import type { PictureReader } from "./picture"
 
 /**
  * Text recognition on Android: Google's ML Kit, on the device, through MainActivity's `window.CellsOcr`
@@ -12,6 +13,7 @@ import type { Recognizer } from "./pdf"
 type Bridge = {
   available(): boolean
   recognize(id: string, jpeg: string): void
+  recognizeImage?(id: string, image: string): void
   openPdf?(pdf: string): boolean
   recognizePdfPage?(id: string, index: number, scale: number): void
   closePdf?(): void
@@ -110,4 +112,12 @@ async function fromPicture(
   } finally {
     canvas.width = 0
   }
+}
+
+/** Reads a picture (Data › From Picture) with ML Kit, which opens the file itself (a photo turned upright, HEIC too). */
+export const mlkitPicture: PictureReader = async (image) => {
+  const bridge = androidOcr()
+  if (!bridge?.recognizeImage) throw new Error("Text recognition isn't available on this device.")
+  const data = base64(new Uint8Array(await image.arrayBuffer()))
+  return ask((id) => bridge.recognizeImage?.(id, data))
 }

@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.pdf.PdfRenderer
+import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Base64
 import android.webkit.JavascriptInterface
@@ -53,6 +54,35 @@ class AndroidOcr(private val context: Context, private val webView: WebView) {
       }
     if (bitmap == null) return answer(id, JSONObject().put("error", "The page couldn't be drawn for recognition."))
     read(id, bitmap)
+  }
+
+  /**
+   * Starts reading a picture file's bytes (base64; JPEG, PNG, WebP, HEIC…), for Data › From Picture. ML Kit opens it
+   * itself, so a photo is turned upright as its camera noted. The copy in the cache is removed once it's read.
+   */
+  @JavascriptInterface
+  fun recognizeImage(id: String, image: String) {
+    drawing.execute {
+      val file = File(context.cacheDir, "ocr-picture-$id")
+      val input =
+        try {
+          file.writeBytes(Base64.decode(image, Base64.DEFAULT))
+          InputImage.fromFilePath(context, Uri.fromFile(file))
+        } catch (error: Exception) {
+          null
+        }
+      if (input == null) {
+        file.delete()
+        answer(id, JSONObject().put("error", "Cells can't open this kind of picture. Try a PNG or JPEG."))
+      } else
+        recognizer
+          .process(input)
+          .addOnSuccessListener { text -> answer(id, JSONObject().put("lines", lines(text))) }
+          .addOnFailureListener { error ->
+            answer(id, JSONObject().put("error", error.message ?: "Text recognition failed."))
+          }
+          .addOnCompleteListener { file.delete() }
+    }
   }
 
   /** Keeps the PDF (base64) to draw its pages from. */

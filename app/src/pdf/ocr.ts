@@ -1,5 +1,6 @@
 import type { PdfRun } from "@cells/io"
 import type { Recognizer } from "./pdf"
+import type { PictureReader } from "./picture"
 
 /**
  * Text recognition for scanned PDF pages (opt-in: File › Options › AI): the page drawn at 300 dpi and read by
@@ -180,6 +181,40 @@ export const tesseractRecognizer: Recognizer = async (page, draw) => {
   try {
     const t = await tesseract()
     return { ...page, runs: runsFromOcr(await recognizePage(t, canvas), scale) }
+  } finally {
+    canvas.width = 0
+    release()
+  }
+}
+
+/**
+ * A picture drawn for Tesseract, upright (createImageBitmap turns a photo as its camera noted). A screenshot is
+ * enlarged (Tesseract reads text about 30 pixels high best, a screen's is 12 to 16) and a large photo made smaller.
+ */
+async function pictureCanvas(image: Blob): Promise<HTMLCanvasElement> {
+  const bitmap = await createImageBitmap(image).catch(() => {
+    throw new Error("Cells can't open this kind of picture. Try a PNG or JPEG.")
+  })
+  const long = Math.max(bitmap.width, bitmap.height)
+  const scale = long < 2000 ? Math.min(3, 2400 / long) : long > 4200 ? 4200 / long : 1
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("The picture can't be drawn here.")
+  ctx.fillStyle = "#fff"
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  return canvas
+}
+
+/** Reads a picture (Data › From Picture) with Tesseract. */
+export const tesseractPicture: PictureReader = async (image) => {
+  const canvas = await pictureCanvas(image)
+  try {
+    return await recognizePage(await tesseract(), canvas)
   } finally {
     canvas.width = 0
     release()

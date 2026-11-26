@@ -321,7 +321,7 @@ export const DATA: Tab = {
           S("GetPowerQueryDataFromWeb"),
           S("GetPowerQueryGetTransformDataFromTable"),
         ),
-        smalls(S("PowerQueryRecentSources"), S("GetTransformExistingConnections")),
+        smalls(S("DataFromPicture"), S("PowerQueryRecentSources"), S("GetTransformExistingConnections")),
       ],
     },
     {

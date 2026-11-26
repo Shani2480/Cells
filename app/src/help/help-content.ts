@@ -48,6 +48,11 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     keywords:
       "pdf import table statement invoice bank extract recognize scan scanned ocr text recognition get data navigator",
   },
+  "data-from-picture": {
+    where: "Data › From Picture › Picture From File or Picture From Clipboard",
+    command: "DataFromPicture",
+    keywords: "picture photo screenshot image camera table ocr text recognition scan read convert data from picture",
+  },
   "chart-format": {
     where: "Format, beside Chart Design (select a chart first)",
     keywords:

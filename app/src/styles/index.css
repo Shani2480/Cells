@@ -5885,3 +5885,91 @@ button.rel-row:hover,
   display: flex;
   gap: 8px;
 }
+
+/* Data › From Picture: the picture beside the editable grid (stacked on a narrow screen). */
+.picture-dialog {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  height: min(62vh, 560px);
+}
+
+.picture-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.picture-image {
+  max-width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  align-self: flex-start;
+  border: 1px solid var(--app-field-border);
+  background: #fff;
+}
+
+.picture-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 24px 12px;
+  border: 1px dashed var(--app-field-border);
+  color: var(--app-ribbon-muted);
+  text-align: center;
+}
+
+.picture-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.picture-side .dialog-note {
+  margin: 0;
+}
+
+.picture-pane {
+  overflow: auto;
+  min-width: 0;
+  border: 1px solid var(--app-field-border);
+}
+
+.picture-grid td {
+  padding: 0;
+}
+
+.picture-grid input {
+  width: 100%;
+  min-width: 3ch;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.picture-grid input:focus {
+  outline: 2px solid var(--app-theme-primary);
+  outline-offset: -2px;
+}
+
+.picture-status {
+  margin-right: auto;
+}
+
+@media (max-width: 640px) {
+  .picture-dialog {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: min(70vh, 640px);
+  }
+
+  .picture-image {
+    max-height: 180px;
+  }
+}

@@ -185,6 +185,10 @@ export function setRecognitionSwitch(on: (() => void) | null, place = "computer"
   recognitionPlace = place
 }
 
+/** How text recognition is turned on, and where it runs, for prompts elsewhere (Data › From Picture). */
+export const recognitionSwitch = (): { on: () => void; place: string } | null =>
+  turnOnRecognition ? { on: turnOnRecognition, place: recognitionPlace } : null
+
 /** A file read again from its path; null where it can't be (moved, or a browser that only knows its name). */
 async function readFile(path: string): Promise<Uint8Array | null> {
   try {

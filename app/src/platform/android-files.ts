@@ -38,6 +38,14 @@ const MIME: Record<string, string> = {
   tsv: "text/tab-separated-values",
   txt: "text/plain",
   pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  gif: "image/gif",
+  heic: "image/heic",
+  heif: "image/heif",
 }
 
 export const mimeTypeOf = (extension: string) => MIME[extension.toLowerCase()] ?? "application/octet-stream"

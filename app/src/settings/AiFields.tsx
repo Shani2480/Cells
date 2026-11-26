@@ -42,8 +42,10 @@ export function AiFields({ value, onChange, compact = false }: FieldsProps & { c
   const recognition = (
     <label className="settings-check">
       <input type="checkbox" checked={value.ocrEnabled} onChange={(e) => onChange({ ocrEnabled: e.target.checked })} />
-      Read scanned PDFs with text recognition on this {platform.os === "android" ? "device" : "computer"} (nothing is
-      sent anywhere)
+      Read scanned PDFs and pictures with text recognition on this {platform.os === "android"
+        ? "device"
+        : "computer"}{" "}
+      (nothing is sent anywhere)
     </label>
   )
 

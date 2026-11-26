@@ -82,6 +82,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     target: "Get Data",
   },
   {
+    id: "data-from-picture",
+    title: "New: Data from a picture",
+    text: "Data › From Picture turns a photo or a screenshot of a table into cells. Cells reads it right here, nothing sent anywhere, and shows you what it read beside the picture, with anything it wasn't sure of marked, before it goes in.",
+    target: "From Picture",
+  },
+  {
     id: "chart-sheets",
     title: "New: A chart on a sheet of its own",
     text: "Move Chart puts the chart on a chart sheet, where it fills the window and prints across the page. F11 makes one straight from the selected data, and Excel opens it as a chart sheet too.",

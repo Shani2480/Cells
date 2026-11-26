@@ -28,6 +28,11 @@ export const TEXT_TYPES: FileType[] = [{ name: "Text Files", extensions: TEXT_EX
 /** Data › Get Data › From PDF. */
 export const PDF_TYPES: FileType[] = [{ name: "PDF Files", extensions: ["pdf"] }]
 
+/** Data › From Picture's file types (HEIC and HEIF: phone photos; Android reads them). */
+export const PICTURE_TYPES: FileType[] = [
+  { name: "Pictures", extensions: ["png", "jpg", "jpeg", "webp", "bmp", "gif", "heic", "heif"] },
+]
+
 /** The Open dialog's types; the first (everything Cells opens) is the default. */
 export const OPEN_TYPES: FileType[] = [
   { name: "All Excel Files", extensions: [...PACKAGE_EXTENSIONS, ...OLD_EXTENSIONS, ...TEXT_EXTENSIONS] },

@@ -173,6 +173,7 @@ import { MoveChartDialog } from "@/shell/MoveChartDialog"
 import { ChartFormatPane } from "@/shell/ChartFormatPane"
 import { InsertChartDialog, type ChartDialogStart } from "@/shell/InsertChartDialog"
 import { ExistingConnectionsDialog, FromWebDialog, NavigatorDialog } from "@/shell/GetDataDialogs"
+import { PictureDataDialog } from "@/shell/PictureDataDialog"
 import { QueryEditorDialog } from "@/shell/QueryEditorDialog"
 import { DataModelDialog, RelationshipsDialog } from "@/shell/DataModelDialogs"
 import { SignatureSetupDialog } from "@/shell/SignatureSetupDialog"
@@ -239,6 +240,7 @@ type DialogState =
         | "queryEditor"
         | "queryNavigator"
         | "fromWeb"
+        | "dataFromPicture"
         | "existingConnections"
         | "relationships"
         | "moveChart"
@@ -1159,6 +1161,7 @@ function WorkbookWindow({
       kind === "queryEditor" ||
       kind === "queryNavigator" ||
       kind === "fromWeb" ||
+      kind === "dataFromPicture" ||
       kind === "existingConnections" ||
       kind === "relationships" ||
       kind === "moveChart" ||
@@ -1863,6 +1866,9 @@ function WorkbookWindow({
         {dialog?.kind === "queryEditor" ? <QueryEditorDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "queryNavigator" ? <NavigatorDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "fromWeb" ? <FromWebDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "dataFromPicture" ? (
+          <PictureDataDialog controller={controller} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "relationships" ? (
           <RelationshipsDialog controller={controller} onClose={closeDialog} onManage={() => openDialog("dataModel")} />
         ) : null}

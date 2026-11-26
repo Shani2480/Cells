@@ -13,11 +13,13 @@ import {
   saveTypes,
   TEXT_EXTENSIONS,
   PDF_TYPES,
+  PICTURE_TYPES,
   TEXT_TYPES,
   titleOf,
   type WorkbookDocument,
 } from "./document"
-import { fileNameOf } from "@/platform/android-files"
+import { readClipboardImage } from "@/pdf/picture"
+import { fileNameOf, mimeTypeOf } from "@/platform/android-files"
 import { message } from "@/sheet/get-data"
 import { breakLinkOps, linkPaths, readLink, updateLinkOps, type SourceBook } from "@/sheet/links"
 import { newQueryTable, refreshOps, sourceName, textCells } from "@/sheet/queries"
@@ -402,6 +404,40 @@ export class FileCommands {
       return true
     } catch (error) {
       this.doc.controller.shell.alert(`Cells couldn't read ${picked.ref.name}. ${message(error)}`)
+      return false
+    }
+  }
+
+  /** Data › From Picture › Picture From File: a picture of a table, read for review. */
+  async importPicture(): Promise<boolean> {
+    let picked: { ref: FileRef; bytes: Uint8Array } | null
+    try {
+      picked = await this.files.pickOpen(PICTURE_TYPES)
+    } catch (error) {
+      this.ui.problem(classifyOpenError(error, null, "the picture"))
+      return false
+    }
+    if (!picked) return false
+    const type = mimeTypeOf(picked.ref.name.split(".").pop() ?? "")
+    return this.readPicture(new Blob([picked.bytes as BlobPart], { type }), picked.ref.name)
+  }
+
+  /** Data › From Picture › Picture From Clipboard. */
+  async pastePicture(): Promise<boolean> {
+    const image = await readClipboardImage().catch(() => null)
+    if (!image) {
+      this.doc.controller.shell.alert("There's no picture on the clipboard. Copy a picture or a screenshot first.")
+      return false
+    }
+    return this.readPicture(image, "the picture")
+  }
+
+  private async readPicture(image: Blob, name: string): Promise<boolean> {
+    try {
+      await this.doc.controller.pictureData.fromPicture(image)
+      return true
+    } catch (error) {
+      this.doc.controller.shell.alert(`Cells couldn't read ${name}. ${message(error)}`)
       return false
     }
   }

@@ -7,6 +7,7 @@ import { EN_US } from "@cells/core"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { numberFrom } from "@/sheet/power-query"
 import { recognizePage, runsFromOcr, type OcrEngine } from "./ocr"
+import { pictureTables } from "./picture"
 
 /** Scans of the demo statement's first page and the demo invoice: 300 dpi, grey, a little tilted, blurred, grainy. */
 const fixture = (name: string) => readFileSync(join(__dirname, "../../../packages/io/test/fixtures/pdf", name))
@@ -52,5 +53,13 @@ describe("From PDF on scanned pages", () => {
       [4, 35, 140],
       [2, 18.5, 37],
     ])
+  }, 60_000)
+
+  it("reads a picture of a table (Data from Picture) the same way", async () => {
+    const lines = await recognizePage(worker as unknown as OcrEngine, fixture("scan-invoice.jpg"))
+    const { table, whole } = pictureTables(lines)
+    expect(table.rows[0]).toEqual(["Item", "Description", "Qty", "Price", "Total"])
+    expect(table.rows.map((r) => r[0])).toEqual(["Item", "A-100", "A-210", "B-007", "C-300"])
+    expect(whole?.rows[0][0]).toMatch(/^Invoice/)
   }, 60_000)
 })
