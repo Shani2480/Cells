@@ -1,4 +1,15 @@
-import { rangeIntersection, type CellData, type CellWrite, type Op, type Sheet } from "@cells/core"
+import {
+  MAX_COLS,
+  MAX_ROWS,
+  rangeIntersection,
+  type AxisEntry,
+  type CellData,
+  type CellWrite,
+  type Op,
+  type Range,
+  type Sheet,
+  type StyleRecord,
+} from "@cells/core"
 import type { SheetController } from "./controller"
 
 /**
@@ -216,10 +227,39 @@ export class SheetGroup {
           }
       }
       if (cells.length) ops.push({ kind: "setCells", sheet: g, cells })
+      // Whole rows or columns take their format and size with them (Excel 365 copies both with All and Formats).
+      if (what !== "contents") ops.push(...lineOps(from, to, g, c.selection.ranges))
     }
     if (!ops.length) return
     c.transact(ops, { label: "Fill Across Worksheets", before: c.selection, after: c.selection, perSheet: true })
   }
+}
+
+/** The row and column formats and sizes Fill Across Worksheets copies for whole rows and columns in `ranges`. */
+function lineOps(from: Sheet, to: Sheet, sheet: number, ranges: readonly Range[]): Op[] {
+  const ops: Op[] = []
+  const record: StyleRecord = { cells: [], rows: [], cols: [] }
+  for (const axis of ["rows", "cols"] as const) {
+    const entries: AxisEntry[] = []
+    const styles = axis === "rows" ? record.rows : record.cols
+    const [src, dst] = axis === "rows" ? [from.rows, to.rows] : [from.cols, to.cols]
+    const [srcStyles, dstStyles] = axis === "rows" ? [from.rowStyles, to.rowStyles] : [from.colStyles, to.colStyles]
+    for (const r of ranges) {
+      const whole = axis === "rows" ? r.c0 === 0 && r.c1 === MAX_COLS - 1 : r.r0 === 0 && r.r1 === MAX_ROWS - 1
+      if (!whole) continue
+      const [lo, hi] = axis === "rows" ? [r.r0, r.r1] : [r.c0, r.c1]
+      for (let i = lo; i <= hi; i++) {
+        const style = srcStyles.get(i)
+        if (style !== dstStyles.get(i)) styles.push(i, style)
+        const size = src.hasCustomSize(i) ? src.storedSize(i) : null
+        if (size !== (dst.hasCustomSize(i) ? dst.storedSize(i) : null))
+          entries.push({ index: i, size, hidden: dst.isHidden(i) })
+      }
+    }
+    if (entries.length) ops.push({ kind: "axis", sheet, axis, entries })
+  }
+  if (record.rows.length || record.cols.length) ops.push({ kind: "styles", sheet, record })
+  return ops
 }
 
 /** One cell after Fill Across Worksheets: `source` from the active sheet over `target`. */

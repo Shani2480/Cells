@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { MAX_COLS } from "@cells/core"
 import { SheetController, type KeyInput } from "./controller"
 import { GROUP_MESSAGE } from "./group"
 
@@ -108,6 +109,25 @@ describe("grouped sheets", () => {
     expect(c.wb.sheets[1].cells.get(0, 0)?.style ?? 0).toBe(0)
     c.group.fillAcross("formats")
     expect(c.wb.sheets[1].cells.get(0, 0)?.style).toBe(c.wb.sheets[0].cells.get(0, 0)?.style)
+  })
+
+  it("Fill Across Worksheets on a whole row copies its format and height too (Excel 365)", () => {
+    const c = setup(2)
+    c.beginEdit("enter", "x")
+    press(c, "Enter")
+    c.selection = { ...c.selection, ranges: [{ r0: 0, c0: 0, r1: 0, c1: MAX_COLS - 1 }], active: { row: 0, col: 0 } }
+    c.format.toggle("bold")
+    c.setLineSize("rows", [0], 40)
+    c.group.selectAll()
+    c.group.fillAcross("all")
+    const [one, two] = c.wb.sheets
+    expect(two.cells.value(0, 0)).toBe("x")
+    expect(two.rowStyles.get(0)).toBe(one.rowStyles.get(0))
+    expect(two.rowStyles.get(0)).not.toBe(0)
+    expect(two.rows.storedSize(0)).toBe(40)
+    c.undo()
+    expect(two.rowStyles.get(0)).toBe(0)
+    expect(two.rows.hasCustomSize(0)).toBe(false)
   })
 
   it("grouped sheets are saved as selected and open grouped", () => {
