@@ -147,3 +147,20 @@ describe("the worker opening an .xls", () => {
     expect(cells.find((c) => c.sheet === 0 && c.row === 5 && c.col === 3)?.value).toBe("big!")
   })
 })
+
+describe("the worker opening an .ods", () => {
+  it("calculates it and sends the values, as Excel recalculates an .ods on opening", async () => {
+    const { readFileSync } = await import("node:fs")
+    const { join } = await import("node:path")
+    const bytes = new Uint8Array(
+      readFileSync(join(__dirname, "../../../packages/io/test/fixtures/ods/libreoffice-demo.ods")),
+    )
+    const sent: FromWorker[] = []
+    const engine = createEngine((m) => sent.push(m))
+    engine({ type: "open", bytes, name: "Sales.ods" })
+    await vi.waitFor(() => expect(sent.length).toBeGreaterThan(0))
+    const values = sent.flatMap((m) => m.patch.cells).map((c) => c.value)
+    // What changed: a sum LibreOffice saved to 15 digits, calculated in full.
+    expect(values).toContain(629.3000000000001)
+  })
+})

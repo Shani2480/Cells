@@ -1,9 +1,14 @@
 import { Workbook, type Selection } from "@cells/core"
 import {
   openText,
+  openOds,
   openXls,
+  openXlsb,
   openXlsx,
+  OdsError,
+  XlsbError,
   XlsError,
+  saveOds,
   saveText,
   saveXlsx,
   textSaveFor,
@@ -21,6 +26,18 @@ export const PACKAGE_EXTENSIONS = ["xlsx", "xlsm", "xltx", "xltm"]
 export const TEXT_EXTENSIONS = ["csv", "txt", "tsv"]
 /** Excel 97-2003 workbooks: Cells opens them as a new .xlsx (it doesn't write .xls), as Excel's Convert does. */
 export const OLD_EXTENSIONS = ["xls"]
+/** Excel Binary Workbooks: opened as a new .xlsx (.xlsm with macros), as .xls are. */
+export const BINARY_EXTENSIONS = ["xlsb"]
+/** OpenDocument Spreadsheets (LibreOffice, Google Sheets): opened and saved as they are. */
+export const ODS_EXTENSIONS = ["ods"]
+/** Everything Open reads. */
+export const OPEN_EXTENSIONS = [
+  ...PACKAGE_EXTENSIONS,
+  ...BINARY_EXTENSIONS,
+  ...OLD_EXTENSIONS,
+  ...ODS_EXTENSIONS,
+  ...TEXT_EXTENSIONS,
+]
 
 /** Text files Cells opens: CSV opens at once; .txt and .tsv go through the Text Import Wizard, as in Excel. */
 export const TEXT_TYPES: FileType[] = [{ name: "Text Files", extensions: TEXT_EXTENSIONS }]
@@ -35,11 +52,13 @@ export const PICTURE_TYPES: FileType[] = [
 
 /** The Open dialog's types; the first (everything Cells opens) is the default. */
 export const OPEN_TYPES: FileType[] = [
-  { name: "All Excel Files", extensions: [...PACKAGE_EXTENSIONS, ...OLD_EXTENSIONS, ...TEXT_EXTENSIONS] },
+  { name: "All Excel Files", extensions: OPEN_EXTENSIONS },
   { name: "Excel Workbook", extensions: ["xlsx"] },
   { name: "Excel Macro-Enabled Workbook", extensions: ["xlsm"] },
+  { name: "Excel Binary Workbook", extensions: ["xlsb"] },
   { name: "Excel 97-2003 Workbook", extensions: ["xls"] },
   { name: "Excel Template", extensions: ["xltx", "xltm"] },
+  { name: "OpenDocument Spreadsheet", extensions: ["ods"] },
   ...TEXT_TYPES,
 ]
 
@@ -51,6 +70,7 @@ export function saveTypes(fileName: string): FileType[] {
     { name: "Excel Template", extensions: ["xltx"] },
     { name: "CSV UTF-8 (Comma delimited)", extensions: ["csv"] },
     { name: "Text (Tab delimited)", extensions: ["txt"] },
+    { name: "OpenDocument Spreadsheet", extensions: ["ods"] },
   ]
   const own = types.findIndex((t) => t.extensions.includes(extensionOf(fileName)))
   return own > 0 ? [types[own], ...types.filter((_, i) => i !== own)] : types
@@ -58,6 +78,7 @@ export function saveTypes(fileName: string): FileType[] {
 
 export const extensionOf = (name: string) => /\.([^.]+)$/.exec(name)?.[1]?.toLowerCase() ?? ""
 export const isTextFile = (name: string) => TEXT_EXTENSIONS.includes(extensionOf(name))
+export const isOdsFile = (name: string) => ODS_EXTENSIONS.includes(extensionOf(name))
 /** The name an .xlsx copy of the workbook takes (AutoRecover keeps one even for a CSV). */
 export const packageName = (fileName: string) =>
   PACKAGE_EXTENSIONS.includes(extensionOf(fileName)) ? fileName : `${titleOf(fileName)}.xlsx`
@@ -89,6 +110,8 @@ export class WorkbookDocument {
    * workbook from Word.
    */
   embeddedFor: string | null = null
+  /** Said yes to "Some features might be lost" for OpenDocument, so Save doesn't ask again. */
+  odsAccepted = false
   readonly warnings: string[]
   /** View › New Window's windows; `controller` is the active one. */
   readonly windows: DocumentWindows
@@ -153,6 +176,7 @@ export class WorkbookDocument {
     const c = this.controller
     if (c.edit) c.commitEdit()
     if (isTextFile(fileName)) return saveText(c.wb, c.sheetIndex, this.textSave(fileName))
+    if (isOdsFile(fileName)) return saveOds(c.wb, { views: c.saveViews(), activeSheet: c.sheetIndex })
     return saveXlsx(c.wb, {
       source: this.source,
       fileName,
@@ -212,8 +236,7 @@ export async function openDocument(
   text?: Partial<TextImport>,
 ): Promise<WorkbookDocument> {
   const ext = extensionOf(ref.name)
-  if (![...PACKAGE_EXTENSIONS, ...OLD_EXTENSIONS, ...TEXT_EXTENSIONS].includes(ext))
-    throw new FileProblem("type", ref.name)
+  if (!OPEN_EXTENSIONS.includes(ext)) throw new FileProblem("type", ref.name)
   let last = 0
   const options = {
     calculate: !worker,
@@ -248,6 +271,32 @@ export async function openDocument(
       ...read.warnings,
     ]
     return new WorkbookDocument(controller, { ref: null, fileName: `${titleOf(ref.name)}.xlsx`, warnings }, calc)
+  }
+  if (BINARY_EXTENSIONS.includes(ext)) {
+    const read = await openXlsb(bytes, ref.name, options)
+    const wb = read.workbook as unknown as Workbook<Selection>
+    const controller = new SheetController(wb)
+    controller.loadViews(read.views, read.activeSheet)
+    const calc = worker ? startCalculation(wb, { bytes, name: ref.name }) : null
+    // A converted copy, as with an .xls: Save makes an .xlsx (an .xlsm when it has macros) and leaves the .xlsb be.
+    const kind = read.macros ? "xlsm" : "xlsx"
+    const warnings = [
+      `${ref.name} is an Excel Binary Workbook. Cells opened a copy; saving it makes an .${kind} and leaves the .xlsb as it was.`,
+      ...read.warnings,
+    ]
+    return new WorkbookDocument(
+      controller,
+      { ref: null, fileName: `${titleOf(ref.name)}.${kind}`, source: read.source, warnings },
+      calc,
+    )
+  }
+  if (ODS_EXTENSIONS.includes(ext)) {
+    const read = await openOds(bytes, ref.name, options)
+    const wb = read.workbook as unknown as Workbook<Selection>
+    const controller = new SheetController(wb)
+    controller.loadViews(read.views, read.activeSheet)
+    const calc = worker ? startCalculation(wb, { bytes, name: ref.name }) : null
+    return new WorkbookDocument(controller, { ref, fileName: ref.name, warnings: read.warnings }, calc)
   }
   const read = await openXlsx(bytes, ref.name, options)
   const wb = read.workbook as unknown as Workbook<Selection>
@@ -302,7 +351,8 @@ export function problemMessage(kind: FileProblem["kind"], name: string): string 
 export function classifyOpenError(error: unknown, bytes: Uint8Array | null, name: string): FileProblem {
   if (error instanceof FileProblem) return error
   const detail = error instanceof Error ? error.message : String(error)
-  if (error instanceof XlsError) return new FileProblem(error.kind, name, detail)
+  if (error instanceof XlsError || error instanceof XlsbError || error instanceof OdsError)
+    return new FileProblem(error.kind, name, detail)
   // A compound (OLE) file named .xlsx: encrypted (an .xls opens through its own reader).
   if (bytes && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0)
     return new FileProblem(extensionOf(name) === "xls" ? "damaged" : "encrypted", name, detail)

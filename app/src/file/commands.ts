@@ -1,10 +1,11 @@
 import { allQueryTables, type Op } from "@cells/core"
-import { openXls, openXlsx, sheetNameFor, type TextImport } from "@cells/io"
+import { openOds, openXls, openXlsb, openXlsx, sheetNameFor, type TextImport } from "@cells/io"
 import type { FilePort, FileRef } from "@cells/platform"
 import {
   classifyOpenError,
   extensionOf,
   FileProblem,
+  isOdsFile,
   isTextFile,
   newDocument,
   openDocument,
@@ -48,6 +49,10 @@ export interface FileUi {
 /** Excel's message when a workbook of several sheets is saved as CSV or text. */
 /** How long after a change a chart's workbook (Edit Data) is saved back for Inkspire. */
 export const EMBEDDED_SAVE_MS = 800
+
+/** Excel's message before saving as OpenDocument (asked once per workbook, as Excel asks once per session). */
+export const ODS_MESSAGE =
+  "Some features in your workbook might be lost if you save it as OpenDocument Spreadsheet. Do you want to keep using that format?"
 
 export const ONE_SHEET_MESSAGE =
   "The selected file type does not support workbooks that contain multiple sheets. To save only the active sheet, click OK. To save all sheets, save them one at a time under different file names, or choose a file type that supports multiple sheets."
@@ -269,6 +274,11 @@ export class FileCommands {
     // CSV and text hold one sheet: Excel saves the active one after asking.
     if (isTextFile(ref.name) && doc.controller.wb.sheets.length > 1 && !(await this.ui.confirm(ONE_SHEET_MESSAGE)))
       return false
+    // OpenDocument has no charts, pictures, tables, conditional formats or validation as Cells keeps them.
+    if (isOdsFile(ref.name) && !doc.odsAccepted) {
+      if (!(await this.ui.confirm(ODS_MESSAGE))) return false
+      doc.odsAccepted = true
+    }
     this.busy = true
     if (!quiet) this.ui.progress({ label: `Saving ${ref.name}`, done: null })
     try {
@@ -558,6 +568,8 @@ export class FileCommands {
     try {
       const ext = extensionOf(name)
       if (ext === "xls") return (await openXls(bytes, name, { calculate: false })).workbook
+      if (ext === "xlsb") return (await openXlsb(bytes, name, { calculate: false })).workbook
+      if (ext === "ods") return (await openOds(bytes, name, { calculate: false })).workbook
       return (await openXlsx(bytes, name, { calculate: false })).workbook
     } catch (error) {
       this.ui.problem(classifyOpenError(error, bytes, name))

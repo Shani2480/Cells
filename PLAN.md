@@ -274,7 +274,7 @@ Phase 1.
 7. Printing/PDF: page setup, print area, titles, headers/footers, Page Layout view, export to PDF.
 
 **Status (2026-11-15):** items 1–7 are built and committed. Left out for later: Page Layout view and Page Break
-Preview, sparklines, the chart Format tab and `.ods`. PDF pages are images (with searchable text since Phase 8). What's left to check
+Preview, sparklines and the chart Format tab (`.ods` came in Phase 8). PDF pages are images (with searchable text since Phase 8). What's left to check
 by hand is in `docs/verify-list.md`, and the remaining steps are in `docs/next-todo.md`. Phase 4 is done; the summary
 is in `docs/changes.md`.
 
@@ -713,7 +713,24 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     Limits: no Flash Fill Options button after it (Undo / Accept / Select changed cells); the offer comes from the
     cheapest pattern the examples fit (Excel weighs several); Excel's exact rule for when the grey appears isn't
     published, so it may show sooner or later than Excel's.
-  - ⬜ .xlsb and .ods.
+  - ✅ .xlsb and .ods. **Excel Binary Workbooks** open as a copy that saves as .xlsx (.xlsm when it has macros), as
+    .xls do: the BIFF12 records are written out as the SpreadsheetML they stand for and read by the .xlsx reader, so
+    values, formulas (shared, array and dynamic, tables' structured references, 3-D and names), styles, sizes,
+    merges, notes, links, names, panes, tables, hidden sheets and page setup come along; checked against Excel's
+    .xlsx of the same workbooks. **OpenDocument Spreadsheets** open as themselves and save back (Save As ›
+    OpenDocument Spreadsheet; Save asks "Some features … might be lost" once per workbook, as Excel does): values,
+    OpenFormula formulas (`;`, `|`, `~`, `!`, `COM.MICROSOFT.`, LET's `_xlpm.` names, renamed functions), cell styles
+    and number formats, column widths and row heights, hidden rows/columns/sheets, tab colours, merges, notes,
+    links, named ranges and expressions, print ranges, frozen panes, zoom and gridlines; everything recalculates on
+    opening, as Excel does. Reading checked against Excel's and LibreOffice's .ods of one workbook; what Cells
+    writes opened in LibreOffice and in Excel and compared cell by cell. Open/Save types, desktop file
+    associations and Android's Open with list both.
+    Limits: .xlsb rich-text runs are dropped, and conditional formats, data validation, pivot tables, external links
+    and connections don't open (a warning says so). .ods charts, pictures, shapes, conditional formats, validation
+    and DataPilot tables don't open (a warning says so) and aren't saved; tables save as plain ranges with their
+    structured references written as the cells they stand for (as Excel does); a spilled-range reference (A1#)
+    saves as its value. LibreOffice sizes columns and fitted rows with its own fonts, so they can differ by a few
+    pixels; an intersection that spills (`=H1:H3 H2:H5`) is #VALUE! in LibreOffice, #SPILL! in Excel.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

@@ -39,7 +39,7 @@ export function formulaToFile(input: string): string {
 }
 
 /** Names LET declares (its 1st, 3rd, … arguments) and LAMBDA's parameters (every argument but the last). */
-function letNames(tokens: ReturnType<typeof tokenize>): Set<string> {
+export function letNames(tokens: ReturnType<typeof tokenize>): Set<string> {
   const names = new Set<string>()
   // A function name is followed by its own "(" token: the bracket opens that function's argument list.
   const stack: { kind: "let" | "lambda" | null; arg: number }[] = []

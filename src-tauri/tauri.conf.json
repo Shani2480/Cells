@@ -115,6 +115,22 @@
         "rank": "Alternate"
       },
       {
+        "ext": ["xlsb"],
+        "name": "Excel Binary Workbook",
+        "description": "Excel Binary Workbook",
+        "role": "Editor",
+        "mimeType": "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["ods"],
+        "name": "OpenDocument Spreadsheet",
+        "description": "OpenDocument Spreadsheet",
+        "role": "Editor",
+        "mimeType": "application/vnd.oasis.opendocument.spreadsheet",
+        "rank": "Alternate"
+      },
+      {
         "ext": ["csv"],
         "name": "CSV File",
         "description": "Comma-separated values",

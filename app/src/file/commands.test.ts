@@ -2,7 +2,7 @@ import { decodeText, defaultImport, saveXlsx, type TextImport } from "@cells/io"
 import { linkKey, Workbook } from "@cells/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { MemoryFiles } from "@/test/memory-files"
-import { EMBEDDED_SAVE_MS, FileCommands, type FileUi, type SaveChoice } from "./commands"
+import { EMBEDDED_SAVE_MS, FileCommands, ODS_MESSAGE, type FileUi, type SaveChoice } from "./commands"
 import { newDocument, type WorkbookDocument } from "./document"
 
 function setup(answer: SaveChoice = "cancel", wizard: Partial<TextImport> | null = {}, ok = true) {
@@ -201,6 +201,36 @@ describe("FileCommands", () => {
     const sheet = shown.at(-1)!.controller.wb.sheets[0]
     expect(sheet.cells.get(1, 0)?.value).toBe("007")
     expect(sheet.cells.get(1, 1)?.value).toBe(2)
+  })
+
+  it("Save As OpenDocument asks once, writes an .ods, and Save keeps it one", async () => {
+    const no = setup("cancel", {}, false)
+    no.files.nextSave = "/home/alex/Budget.ods"
+    expect(await no.commands.saveAs()).toBe(false)
+    expect(no.ui.confirms).toEqual([ODS_MESSAGE])
+    expect(no.files.writes).toEqual([])
+
+    const { files, ui, commands } = setup()
+    enter(commands.doc, "Rent")
+    files.nextSave = "/home/alex/Budget.ods"
+    expect(await commands.saveAs()).toBe(true)
+    const bytes = files.disk.get("/home/alex/Budget.ods")!
+    expect(new TextDecoder().decode(bytes.slice(30, 84))).toBe("mimetypeapplication/vnd.oasis.opendocument.spreadsheet")
+    expect(commands.doc.fileName).toBe("Budget.ods")
+    enter(commands.doc, "Rent and power")
+    expect(await commands.save()).toBe(true)
+    expect(ui.confirms).toEqual([ODS_MESSAGE])
+
+    // It opens again as the .ods it is.
+    files.nextOpen = "/home/alex/Budget.ods"
+    const again = setup()
+    again.files.disk.set("/home/alex/Budget.ods", files.disk.get("/home/alex/Budget.ods")!)
+    again.files.nextOpen = "/home/alex/Budget.ods"
+    expect(await again.commands.open()).toBe(true)
+    const doc = again.shown.at(-1)!
+    expect(doc.fileName).toBe("Budget.ods")
+    expect(doc.ref?.path).toBe("/home/alex/Budget.ods")
+    expect(doc.controller.wb.sheets[0].cells.value(0, 0)).toBe("Rent and power")
   })
 
   it("saving several sheets as CSV asks first and writes the active sheet", async () => {

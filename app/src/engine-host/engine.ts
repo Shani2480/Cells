@@ -1,5 +1,5 @@
 import { takePatch, Workbook } from "@cells/core"
-import { openText, openXls, openXlsx } from "@cells/io"
+import { openOds, openText, openXls, openXlsb, openXlsx } from "@cells/io"
 import type { FromWorker, ToWorker } from "./protocol"
 
 /**
@@ -21,7 +21,11 @@ export function createEngine(send: (message: FromWorker) => void) {
             ? (await openText(message.bytes, message.name, { ...message.text, calculate: false })).workbook
             : /\.xls$/i.test(message.name)
               ? (await openXls(message.bytes, message.name, { calculate: false })).workbook
-              : (await openXlsx(message.bytes, message.name, { calculate: false })).workbook
+              : /\.xlsb$/i.test(message.name)
+                ? (await openXlsb(message.bytes, message.name, { calculate: false })).workbook
+                : /\.ods$/i.test(message.name)
+                  ? (await openOds(message.bytes, message.name, { calculate: false })).workbook
+                  : (await openXlsx(message.bytes, message.name, { calculate: false })).workbook
         } catch {
           wb = new Workbook()
         }

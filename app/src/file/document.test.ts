@@ -28,6 +28,52 @@ describe("an Excel 97-2003 workbook (.xls)", () => {
   })
 })
 
+const fixture = (path: string) =>
+  new Uint8Array(readFileSync(join(__dirname, "../../../packages/io/test/fixtures/", path)))
+
+describe("an Excel Binary Workbook (.xlsb)", () => {
+  it("opens as an unsaved .xlsx copy, saying so first", async () => {
+    const doc = await openDocument(
+      fixture("xlsb/demo.xlsb"),
+      { name: "Sales.xlsb", path: "/home/alex/Sales.xlsb" },
+      undefined,
+      false,
+    )
+    expect(doc.ref).toBeNull()
+    expect(doc.fileName).toBe("Sales.xlsx")
+    expect(doc.warnings[0]).toMatch(/Excel Binary Workbook.*\.xlsx/)
+    expect(doc.controller.wb.sheets.map((s) => s.name)).toEqual(["Sales", "Rates"])
+    const bytes = await doc.bytes()
+    expect([bytes[0], bytes[1]]).toEqual([0x50, 0x4b])
+    doc.close()
+  })
+
+  it("explains one it can't read", async () => {
+    const broken = fixture("xlsb/demo.xlsb").slice(0, 400)
+    const error = await openDocument(broken, { name: "Old.xlsb", path: "/home/alex/Old.xlsb" }, undefined, false).catch(
+      (e: unknown) => e,
+    )
+    expect(classifyOpenError(error, broken, "Old.xlsb").kind).toBe("damaged")
+  })
+})
+
+describe("an OpenDocument Spreadsheet (.ods)", () => {
+  it("opens as itself, and saves back as .ods", async () => {
+    const doc = await openDocument(
+      fixture("ods/libreoffice-demo.ods"),
+      { name: "Sales.ods", path: "/home/alex/Sales.ods" },
+      undefined,
+      false,
+    )
+    expect(doc.ref?.path).toBe("/home/alex/Sales.ods")
+    expect(doc.fileName).toBe("Sales.ods")
+    expect(doc.warnings).toEqual([])
+    const bytes = await doc.bytes()
+    expect(new TextDecoder().decode(bytes.slice(30, 38))).toBe("mimetype")
+    doc.close()
+  })
+})
+
 describe("unsaved changes", () => {
   it("adding a custom view makes the workbook unsaved (it isn't an undo step)", async () => {
     const bytes = new Uint8Array(
