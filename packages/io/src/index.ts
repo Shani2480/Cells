@@ -43,3 +43,4 @@ export {
 export { saveText, textSaveFor, type TextSave } from "./text/write"
 export { pdfFromImages, type PdfPage, type PdfInfo } from "./pdf"
 export { themeFromFile } from "./xlsx/theme"
+export { pdfTables, type PdfItem, type PdfPageText, type PdfRule, type PdfRun } from "./pdf-tables"

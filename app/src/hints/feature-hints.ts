@@ -76,6 +76,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     target: "Get Data",
   },
   {
+    id: "pdf-tables",
+    title: "New: Tables from a PDF",
+    text: "Get Data › From PDF finds the tables in a PDF, such as a statement or an invoice, even without lines around them and across pages. Pick the ones you want and load them, with numbers and dates read as numbers and dates.",
+    target: "Get Data",
+  },
+  {
     id: "chart-sheets",
     title: "New: A chart on a sheet of its own",
     text: "Move Chart puts the chart on a chart sheet, where it fills the window and prints across the page. F11 makes one straight from the selected data, and Excel opens it as a chart sheet too.",

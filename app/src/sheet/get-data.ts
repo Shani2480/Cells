@@ -7,12 +7,21 @@ import {
   type Op,
   type QueryPlan,
   type QuerySource,
+  type QueryStep,
+  type QueryValue,
   type WorkbookQuery,
 } from "@cells/core"
+import type { PdfItem } from "@cells/io"
 import type { WebPort } from "@cells/platform"
+import { pdfItems, type PdfRead, type Recognizer } from "@/pdf/pdf"
 import type { SheetController } from "./controller"
 import {
-  detectTypes,
+  applyStep,
+  dateFrom,
+  typeSteps,
+  numberFrom,
+  pdfResult,
+  type SourceItem,
   htmlTables,
   jsonTable,
   loadOps,
@@ -35,7 +44,29 @@ import {
 export type EditorRequest = { query: WorkbookQuery; plan: QueryPlan; editing: string | null }
 
 /** A source used before, newest first (kept on this device). */
-export type RecentSource = { kind: "web"; url: string } | { kind: "table"; name: string }
+export type RecentSource =
+  { kind: "web"; url: string } | { kind: "table"; name: string } | { kind: "pdf"; path: string; name: string }
+
+/** One of the Navigator's items: a web page's table, or a PDF's table or page, with its data. */
+export type NavigatorItem = {
+  name: string
+  kind: "Table" | "Page"
+  data: QueryResult
+  /** What it loads as (headings promoted, types set), for the preview. */
+  preview?: QueryResult
+  /** The step that picks it from its source, and the name it gives the query. */
+  step: QueryStep
+  base: string
+}
+
+/** The Navigator: a source with several tables, while it's open. */
+export type NavigatorState = {
+  title: string
+  source: QuerySource
+  items: NavigatorItem[]
+  /** PDF pages that are scans and weren't read (text recognition is off). */
+  unread: number[]
+}
 
 const RECENT_KEY = "cells.recentSources"
 const RECENT_MAX = 10
@@ -44,6 +75,33 @@ let webPort: WebPort | null = null
 /** The app sets how files on the web are read (the desktop app fetches them itself). */
 export function setWebPort(port: WebPort) {
   webPort = port
+}
+
+let fileReader: ((path: string) => Promise<Uint8Array>) | null = null
+/** The app sets how a file is read again from its path (Refresh of a PDF query); a browser can't. */
+export function setFileReader(read: (path: string) => Promise<Uint8Array>) {
+  fileReader = read
+}
+
+/** A file's name from its path or content link ("/home/alex/Report.pdf" → "Report.pdf"). */
+export const fileName = (path: string) =>
+  decodeURIComponent(path.split(/[/\\]/).pop() ?? path)
+    .split(/[:/]/)
+    .pop() ?? path
+
+/**
+ * Whether a table's first row is its headings (Power Query promotes them): every cell filled with text that isn't a
+ * number or date, over a column whose values below are numbers or dates.
+ */
+export function hasHeadings(r: QueryResult): boolean {
+  const [head, ...rest] = r.rows
+  if (!head || !rest.length) return false
+  const plain = (v: QueryValue) => typeof v === "string" && numberFrom(v) === null && dateFrom(v) === null
+  if (!head.every((v) => v !== null && plain(v))) return false
+  return head.some((_, c) => {
+    const below = rest.map((row) => row[c]).filter((v) => v !== null && v !== "")
+    return below.length > 0 && below.filter((v) => !plain(v)).length >= 0.8 * below.length
+  })
 }
 
 export function recentSources(): RecentSource[] {
@@ -56,9 +114,8 @@ export function recentSources(): RecentSource[] {
 }
 
 function remember(source: RecentSource) {
-  const same = (s: RecentSource) =>
-    s.kind === source.kind &&
-    (s.kind === "web" ? s.url === (source as { url: string }).url : s.name === (source as { name: string }).name)
+  const key = (s: RecentSource) => (s.kind === "web" ? s.url : s.kind === "pdf" ? s.path : s.name)
+  const same = (s: RecentSource) => s.kind === source.kind && key(s) === key(source)
   try {
     localStorage.setItem(
       RECENT_KEY,
@@ -103,21 +160,64 @@ export function webKind(url: string, type: string, bytes: Uint8Array): "csv" | "
   return "csv"
 }
 
+let recognizer: Recognizer | null = null
+/** Text recognition for scanned PDF pages, while it's turned on (null: off). */
+export function setRecognizer(r: Recognizer | null) {
+  recognizer = r
+}
+
+/** A file read again from its path; null where it can't be (moved, or a browser that only knows its name). */
+async function readFile(path: string): Promise<Uint8Array | null> {
+  try {
+    return fileReader ? await fileReader(path) : null
+  } catch {
+    return null
+  }
+}
+
+const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i])
+
 export class GetData {
   /** The Query Editor's query, while it's open. */
   editor: EditorRequest | null = null
-  /** From Web's Navigator: the page's tables, while it's open. */
-  navigator: { url: string; tables: QueryResult[] } | null = null
+  /** The Navigator (From Web's page tables, From PDF's tables and pages), while it's open. */
+  navigator: NavigatorState | null = null
+  /** PDFs read this session, by path: the editor's previews don't read the file again; Refresh does. */
+  private pdfs = new Map<string, { bytes: Uint8Array; items: PdfItem[] }>()
 
   constructor(private readonly c: SheetController) {}
 
-  context(): QueryContext {
+  context(fresh = false): QueryContext {
     return {
       wb: this.c.wb,
       fetch: (url) => {
         if (!webPort) throw new QueryError("Files on the web can't be read here.")
         return webPort.fetch(url)
       },
+      pdf: (path) => this.pdfAt(path, fresh),
+    }
+  }
+
+  /** A PDF's items: read again from its path for a refresh, else the copy read this session. */
+  private async pdfAt(path: string, fresh: boolean): Promise<PdfItem[]> {
+    const known = this.pdfs.get(path)
+    const bytes = fresh || !known ? await readFile(path) : null
+    if (fresh || !known) {
+      if (!bytes && !known)
+        throw new QueryError(`Cells couldn't read ${fileName(path)}. Choose Get Data › From PDF to pick it again.`)
+    }
+    if (known && (!bytes || sameBytes(bytes, known.bytes))) return known.items
+    const read = await this.readPdf(bytes as Uint8Array)
+    this.pdfs.set(path, { bytes: bytes as Uint8Array, items: read.items })
+    return read.items
+  }
+
+  /** The tables and pages of a PDF (scanned pages read when text recognition is on). */
+  private async readPdf(bytes: Uint8Array): Promise<PdfRead> {
+    try {
+      return await pdfItems(bytes, recognizer)
+    } catch (e) {
+      throw new QueryError(message(e))
     }
   }
 
@@ -167,7 +267,7 @@ export class GetData {
     const plan: QueryPlan = { source: { kind: "table", name }, steps: [] }
     void runPlan(plan, this.context()).then(
       (r) => {
-        plan.steps.push({ name: "Changed Type", step: { op: "types", columns: detectTypes(r) } })
+        plan.steps.push(...typeSteps(r))
         this.edit(name, plan)
       },
       (e: unknown) => this.c.shell.alert(message(e)),
@@ -187,7 +287,18 @@ export class GetData {
     if (kind === "html") {
       const tables = htmlTables(text)
       if (!tables.length) throw new QueryError("The page has no tables to load.")
-      this.navigator = { url, tables }
+      this.navigator = {
+        title: url,
+        source: { kind: "html", url },
+        items: tables.map((data, index) => ({
+          name: `Table ${index + 1}`,
+          kind: "Table",
+          data,
+          step: { op: "table", index },
+          base: `Table ${index + 1}`,
+        })),
+        unread: [],
+      }
       this.c.shell.openDialog?.("queryNavigator")
       return
     }
@@ -209,32 +320,102 @@ export class GetData {
       steps.push({ name: "Promoted Headers", step: { op: "promote" } })
       data = await runPlan({ source, steps }, ctx)
     }
-    steps.push({ name: "Changed Type", step: { op: "types", columns: detectTypes(data) } })
+    steps.push(
+      ...typeSteps(
+        data,
+        steps.map((s) => s.name),
+      ),
+    )
     this.edit(nameFromUrl(url), { source, steps })
   }
 
-  /** The Navigator's choice: the page's nth table, with its types. */
+  /**
+   * From PDF: the file's tables and pages in the Navigator (a PDF with none says so). `path` is where Refresh reads it
+   * again: a full path or content link, or only its name where the platform gives none (a browser).
+   */
+  async fromPdf(path: string, bytes: Uint8Array): Promise<void> {
+    const read = await this.readPdf(bytes)
+    this.pdfs.set(path, { bytes, items: read.items })
+    remember({ kind: "pdf", path, name: fileName(path) })
+    const items = read.items.filter((i) => i.rows.length)
+    if (!items.length)
+      throw new QueryError(
+        read.unread.length
+          ? "The PDF's pages are scans. Turn on text recognition to read them."
+          : "The PDF has no text to load.",
+      )
+    this.navigator = {
+      title: fileName(path),
+      source: { kind: "pdf", path },
+      items: items.map((i) => ({
+        name: i.name,
+        kind: i.kind,
+        data: pdfResult(i),
+        step: { op: "item", id: i.id },
+        base: i.id,
+      })),
+      unread: read.unread,
+    }
+    for (const item of this.navigator.items) {
+      let data: QueryResult | SourceItem[] = item.data
+      for (const { step } of this.itemPlan(this.navigator, item).steps.slice(1)) data = applyStep(data, step)
+      if (!Array.isArray(data)) item.preview = data
+    }
+    this.c.shell.openDialog?.("queryNavigator")
+  }
+
+  /** The plan for one of the Navigator's items: picked from its source, headings promoted, types detected. */
+  private itemPlan(nav: NavigatorState, item: NavigatorItem): QueryPlan {
+    const steps: QueryPlan["steps"] = [{ name: stepName(item.step, []), step: item.step }]
+    let data = item.data
+    if (nav.source.kind === "pdf" && hasHeadings(data)) {
+      steps.push({ name: "Promoted Headers", step: { op: "promote" } })
+      data = applyStep(data, { op: "promote" }) as QueryResult
+    }
+    steps.push(
+      ...typeSteps(
+        data,
+        steps.map((s) => s.name),
+      ),
+    )
+    return { source: nav.source, steps }
+  }
+
+  /** The Navigator's Transform Data: the item in the Query Editor. */
   pickTable(index: number) {
     const nav = this.navigator
     if (!nav) return
     this.navigator = null
-    const t = nav.tables[index]
-    this.edit(`Table ${index + 1}`, {
-      source: { kind: "html", url: nav.url },
-      steps: [
-        { name: `Data${index}`, step: { op: "table", index } },
-        { name: "Changed Type", step: { op: "types", columns: detectTypes(t) } },
-      ],
-    })
+    const item = nav.items[index]
+    if (item) this.edit(item.base, this.itemPlan(nav, item))
   }
 
-  /** Recent Sources: the source opened again. */
-  openRecent(source: RecentSource): Promise<void> {
-    if (source.kind === "table") {
-      this.openTable(source.name)
-      return Promise.resolve()
+  /** The Navigator's Load: each item picked in a table on a sheet of its own (one step to undo each). */
+  async loadItems(indexes: number[]): Promise<void> {
+    const nav = this.navigator
+    if (!nav) return
+    this.navigator = null
+    for (const index of indexes) {
+      const item = nav.items[index]
+      if (!item) continue
+      const query: WorkbookQuery = {
+        name: queryName(item.base, this.names()),
+        description: "",
+        formula: "",
+        table: null,
+      }
+      await this.load({ query, plan: this.itemPlan(nav, item), editing: null }, true)
     }
-    return this.fromWeb(source.url)
+  }
+
+  /** Recent Sources: the source opened again (a PDF read again from its path). */
+  async openRecent(source: RecentSource): Promise<void> {
+    if (source.kind === "table") return this.openTable(source.name)
+    if (source.kind === "web") return this.fromWeb(source.url)
+    const bytes = await readFile(source.path)
+    const known = this.pdfs.get(source.path)?.bytes ?? null
+    if (!bytes && !known) throw new QueryError("Cells can't open it again from here. Choose Get Data › From PDF.")
+    return this.fromPdf(source.path, (bytes ?? known) as Uint8Array)
   }
 
   /** Edit: the editor on one of the workbook's queries (only the ones Cells can run). */
@@ -285,8 +466,17 @@ export class GetData {
       const ops2 = loaded.ops.map((op): Op =>
         op.kind === "queries" ? { kind: "queries", queries: [...others, { ...query, table: tableName }] } : op,
       )
-      c.transact(ops2, { label: "Load Query", before: c.selection })
+      const entry = c.transact(ops2, { label: "Load Query", before: c.selection })
       c.activate(loaded.sheet)
+      // The columns fitted to the data, as Excel's query tables adjust their column widths.
+      const fit = c.columnFit
+      const widths = []
+      for (let col = 0; fit && entry && col < result.columns.length; col++) {
+        const size = fit(col, { r0: 0, r1: result.rows.length }, loaded.sheet)
+        if (size !== null && size > c.sheet.cols.size(col)) widths.push({ index: col, size, hidden: false })
+      }
+      if (entry && widths.length)
+        c.wb.amend(entry, [{ kind: "axis", sheet: loaded.sheet, axis: "cols", entries: widths }])
     } else {
       const list = [...others, { ...query, table: null }]
       c.transact([{ kind: "queries", queries: list }], { label: "Create Connection", before: c.selection })
@@ -316,7 +506,7 @@ export class GetData {
     const query = this.c.wb.queries.find((q) => q.name === name)
     const plan = query?.table ? readQueryPlan(query.formula) : null
     if (!query || !plan) return null
-    return refreshTableOps(this.c.wb, query, await runPlan(plan, this.context()))
+    return refreshTableOps(this.c.wb, query, await runPlan(plan, this.context(true)))
   }
 
   /** Refresh: one query's table, as one step to undo. */

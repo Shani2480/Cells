@@ -5221,8 +5221,43 @@ html.is-phone .help-search input {
   height: 360px;
 }
 
+.nav-side,
+.nav-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
 .nav-list {
+  flex: 1;
   height: auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.nav-list .dialog-list-item input {
+  margin: 0;
+}
+
+.nav-site {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-pane-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.nav-pane .nav-preview {
+  flex: 1;
+  min-height: 0;
+}
+
+.nav-unread {
+  margin: 0;
 }
 
 .nav-list .dialog-list-item,

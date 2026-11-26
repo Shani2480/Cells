@@ -54,6 +54,7 @@ const SOURCE_LABEL: Record<QueryPlan["source"]["kind"], string> = {
   csv: "CSV file on the web",
   html: "Web page",
   json: "JSON on the web",
+  pdf: "PDF file",
 }
 
 function stepText(step: QueryStep): string {
@@ -68,6 +69,8 @@ function stepText(step: QueryStep): string {
       return `Remove ${step.columns.join(", ")}`
     case "first":
       return `First ${step.count} rows`
+    case "replace":
+      return `Replace "${step.find}" with "${step.with}" in ${step.columns.join(", ")}`
     case "types":
       return step.columns.map(([c, t]) => `${c}: ${TYPES.find((x) => x.type === t)?.label ?? t}`).join(", ")
     case "table":

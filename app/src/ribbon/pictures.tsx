@@ -163,6 +163,7 @@ const PICTURES: Record<string, LucideIcon> = {
   PowerQueryGetTransformDataMenuSubscription19: L.Database,
   GetPowerQueryGetTransformDataFromText: L.FileText,
   GetPowerQueryDataFromWeb: L.Globe,
+  PowerQueryFromPdf: L.FileType2,
   GetPowerQueryGetTransformDataFromTable: L.Table2,
   PowerQueryRecentSources: L.History,
   PowerQueryRecentSourcesItem: L.History,

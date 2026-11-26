@@ -1,4 +1,4 @@
-import { Globe, Table2 } from "lucide-react"
+import { FileText, Globe, Table2 } from "lucide-react"
 import { forgetRecentSources, message, recentSources, type RecentSource } from "@/sheet/get-data"
 import type { Command, RibbonEnv } from "./registry"
 
@@ -7,7 +7,7 @@ import type { Command, RibbonEnv } from "./registry"
  * (From Text/CSV is in commands.tsx with the other file commands).
  */
 
-const sourceLabel = (s: RecentSource) => (s.kind === "web" ? s.url : `Table ${s.name}`)
+const sourceLabel = (s: RecentSource) => (s.kind === "web" ? s.url : s.kind === "pdf" ? s.name : `Table ${s.name}`)
 
 function openRecent(env: RibbonEnv, s: RecentSource) {
   env.c.getData
@@ -33,7 +33,13 @@ function RecentPanel({ env, close }: { env: RibbonEnv; close: () => void }) {
               openRecent(env, s)
             }}
           >
-            {s.kind === "web" ? <Globe size={16} aria-hidden /> : <Table2 size={16} aria-hidden />}
+            {s.kind === "web" ? (
+              <Globe size={16} aria-hidden />
+            ) : s.kind === "pdf" ? (
+              <FileText size={16} aria-hidden />
+            ) : (
+              <Table2 size={16} aria-hidden />
+            )}
             <span>{sourceLabel(s)}</span>
           </button>
         ))
@@ -67,6 +73,7 @@ export function getDataCommands(): Command[] {
       menu: [
         { heading: "From File" },
         "GetPowerQueryGetTransformDataFromText",
+        "PowerQueryFromPdf",
         { heading: "From Other Sources" },
         "GetPowerQueryDataFromWeb",
         "GetPowerQueryGetTransformDataFromTable",
@@ -75,6 +82,14 @@ export function getDataCommands(): Command[] {
         "GetTransformExistingConnections",
         "ShowQueriesAndConnections",
       ],
+    },
+    {
+      id: "PowerQueryFromPdf",
+      label: "From PDF",
+      description: "Get the tables in a PDF: Cells finds them on its pages, and you pick the ones to load.",
+      keytip: "P",
+      run: (env) => void env.files?.importPdf(),
+      enabled: (env) => Boolean(env.files),
     },
     {
       id: "GetPowerQueryDataFromWeb",

@@ -42,6 +42,11 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     command: "PowerQueryGetTransformDataMenuSubscription19",
     keywords: "power query get data from web table range query editor import csv json refresh connection transform",
   },
+  "pdf-tables": {
+    where: "Data › Get Data › From File › From PDF",
+    command: "PowerQueryGetTransformDataMenuSubscription19",
+    keywords: "pdf import table statement invoice bank extract recognize scan get data navigator",
+  },
   "chart-format": {
     where: "Format, beside Chart Design (select a chart first)",
     keywords:

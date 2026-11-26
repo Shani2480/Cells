@@ -1,5 +1,12 @@
-import { allQueryTables, columnName, readQueryPlan, selectRange } from "@cells/core"
-import { Database, FileText, Table2 } from "lucide-react"
+import {
+  allQueryTables,
+  columnName,
+  readQueryPlan,
+  selectRange,
+  type QueryColumnType,
+  type QueryValue,
+} from "@cells/core"
+import { Database, File, FileText, Table2 } from "lucide-react"
 import { useState, useSyncExternalStore } from "react"
 import type { SheetController } from "@/sheet/controller"
 import { message } from "@/sheet/get-data"
@@ -65,69 +72,154 @@ export function FromWebDialog({
   )
 }
 
-/** The Navigator: a web page's tables, each with a preview; the one picked goes to the Query Editor. */
+/**
+ * The Navigator: a web page's tables, or a PDF's tables and pages, each with a preview. Load puts the item (or every
+ * item ticked, with Select multiple items) in a table on a sheet of its own; Transform Data opens it in the Query
+ * Editor first.
+ */
 export function NavigatorDialog({ controller, onClose }: { controller: SheetController; onClose: () => void }) {
   const nav = controller.getData.navigator
   const [picked, setPicked] = useState(0)
+  const [multiple, setMultiple] = useState(false)
+  const [ticked, setTicked] = useState<number[]>([])
   if (!nav) return null
-  const table = nav.tables[picked]
+  const item = nav.items[picked]
+  const table = item.preview ?? item.data
+  const chosen = multiple ? ticked : [picked]
   const cancel = () => {
     controller.getData.navigator = null
     onClose()
   }
-  const accept = () => {
+  const transform = () => {
     onClose()
-    controller.getData.pickTable(picked)
+    controller.getData.pickTable(multiple && ticked.length ? ticked[0] : picked)
   }
+  const load = () => {
+    if (!chosen.length) return
+    onClose()
+    controller.getData
+      .loadItems(chosen)
+      .catch((e: unknown) => controller.shell.alert(`Cells couldn't load the data. ${message(e)}`))
+  }
+  const tick = (i: number) =>
+    setTicked((t) => (t.includes(i) ? t.filter((k) => k !== i) : [...t, i].sort((a, b) => a - b)))
+  const pdf = nav.source.kind === "pdf"
   return (
-    <Dialog title="Navigator" onCancel={cancel} onAccept={accept} width={760} acceptLabel="Transform Data">
+    <Dialog
+      title="Navigator"
+      onCancel={cancel}
+      onAccept={load}
+      width={780}
+      actions={
+        <>
+          {multiple ? (
+            <span className="qe-status">
+              {ticked.length} item{ticked.length === 1 ? "" : "s"} selected
+            </span>
+          ) : null}
+          <button type="button" className="dialog-btn is-primary" onClick={load} disabled={!chosen.length}>
+            <u>L</u>oad
+          </button>
+          <button type="button" className="dialog-btn" onClick={transform} disabled={!chosen.length}>
+            <u>T</u>ransform Data
+          </button>
+          <button type="button" className="dialog-btn" onClick={cancel}>
+            Cancel
+          </button>
+        </>
+      }
+    >
       <div className="nav-dialog">
-        <div className="dialog-list nav-list" role="listbox" aria-label="Tables">
-          <p className="nav-site" title={nav.url}>
-            {nav.url}
-          </p>
-          {nav.tables.map((t, i) => (
-            <button
-              key={i}
-              type="button"
-              role="option"
-              aria-selected={i === picked}
-              className={`dialog-list-item${i === picked ? " is-selected" : ""}`}
-              onClick={() => setPicked(i)}
-              onDoubleClick={accept}
-            >
-              <Table2 size={14} aria-hidden /> Table {i + 1}
-              <span className="nav-size">
-                {t.rows.length} × {t.columns.length}
-              </span>
-            </button>
-          ))}
+        <div className="nav-side">
+          <label className="dialog-radio nav-multiple">
+            <input
+              type="checkbox"
+              checked={multiple}
+              onChange={(e) => {
+                setMultiple(e.target.checked)
+                setTicked(e.target.checked ? [picked] : [])
+              }}
+            />
+            Select multiple items
+          </label>
+          <div className="dialog-list nav-list" role="listbox" aria-label={pdf ? "Tables and pages" : "Tables"}>
+            <p className="nav-site" title={nav.title}>
+              {pdf ? <FileText size={13} aria-hidden /> : null} {nav.title} [{nav.items.length}]
+            </p>
+            {nav.items.map((t, i) => (
+              <button
+                key={i}
+                type="button"
+                role="option"
+                aria-selected={i === picked}
+                className={`dialog-list-item${i === picked ? " is-selected" : ""}`}
+                onClick={() => {
+                  setPicked(i)
+                  if (multiple) tick(i)
+                }}
+                onDoubleClick={transform}
+              >
+                {multiple ? (
+                  <input
+                    type="checkbox"
+                    tabIndex={-1}
+                    aria-label={`Select ${t.name}`}
+                    checked={ticked.includes(i)}
+                    readOnly
+                  />
+                ) : null}
+                {t.kind === "Page" ? <File size={14} aria-hidden /> : <Table2 size={14} aria-hidden />} {t.name}
+                <span className="nav-size">
+                  {t.data.rows.length} × {t.data.columns.length}
+                </span>
+              </button>
+            ))}
+          </div>
+          {nav.unread.length ? (
+            <p className="dialog-note nav-unread">
+              {nav.unread.length === 1 ? `Page ${nav.unread[0]} is a scan` : `${nav.unread.length} pages are scans`} and
+              can't be read without text recognition (File › Options › AI).
+            </p>
+          ) : null}
         </div>
-        <div className="qe-preview nav-preview" aria-label="Preview">
-          <table className="qe-grid">
-            <thead>
-              <tr>
-                {table.columns.map((c) => (
-                  <th key={c}>{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {table.rows.slice(0, 50).map((r, i) => (
-                <tr key={i}>
-                  {r.map((v, k) => (
-                    <td key={k} className={v === null ? "is-null" : undefined}>
-                      {v === null ? "" : String(v)}
-                    </td>
+        <div className="nav-pane">
+          <p className="nav-pane-title">{item.name}</p>
+          <div className="qe-preview nav-preview" aria-label="Preview">
+            <table className="qe-grid">
+              <thead>
+                <tr>
+                  {table.columns.map((c) => (
+                    <th key={c}>{c}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {table.rows.slice(0, 50).map((r, i) => (
+                  <tr key={i}>
+                    {r.map((v, k) => (
+                      <td key={k} className={v === null ? "is-null" : typeof v === "number" ? "is-number" : undefined}>
+                        {shown(v, table.types[k])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </Dialog>
   )
+}
+
+/** A preview value: dates as dates, numbers as they are, nothing for null. */
+function shown(v: QueryValue, type: QueryColumnType | null | undefined): string {
+  if (v === null) return ""
+  if (typeof v === "number" && (type === "date" || type === "datetime")) {
+    const d = new Date(Date.UTC(1899, 11, 30) + v * 86400000)
+    return type === "date" ? d.toISOString().slice(0, 10) : d.toISOString().slice(0, 16).replace("T", " ")
+  }
+  return typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v)
 }
 
 const rangeText = (r: { r0: number; c0: number; r1: number; c1: number }) =>

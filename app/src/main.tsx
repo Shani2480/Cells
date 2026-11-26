@@ -1,4 +1,4 @@
-import { setWebPort } from "./sheet/get-data"
+import { fileName, setFileReader, setWebPort } from "./sheet/get-data"
 import React from "react"
 import ReactDOM from "react-dom/client"
 import { App } from "./App"
@@ -19,6 +19,7 @@ const web =
     : webPlatform
 const platform = isTauri() ? tauriPlatform() : web
 setWebPort(platform.web)
+setFileReader((path) => platform.files.read({ name: fileName(path), path }))
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

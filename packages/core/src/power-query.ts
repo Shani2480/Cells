@@ -17,6 +17,8 @@ export type QuerySource =
   | { kind: "html"; url: string }
   /** JSON on the web, a list of records: Table.FromRecords(Json.Document(Web.Contents(url))). */
   | { kind: "json"; url: string }
+  /** A PDF's tables and pages: Pdf.Tables(File.Contents(path), [Implementation="1.3"]); an "item" step picks one. */
+  | { kind: "pdf"; path: string }
 
 export type FilterTest = "=" | "<>" | ">" | ">=" | "<" | "<=" | "contains" | "starts" | "ends"
 export type QueryValue = string | number | boolean | null
@@ -24,8 +26,13 @@ export type QueryValue = string | number | boolean | null
 export type QueryStep =
   /** A web page's nth table: Source{n}[Data]. */
   | { op: "table"; index: number }
+  /** A PDF's table or page by its Id ("Table001", "Page001"): Source{[Id="Table001"]}[Data]. */
+  | { op: "item"; id: string }
   | { op: "promote" }
-  | { op: "types"; columns: [string, QueryColumnType][] }
+  /** Replace Values in text: Table.ReplaceValue(prev, find, with, Replacer.ReplaceText, {columns}). */
+  | { op: "replace"; columns: string[]; find: string; with: string }
+  /** Column types; `culture` ("en-GB") reads text as that locale does (Excel's Change Type › Using Locale). */
+  | { op: "types"; columns: [string, QueryColumnType][]; culture?: string }
   | { op: "select"; columns: string[] }
   | { op: "remove"; columns: string[] }
   | { op: "filter"; column: string; test: FilterTest; value: QueryValue }
@@ -242,6 +249,14 @@ function readSource(e: MNode): QuerySource | null {
     const url = webUrl(e.args[0])
     return url ? { kind: "html", url } : null
   }
+  // Pdf.Tables(File.Contents("…"), [Implementation="1.3"]): other options are Excel's alone.
+  if (e.t === "call" && e.fn === "Pdf.Tables" && (e.args.length === 1 || e.args.length === 2)) {
+    const file = e.args[0]
+    const path = file.t === "call" && file.fn === "File.Contents" && file.args.length === 1 ? str(file.args[0]) : null
+    const opts = e.args[1]
+    const plain = !opts || (opts.t === "rec" && opts.fields.every(([k]) => k === "Implementation"))
+    return path && plain ? { kind: "pdf", path } : null
+  }
   if (e.t === "call" && e.fn === "Table.FromRecords" && e.args.length === 1) {
     const inner = e.args[0]
     const url = inner.t === "call" && inner.fn === "Json.Document" ? webUrl(inner.args[0]) : null
@@ -273,6 +288,11 @@ function readFilter(body: MNode): QueryStep | null {
 function readStep(e: MNode, prev: string): QueryStep | null {
   if (e.t === "field" && e.name === "Data" && e.of?.t === "index" && isRef(e.of.of, prev) && e.of.item.t === "num")
     return { op: "table", index: e.of.item.v }
+  if (e.t === "field" && e.name === "Data" && e.of?.t === "index" && isRef(e.of.of, prev) && e.of.item.t === "rec") {
+    const f = e.of.item.fields
+    const id = f.length === 1 && f[0][0] === "Id" ? str(f[0][1]) : null
+    return id ? { op: "item", id } : null
+  }
   if (e.t !== "call" || !isRef(e.args[0], prev)) return null
   const [, a, b] = e.args
   switch (e.fn) {
@@ -289,7 +309,9 @@ function readStep(e: MNode, prev: string): QueryStep | null {
         if (name === null || !type) return null
         columns.push([name, type])
       }
-      return b === undefined ? { op: "types", columns } : null
+      if (b === undefined) return { op: "types", columns }
+      const culture = str(b)
+      return culture && e.args.length === 3 ? { op: "types", columns, culture } : null
     }
     case "Table.SelectColumns":
     case "Table.RemoveColumns": {
@@ -310,6 +332,14 @@ function readStep(e: MNode, prev: string): QueryStep | null {
         keys.push({ column: col, desc: dir.v === "Order.Descending" })
       }
       return { op: "sort", keys }
+    }
+    case "Table.ReplaceValue": {
+      const [, f, w, how, cols] = e.args
+      const find = str(f)
+      const by = str(w)
+      const columns = strs(cols)
+      if (find === null || by === null || !columns || how?.t !== "id" || how.v !== "Replacer.ReplaceText") return null
+      return e.args.length === 5 ? { op: "replace", columns: columns as string[], find, with: by } : null
     }
     case "Table.Distinct":
       return a === undefined ? { op: "distinct" } : null
@@ -368,6 +398,8 @@ function sourceM(s: QuerySource): string {
       return `Web.Page(Web.Contents(${mStr(s.url)}))`
     case "json":
       return `Table.FromRecords(Json.Document(Web.Contents(${mStr(s.url)})))`
+    case "pdf":
+      return `Pdf.Tables(File.Contents(${mStr(s.path)}), [Implementation="1.3"])`
   }
 }
 
@@ -376,10 +408,12 @@ function stepM(step: QueryStep, prev: string): string {
   switch (step.op) {
     case "table":
       return `${p}{${step.index}}[Data]`
+    case "item":
+      return `${p}{[Id=${mStr(step.id)}]}[Data]`
     case "promote":
       return `Table.PromoteHeaders(${p}, [PromoteAllScalars=true])`
     case "types":
-      return `Table.TransformColumnTypes(${p},{${step.columns.map(([c, t]) => `{${mStr(c)}, ${TYPE_M[t]}}`).join(", ")}})`
+      return `Table.TransformColumnTypes(${p},{${step.columns.map(([c, t]) => `{${mStr(c)}, ${TYPE_M[t]}}`).join(", ")}}${step.culture ? `, ${mStr(step.culture)}` : ""})`
     case "select":
       return `Table.SelectColumns(${p},${mList(step.columns.map(mStr))})`
     case "remove":
@@ -392,6 +426,8 @@ function stepM(step: QueryStep, prev: string): string {
     }
     case "sort":
       return `Table.Sort(${p},{${step.keys.map((k) => `{${mStr(k.column)}, Order.${k.desc ? "Descending" : "Ascending"}}`).join(", ")}})`
+    case "replace":
+      return `Table.ReplaceValue(${p},${mStr(step.find)},${mStr(step.with)},Replacer.ReplaceText,${mList(step.columns.map(mStr))})`
     case "distinct":
       return `Table.Distinct(${p})`
     case "first":
@@ -402,7 +438,9 @@ function stepM(step: QueryStep, prev: string): string {
 /** The step names the Query Editor gives. */
 export const STEP_NAMES: Record<QueryStep["op"], string> = {
   table: "Data",
+  item: "Item",
   promote: "Promoted Headers",
+  replace: "Replaced Value",
   types: "Changed Type",
   select: "Removed Other Columns",
   remove: "Removed Columns",
@@ -414,7 +452,14 @@ export const STEP_NAMES: Record<QueryStep["op"], string> = {
 
 /** A step's name, unique among the names before it ("Filtered Rows1" for a second filter, as the editor does). */
 export function stepName(step: QueryStep, taken: readonly string[]): string {
-  const base = step.op === "table" ? `Data${(step as { index: number }).index}` : STEP_NAMES[step.op]
+  const base =
+    step.op === "table"
+      ? `Data${step.index}`
+      : step.op === "item"
+        ? step.id
+        : step.op === "types" && step.culture
+          ? "Changed Type with Locale"
+          : STEP_NAMES[step.op]
   if (!taken.includes(base)) return base
   for (let n = 1; ; n++) if (!taken.includes(`${base}${n}`)) return `${base}${n}`
 }

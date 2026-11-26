@@ -1,3 +1,4 @@
+import type { PdfItem } from "@cells/io"
 import {
   copyTable,
   findTable,
@@ -10,6 +11,10 @@ import {
   type QueryPlan,
   type QueryStep,
   type QueryValue,
+  EN_US,
+  regional,
+  stepName,
+  type Regional,
   type Table,
   type Workbook,
   type WorkbookQuery,
@@ -22,10 +27,26 @@ import {
 
 export type QueryResult = { columns: string[]; rows: QueryValue[][]; types: (QueryColumnType | null)[] }
 
-/** What a query can read: this workbook's tables, and files on the web. */
+/** What a query can read: this workbook's tables, files on the web, and a PDF's tables (read from its path). */
 export type QueryContext = {
   wb: Workbook
   fetch(url: string): Promise<{ bytes: Uint8Array; type: string }>
+  pdf(path: string): Promise<PdfItem[]>
+}
+
+/** A source with several tables: a web page's (by place), or a PDF's (by Id). */
+export type SourceItem = QueryResult & { id?: string }
+
+/** A PDF's table or page as Pdf.Tables gives it: text columns Column1, Column2…, empty cells null. */
+export function pdfResult(item: PdfItem): SourceItem {
+  const width = item.rows[0]?.length ?? 0
+  return {
+    ...result(
+      columnNames(width),
+      item.rows.map((r) => r.map((v) => (v === "" ? null : v))),
+    ),
+    id: item.id,
+  }
 }
 
 export class QueryError extends Error {}
@@ -166,15 +187,101 @@ function uniqueNames(names: string[]): string[] {
 const DAY = 86400000
 const EPOCH = Date.UTC(1899, 11, 30)
 
-function toType(v: QueryValue, t: QueryColumnType): QueryValue {
+const escape = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+/**
+ * Text as a number, as Power Query's type number reads it in the person's region (measured in Excel): the region's
+ * thousands separator is ignored and its decimal separator read, "(5.00)" and "5.00-" are negative, "12%" is 0.12.
+ * Cells also takes a currency sign ($ € £ ¥) and spaces between groups of three digits ("120 500"), which PDFs and
+ * statements are full of. Null when it isn't a number.
+ */
+export function numberFrom(text: string, r: Regional = regional(), strict = false): number | null {
+  let t = text.trim().replace(/[\u00a0\u202f]/g, " ")
+  if (strict && /[$€£¥]|\d \d/.test(t)) return null
+  if (!t) return null
+  let sign = 1
+  const paren = /^\((.*)\)$/.exec(t)
+  if (paren) {
+    sign = -1
+    t = paren[1].trim()
+  }
+  if (/-$/.test(t)) {
+    sign = -sign
+    t = t.slice(0, -1).trim()
+  }
+  let scale = 1
+  if (/%$/.test(t)) {
+    scale = 0.01
+    t = t.slice(0, -1).trim()
+  }
+  t = t.replace(/^([-+]?)\s*[$€£¥]\s*/, "$1").replace(/\s*[$€£¥]$/, "")
+  if (/^[-+]?\d{1,3}( \d{3})+([.,]\d+)?$/.test(t)) t = t.replace(/ /g, "")
+  if (r.group) t = t.replace(new RegExp(`(\\d)${escape(r.group)}(?=\\d{3})`, "g"), "$1")
+  if (r.decimal !== ".") t = t.replace(r.decimal, ".")
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t)) return null
+  return sign * Number(t) * scale
+}
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+
+/**
+ * Text as a date serial, as Power Query's type date reads it (measured in Excel): ISO dates always; numbers split by
+ * / - . in the region's day, month and year order; "13 Feb 2026" and "Feb 13, 2026" with English month names. Null
+ * when it isn't a date (13/02/2026 in a month-first region, say).
+ */
+export function dateFrom(text: string, r: Regional = regional()): number | null {
+  const t = text.trim()
+  const serial = (y: number, m: number, d: number) => {
+    if (y < 100) y += y < 30 ? 2000 : 1900
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null
+    const ms = Date.UTC(y, m - 1, d)
+    if (new Date(ms).getUTCDate() !== d) return null
+    return (ms - EPOCH) / DAY
+  }
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ]\d{1,2}:\d{2}(?::\d{2})?)?$/.exec(t)
+  if (m) return serial(+m[1], +m[2], +m[3])
+  m = /^(\d{1,4})[/.-](\d{1,2})[/.-](\d{1,4})$/.exec(t)
+  if (m) {
+    const [a, b, c] = [+m[1], +m[2], +m[3]]
+    if (m[1].length === 4) return serial(a, b, c)
+    return r.dateOrder === "dmy" ? serial(c, b, a) : r.dateOrder === "mdy" ? serial(c, a, b) : serial(a, b, c)
+  }
+  const month = (name: string) => {
+    const i = MONTHS.indexOf(name.slice(0, 3).toLowerCase())
+    return i < 0 ? null : i + 1
+  }
+  m = /^(\d{1,2})[ -]([A-Za-z]{3,9})\.?[ -,]*(\d{2,4})$/.exec(t)
+  if (m && month(m[2])) return serial(+m[3], month(m[2]) as number, +m[1])
+  m = /^([A-Za-z]{3,9})\.? (\d{1,2}),? (\d{2,4})$/.exec(t)
+  if (m && month(m[1])) return serial(+m[3], month(m[1]) as number, +m[2])
+  return null
+}
+
+/** The locales a "Changed Type with Locale" step reads text in: their separators and date order. */
+const CULTURES: Record<string, Regional> = {
+  "en-US": EN_US,
+  "en-GB": { ...EN_US, dateOrder: "dmy", shortDate: "dd/mm/yyyy" },
+  "de-DE": { decimal: ",", group: ".", dateSeparator: ".", dateOrder: "dmy", shortDate: "dd.mm.yyyy" },
+  "fr-FR": { decimal: ",", group: " ", dateSeparator: "/", dateOrder: "dmy", shortDate: "dd/mm/yyyy" },
+  "nl-NL": { decimal: ",", group: ".", dateSeparator: "-", dateOrder: "dmy", shortDate: "d-m-yyyy" },
+  "ja-JP": { ...EN_US, dateOrder: "ymd", shortDate: "yyyy/mm/dd" },
+}
+
+/** A locale's reading rules (an unknown one reads as the person's region). */
+const cultureRules = (culture: string | undefined): Regional =>
+  (culture && CULTURES[culture]) ||
+  (culture && CULTURES[Object.keys(CULTURES).find((k) => k.startsWith(culture.slice(0, 2))) ?? ""]) ||
+  regional()
+
+function toType(v: QueryValue, t: QueryColumnType, r: Regional = regional()): QueryValue {
   if (v === null || t === "any") return v
   switch (t) {
     case "text":
       return typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v)
     case "number":
     case "whole": {
-      const n = typeof v === "number" ? v : typeof v === "boolean" ? Number(v) : Number(String(v).replace(/,/g, ""))
-      if (!Number.isFinite(n) || (typeof v === "string" && v.trim() === "")) return null
+      const n = typeof v === "number" ? v : typeof v === "boolean" ? Number(v) : numberFrom(v, r)
+      if (n === null || !Number.isFinite(n)) return null
       return t === "whole" ? Math.round(n) : n
     }
     case "logical":
@@ -186,7 +293,7 @@ function toType(v: QueryValue, t: QueryColumnType): QueryValue {
     case "datetime": {
       if (typeof v === "number") return t === "date" ? Math.floor(v) : v
       const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(String(v))
-      if (!m) return null
+      if (!m) return t === "date" ? dateFrom(String(v), r) : null
       const ms = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0), +(m[6] ?? 0))
       const serial = (ms - EPOCH) / DAY
       return t === "date" ? Math.floor(serial) : serial
@@ -235,9 +342,14 @@ function column(r: QueryResult, name: string): number {
 }
 
 /** One step on a table (a web page's list of tables only takes the "table" step). */
-export function applyStep(input: QueryResult | QueryResult[], step: QueryStep): QueryResult | QueryResult[] {
+export function applyStep(input: QueryResult | SourceItem[], step: QueryStep): QueryResult | SourceItem[] {
   if (Array.isArray(input)) {
-    if (step.op !== "table") throw new QueryError("Pick one of the page's tables first.")
+    if (step.op === "item") {
+      const t = input.find((i) => i.id === step.id)
+      if (!t) throw new QueryError(`The PDF has no ${step.id} any more.`)
+      return t
+    }
+    if (step.op !== "table") throw new QueryError("Pick one of the source's tables first.")
     const t = input[step.index]
     if (!t) throw new QueryError(`The page has no table ${step.index + 1} any more.`)
     return t
@@ -246,6 +358,8 @@ export function applyStep(input: QueryResult | QueryResult[], step: QueryStep): 
   switch (step.op) {
     case "table":
       throw new QueryError("This step only applies to a web page.")
+    case "item":
+      throw new QueryError("This step only applies to a PDF.")
     case "promote": {
       const [head, ...rest] = r.rows
       const names = uniqueNames((head ?? []).map((v, i) => (v === null ? `Column${i + 1}` : String(v))))
@@ -260,7 +374,8 @@ export function applyStep(input: QueryResult | QueryResult[], step: QueryStep): 
       })
       const rows = r.rows.map((row) => {
         const out = [...row]
-        for (const [i, t] of at) out[i] = toType(row[i], t)
+        const rules = cultureRules(step.culture)
+        for (const [i, t] of at) out[i] = toType(row[i], t, rules)
         return out
       })
       return { columns: r.columns, rows, types }
@@ -293,6 +408,16 @@ export function applyStep(input: QueryResult | QueryResult[], step: QueryStep): 
       })
       return { ...r, rows }
     }
+    case "replace": {
+      const at = step.columns.map((name) => column(r, name))
+      const rows = r.rows.map((row) => {
+        const out = [...row]
+        for (const i of at)
+          if (typeof out[i] === "string" && step.find) out[i] = (out[i] as string).split(step.find).join(step.with)
+        return out
+      })
+      return { ...r, rows }
+    }
     case "distinct": {
       const seen = new Set<string>()
       const rows = r.rows.filter((row) => {
@@ -309,13 +434,14 @@ export function applyStep(input: QueryResult | QueryResult[], step: QueryStep): 
 }
 
 /** The source's data: a table, or a web page's tables. */
-export async function sourceData(plan: QueryPlan, ctx: QueryContext): Promise<QueryResult | QueryResult[]> {
+export async function sourceData(plan: QueryPlan, ctx: QueryContext): Promise<QueryResult | SourceItem[]> {
   const s = plan.source
   if (s.kind === "table") {
     const t = tableResult(ctx.wb, s.name)
     if (!t) throw new QueryError(`Couldn't find a table named '${s.name}' in this workbook.`)
     return t
   }
+  if (s.kind === "pdf") return (await ctx.pdf(s.path)).map(pdfResult)
   const got = await ctx.fetch(s.url)
   if (s.kind === "csv") {
     const rows = parseCsv(decode(got.bytes, s.encoding), s.delimiter)
@@ -334,23 +460,87 @@ export async function sourceData(plan: QueryPlan, ctx: QueryContext): Promise<Qu
 export async function runPlan(plan: QueryPlan, ctx: QueryContext, upTo = plan.steps.length): Promise<QueryResult> {
   let data = await sourceData(plan, ctx)
   for (const { step } of plan.steps.slice(0, upTo)) data = applyStep(data, step)
-  if (Array.isArray(data)) throw new QueryError("Pick one of the page's tables.")
+  if (Array.isArray(data)) throw new QueryError("Pick one of the source's tables.")
   return data
 }
 
-/** The types Power Query would detect for each column (whole numbers, numbers, true/false, ISO dates, else text). */
+/** A column's type as text in a locale reads: whole numbers, numbers, true/false, dates, else text. */
+function columnType(values: Exclude<QueryValue, null>[], r: Regional): QueryColumnType {
+  const all = (test: (v: Exclude<QueryValue, null>) => boolean) => values.length > 0 && values.every(test)
+  const n = (v: QueryValue) => (typeof v === "number" ? v : typeof v === "string" ? numberFrom(v, r) : null)
+  // Text with decimals ("5.00") is a decimal number even when its value is whole, as Power Query detects it.
+  const decimals = new RegExp(`${escape(r.decimal)}\\d|%`)
+  if (all((v) => Number.isInteger(n(v)) && !(typeof v === "string" && decimals.test(v)))) return "whole"
+  if (all((v) => n(v) !== null)) return "number"
+  if (all((v) => typeof v === "boolean" || /^(true|false)$/i.test(String(v)))) return "logical"
+  if (all((v) => typeof v === "string" && dateFrom(v, r) !== null)) return "date"
+  return "text"
+}
+
+const valuesOf = (r: QueryResult, i: number) =>
+  r.rows.map((row) => row[i]).filter((v): v is Exclude<QueryValue, null> => v !== null && v !== "")
+
+/** The types Power Query would detect for each column, in the person's region. */
 export function detectTypes(r: QueryResult): [string, QueryColumnType][] {
-  return r.columns.map((name, i) => {
-    const values = r.rows.map((row) => row[i]).filter((v): v is Exclude<QueryValue, null> => v !== null && v !== "")
-    const all = (test: (v: Exclude<QueryValue, null>) => boolean) => values.length > 0 && values.every(test)
-    const num = (v: QueryValue) => typeof v === "number" || /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(String(v).trim())
-    let type: QueryColumnType = "text"
-    if (all((v) => num(v) && Number.isInteger(Number(v)))) type = "whole"
-    else if (all(num)) type = "number"
-    else if (all((v) => typeof v === "boolean" || /^(true|false)$/i.test(String(v)))) type = "logical"
-    else if (all((v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v)))) type = "date"
-    return [name, type]
+  return r.columns.map((name, i) => [name, columnType(valuesOf(r, i), regional())])
+}
+
+const sameRules = (a: Regional, b: Regional) =>
+  a.decimal === b.decimal && a.group === b.group && a.dateOrder === b.dateOrder
+
+/**
+ * The steps that type new data. Numbers written with a currency sign or spaced groups ("€ 450.00", "120 500") get
+ * Replace Values steps first that take those out, so Excel's type number reads them too. Then "Changed Type" in the
+ * person's region, and, for columns that only read as numbers or dates in another locale (a UK statement's 13/02/2026
+ * in a US region), "Changed Type with Locale" in that one, as Excel's Change Type › Using Locale writes it.
+ */
+export function typeSteps(r: QueryResult, taken: readonly string[] = []): { name: string; step: QueryStep }[] {
+  const here = regional()
+  const steps: { name: string; step: QueryStep }[] = []
+  const names = [...taken]
+  const add = (step: QueryStep) => {
+    const name = stepName(step, names)
+    names.push(name)
+    steps.push({ name, step })
+  }
+  // Signs and spaces Excel's type number doesn't take, by what's taken out (one step each, as the editor makes them).
+  const cleanups = new Map<string, string[]>()
+  r.columns.forEach((name, i) => {
+    const values = valuesOf(r, i).filter((v): v is string => typeof v === "string")
+    if (!values.length || !values.every((v) => numberFrom(v, here) !== null)) return
+    if (values.every((v) => numberFrom(v, here, true) !== null)) return
+    const found = new Set<string>()
+    for (const v of values) {
+      for (const sign of v.match(/\s*[$€£¥]\s*/g) ?? []) found.add(sign.trim())
+      if (/\d[ \u00a0\u202f]\d/.test(v)) found.add(" ")
+    }
+    for (const f of found) cleanups.set(f, [...(cleanups.get(f) ?? []), name])
   })
+  let data = r
+  for (const find of [...cleanups.keys()].sort((a, b) => (a === " " ? 1 : b === " " ? -1 : 0))) {
+    const step: QueryStep = { op: "replace", columns: cleanups.get(find) as string[], find, with: "" }
+    add(step)
+    data = applyStep(data, step) as QueryResult
+  }
+  const main: [string, QueryColumnType][] = []
+  const other = new Map<string, [string, QueryColumnType][]>()
+  data.columns.forEach((name, i) => {
+    const values = valuesOf(data, i)
+    const type = columnType(values, here)
+    if (type === "text" && values.length) {
+      const culture = Object.keys(CULTURES).find(
+        (k) => !sameRules(CULTURES[k], here) && columnType(values, CULTURES[k]) !== "text",
+      )
+      if (culture) {
+        other.set(culture, [...(other.get(culture) ?? []), [name, columnType(values, CULTURES[culture])]])
+        return
+      }
+    }
+    main.push([name, type])
+  })
+  if (main.length) add({ op: "types", columns: main })
+  for (const [culture, columns] of other) add({ op: "types", columns, culture })
+  return steps
 }
 
 // ── Loading and refreshing ──

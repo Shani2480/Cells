@@ -12,11 +12,13 @@ import {
   packageName,
   saveTypes,
   TEXT_EXTENSIONS,
+  PDF_TYPES,
   TEXT_TYPES,
   titleOf,
   type WorkbookDocument,
 } from "./document"
 import { fileNameOf } from "@/platform/android-files"
+import { message } from "@/sheet/get-data"
 import { breakLinkOps, linkPaths, readLink, updateLinkOps, type SourceBook } from "@/sheet/links"
 import { newQueryTable, refreshOps, sourceName, textCells } from "@/sheet/queries"
 import { pinRecent, recentFiles, removeRecent, touchRecent, type RecentFile } from "./recent"
@@ -380,6 +382,28 @@ export class FileCommands {
       { kind: "queryTables", sheet, tables: [table] },
     ])
     return true
+  }
+
+  /**
+   * Data › Get Data › From PDF: a PDF's tables and pages in the Navigator. Its path goes in the query, so Refresh can
+   * read it again (a browser only knows its name, and reads it again only this session).
+   */
+  async importPdf(): Promise<boolean> {
+    let picked: { ref: FileRef; bytes: Uint8Array } | null
+    try {
+      picked = await this.files.pickOpen(PDF_TYPES)
+    } catch (error) {
+      this.ui.problem(classifyOpenError(error, null, "the file"))
+      return false
+    }
+    if (!picked) return false
+    try {
+      await this.doc.controller.getData.fromPdf(picked.ref.path ?? picked.ref.name, picked.bytes)
+      return true
+    } catch (error) {
+      this.doc.controller.shell.alert(`Cells couldn't read ${picked.ref.name}. ${message(error)}`)
+      return false
+    }
   }
 
   /**

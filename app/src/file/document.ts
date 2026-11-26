@@ -25,6 +25,9 @@ export const OLD_EXTENSIONS = ["xls"]
 /** Text files Cells opens: CSV opens at once; .txt and .tsv go through the Text Import Wizard, as in Excel. */
 export const TEXT_TYPES: FileType[] = [{ name: "Text Files", extensions: TEXT_EXTENSIONS }]
 
+/** Data › Get Data › From PDF. */
+export const PDF_TYPES: FileType[] = [{ name: "PDF Files", extensions: ["pdf"] }]
+
 /** The Open dialog's types; the first (everything Cells opens) is the default. */
 export const OPEN_TYPES: FileType[] = [
   { name: "All Excel Files", extensions: [...PACKAGE_EXTENSIONS, ...OLD_EXTENSIONS, ...TEXT_EXTENSIONS] },

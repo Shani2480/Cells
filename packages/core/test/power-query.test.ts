@@ -63,6 +63,44 @@ describe("Power Query formulas", () => {
     expect(readQueryPlan(queryFormula(json))).toEqual(json)
   })
 
+  it("reads and writes a PDF's query as Excel's Navigator writes it", () => {
+    const excel = `let
+    Source = Pdf.Tables(File.Contents("C:\\Users\\alex\\Documents\\statement.pdf"), [Implementation="1.3"]),
+    Table001 = Source{[Id="Table001"]}[Data],
+    #"Promoted Headers" = Table.PromoteHeaders(Table001, [PromoteAllScalars=true]),
+    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"Date", type date}, {"Amount", type number}})
+in
+    #"Changed Type"`
+    const plan = readQueryPlan(excel)
+    expect(plan).toEqual({
+      source: { kind: "pdf", path: "C:\\Users\\alex\\Documents\\statement.pdf" },
+      steps: [
+        { name: "Table001", step: { op: "item", id: "Table001" } },
+        { name: "Promoted Headers", step: { op: "promote" } },
+        {
+          name: "Changed Type",
+          step: {
+            op: "types",
+            columns: [
+              ["Date", "date"],
+              ["Amount", "number"],
+            ],
+          },
+        },
+      ],
+    })
+    expect(queryFormula(plan as QueryPlan)).toBe(excel.replace(/\n/g, "\r\n"))
+    expect(stepName({ op: "item", id: "Page002" }, [])).toBe("Page002")
+    // Excel's own options (which change the tables it finds) are left to Excel.
+    expect(
+      readQueryPlan('let Source = Pdf.Tables(File.Contents("/home/alex/a.pdf"), [EnforceBorderLines=true]) in Source'),
+    ).toBeNull()
+    expect(readQueryPlan('let Source = Pdf.Tables(File.Contents("/home/alex/a.pdf")) in Source')?.source).toEqual({
+      kind: "pdf",
+      path: "/home/alex/a.pdf",
+    })
+  })
+
   it("leaves M it doesn't run alone", () => {
     expect(readQueryPlan('let Source = Sql.Database("srv", "db") in Source')).toBeNull()
     expect(

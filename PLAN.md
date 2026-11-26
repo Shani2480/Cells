@@ -619,6 +619,33 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       Cells-made table style without repair as the default. Fixed with it: Table Design's gallery drew its thumbnails
       without their fills (the table's own range went into the sample), and a table could be made over a PivotTable
       (now refused with Excel's message).
+  - 🔄 Get Data › From PDF (asked for 2026-11-26: text PDFs first, scanned ones in the same round), in parts:
+    - ✅ PDFs with text. Get Data › From File › From PDF opens the Navigator on the file's tables and pages, named as
+      Excel's Pdf.Tables names them (Table001 (Page 1), Page001), each with a preview of what it loads as; Select
+      multiple items, Load (a table on a sheet of its own each, columns fitted) or Transform Data (the Query Editor).
+      Tables are found by `@cells/io`'s `pdfTables` from the text's positions and ruling lines read with pdf.js
+      (`app/src/pdf/`): a grid of lines gives the cells; without lines, rows are the text's lines and columns the
+      gaps running down every row (narrow gaps too where the text beside them lines up, as right-set numbers do), a
+      value wrapped over lines stays in its row (above or below its middle), a heading set apart goes over its
+      column, and a table carried over to the next pages with the same columns is one table ("Table001 (Page 1-3)",
+      the repeated heading dropped). Headings are promoted, and types set as Power Query reads text (measured in
+      Excel: the region's separators, (5.00) and 5.00- negative, 12% as 0.12, dates in the region's order, ISO and
+      month names always); currency signs and spaced digit groups are taken out first by Replace Values steps, and
+      another region's dates or numbers get a "Changed Type with Locale" step, so Excel reads them the same. Queries
+      are written as Excel's Navigator writes them (Pdf.Tables(File.Contents(path), [Implementation="1.3"]),
+      Source{[Id="Table001"]}[Data]); Refresh reads the file again. Recent Sources lists PDFs. Demo fixtures in
+      `packages/io/test/fixtures/pdf` (two made by Excel, two by LibreOffice). Checked in Excel 365: Excel finds the
+      same cells in the bordered, invoice and ruled-across tables; a Cells workbook with three PDF queries opens
+      without repair and Excel's refresh gives the same cells. Hint and Help topic.
+      Limits: Excel and Cells each find a PDF's tables their own way, so where they differ (Excel doesn't split a
+      wide date column from its description, or join pages) a query refreshed in the other app can give other
+      columns; a browser reads the file again only in the session it was picked in; turned and vertical text is left
+      out; Excel's other Pdf.Tables options (EnforceBorderLines, StartPage) are kept but not run.
+    - ⬜ Scanned pages: text recognition on this device, opt-in (setup and File › Options › AI), Tesseract in the
+      web view on desktop (CPU, English bundled, more languages downloaded on request).
+    - ⬜ Android: ML Kit text recognition (on-device, uses the NPU/GPU where the phone has one).
+    - ⬜ Data from Picture (Excel's Data › From Picture): a photo or screenshot of a table into cells, through the
+      same recognition and table finder, with a review step before it goes in.
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
     .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
