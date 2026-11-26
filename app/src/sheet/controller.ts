@@ -1850,6 +1850,26 @@ export class SheetController {
   }
 
   /** Removes the split: the top-left pane's scroll stays (Excel keeps what was at the top left). */
+  /**
+   * The mouse wheel in Normal view: whole rows, as Excel scrolls (three a notch), so the top row lines up. Hidden
+   * rows don't count. `count` is negative going up.
+   */
+  scrollRows(count: number) {
+    const metric = this.rowMetric
+    const step = Math.sign(count)
+    let row = metric.indexAt(this.scrollY)
+    // Partway into a row, going down starts from it (it lines up first) and going up from the row itself.
+    if (step > 0 && metric.pos(row) < this.scrollY) row--
+    if (step < 0 && metric.pos(row) < this.scrollY) row++
+    for (let n = Math.abs(Math.round(count)); n > 0;) {
+      const next = row + step
+      if (next < 0 || next >= MAX_ROWS) break
+      row = next
+      if (!this.sheet.rows.isHidden(row)) n--
+    }
+    this.scrollTo(this.scrollX, metric.pos(row))
+  }
+
   removeSplit() {
     const sp = this.split
     if (!sp) return

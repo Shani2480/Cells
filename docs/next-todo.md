@@ -233,7 +233,7 @@ built in Part 8b.
 
 Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes along with each part.
 
-- [ ] 1 Quiet fixes (links with cut/paste and Insert/Delete Cells, Advanced Filter saved, Select locked cells,
+- [x] 1 Quiet fixes (links with cut/paste and Insert/Delete Cells, Advanced Filter saved, Select locked cells,
       row refit, wheel by rows)
 - [ ] 2 Verify sweep (`docs/verify-list.md`)
 - [ ] 3 Printing and page layout
@@ -331,7 +331,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
   where it is (Excel hides it).
 - ~~Rows don't refit when a column width changes; edits over 20,000 rows don't refit rows at all.~~ Done in Phase 9
   (an edit refits up to 250,000 rows).
-- Wheel scrolling moves by pixels, not by rows like Excel.
+- ~~Wheel scrolling moves by pixels, not by rows like Excel.~~ Done in Phase 9 (a touchpad stays smooth).
 - Icons in the conditional-formatting menu rows; avatar colours for comment authors (now picked from the name).
 
 ## Later (from Phase 2)

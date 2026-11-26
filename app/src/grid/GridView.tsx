@@ -1,3 +1,4 @@
+import { wheelRows } from "./wheel"
 import { linkScreenTip, MAX_ROWS, rangeOf, type CellAddress, type Range } from "@cells/core"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { usePlatform } from "@/platform/context"
@@ -915,6 +916,12 @@ export function GridView({
         controller.scrollSplitTo(sp.scrollX + (leftPane ? dx : 0), sp.scrollY + (topPane ? dy : 0))
         if (leftPane) dx = 0
         if (topPane) dy = 0
+      }
+      // A mouse wheel's notches scroll whole rows in Normal view (Excel); a touchpad stays smooth.
+      const rows = wheelRows(event)
+      if (rows !== null && dy !== 0 && dx === 0 && controller.view === "normal") {
+        controller.scrollRows(rows)
+        return
       }
       controller.scrollTo(controller.scrollX + dx, controller.scrollY + dy)
     }
