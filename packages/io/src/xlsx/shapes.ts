@@ -81,12 +81,8 @@ export function readColor(node: XNode | undefined, ph?: ShapeColor): ShapeColor 
     if (m.local === "lumMod") color.lumMod = v
     else if (m.local === "lumOff") color.lumOff = v
     else if (m.local === "alpha") color.alpha = v
-    // Shade darkens toward black and tint lightens toward white: near enough as luminance changes.
-    else if (m.local === "shade") color.lumMod = (color.lumMod ?? 1) * v
-    else if (m.local === "tint") {
-      color.lumMod = (color.lumMod ?? 1) * v
-      color.lumOff = (color.lumOff ?? 0) + (1 - v)
-    }
+    else if (m.local === "shade") color.shade = (color.shade ?? 1) * v
+    else if (m.local === "tint") color.tint = (color.tint ?? 1) * v
   }
   return color
 }
@@ -111,6 +107,8 @@ const colorIn = (node: XNode | undefined, ph?: ShapeColor) =>
 
 export function colorXml(c: ShapeColor): string {
   const mods =
+    (c.shade !== undefined ? `<a:shade val="${Math.round(c.shade * 100000)}"/>` : "") +
+    (c.tint !== undefined ? `<a:tint val="${Math.round(c.tint * 100000)}"/>` : "") +
     (c.lumMod !== undefined && c.lumMod !== 1 ? `<a:lumMod val="${Math.round(c.lumMod * 100000)}"/>` : "") +
     (c.lumOff ? `<a:lumOff val="${Math.round(c.lumOff * 100000)}"/>` : "") +
     (c.alpha !== undefined && c.alpha < 1 ? `<a:alpha val="${Math.round(c.alpha * 100000)}"/>` : "")

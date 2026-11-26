@@ -31,9 +31,18 @@ export type ThemeSlot =
 
 /**
  * A colour: `rgb` ("4472C4"), or a theme slot. `lumMod`/`lumOff` (0–1) lighten or darken it as Excel's colour
- * picker rows do (Accent 1, Lighter 40%: lumMod 0.6, lumOff 0.4); `alpha` is its opacity (0–1, absent: solid).
+ * picker rows do (Accent 1, Lighter 40%: lumMod 0.6, lumOff 0.4); `shade`/`tint` (0–1) darken toward black or
+ * lighten toward white in linear light (Office's own styles use them); `alpha` is its opacity (0–1, absent: solid).
  */
-export type ShapeColor = { rgb?: string; theme?: ThemeSlot; lumMod?: number; lumOff?: number; alpha?: number }
+export type ShapeColor = {
+  rgb?: string
+  theme?: ThemeSlot
+  lumMod?: number
+  lumOff?: number
+  shade?: number
+  tint?: number
+  alpha?: number
+}
 
 export type ShapeFill = { kind: "none" } | { kind: "solid"; color: ShapeColor }
 
@@ -728,16 +737,17 @@ export function defaultShape(geometry: string): Pick<SheetShape, "fill" | "line"
     }
   return {
     fill: { kind: "solid", color: { theme: "accent1" } },
-    line: { color: { theme: "accent1", lumMod: 0.5 }, width: 1 },
+    // Office's default shape style (checked in Excel 365): accent 1, a 15% shade of it as a 1.5 pt outline.
+    line: { color: { theme: "accent1", shade: 0.15 }, width: 1.5 },
     text: { paragraphs: [{ align: "ctr", runs: [{ text: "", color: { theme: "lt1" } }] }], anchor: "ctr" },
   }
 }
 
-/** A new text box's look: white fill, a thin dark grey outline, black text at the top. */
+/** A new text box's look: white fill, a thin grey outline (a 50% shade of white, #BCBCBC), black text at the top. */
 export function defaultTextBox(): Pick<SheetShape, "fill" | "line" | "text"> {
   return {
     fill: { kind: "solid", color: { theme: "lt1" } },
-    line: { color: { theme: "lt1", lumMod: 0.5 }, width: 0.75 },
+    line: { color: { theme: "lt1", shade: 0.5 }, width: 0.75 },
     text: { paragraphs: [{ runs: [{ text: "", color: { theme: "dk1" } }] }], anchor: "t", wrap: true },
   }
 }

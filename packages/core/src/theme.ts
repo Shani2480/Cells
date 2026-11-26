@@ -51,8 +51,25 @@ export const sameLook = (a: Theme, b: Theme): boolean =>
 /** A colour as "#rrggbb" with the theme's colours, and its opacity (1: solid). */
 export function colorCss(c: ShapeColor, theme: Theme): { hex: string; alpha: number } {
   let hex = (c.theme ? theme.colors[c.theme] : c.rgb) ?? "000000"
+  if (c.shade !== undefined || c.tint !== undefined) hex = shadeTint(hex, c.shade, c.tint)
   if (c.lumMod !== undefined || c.lumOff !== undefined) hex = luminance(hex, c.lumMod ?? 1, c.lumOff ?? 0)
   return { hex: `#${hex.toUpperCase()}`, alpha: c.alpha ?? 1 }
+}
+
+/** DrawingML's shade (toward black) and tint (toward white), worked in linear light as Office does. */
+function shadeTint(hex: string, shade?: number, tint?: number): string {
+  return [0, 2, 4]
+    .map((i) => {
+      const s = parseInt(hex.slice(i, i + 2), 16) / 255
+      let c = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+      if (shade !== undefined) c *= shade
+      if (tint !== undefined) c = 1 - (1 - c) * tint
+      const out = c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055
+      return Math.round(Math.min(1, Math.max(0, out)) * 255)
+        .toString(16)
+        .padStart(2, "0")
+    })
+    .join("")
 }
 
 /** DrawingML's lumMod/lumOff: the colour's lightness (HSL) times mod plus off. */
