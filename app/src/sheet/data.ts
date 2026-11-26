@@ -9,6 +9,9 @@ import {
   copyTable,
   displayText,
   flashFill,
+  learnFlashProgram,
+  runFlashProgram,
+  type FlashPiece,
   type CellWrite,
   type Table,
   type AutoFilter,
@@ -71,6 +74,24 @@ export type SortTarget = { range: Range; header: boolean }
 
 /** Excel's names for a quick sort, by what the active cell's column holds. */
 export type SortLabels = { ascending: string; descending: string }
+
+/**
+ * Live Flash Fill's offer while an entry is typed under an example: the typed cell's whole value (what's typed is
+ * its start) and the column's other empty cells beside the data, which show in grey until Enter takes them.
+ */
+export type LiveFlash = { row: number; col: number; value: string; fills: { row: number; text: string }[] }
+
+let autoFlashFill = true
+
+/** File › Options › Advanced › Automatically Flash Fill (on, as in Excel). */
+export function setAutoFlashFill(on: boolean) {
+  autoFlashFill = on
+}
+
+/** At most this many examples are learned from (a column typed far down learns from its first ones). */
+const LIVE_EXAMPLES = 20
+
+type LiveLearned = { rows: number[]; sources: string[][]; empty: boolean[]; programs: FlashPiece[][] }
 
 /** Excel's message when Flash Fill finds no pattern. */
 export const NO_FLASH_PATTERN =
@@ -325,6 +346,94 @@ export class DataCommands {
   }
 
   // ── Flash Fill ──
+
+  private learned: { key: string; value: LiveLearned | null } | null = null
+  private offered: { key: string; value: LiveFlash | null } | null = null
+
+  /**
+   * Live Flash Fill (Excel's "Automatically Flash Fill"): while an entry is typed in an empty cell of a column with an
+   * example or more beside the data, the pattern those examples follow, when it gives a value starting with what's
+   * typed, offers the column's other empty cells. Null when there's no offer. Learned once per cell and change, then
+   * only run as the entry grows.
+   */
+  liveFlash(): LiveFlash | null {
+    const e = this.c.edit
+    if (!autoFlashFill || !e || !e.text.trim() || e.text.startsWith("=") || e.text.includes("\n")) return null
+    const where = `${this.c.wb.version}:${this.c.sheetIndex}:${e.row}:${e.col}`
+    const key = `${where}:${e.text}`
+    if (this.offered?.key === key) return this.offered.value
+    if (this.learned?.key !== where) this.learned = { key: where, value: this.learnLive(e.row, e.col) }
+    const learned = this.learned.value
+    let offer: LiveFlash | null = null
+    const at = learned ? learned.rows.indexOf(e.row) : -1
+    for (const program of learned?.programs ?? []) {
+      if (!learned) break
+      const value = runFlashProgram(program, learned.sources[at])
+      if (value === null || !value.startsWith(e.text)) continue
+      const fills: LiveFlash["fills"] = []
+      learned.rows.forEach((row, i) => {
+        if (row === e.row || !learned.empty[i]) return
+        const text = runFlashProgram(program, learned.sources[i])
+        if (text) fills.push({ row, text })
+      })
+      if (fills.length) {
+        offer = { row: e.row, col: e.col, value, fills }
+        break
+      }
+    }
+    this.offered = { key, value: offer }
+    return offer
+  }
+
+  /** The examples' patterns for a cell being typed in (with a header row over the column and without it). */
+  private learnLive(row: number, col: number): LiveLearned | null {
+    const sheet = this.c.sheet
+    const current = sheet.cells.get(row, col)?.value
+    if (current !== undefined && current !== "") return null
+    const styles = this.c.wb.styles
+    const region = currentRegion(sheet, { row, col })
+    if (col < region.c0 || col > region.c1 || row < region.r0 || row > region.r1) return null
+    const text = (r: number, c: number) => {
+      const v = sheet.cells.get(r, c)?.value
+      return v === undefined || v === "" ? null : displayText(v, styles.get(sheet.styleAt(r, c)).numberFormat)
+    }
+    const cols: number[] = []
+    for (let c = region.c0; c <= region.c1; c++) if (c !== col) cols.push(c)
+    if (!cols.length) return null
+    const rows: number[] = []
+    for (let r = region.r0; r <= region.r1; r++) rows.push(r)
+    const sources = rows.map((r) => cols.map((c) => text(r, c) ?? ""))
+    const outputs = rows.map((r) => (r === row ? null : text(r, col)))
+    const examples = rows
+      .map((r, i) => ({ r, sources: sources[i], output: outputs[i] }))
+      .filter((x): x is { r: number; sources: string[]; output: string } => x.output !== null)
+      .slice(0, LIVE_EXAMPLES)
+    if (!examples.length) return null
+    const programs: FlashPiece[][] = []
+    const all = learnFlashProgram(examples)
+    if (all) programs.push(all)
+    // A header row over the column (First Name) isn't an example.
+    const rest = examples.filter((x) => x.r !== region.r0)
+    const body = rest.length && rest.length < examples.length ? learnFlashProgram(rest) : null
+    if (body) programs.push(body)
+    return programs.length
+      ? { rows, sources, empty: outputs.map((o, i) => o === null && rows[i] !== row), programs }
+      : null
+  }
+
+  /** Enter on a live offer: the typed cell gets its whole value and the offered cells theirs, one step to undo. */
+  acceptLiveFlash(offer: LiveFlash, then?: () => void): boolean {
+    const sheet = this.c.sheet
+    const writes: CellWrite[] = offer.fills.map(({ row, text }) => {
+      const style = sheet.cells.get(row, offer.col)?.style
+      return { row, col: offer.col, data: { ...(style ? { style } : {}), value: text } }
+    })
+    this.c.setEditText(offer.value)
+    return this.c.commitChecked(false, then, {
+      ops: [{ kind: "setCells", sheet: this.c.sheetIndex, cells: writes }],
+      label: "Flash Fill",
+    })
+  }
 
   /**
    * Data › Flash Fill (Ctrl+E): fills the empty cells of the active cell's column, beside the data, by the pattern of

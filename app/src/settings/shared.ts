@@ -41,6 +41,8 @@ export type SharedSettings = {
   aiEnabled: boolean
   /** Text recognition on this device reads scanned PDFs (opt-in: `apps.cells.ocr`). */
   ocrEnabled: boolean
+  /** Flash Fill offers the rest of a column while an entry is typed (Excel's "Automatically Flash Fill", on: `apps.cells.autoFlashFill`). */
+  autoFlashFill: boolean
   /** The provider both apps use (`ai.provider`); blank until one is chosen. */
   aiProvider: AiProviderName | ""
   /** A model per provider (`ai.models`); blank: the provider's default. */
@@ -68,6 +70,7 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   setupDone: false,
   aiEnabled: false,
   ocrEnabled: false,
+  autoFlashFill: true,
   aiProvider: "",
   aiModels: {},
   aiAddresses: {},
@@ -118,6 +121,7 @@ export function parseShared(source: string | null): SharedSettings {
     setupDone: cells.setupDone === true,
     aiEnabled: cells.ai === true,
     ocrEnabled: cells.ocr === true,
+    autoFlashFill: cells.autoFlashFill !== false,
     aiProvider: AI_PROVIDERS.includes(ai.provider as AiProviderName) ? (ai.provider as AiProviderName) : "",
     aiModels: strings(ai.models, AI_PROVIDERS),
     aiAddresses: strings(ai.addresses, Object.keys(DEFAULT_ADDRESSES)),
@@ -149,6 +153,7 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   setupDone: ["apps", "cells", "setupDone"],
   aiEnabled: ["apps", "cells", "ai"],
   ocrEnabled: ["apps", "cells", "ocr"],
+  autoFlashFill: ["apps", "cells", "autoFlashFill"],
   aiProvider: ["ai", "provider"],
   aiModels: ["ai", "models"],
   aiAddresses: ["ai", "addresses"],

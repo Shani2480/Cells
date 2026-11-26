@@ -702,7 +702,18 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     selection of several ranges can now be gone to, and the Name Box shows it when that selection is made again. A
     table's name goes to its data rows (without the header and total rows, as in Excel). The Name Box's list holds
     the names that point at cells and the tables, A to Z (constants such as `=0.2` left out), built only while open.
-  - ⬜ Live Flash Fill, .xlsb and .ods.
+  - ✅ Live Flash Fill (Excel's "Automatically Flash Fill", on by default, File › Options › Advanced › Editing
+    options; `apps.cells.autoFlashFill`): typing in an empty cell under an example or more, beside the data, shows
+    the rest of the column in grey once the examples' pattern gives a value starting with what's typed (with a
+    header row over the column or without it); the grey cells cover text running over from the left, as filled
+    cells do. Enter takes it: the typed cell gets its whole value and the column the rest, one undo step named
+    "Flash Fill"; Tab, Esc, an arrow or a click leave it. No offer for formulas, cells that already hold a value, or
+    the first entry in a column. The pattern is learned once per cell and only run as the entry grows. Hint "New:
+    Flash Fill as you type" (a new id, so it shows to those who dismissed the old one).
+    Limits: no Flash Fill Options button after it (Undo / Accept / Select changed cells); the offer comes from the
+    cheapest pattern the examples fit (Excel weighs several); Excel's exact rule for when the grey appears isn't
+    published, so it may show sooner or later than Excel's.
+  - ⬜ .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

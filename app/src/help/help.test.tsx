@@ -47,7 +47,7 @@ describe("what Help knows", () => {
 
   it("finds features and shortcuts by any of their words", () => {
     const names = searchHelp("split names")
-    expect(names.topics.map((t) => t.id)).toEqual(["flash-fill"])
+    expect(names.topics.map((t) => t.id)).toEqual(["flash-fill-live"])
     const undo = searchHelp("undo")
     expect(undo.topics).toEqual([])
     expect(undo.shortcuts.flatMap((g) => g.shortcuts.map((s) => s.keys))).toEqual(["Ctrl+Z / Ctrl+Y"])
@@ -100,13 +100,13 @@ describe("the Help pane", () => {
     fireEvent.change(within(pane).getByRole("searchbox", { name: "Search Help" }), {
       target: { value: "flash" },
     })
-    expect(within(pane).getByText("Flash Fill", { selector: "summary" })).toBeTruthy()
+    expect(within(pane).getByText("Flash Fill as you type", { selector: "summary" })).toBeTruthy()
     expect(within(pane).queryByText("Forecast Sheet")).toBeNull()
     expect(within(pane).getByText("Ctrl+E")).toBeTruthy()
     fireEvent.click(within(pane).getByRole("button", { name: "Show me" }))
     expect(onShowTab).toHaveBeenCalledWith("TabData")
     act(() => void vi.advanceTimersByTime(200))
-    expect(usePointer.getState().pointed).toMatchObject({ id: "flash-fill", target: "Flash Fill" })
+    expect(usePointer.getState().pointed).toMatchObject({ id: "flash-fill-live", target: "Flash Fill" })
   })
 
   it("says so when the feature isn't on screen to point at", () => {

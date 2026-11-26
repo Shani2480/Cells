@@ -28,6 +28,7 @@ const pick = (s: SharedSettings): SharedSettings => ({
   setupDone: s.setupDone,
   aiEnabled: s.aiEnabled,
   ocrEnabled: s.ocrEnabled,
+  autoFlashFill: s.autoFlashFill,
   aiProvider: s.aiProvider,
   aiModels: s.aiModels,
   aiAddresses: s.aiAddresses,

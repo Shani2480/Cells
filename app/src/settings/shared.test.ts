@@ -23,6 +23,7 @@ describe("the settings file shared with Inkspire", () => {
       setupDone: false,
       aiEnabled: false,
       ocrEnabled: false,
+      autoFlashFill: true,
       aiProvider: "builtin",
       aiModels: {},
       aiAddresses: {},

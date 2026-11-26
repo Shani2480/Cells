@@ -27,7 +27,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     where: "The button at the bottom-right corner of a selection of data, or Ctrl+Q",
     keywords: "totals chart sparklines format table preview",
   },
-  "flash-fill": { command: "QuickCode", keywords: "split names pattern column fill example" },
+  "flash-fill-live": {
+    command: "QuickCode",
+    keywords: "split names pattern column fill example automatically as you type preview grey suggestion",
+  },
   "ai-tools": { command: "AIToolsMenu", keywords: "ai formula explain summarize chart copilot assistant" },
   "recommended-pivots": { command: "PivotTableSuggestion", keywords: "pivot pivottable summary suggest" },
   "describe-pivot": {

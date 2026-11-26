@@ -67,11 +67,11 @@ describe("feature hints", () => {
     expect(screen.queryByRole("dialog")).toBeNull()
     act(() => vi.advanceTimersByTime(FIRST_HINT_MS + 600))
     expect(screen.getAllByRole("dialog")).toHaveLength(1)
-    expect(screen.getByText("New: Flash Fill")).toBeTruthy()
+    expect(screen.getByText("New: Flash Fill as you type")).toBeTruthy()
 
     fireEvent.click(screen.getByRole("dialog"))
     expect(screen.queryByRole("dialog")).toBeNull()
-    expect(useSettings.getState().hintsDismissed).toEqual(["flash-fill"])
+    expect(useSettings.getState().hintsDismissed).toEqual(["flash-fill-live"])
 
     act(() => vi.advanceTimersByTime(NEXT_HINT_MS - 1000))
     expect(screen.queryByRole("dialog")).toBeNull()
@@ -85,7 +85,7 @@ describe("feature hints", () => {
     act(() => vi.advanceTimersByTime(FIRST_HINT_MS + 600))
     fireEvent.click(flash)
     expect(screen.queryByRole("dialog")).toBeNull()
-    expect(useSettings.getState().hintsDismissed).toEqual(["flash-fill"])
+    expect(useSettings.getState().hintsDismissed).toEqual(["flash-fill-live"])
     act(() => vi.advanceTimersByTime(NEXT_HINT_MS + 600))
     expect(screen.queryByRole("dialog")).toBeNull()
   })
@@ -108,13 +108,13 @@ describe("feature hints", () => {
 
   it("can be turned off, and shown again from the start", () => {
     control("Flash Fill")
-    useSettings.setState({ hintsEnabled: false, hintsDismissed: ["flash-fill"] })
+    useSettings.setState({ hintsEnabled: false, hintsDismissed: ["flash-fill-live"] })
     render(<FeatureHints />)
     act(() => vi.advanceTimersByTime(FIRST_HINT_MS + 600))
     expect(screen.queryByRole("dialog")).toBeNull()
     act(() => void useSettings.setState({ hintsEnabled: true, hintsDismissed: [] }))
     act(() => vi.advanceTimersByTime(600))
-    expect(screen.getByText("New: Flash Fill")).toBeTruthy()
+    expect(screen.getByText("New: Flash Fill as you type")).toBeTruthy()
   })
 
   it("wait until the first-run setup is done", () => {
@@ -122,6 +122,6 @@ describe("feature hints", () => {
     useSettings.setState({ setupDone: false })
     render(<FeatureHints />)
     act(() => vi.advanceTimersByTime(FIRST_HINT_MS + 600))
-    expect(screen.queryByText("New: Flash Fill")).toBeNull()
+    expect(screen.queryByText("New: Flash Fill as you type")).toBeNull()
   })
 })

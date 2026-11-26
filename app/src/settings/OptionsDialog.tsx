@@ -118,6 +118,15 @@ export function OptionsDialog({
           ) : (
             <>
               <p className="options-intro">Advanced options for working with Cells.</p>
+              <h3 className="options-heading">Editing options</h3>
+              <label className="dialog-radio">
+                <input
+                  type="checkbox"
+                  checked={draft.autoFlashFill}
+                  onChange={(e) => change({ autoFlashFill: e.target.checked })}
+                />
+                Automatically Flash Fill
+              </label>
               <h3 className="options-heading">Region, dates and numbers</h3>
               <RegionalFields value={draft} onChange={change} />
               <p className="dialog-note">

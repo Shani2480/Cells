@@ -121,6 +121,9 @@ export type CellMode = "ready" | "enter" | "edit" | "point"
 /** The reference Point mode is writing: where it sits in the text and the cells it covers. */
 export type PointState = { start: number; end: number; anchor: CellAddress; focus: CellAddress }
 
+/** More an entry's commit does, in the same step to undo (live Flash Fill's cells), and that step's name. */
+export type CommitExtra = { ops: Op[]; label: string }
+
 export type EditState = {
   row: number
   col: number
@@ -1121,7 +1124,7 @@ export class SheetController {
    * Commits the entry. `fill` (Ctrl+Enter) writes it to every selected cell. Returns false when nothing was being
    * edited. A new entry clears the marching ants, as in Excel.
    */
-  commitEdit(fill = false): boolean {
+  commitEdit(fill = false, extra?: CommitExtra): boolean {
     const edit = this.edit
     if (!edit) return false
     this.edit = null
@@ -1158,7 +1161,8 @@ export class SheetController {
     }
     if (!fill || isSingleCellOn(this.sheet, this.selection))
       ops.push(...this.hyperlinks.autoLinkOps(edit.row, edit.col, edit.text))
-    this.transact(ops, { label, before, after: before })
+    if (extra) ops.push(...extra.ops)
+    this.transact(ops, { label: extra?.label ?? label, before, after: before })
     return true
   }
 
@@ -1167,19 +1171,19 @@ export class SheetController {
    * rule shows the error alert and stays in the cell: Retry (or No) selects it to type again, Cancel throws it away,
    * Yes (Warning) and OK (Information) enter it. Returns whether it went in now.
    */
-  commitChecked(fill = false, then?: () => void): boolean {
+  commitChecked(fill = false, then?: () => void, extra?: CommitExtra): boolean {
     const edit = this.edit
     if (!edit) return false
     const bad = this.validation.rejects(edit.text, edit.row, edit.col)
     if (!bad || !this.shell.validationAlert) {
-      this.commitEdit(fill)
+      this.commitEdit(fill, extra)
       then?.()
       return true
     }
     this.shell.validationAlert(this.validation.alertFor(bad), (answer) => {
       if (!this.edit) return
       if (answer === "yes" || answer === "ok") {
-        this.commitEdit(fill)
+        this.commitEdit(fill, extra)
         then?.()
       } else if (answer === "cancel") this.cancelEdit()
       else this.setEditSelection(0, this.edit.text.length)
@@ -2236,7 +2240,14 @@ export class SheetController {
         this.commitChecked()
         return true
       }
-      this.commitChecked(primary, primary ? undefined : () => this.enterMove(shift ? "up" : "down"))
+      const move = () => this.enterMove(shift ? "up" : "down")
+      // Enter takes live Flash Fill's offer, as in Excel.
+      const offer = primary ? null : this.data.liveFlash()
+      if (offer) {
+        this.data.acceptLiveFlash(offer, move)
+        return true
+      }
+      this.commitChecked(primary, primary ? undefined : move)
       return true
     }
     const list = this.autocomplete

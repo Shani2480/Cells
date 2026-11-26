@@ -3,6 +3,7 @@ import { androidOcr, mlkitPicture, mlkitRecognizer } from "./pdf/ocr-android"
 import { setClipboardImageReader } from "./pdf/picture"
 import { clipboardImageReader } from "./platform/clipboard-image"
 import { setPictureReader } from "./sheet/picture-data"
+import { setAutoFlashFill } from "./sheet/data"
 import { fileName, setFileReader, setRecognitionSwitch, setRecognizer, setWebPort } from "./sheet/get-data"
 import { updateSettings, useSettings } from "./settings/settings"
 import React from "react"
@@ -33,6 +34,8 @@ const recognition = (on: boolean) => {
   setRecognizer(on ? (androidOcr() ? mlkitRecognizer : tesseractRecognizer) : null)
   setPictureReader(on ? (androidOcr() ? mlkitPicture : tesseractPicture) : null)
 }
+setAutoFlashFill(useSettings.getState().autoFlashFill)
+useSettings.subscribe((s, before) => s.autoFlashFill !== before.autoFlashFill && setAutoFlashFill(s.autoFlashFill))
 recognition(useSettings.getState().ocrEnabled)
 useSettings.subscribe((s, before) => s.ocrEnabled !== before.ocrEnabled && recognition(s.ocrEnabled))
 setRecognitionSwitch(() => void updateSettings({ ocrEnabled: true }), androidOcr() ? "device" : "computer")

@@ -1,7 +1,7 @@
 import { columnName, isWholeColumns, isWholeRows, rangeIntersection, type Range } from "@cells/core"
 import type { SheetController } from "@/sheet/controller"
-import { prefersDarkText, setBodyFont, type Measure } from "./cell-look"
-import { drawCells } from "./draw-cells"
+import { lookOf, prefersDarkText, setBodyFont, type Measure } from "./cell-look"
+import { drawCells, PAD } from "./draw-cells"
 import { drawBackground } from "./background"
 import { drawPageLayout } from "./page-layout"
 import { drawBreakPreview } from "./break-preview"
@@ -284,6 +284,35 @@ function drawSelection({ painter: p, layout, controller, theme, antsOffset }: Dr
     p.setLineDash([3, 2])
     p.strokeRect(Math.round(rect.x) + 0.5, Math.round(rect.y) + 0.5, Math.round(rect.w) - 2, Math.round(rect.h) - 2)
     p.setLineDash([])
+  }
+
+  // Live Flash Fill's offer: the values Enter would put in, in grey, in their empty cells (as Excel shows them).
+  const flash = controller.data.liveFlash()
+  if (flash) {
+    const sheet = controller.sheet
+    p.save()
+    p.fillStyle = theme.text
+    p.globalAlpha = 0.45
+    p.textAlign = "left"
+    for (const { row, text } of flash.fills) {
+      const rect = rangeRect(controller, layout, { r0: row, r1: row, c0: flash.col, c1: flash.col })
+      if (rect.y > layout.clip.y1 || rect.y + rect.h < layout.clip.y0) continue
+      const look = lookOf(controller.wb.styles, sheet.styleAt(row, flash.col))
+      p.save()
+      // The cell covers text running over from the left, as it will once it holds the value (gridlines kept).
+      p.globalAlpha = 1
+      p.fillStyle = look.fill ?? theme.background
+      p.fillRect(rect.x, rect.y, rect.w - 1, rect.h - 1)
+      p.globalAlpha = 0.45
+      p.fillStyle = theme.text
+      p.font = look.font
+      p.beginPath()
+      p.rect(rect.x, rect.y, rect.w, rect.h)
+      p.clip()
+      p.fillText(text, rect.x + PAD, rect.y + rect.h - BASELINE_FROM_BOTTOM)
+      p.restore()
+    }
+    p.restore()
   }
 
   // A spill range shows a thin blue border while one of its cells is active.

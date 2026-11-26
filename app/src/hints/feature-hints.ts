@@ -22,9 +22,9 @@ export const FEATURE_HINTS: FeatureHint[] = [
     target: "Quick Analysis",
   },
   {
-    id: "flash-fill",
-    title: "New: Flash Fill",
-    text: "Type an example or two of what you want next to your data, such as first names from full names, and Flash Fill (Ctrl+E) does the rest of the column.",
+    id: "flash-fill-live",
+    title: "New: Flash Fill as you type",
+    text: "Type an example of what you want next to your data, such as first names from full names, then start the next one: Cells shows the rest of the column in grey, and Enter fills it in. Flash Fill (Ctrl+E) does the same at any time. You can turn the grey offer off in File › Options › Advanced.",
     target: "Flash Fill",
   },
   {
