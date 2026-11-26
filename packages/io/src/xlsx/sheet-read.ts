@@ -652,6 +652,12 @@ function dropConditionalExt(source: string): string {
 /** Split positions are kept in twips (1/20 pt); a pixel at 100% is 0.75 pt. */
 export const TWIPS_PER_PIXEL = 15
 
+/**
+ * Excel counts a split from the window's edge, headings included (checked in Excel 365: three columns split at 3270
+ * twips, 192 px of columns and 26 px of row headings; five rows at 1800, 100 px and the 20 px column headings).
+ */
+export const SPLIT_HEADINGS = { width: 26, height: 20 }
+
 function readView(root: XNode, warnings: string[]): SheetView {
   // The first window's (workbookViewId 0); the others are read beside it.
   const all = (kid(root, "sheetViews") ?? root).children.filter((c) => c.name.endsWith("sheetView"))
@@ -676,8 +682,12 @@ export function readViewNode(v: XNode, warnings: string[]): SheetView {
     const ys = Math.round(Number(at(pane, "ySplit") ?? 0))
     if (state === "frozen" || state === "frozenSplit")
       freeze = { row: topLeft.row + ys, col: topLeft.col + xs, top: topLeft.row, left: topLeft.col }
-    else if (xs > 0 || ys > 0)
-      split = { width: Math.round(xs / TWIPS_PER_PIXEL), height: Math.round(ys / TWIPS_PER_PIXEL), topLeft }
+    else if (xs > 0 || ys > 0) {
+      const headings = !falsy(at(v, "showRowColHeaders"))
+      const px = (twips: number, heading: number) =>
+        twips > 0 ? Math.max(1, Math.round(twips / TWIPS_PER_PIXEL) - (headings ? heading : 0)) : 0
+      split = { width: px(xs, SPLIT_HEADINGS.width), height: px(ys, SPLIT_HEADINGS.height), topLeft }
+    }
     void warnings
   }
   const selections = kids(v, "selection")

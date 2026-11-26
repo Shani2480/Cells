@@ -35,7 +35,7 @@ import { assemble, attrText, type Kept } from "./dom"
 import { printElementsXml, withFitToPage } from "./page-setup"
 import type { LinkTable } from "./links"
 import { formulaToFile } from "./formula"
-import { PROTECTION_FLAGS, TWIPS_PER_PIXEL, type SheetView } from "./sheet-read"
+import { PROTECTION_FLAGS, SPLIT_HEADINGS, TWIPS_PER_PIXEL, type SheetView } from "./sheet-read"
 import type { SheetSource } from "./read"
 import type { StylesOut } from "./styles"
 import { pxToColWidth, pxToPoints } from "./units"
@@ -385,8 +385,10 @@ function viewXml(view: SheetView, showSymbols: boolean, windowId: number): strin
     inner += `<selection${selAttrs(pane)}/>`
   } else if (view.split && (view.split.width > 0 || view.split.height > 0)) {
     // Split panes: positions in twips; the bottom-right pane is the one with the selection.
-    const xs = Math.round(view.split.width * TWIPS_PER_PIXEL)
-    const ys = Math.round(view.split.height * TWIPS_PER_PIXEL)
+    // Counted from the window's edge, the headings included (as Excel writes it).
+    const heading = (size: number, px: number) => (size > 0 ? size + (view.showHeadings ? px : 0) : 0)
+    const xs = Math.round(heading(view.split.width, SPLIT_HEADINGS.width) * TWIPS_PER_PIXEL)
+    const ys = Math.round(heading(view.split.height, SPLIT_HEADINGS.height) * TWIPS_PER_PIXEL)
     const pane = xs && ys ? "bottomRight" : ys ? "bottomLeft" : "topRight"
     inner += `<pane${attrText({ xSplit: xs || undefined, ySplit: ys || undefined, topLeftCell: cell(view.topLeft), activePane: pane })}/>`
     if (xs && ys) inner += `<selection pane="topRight"/><selection pane="bottomLeft"/>`

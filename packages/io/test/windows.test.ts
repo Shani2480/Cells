@@ -72,3 +72,19 @@ describe("a workbook's windows (View › New Window)", () => {
     expect(views).toMatch(/<workbookView activeTab="1" xWindow="-120"[^>]*windowWidth="15600"[^>]*\{9B8A21D2/)
   })
 })
+
+describe("split panes in a file", () => {
+  it("counts the split from the window's edge with the headings, as Excel does", async () => {
+    // Excel 365: SplitColumn 3 and SplitRow 5 on default-size cells.
+    const bytes = new Uint8Array(readFileSync(new URL("./fixtures/excel/split-panes.xlsx", import.meta.url)))
+    const read = await openXlsx(bytes)
+    expect(read.views[0].split).toMatchObject({ width: 192, height: 100 })
+    const files = await readZip(await saveXlsx(read.workbook, { source: read.source, views: read.views }))
+    expect(text(files, "xl/worksheets/sheet1.xml")).toMatch(/<pane xSplit="3270" ySplit="1800"/)
+    // Without headings there's nothing to add.
+    const plain = await readZip(
+      await saveXlsx(read.workbook, { views: [{ ...read.views[0], showHeadings: false }, read.views[1]] }),
+    )
+    expect(text(plain, "xl/worksheets/sheet1.xml")).toMatch(/<pane xSplit="2880" ySplit="1500"/)
+  })
+})
