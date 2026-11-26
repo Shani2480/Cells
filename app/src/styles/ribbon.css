@@ -979,6 +979,15 @@
 .whats-new ul {
   margin: 0;
   padding-left: 18px;
+  list-style: disc;
+}
+
+.whats-new li + li {
+  margin-top: 4px;
+}
+
+.whats-new li::marker {
+  color: var(--app-ribbon-muted);
 }
 
 .bs-section {

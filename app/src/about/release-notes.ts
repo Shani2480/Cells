@@ -6,6 +6,27 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "0.8.1",
+    date: "2026-11-26",
+    notes: [
+      "Charts on a sheet of their own: Move Chart (Chart Design tab) puts a chart on a new chart sheet or another worksheet, and F11 makes a chart of the selected data on a new chart sheet. Chart sheets in Excel files now open and save instead of being dropped.",
+      "Format any part of a chart (Chart Format tab): click the title, an axis, a series or the legend and change its fill, outline and text, or double-click it for the Format pane with its own options, such as axis bounds, label contents and gap width.",
+      "Insert Chart: Recommended Charts suggests the chart types that suit your data, with a preview of each, and All Charts lists every type. Change Chart Type opens the same dialog.",
+      "Headers and footers typed on the page in Page Layout view, as in Excel, with a Header & Footer tab for page numbers, dates, the file and sheet name and Excel's ready-made ones. Page Break Preview has a right-click menu for page breaks and the print area.",
+      "Pictures (Picture Format tab): crop them, cut them to a shape or an aspect ratio, and fill or fit the frame; change brightness, contrast, sharpness, colour, recolour and transparency; and add Artistic Effects such as pencil sketch, watercolour or blur. Excel opens them the same way.",
+      "PivotTables: Show Report Filter Pages makes a sheet for each filter item; sort by a value (biggest region first) or use More Sort Options; add calculated items such as =Pens+Ink, with Solve Order and List Formulas; and PivotTable Options now has all of Excel's tabs, including merged labels, report filter layout, print titles and Alt Text.",
+      "Your own styles: New PivotTable Style and New Table Style design a style element by element, and set it as the workbook's default. Custom styles in Excel files now show and draw too.",
+      "Get Data › From PDF: load tables from a PDF, each found and shown in the Navigator first, and refresh them later. Scanned PDFs can be read too, with text recognition that runs on your device; it's off until you turn it on (File › Options › AI).",
+      "Data from Picture (Data tab): turn a photo or screenshot of a table into cells. You check what was read beside the picture, with unsure cells marked, before it goes in. It uses the same on-device text recognition.",
+      "PDFs you export from Cells can now be searched, and their text selected and copied, while the pages look just as before.",
+      "Notes and comments now move with their cells when you insert or delete cells, or cut and paste them, and copy with them.",
+      "The Name Box takes a list of ranges, such as B1,D3:E4, and goes to tables and to names that cover several ranges.",
+      "Flash Fill as you type: start typing a second example beside your data and Cells shows the rest of the column in grey; press Enter to take it. You can turn it off in File › Options › Advanced.",
+      "Open Excel Binary Workbooks (.xlsb): Cells opens a copy, and saving makes an .xlsx (or an .xlsm with macros). Open and save OpenDocument Spreadsheets (.ods) from LibreOffice and Google Sheets; charts, pictures and conditional formatting in an .ods aren't kept yet, and Cells asks before saving one.",
+      "Fixed: after a command from a ribbon menu, the keyboard stays on the sheet. Table Design's style thumbnails show their colours again, and a table can no longer be made on top of a PivotTable.",
+    ],
+  },
+  {
     version: "0.8.0",
     date: "2026-11-21",
     notes: [

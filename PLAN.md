@@ -405,7 +405,7 @@ The checklist, with what each part covers, is `docs/next-todo.md`; PivotTables h
 shortcut list is written by hand (`help-content.ts`): a new shortcut has to be added there too. Show me can't point
 on phones (the pane fills the screen), and Show Training says so when a feature's button isn't on screen.
 
-### Phase 8 — Closing the gap with Excel (0.8.0) 🔄
+### Phase 8 — Closing the gap with Excel (0.8.0, 0.8.1) ✅
 
 In order: the functions Excel has and Cells didn't (about 250), then the greyed-out ribbon buttons, then the thinner
 features (chart Format tab, Insert Chart dialog, Move Chart and chart sheets, Page Layout view and Page Break
@@ -482,7 +482,7 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     empty model even when workbook.xml lists the tables and relationships, and with it, it ignores the XML; so
     Cells can't change the model, and keeps it as Excel wrote it. Also: disabled dialog buttons now look disabled.
   - ✅ Move Chart (with chart sheets, below).
-- 🔄 Then the thinner features above:
+- ✅ Then the thinner features above (released in 0.8.1, with release notes):
   - ✅ Chart sheets and Move Chart: chart sheets in a file are read and saved (they used to be dropped), and show
     their chart filling the window with the chart tabs open. Chart Design › Move Chart puts a chart on a new chart
     sheet (named Chart1, …) or onto another worksheet; F11 makes a chart of the selection on a new chart sheet.
@@ -551,7 +551,7 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     Limits: the look is close, not Excel's pixels; one effect at a time (as Excel's ribbon; a file with two keeps
     the second as it was, and its corrections then can't change in Cells); a resized picture keeps the effect at the
     size it was made for until it's changed.
-  - 🔄 PivotTable extras, in parts:
+  - ✅ PivotTable extras, in parts:
     - ✅ Show Report Filter Pages (PivotTable Analyze › Options ▾): a dialog lists the report filters; OK makes a
       sheet for each item (only the ticked ones when several can be ticked), named after the item as Excel names it
       (an item that can't name a sheet gets "SheetN", a name taken gets " (2)"), placed before the PivotTable's sheet
@@ -619,7 +619,7 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       Cells-made table style without repair as the default. Fixed with it: Table Design's gallery drew its thumbnails
       without their fills (the table's own range went into the sample), and a table could be made over a PivotTable
       (now refused with Excel's message).
-  - 🔄 Get Data › From PDF (asked for 2026-11-26: text PDFs first, scanned ones in the same round), in parts:
+  - ✅ Get Data › From PDF (asked for 2026-11-26: text PDFs first, scanned ones in the same round), in parts:
     - ✅ PDFs with text. Get Data › From File › From PDF opens the Navigator on the file's tables and pages, named as
       Excel's Pdf.Tables names them (Table001 (Page 1), Page001), each with a preview of what it loads as; Select
       multiple items, Load (a table on a sheet of its own each, columns fitted) or Transform Data (the Query Editor).
