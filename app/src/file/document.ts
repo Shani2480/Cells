@@ -177,11 +177,14 @@ export class WorkbookDocument {
     if (c.edit) c.commitEdit()
     if (isTextFile(fileName)) return saveText(c.wb, c.sheetIndex, this.textSave(fileName))
     if (isOdsFile(fileName)) return saveOds(c.wb, { views: c.saveViews(), activeSheet: c.sheetIndex })
+    // Every window's view, in order (View › New Window): Excel opens them all again.
+    const [first, ...others] = this.windows.all
     return saveXlsx(c.wb, {
       source: this.source,
       fileName,
-      views: c.saveViews(),
-      activeSheet: c.sheetIndex,
+      views: first.saveViews(),
+      activeSheet: first.sheetIndex,
+      windows: others.map((w) => ({ views: w.saveViews(), activeSheet: w.sheetIndex })),
     })
   }
 
@@ -315,6 +318,10 @@ export async function openDocument(
     },
     calc,
   )
+  // The other windows the file was saved with, each with its own sheet, scroll, zoom and selection; the first stays
+  // in front.
+  for (const w of read.windows) doc.windows.newWindow().loadViews(w.views, w.activeSheet)
+  if (read.windows.length) doc.windows.activate(controller)
   return doc
 }
 

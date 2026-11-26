@@ -79,7 +79,7 @@ import {
 } from "./timelines"
 import { readSlicerCache, readSlicerPart, REL_SLICER, REL_SLICER_CACHE, type SlicerCacheRead } from "./slicers"
 import { readHeaderPictureVml } from "./header-pictures"
-import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
+import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView, type WindowView } from "./sheet-read"
 import { StylesIn } from "./styles"
 import { readTable, structuredFromFile } from "./table"
 
@@ -150,6 +150,8 @@ export type XlsxRead = {
   workbook: Workbook
   views: SheetView[]
   activeSheet: number
+  /** The workbook's other windows (View › New Window), in order; empty when it has one. */
+  windows: WindowView[]
   source: XlsxSource
   warnings: string[]
 }
@@ -359,6 +361,8 @@ export async function openXlsx(
   const pivotTables: TableRead[] = []
 
   const views: SheetView[] = []
+  /** Each sheet's views in the other windows (by workbookViewId − 1). */
+  const windowViews: (SheetView | undefined)[][] = []
   const customSheetViews = new Map<Sheet, CustomSheetViewRead[]>()
   const sheetSources = new WeakMap<Sheet, SheetSource>()
   const chartSheetSources = new WeakMap<Sheet, ChartSheetSource>()
@@ -367,7 +371,9 @@ export async function openXlsx(
     const xml = partText(pkg, partName)
     if (!xml) return null
     const root = parseTree(xml).root
-    const view = kid(kid(root, "sheetViews"), "sheetView")
+    const sheetViews = (kid(root, "sheetViews")?.children ?? []).filter((c) => c.name.endsWith("sheetView"))
+    const idOf = (c: XNode) => Number(at(c, "workbookViewId") ?? 0)
+    const view = sheetViews.find((c) => idOf(c) === 0) ?? sheetViews[0]
     const rels = relationshipsFor(pkg, partName)
     const drawingRel = rels.find((r) => r.id === at(kid(root, "drawing"), "id", NS_R) && r.type === REL_DRAWING)
     const drawingXml = partText(pkg, drawingRel?.partName)
@@ -399,11 +405,20 @@ export async function openXlsx(
       }
     // The chart is the sheet: the other objects Excel allows on a chart sheet (shapes over it) aren't kept.
     sheet.objects = [sheet.charts[0]]
-    const zoom = Number(at(view, "zoomScale") ?? 100)
+    const zoomOf = (v: XNode | undefined) => {
+      const zoom = Number(at(v, "zoomScale") ?? 100)
+      return Number.isFinite(zoom) && zoom > 0 ? zoom / 100 : 1
+    }
+    const windowViews: (SheetView | undefined)[] = []
+    for (const v of sheetViews) {
+      const id = idOf(v)
+      if (Number.isInteger(id) && id > 0 && id < 64) windowViews[id - 1] = { ...DEFAULT_VIEW, zoom: zoomOf(v) }
+    }
     return {
       source: { partName, drawing } as ChartSheetSource,
-      zoom: Number.isFinite(zoom) && zoom > 0 ? zoom / 100 : 1,
+      zoom: zoomOf(view),
       selected: at(view, "tabSelected") === "1",
+      windowViews,
     }
   }
   let dynamic = false
@@ -428,6 +443,7 @@ export async function openXlsx(
       if (read) {
         chartSheetSources.set(sheet, read.source)
         views.push({ ...DEFAULT_VIEW, zoom: read.zoom, selected: read.selected })
+        windowViews.push(read.windowViews)
         before += sizes[i]
         continue
       }
@@ -435,6 +451,7 @@ export async function openXlsx(
     if (!rel?.partName || rel.type !== REL_WORKSHEET) {
       warnings.push(`${sheet.name} is a chart sheet or dialog sheet; Cells opens it as an empty sheet.`)
       views.push({ ...DEFAULT_VIEW })
+      windowViews.push([])
       before += sizes[i]
       continue
     }
@@ -659,6 +676,7 @@ export async function openXlsx(
       pageExtras: read.pageExtras,
     })
     views.push(read.view)
+    windowViews.push(read.windowViews)
     before += sizes[i]
   }
 
@@ -916,13 +934,21 @@ export async function openXlsx(
     wb.structure.protection = p
   }
 
-  const bookView = kid(kid(root, "bookViews"), "workbookView")
-  let activeSheet = Number(at(bookView, "activeTab") ?? 0)
-  if (!(activeSheet >= 0 && activeSheet < wb.sheets.length) || wb.sheets[activeSheet].hidden)
-    activeSheet = Math.max(
+  const bookViews = (kid(root, "bookViews")?.children ?? []).filter((c) => c.name.endsWith("workbookView"))
+  const tabOf = (node: XNode | undefined) => {
+    const tab = Number(at(node, "activeTab") ?? 0)
+    if (tab >= 0 && tab < wb.sheets.length && !wb.sheets[tab].hidden) return tab
+    return Math.max(
       0,
       wb.sheets.findIndex((s) => !s.hidden),
     )
+  }
+  const activeSheet = tabOf(bookViews[0])
+  // View › New Window: the other windows Excel saved, each with its sheets' views (its own zoom, scroll, selection).
+  const windows: WindowView[] = bookViews.slice(1, 64).map((node, k) => ({
+    activeSheet: tabOf(node),
+    views: wb.sheets.map((_, i) => windowViews[i]?.[k] ?? views[i] ?? { ...DEFAULT_VIEW }),
+  }))
 
   const calcPr = kid(root, "calcPr")
   await options.progress?.(0.95)
@@ -938,6 +964,7 @@ export async function openXlsx(
     workbook: wb,
     views,
     activeSheet,
+    windows,
     source: {
       pkg,
       workbook: wbDoc,

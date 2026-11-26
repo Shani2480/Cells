@@ -240,7 +240,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 - [ ] 4 Shapes and text boxes
 - [ ] 6 Proofing
 - [ ] 7 Themes
-- [ ] 8 Several workbooks at once (✅ Android and browser switcher; ✅ desktop window per workbook; ⬜ view per window)
+- [x] 8 Several workbooks at once
 
 ## Later (from Phase 7)
 
@@ -272,8 +272,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
   as "Microsoft_Word_Document.docx". Android can't open embedded files yet (no cache file sharing).
 - Signature Line: Sign (a digital ID and the file's XML signature, _xmlsignatures) and Add Signature Services aren't
   built; Excel redraws the line's picture itself when it saves.
-- Windows: only the active window's view is saved (Excel writes a workbookView per window and reopens them all);
-  the sheet tabs and status bar follow the active window instead of each panel having its own; Cascade's panels
+- Windows: ~~only the active window's view is saved~~ (done in Phase 9: every window's view is saved and opened
+  again; a hidden window opens shown); the sheet tabs and status bar follow the active window instead of each panel having its own; Cascade's panels
   can't be dragged or resized; Hide is greyed out for the last visible window (Cells shows one workbook at a time).
 - Sheet Background: .xls files open without theirs (the BIFF BITMAP record isn't read).
 

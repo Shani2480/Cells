@@ -86,3 +86,32 @@ describe("unsaved changes", () => {
     doc.close()
   })
 })
+
+describe("the workbook's windows in the file", () => {
+  it("saves every window's view and opens them all again, the first in front, without unsaved changes", async () => {
+    const { Workbook } = await import("@cells/core")
+    const { saveXlsx } = await import("@cells/io")
+    const start = await openDocument(
+      await saveXlsx(new Workbook(["Budget", "Trips"])),
+      { name: "Plan.xlsx", path: "/home/alex/Plan.xlsx" },
+      undefined,
+      false,
+    )
+    const second = start.windows.newWindow()
+    second.activate(1)
+    second.setZoom(0.8)
+    const bytes = await start.bytes()
+    start.close()
+
+    const doc = await openDocument(bytes, { name: "Plan.xlsx", path: "/home/alex/Plan.xlsx" }, undefined, false)
+    expect(doc.windows.all).toHaveLength(2)
+    expect(doc.controller).toBe(doc.windows.all[0])
+    expect(doc.controller.sheetIndex).toBe(0)
+    const [, other] = doc.windows.all
+    expect(other.sheetIndex).toBe(1)
+    expect(other.zoom).toBe(0.8)
+    expect(doc.windowTitle).toBe("Plan:1")
+    expect(doc.dirty).toBe(false)
+    doc.close()
+  })
+})

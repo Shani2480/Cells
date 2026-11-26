@@ -40,6 +40,9 @@ import { readCustomSheetViews, type CustomSheetViewRead } from "./custom-views"
 import { colWidthToPx, pointsToPx } from "./units"
 
 /** What a sheet's view looked like when saved (Excel keeps these per sheet). */
+/** One of the workbook's other windows (View › New Window): its sheets' views and the sheet it shows. */
+export type WindowView = { views: readonly SheetView[]; activeSheet: number }
+
 export type SheetView = {
   /** Frozen panes as Cells keeps them: first unfrozen row and column, and the top-left cell when frozen. */
   freeze: { row: number; col: number; top: number; left: number } | null
@@ -86,6 +89,8 @@ export type SheetReadContext = {
 
 export type SheetRead = {
   view: SheetView
+  /** The sheet in the workbook's other windows, by workbookViewId (1 first; missing ones are undefined). */
+  windowViews: (SheetView | undefined)[]
   /** The worksheet's start tag (namespace declarations, mc:Ignorable), without ">". */
   rootTag: string
   /** Top-level elements written back as read (Cells regenerates the rest). */
@@ -196,6 +201,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   const kept: Kept[] = []
   let rootTag = ""
   let view: SheetView = { ...DEFAULT_VIEW }
+  const windowViews: (SheetView | undefined)[] = []
   let legacyDrawing: string | null = null
   let legacyDrawingHF: string | null = null
   let drawing: string | null = null
@@ -472,7 +478,15 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
     }
     switch (local) {
       case "sheetViews":
-        view = readView(parseFragment(source, rootTag).root, warnings)
+        {
+          const root = parseFragment(source, rootTag).root
+          view = readView(root, warnings)
+          for (const v of root.children) {
+            const id = Number(at(v, "workbookViewId") ?? 0)
+            if (v.name.endsWith("sheetView") && Number.isInteger(id) && id > 0 && id < 64)
+              windowViews[id - 1] = readViewNode(v, warnings)
+          }
+        }
         {
           const first = kid(parseFragment(source, rootTag).root, "sheetView")
           if (first && falsy(at(first, "showOutlineSymbols"))) sheet.outline.showSymbols = false
@@ -603,6 +617,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   finishPageSetup(sheet.pageSetup, fitToPage, sawPageSetup)
   return {
     view,
+    windowViews,
     rootTag,
     kept,
     legacyDrawing,
@@ -638,7 +653,9 @@ function dropConditionalExt(source: string): string {
 export const TWIPS_PER_PIXEL = 15
 
 function readView(root: XNode, warnings: string[]): SheetView {
-  const v = kid(root, "sheetView")
+  // The first window's (workbookViewId 0); the others are read beside it.
+  const all = (kid(root, "sheetViews") ?? root).children.filter((c) => c.name.endsWith("sheetView"))
+  const v = all.find((c) => Number(at(c, "workbookViewId") ?? 0) === 0) ?? kid(root, "sheetView")
   if (!v) return { ...DEFAULT_VIEW }
   return readViewNode(v, warnings)
 }

@@ -809,7 +809,7 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   theme, written back as links; tint and shade drawn as Excel draws them, checked against real Excel). Not yet: a
   chart's fixed colour with Excel's darker/lighter changes (`srgbClr` with `lumMod`) is drawn as the colour alone;
   data bar and colour scale colours stay as read; Custom Format… for a rule isn't built.
-- 🔄 8. Several workbooks at once: ✅ on Android and in a browser the window keeps several workbooks: New and Open add
+- ✅ 8. Several workbooks at once: ✅ on Android and in a browser the window keeps several workbooks: New and Open add
   one (an untouched new workbook is replaced, as in Excel), a file already open is shown instead of read again, Close
   closes the one shown; the workbook's name at the top (title bar, or the phone's top bar with a sheet from the
   bottom) lists them with an unsaved dot, Close on each, New Workbook and Open; View › Switch Windows and Ctrl+F6 go
@@ -818,8 +818,10 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   window; Open, a recent file, a file from the file manager or a cells:// link opens in the window when its workbook is
   untouched, else in a window of its own, and a file already open brings its window forward (going to the link's
   range); View › Switch Windows and Ctrl+F6 list every Cells window; File › Close closes the window when others are
-  open; only the first window offers what AutoRecover kept. ⬜ every window's view saved (Excel's workbookView per
-  window).
+  open; only the first window offers what AutoRecover kept. ✅ every window's view is saved (View › New Window): a
+  workbookView per window and a sheetView per window in each sheet, so Excel and Cells open them all again with their
+  own sheet, zoom, scroll and selection (checked both ways in real Excel). Known limits: a hidden window opens shown;
+  a window's size and place on screen are kept as read, not taken from Cells.
 
 Decided: the spelling dictionaries download from jsDelivr (pinned versions, SHA-256 checked) (6); several workbooks
 on Android: a switcher built into the app (8).

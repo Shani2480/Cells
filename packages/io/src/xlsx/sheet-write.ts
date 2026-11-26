@@ -103,6 +103,8 @@ export type SheetWriteContext = {
   sheet: Sheet
   index: number
   view: SheetView
+  /** The sheet in the workbook's other windows (View › New Window), workbookViewId 1, 2…. */
+  windowViews?: readonly SheetView[]
   styleTable: StyleTable
   styles: StylesOut
   strings: SharedStrings
@@ -236,7 +238,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
 
   const generated: Record<string, string> = {
     dimension: `<dimension ref="${bounds ? rangeRef({ r0: bounds.r0, c0: bounds.c0, r1: bounds.r1, c1: bounds.c1 }) : "A1"}"/>`,
-    sheetViews: viewsXml(ctx.view, sheet.outline.showSymbols),
+    sheetViews: `<sheetViews>${[ctx.view, ...(ctx.windowViews ?? [])].map((v, id) => viewXml(v, sheet.outline.showSymbols, id)).join("")}</sheetViews>`,
     cols: colsXml(sheet, xf, ctx.source?.colExtras),
     sheetData: rowParts.length ? `<sheetData>${rowParts.join("")}</sheetData>` : `<sheetData/>`,
     sheetProtection: protectionXml(sheet),
@@ -337,7 +339,8 @@ function zoomOf(view: SheetView, mode: "normal" | "pageBreakPreview" | "pageLayo
   return z !== undefined && Math.abs(z - 1) > 1e-9 ? Math.round(z * 100) : undefined
 }
 
-function viewsXml(view: SheetView, showSymbols: boolean): string {
+/** One window's sheetView. */
+function viewXml(view: SheetView, showSymbols: boolean, windowId: number): string {
   const cell = (p: { row: number; col: number }) => ref(p.row, p.col)
   const attrs = attrText({
     tabSelected: view.selected,
@@ -361,7 +364,7 @@ function viewsXml(view: SheetView, showSymbols: boolean): string {
         : view.topLeft.row || view.topLeft.col
           ? cell(view.topLeft)
           : undefined,
-    workbookViewId: 0,
+    workbookViewId: windowId,
   })
   const sqref = view.selection.map(rangeRef).join(" ")
   const selAttrs = (pane?: string) =>
@@ -389,7 +392,7 @@ function viewsXml(view: SheetView, showSymbols: boolean): string {
     if (xs && ys) inner += `<selection pane="topRight"/><selection pane="bottomLeft"/>`
     inner += `<selection${selAttrs(pane)}/>`
   } else if (view.active.row || view.active.col || sqref !== "A1") inner += `<selection${selAttrs()}/>`
-  return `<sheetViews><sheetView${attrs}${inner ? `>${inner}</sheetView>` : "/>"}</sheetViews>`
+  return `<sheetView${attrs}${inner ? `>${inner}</sheetView>` : "/>"}`
 }
 
 function colsXml(sheet: Sheet, xf: (id: number) => number, extras: ReadonlyMap<number, string> | undefined): string {

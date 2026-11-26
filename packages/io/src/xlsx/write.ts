@@ -116,7 +116,7 @@ import {
 } from "./pivot"
 import { formulaToFile } from "./formula"
 import type { XlsxSource } from "./read"
-import { DEFAULT_VIEW, type SheetView } from "./sheet-read"
+import { DEFAULT_VIEW, type SheetView, type WindowView } from "./sheet-read"
 import {
   CT_SLICER,
   CT_SLICER_CACHE,
@@ -154,11 +154,18 @@ export type SaveOptions = {
   fileName?: string
   views?: readonly SheetView[]
   activeSheet?: number
+  /**
+   * The workbook's other windows (View › New Window), each with its sheets' views and active sheet; Excel opens them
+   * all again. Given, it replaces the windows the file had; left out, those are kept as read.
+   */
+  windows?: readonly WindowView[]
   /** Author for a new file's properties. */
   author?: string
   /** For a new file's properties (and tests that need the same bytes). */
   now?: Date
 }
+
+export type { WindowView }
 
 const WORKBOOK_ORDER = [
   "fileVersion", "fileSharing", "workbookPr", "AlternateContent", "revisionPtr", "absPath", "workbookProtection",
@@ -539,7 +546,15 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
         true,
       )
       const view = views[i] ?? DEFAULT_VIEW
-      put(partName, CT_CHARTSHEET, chartSheetXml(sheet, i === active || view.selected, view.zoom, drawing))
+      const windows = (options.windows ?? []).map((w) => ({
+        selected: i === w.activeSheet,
+        zoom: (w.views[i] ?? DEFAULT_VIEW).zoom,
+      }))
+      put(
+        partName,
+        CT_CHARTSHEET,
+        chartSheetXml(sheet, [{ selected: i === active || view.selected, zoom: view.zoom }, ...windows], drawing),
+      )
       const rid = addRel(main, REL_CHARTSHEET, partName)
       sheetEntries.push(
         `<sheet${attrText({ name: sheet.name, sheetId: i + 1, state: sheet.hidden ? "hidden" : undefined })} r:id="${rid}"/>`,
@@ -751,10 +766,15 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       }
     }
     const view = { ...(views[i] ?? DEFAULT_VIEW), selected: i === active || (views[i]?.selected ?? false) }
+    const windowViews = options.windows?.map((w) => ({
+      ...(w.views[i] ?? DEFAULT_VIEW),
+      selected: i === w.activeSheet,
+    }))
     const written = writeSheet({
       sheet,
       index: i,
       view,
+      windowViews,
       styleTable: wb.styles,
       styles,
       strings,
@@ -911,7 +931,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       wb.sheets.map((_, i) => i + 1),
     ),
     workbookProtection: protectionXml(wb),
-    bookViews: bookViewsXml(source, active),
+    bookViews: bookViewsXml(source, active, options.windows),
     ...(source?.pivots || cacheEntries.length
       ? {
           pivotCaches:
@@ -1128,27 +1148,46 @@ function protectionXml(wb: Workbook): string {
   return `<workbookProtection${attrText(attrs)}/>`
 }
 
-function bookViewsXml(source: XlsxSource | null, active: number): string {
+/**
+ * The workbook's windows: the first, then the other windows (`windows`; left out, the file's are kept). A window the
+ * file had keeps its size and place, with its active sheet updated.
+ */
+function bookViewsXml(source: XlsxSource | null, active: number, windows?: readonly WindowView[]): string {
   const doc = source?.workbook
   const views = doc ? kid(doc.root, "bookViews") : undefined
-  const first = views ? kid(views, "workbookView") : undefined
-  if (!doc || !first) return `<bookViews><workbookView${attrText({ activeTab: active || undefined })}/></bookViews>`
-  let tag = raw(doc, first)
-    .replace(/\s(activeTab|firstSheet)="\d+"/g, "")
-    .replace(/^<((?:\w+:)?workbookView)\b/, (m) => (active ? `${m} activeTab="${active}"` : m))
-  // Other views (rare: New Window) are kept after the first.
-  const rest = views!.children.filter((c) => c !== first).map((c) => raw(doc, c))
-  tag += rest.join("")
-  return `${doc.source.slice(views!.start, views!.tagEnd)}${tag}</${views!.name}>`
+  const read = views ? views.children.filter((c) => /(^|:)workbookView$/.test(c.name)) : []
+  const tag = (i: number, tab: number) => {
+    const node = read[i]
+    if (!doc || !node) return `<workbookView${attrText({ activeTab: tab || undefined })}/>`
+    return raw(doc, node)
+      .replace(/\s(activeTab|firstSheet)="\d+"/g, "")
+      .replace(/^<((?:\w+:)?workbookView)\b/, (m) => (tab ? `${m} activeTab="${tab}"` : m))
+  }
+  const rest = windows
+    ? windows.map((w, i) => tag(i + 1, w.activeSheet)).join("")
+    : doc
+      ? read
+          .slice(1)
+          .map((c) => raw(doc, c))
+          .join("")
+      : ""
+  const open = doc && views ? doc.source.slice(views.start, views.tagEnd) : "<bookViews>"
+  const close = doc && views ? `</${views.name}>` : "</bookViews>"
+  return `${open}${tag(0, active)}${rest}${close}`
 }
 
 /** A chart sheet's part: its view (zoomed to fit the window, as Excel opens one), margins, paper and drawing. */
-function chartSheetXml(sheet: Sheet, selected: boolean, zoom: number, drawing: string | null): string {
+function chartSheetXml(
+  sheet: Sheet,
+  windows: readonly { selected: boolean; zoom: number }[],
+  drawing: string | null,
+): string {
   const m = sheet.pageSetup.margins
-  const zoomAttr = zoom && zoom !== 1 ? ` zoomScale="${Math.round(zoom * 100)}"` : ""
+  const view = ({ selected, zoom }: { selected: boolean; zoom: number }, id: number) =>
+    `<sheetView${selected ? ` tabSelected="1"` : ""}${zoom && zoom !== 1 ? ` zoomScale="${Math.round(zoom * 100)}"` : ""} workbookViewId="${id}" zoomToFit="1"/>`
   return (
     `<chartsheet xmlns="${NS_MAIN}" xmlns:r="${NS_R}"><sheetPr/>` +
-    `<sheetViews><sheetView${selected ? ` tabSelected="1"` : ""}${zoomAttr} workbookViewId="0" zoomToFit="1"/></sheetViews>` +
+    `<sheetViews>${windows.map(view).join("")}</sheetViews>` +
     `<pageMargins left="${m.left}" right="${m.right}" top="${m.top}" bottom="${m.bottom}" header="${m.header}" footer="${m.footer}"/>` +
     `<pageSetup orientation="${sheet.pageSetup.orientation}"/>` +
     (drawing ? `<drawing r:id="${drawing}"/>` : "") +
