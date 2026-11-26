@@ -100,6 +100,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     where: "PivotTable Design › PivotTable Styles › New PivotTable Style (in a PivotTable)",
     keywords: "pivottable style new custom own modify duplicate delete default format element stripe",
   },
+  "workbook-switcher": {
+    where: "the workbook's name at the top of the window (Android and the browser), or View › Switch Windows",
+    keywords: "several workbooks open switch windows switcher close new open tabs multiple files",
+  },
   "spelling-languages": {
     where: "File › Options › Proofing to download a language; Review › Spelling (F7) to pick it",
     keywords: "spelling spell check language dictionary download dutch german french spanish proofing offline",

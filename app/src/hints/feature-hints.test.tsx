@@ -42,6 +42,7 @@ describe("feature hints", () => {
     const elsewhere = [
       readFileSync(resolve(__dirname, "../grid/QuickAnalysis.tsx"), "utf8"),
       readFileSync(resolve(__dirname, "../shell/PivotFieldsPane.tsx"), "utf8"),
+      readFileSync(resolve(__dirname, "../shell/WorkbookSwitcher.tsx"), "utf8"),
     ].join("\n")
     for (const hint of FEATURE_HINTS) {
       expect(hint.title.startsWith("New: "), hint.id).toBe(true)

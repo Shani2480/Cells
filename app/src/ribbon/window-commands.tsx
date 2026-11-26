@@ -3,7 +3,8 @@ import type { Command, RibbonEnv } from "./registry"
 
 /**
  * View › Window: New Window, Arrange All, Hide / Unhide, View Side by Side (Synchronous Scrolling, Reset Window
- * Position) and Switch Windows. The windows are panels inside Cells' own window (file/windows.ts).
+ * Position) and Switch Windows. The windows are panels inside Cells' own window (file/windows.ts); Switch Windows
+ * also lists the other workbooks open in it.
  */
 
 const windowsOf = (env: RibbonEnv) => env.files?.doc.windows
@@ -81,34 +82,33 @@ export function windowCommands(): Command[] {
     {
       id: "WindowSwitchWindowsMenuExcel",
       label: "Switch Windows",
-      description: "Switch to another of the workbook's windows.",
+      description: "Switch to another window: another of this workbook's, or another open workbook.",
       keytip: "W",
       enabled: (env) => windowsOf(env) !== undefined,
       menu: [
         {
           panel: (env, close) => {
-            const w = windowsOf(env)
-            const doc = env.files?.doc
-            if (!w || !doc) return null
+            const files = env.files
+            if (!files) return null
             return (
               <div className="pl-list win-switch" role="menu" aria-label="Switch Windows">
-                {w.visible.map((c, i) => {
-                  const current = c === w.active
+                {files.windowList().map(({ doc, c, title }, i) => {
+                  const current = doc === files.doc && c === doc.windows.active
                   return (
                     <button
-                      key={w.key(c)}
+                      key={`${doc.id}:${doc.windows.key(c)}`}
                       type="button"
                       role="menuitemradio"
                       aria-checked={current}
                       className={`pl-item win-switch-item${current ? " is-current" : ""}`}
                       onClick={() => {
                         close()
-                        w.activate(c)
+                        files.showWindow(doc, c)
                       }}
                     >
                       <span className="win-switch-check">{current ? <Check size={14} /> : null}</span>
                       <span>
-                        <u>{i + 1}</u> {w.title(doc.title, c)}
+                        <u>{i + 1}</u> {title}
                       </span>
                     </button>
                   )

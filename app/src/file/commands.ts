@@ -21,6 +21,7 @@ import {
 } from "./document"
 import { readClipboardImage } from "@/pdf/picture"
 import { fileNameOf, mimeTypeOf } from "@/platform/android-files"
+import type { SheetController } from "@/sheet/controller"
 import { message } from "@/sheet/get-data"
 import { breakLinkOps, linkPaths, readLink, updateLinkOps, type SourceBook } from "@/sheet/links"
 import { newQueryTable, refreshOps, sourceName, textCells } from "@/sheet/queries"
@@ -58,11 +59,18 @@ export const ONE_SHEET_MESSAGE =
   "The selected file type does not support workbooks that contain multiple sheets. To save only the active sheet, click OK. To save all sheets, save them one at a time under different file names, or choose a file type that supports multiple sheets."
 
 /**
- * File › New, Open, Save, Save As and Close, plus AutoRecover. One workbook per window: opening another file asks to
- * save unsaved changes first, then replaces the workbook (a new, untouched Book1 is simply replaced, as in Excel).
+ * File › New, Open, Save, Save As and Close, plus AutoRecover. With `multiple` (Android, a browser) the window holds
+ * several workbooks: New and Open add one and show it, the switcher and View › Switch Windows go between them, and
+ * Close closes the one shown. Otherwise there's one workbook per window: opening another file asks to save unsaved
+ * changes first, then replaces it. Either way a new, untouched Book1 is simply replaced, as in Excel.
  */
 export class FileCommands {
+  /** The workbook shown. */
   doc: WorkbookDocument
+  /** Every workbook open in this window, in the order they were opened. */
+  docs: WorkbookDocument[]
+  /** Several workbooks in this window (see above). */
+  multiple = false
   private busy = false
   /** New workbooks are numbered per window, as Excel's Book1, Book2… */
   private books = 1
@@ -77,6 +85,7 @@ export class FileCommands {
     first: WorkbookDocument,
   ) {
     this.doc = first
+    this.docs = [first]
   }
 
   get recent(): RecentFile[] {
@@ -95,9 +104,14 @@ export class FileCommands {
     this.embedded = null
   }
 
-  /** Keeps a copy of the workbook if it changed since the last copy. */
+  /** Keeps a copy of each workbook that changed since its last copy; true when any was kept. */
   async autoRecover(): Promise<boolean> {
-    const doc = this.doc
+    let kept = false
+    for (const doc of [...this.docs]) if (await this.recoverOne(doc)) kept = true
+    return kept
+  }
+
+  private async recoverOne(doc: WorkbookDocument): Promise<boolean> {
     if (!doc.dirty || doc.recoveredEdits === doc.edits || this.busy) return false
     const edits = doc.edits
     // Always a whole workbook (a CSV's copy keeps every sheet and format).
@@ -126,20 +140,68 @@ export class FileCommands {
     return true
   }
 
-  private replace(next: WorkbookDocument) {
+  /** A new Book1 nobody has typed in: opening something else takes its place, as in Excel. */
+  private untouched(doc: WorkbookDocument) {
+    return !doc.ref && !doc.dirty && doc.edits === 0 && !doc.embeddedFor
+  }
+
+  /** Whether opening a workbook asks about the one shown first (it's going away). */
+  private replacing() {
+    return !this.multiple || this.untouched(this.doc)
+  }
+
+  /** Shows `next`: added beside the others with `multiple`, else in place of the workbook shown. */
+  private replace(next: WorkbookDocument, swap = this.replacing()) {
     const old = this.doc
-    this.embedded?.stop()
-    this.embedded = null
+    if (swap) {
+      this.embedded?.stop()
+      this.embedded = null
+      this.docs = this.docs.map((d) => (d === old ? next : d))
+      old.close()
+      void dropRecovery(old.id)
+    } else this.docs = [...this.docs, next]
     this.doc = next
-    old.close()
-    void dropRecovery(old.id)
     this.ui.show(next)
     void this.refreshOnOpen()
   }
 
-  /** Ctrl+N: a new blank workbook (this window shows one workbook at a time). */
+  /** The switcher (and View › Switch Windows): shows another open workbook. */
+  switchTo(doc: WorkbookDocument) {
+    if (doc === this.doc || !this.docs.includes(doc)) return
+    if (this.doc.controller.edit) this.doc.controller.commitEdit()
+    this.doc = doc
+    this.ui.show(doc)
+  }
+
+  /**
+   * Every window of every open workbook (hidden ones aside), as View › Switch Windows lists them: "Budget.xlsx",
+   * "Budget.xlsx:2", "Book2".
+   */
+  windowList(): { doc: WorkbookDocument; c: SheetController; title: string }[] {
+    return this.docs.flatMap((doc) =>
+      doc.windows.visible.map((c) => ({ doc, c, title: doc.windows.title(doc.title, c) })),
+    )
+  }
+
+  /** Shows one of those windows: its workbook, then the window. */
+  showWindow(doc: WorkbookDocument, c: SheetController) {
+    this.switchTo(doc)
+    doc.windows.activate(c)
+  }
+
+  /** Ctrl+F6 / Ctrl+Shift+F6: the next or previous window, across workbooks; false when there's only one. */
+  cycleWindows(step: 1 | -1): boolean {
+    const list = this.windowList()
+    if (list.length < 2) return false
+    const at = list.findIndex((w) => w.doc === this.doc && w.c === this.doc.windows.active)
+    const next = list[(at + step + list.length) % list.length]!
+    this.showWindow(next.doc, next.c)
+    return true
+  }
+
+  /** Ctrl+N: a new blank workbook. */
   async newWorkbook(): Promise<boolean> {
-    if (!(await this.confirmClose())) return false
+    if (this.replacing() && !(await this.confirmClose())) return false
     this.replace(newDocument(undefined, `Book${++this.books}.xlsx`))
     return true
   }
@@ -176,6 +238,11 @@ export class FileCommands {
    */
   async openPath(path: string): Promise<boolean> {
     if (this.doc.ref?.path === path) return true
+    const open = this.docs.find((d) => d.ref?.path === path)
+    if (open) {
+      this.switchTo(open)
+      return true
+    }
     const name = fileNameOf(path)
     return this.openRecent({ name, path })
   }
@@ -221,7 +288,13 @@ export class FileCommands {
   /** A file dropped on the window or passed by the system. A .txt or .tsv goes through the Text Import Wizard. */
   async openBytes(bytes: Uint8Array, ref: FileRef, remember = true): Promise<boolean> {
     if (this.busy) return false
-    if (!(await this.confirmClose())) return false
+    // A workbook already open here is shown, not opened twice.
+    const open = ref.path ? this.docs.find((d) => d.ref?.path === ref.path) : undefined
+    if (open && this.multiple) {
+      this.switchTo(open)
+      return true
+    }
+    if (this.replacing() && !(await this.confirmClose())) return false
     let text: TextImport | undefined
     if (isTextFile(ref.name) && extensionOf(ref.name) !== "csv") {
       const choices = await this.ui.textImport(bytes, ref.name)
@@ -354,10 +427,43 @@ export class FileCommands {
     }
   }
 
-  /** File › Close: the window then shows a new blank workbook. */
+  /**
+   * File › Close: the workbook shown closes; the window then shows the workbook opened before it, or a new blank one
+   * when it was the last.
+   */
   async close(): Promise<boolean> {
     if (!(await this.confirmClose())) return false
-    this.replace(newDocument(undefined, `Book${++this.books}.xlsx`))
+    const old = this.doc
+    const rest = this.docs.filter((d) => d !== old)
+    if (!rest.length) {
+      this.replace(newDocument(undefined, `Book${++this.books}.xlsx`), true)
+      return true
+    }
+    if (old.embeddedFor) {
+      this.embedded?.stop()
+      this.embedded = null
+    }
+    this.docs = rest
+    this.doc = rest[rest.length - 1]!
+    old.close()
+    void dropRecovery(old.id)
+    this.ui.show(this.doc)
+    return true
+  }
+
+  /** The switcher's Close on a workbook: shown first, so the person sees what they're asked about. */
+  async closeDocument(doc: WorkbookDocument): Promise<boolean> {
+    this.switchTo(doc)
+    return this.close()
+  }
+
+  /** Closing the window: asks about each workbook with unsaved changes (showing it); false when one is cancelled. */
+  async confirmCloseAll(): Promise<boolean> {
+    for (const doc of [...this.docs]) {
+      if (!doc.dirty) continue
+      this.switchTo(doc)
+      if (!(await this.confirmClose())) return false
+    }
     return true
   }
 
@@ -377,7 +483,7 @@ export class FileCommands {
   /** Opens a recovered copy: unsaved, named after the original ("Budget (Recovered)"), saved through Save As. */
   async openRecovered(file: RecoveredFile): Promise<boolean> {
     if (this.busy) return false
-    if (!(await this.confirmClose())) return false
+    if (this.replacing() && !(await this.confirmClose())) return false
     try {
       const doc = await openDocument(file.bytes, { name: packageName(file.fileName) })
       doc.ref = null

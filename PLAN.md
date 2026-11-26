@@ -809,11 +809,16 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   theme, written back as links; tint and shade drawn as Excel draws them, checked against real Excel). Not yet: a
   chart's fixed colour with Excel's darker/lighter changes (`srgbClr` with `lumMod`) is drawn as the colour alone;
   data bar and colour scale colours stay as read; Custom Format… for a rule isn't built.
-- ⬜ 8. Several workbooks at once: each open workbook in its own window on the desktop (and a switcher on phones and
-  tablets), with every window's view saved (Excel's workbookView per window).
+- 🔄 8. Several workbooks at once: ✅ on Android and in a browser the window keeps several workbooks: New and Open add
+  one (an untouched new workbook is replaced, as in Excel), a file already open is shown instead of read again, Close
+  closes the one shown; the workbook's name at the top (title bar, or the phone's top bar with a sheet from the
+  bottom) lists them with an unsaved dot, Close on each, New Workbook and Open; View › Switch Windows and Ctrl+F6 go
+  through every workbook's windows; closing asks about each unsaved one; AutoRecover keeps each. Inkspire's linked
+  ranges are kept up to date for the workbook shown. ⬜ desktop: a window per workbook; ⬜ every window's view saved
+  (Excel's workbookView per window).
 
-To decide when we get there: where the spelling dictionaries are downloaded from (6); how several workbooks look
-on Android (8).
+Decided: the spelling dictionaries download from jsDelivr (pinned versions, SHA-256 checked) (6); several workbooks
+on Android: a switcher built into the app (8).
 
 ## 4. Verifying against Excel (all phases)
 

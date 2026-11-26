@@ -603,3 +603,19 @@ html.is-phone .setup-step-number {
   height: 28px;
   font-size: 13px;
 }
+
+/* The name opens the list of open workbooks. */
+.phone-title-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.phone-title-switch .wb-switch-count {
+  background: var(--app-hover);
+  color: var(--app-ribbon-text);
+}

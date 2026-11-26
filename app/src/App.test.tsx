@@ -12,7 +12,7 @@ const platform: Platform = {
   os: "linux",
   clipboard: { write: vi.fn(async () => {}), read: vi.fn(async () => ({ text: "" })) },
   window: {
-    controllable: false,
+    controllable: true,
     minimize: async () => {},
     toggleMaximize: async () => {},
     close: async () => {},
@@ -370,5 +370,36 @@ describe("the shell by screen", () => {
     } finally {
       restore()
     }
+  })
+})
+
+describe("several workbooks in a browser or on Android", () => {
+  it("Ctrl+N keeps the workbook open; the name in the title bar switches between them", async () => {
+    const controller = new SheetController()
+    render(
+      <PlatformContext.Provider value={{ ...platform, window: { ...platform.window, controllable: false } }}>
+        <App controller={controller} />
+      </PlatformContext.Provider>,
+    )
+    act(() => {
+      controller.beginEdit("enter", "7")
+      controller.commitEdit()
+    })
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "n", ctrlKey: true })
+    })
+    expect(screen.queryByText(/Want to save/)).toBeNull()
+    const switcher = await screen.findByRole("button", { name: "Switch workbooks" })
+    expect(switcher.textContent).toContain("Book2 - Cells")
+    await act(async () => {
+      fireEvent.click(switcher)
+    })
+    expect(screen.getAllByRole("menuitemradio").map((e) => e.textContent)).toEqual(["Book1", "Book2"])
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Book1/ }))
+    })
+    await vi.waitFor(() =>
+      expect(screen.getByRole("button", { name: "Switch workbooks" }).textContent).toContain("Book1"),
+    )
   })
 })

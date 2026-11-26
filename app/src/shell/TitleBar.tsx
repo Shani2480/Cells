@@ -12,9 +12,12 @@ export function TitleBar({
   title,
   qat,
   search,
+  switcher,
 }: {
   controller: SheetController
   title: string
+  /** Where several workbooks share the window: the name as the button that switches between them. */
+  switcher?: ReactNode
   /** The Quick Access Toolbar. */
   qat?: ReactNode
   /** Search (Tell Me). */
@@ -45,7 +48,7 @@ export function TitleBar({
       <div className="titlebar-start">
         <img className="titlebar-logo" src="/logo-mark.svg" alt="" draggable={false} />
         {qat}
-        <div className="titlebar-title">{title}</div>
+        {switcher ?? <div className="titlebar-title">{title}</div>}
       </div>
       <div className="titlebar-center">{search}</div>
       <div className="titlebar-end">

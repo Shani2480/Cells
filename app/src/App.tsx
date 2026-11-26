@@ -164,6 +164,7 @@ import { StatusBar } from "@/shell/StatusBar"
 import { ZoomDialog } from "@/shell/ZoomDialog"
 import { QuickAccess, TellMe } from "@/shell/QuickAccess"
 import { loadQat, saveQat } from "@/ribbon/qat-commands"
+import { TitleSwitcher, WorkbookSheet } from "@/shell/WorkbookSwitcher"
 import { TitleBar } from "@/shell/TitleBar"
 import { FillAcrossDialog } from "@/shell/FillAcrossDialog"
 import { CustomViewsDialog } from "@/shell/CustomViewsDialog"
@@ -408,6 +409,9 @@ export function App({ controller: given }: { controller?: SheetController } = {}
         first,
       ),
   )
+  // Android and a browser keep several workbooks in the one window, with a switcher; the desktop opens a window each.
+  // (A browser reports the system it runs on as its os; neither it nor Android controls its own window.)
+  files.multiple = platform.os === "android" || !platform.window.controllable
 
   // cells:// links and files passed by the system: open the file, then go to the range.
   useEffect(
@@ -471,9 +475,9 @@ export function App({ controller: given }: { controller?: SheetController } = {}
   useEffect(
     () =>
       platform.window.onCloseRequested(() => {
-        if (!platform.window.controllable) return !files.doc.dirty
-        return files.confirmClose().then(async (ok) => {
-          if (ok) await files.discardRecovered({ id: files.doc.id } as RecoveredFile)
+        if (!platform.window.controllable) return !files.docs.some((d) => d.dirty)
+        return files.confirmCloseAll().then(async (ok) => {
+          if (ok) for (const d of files.docs) await files.discardRecovered({ id: d.id } as RecoveredFile)
           return ok
         })
       }),
@@ -585,6 +589,8 @@ function WorkbookWindow({
   files: FileCommands
   recentFiles: RecentFile[]
 }) {
+  /** The phone's list of open workbooks. */
+  const [workbookSheet, setWorkbookSheet] = useState(false)
   // View › New Window: the ribbon, formula bar, tabs and status bar follow the active window.
   const windowsVersion = useSyncExternalStore(doc.windows.subscribe, doc.windows.getVersion)
   const controller = doc.controller
@@ -1301,11 +1307,11 @@ function WorkbookWindow({
         event.stopPropagation()
         setBackstage("print")
       } else if (event.key === "F6" && primary && !event.altKey && !document.querySelector('[aria-modal="true"]')) {
-        // Ctrl+F6 / Ctrl+Shift+F6: the workbook's next or previous window (View › New Window).
-        if (files.doc.windows.visible.length < 2) return
+        // Ctrl+F6 / Ctrl+Shift+F6: the next or previous window, of this workbook or another one open here.
+        if (files.windowList().length < 2) return
         event.preventDefault()
         event.stopPropagation()
-        files.doc.windows.cycle(event.shiftKey ? -1 : 1)
+        files.cycleWindows(event.shiftKey ? -1 : 1)
       }
     }
     window.addEventListener("keydown", onKey)
@@ -1440,6 +1446,8 @@ function WorkbookWindow({
             formulaBar={formulaBar}
             onFile={() => setBackstage("home")}
             onFocusGrid={focusGrid}
+            onTitle={files.multiple ? () => setWorkbookSheet(true) : undefined}
+            workbooks={files.docs.length}
           >
             {grid}
           </PhoneShell>
@@ -1448,6 +1456,14 @@ function WorkbookWindow({
             <TitleBar
               controller={controller}
               title={`${doc.windowTitle}${controller.group.active ? " [Group]" : ""} - Cells`}
+              switcher={
+                files.multiple ? (
+                  <TitleSwitcher
+                    files={files}
+                    title={`${doc.windowTitle}${controller.group.active ? " [Group]" : ""} - Cells`}
+                  />
+                ) : undefined
+              }
               qat={<QuickAccess registry={registry} env={env} ids={qat} onChange={setQat} onDone={focusGrid} />}
               search={
                 <TellMe
@@ -1527,6 +1543,9 @@ function WorkbookWindow({
         {shell === "phone" && controller.data.queriesOpen ? queriesPane : null}
         {shell === "phone" && controller.data.linksOpen ? linksPane : null}
         {shell === "phone" ? helpPane : null}
+        {shell === "phone" && workbookSheet ? (
+          <WorkbookSheet files={files} onClose={() => setWorkbookSheet(false)} />
+        ) : null}
         {shell === "phone" && controller.audit.watchOpen ? (
           <WatchWindow controller={controller} onDone={focusGrid} />
         ) : null}

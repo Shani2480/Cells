@@ -165,6 +165,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Spelling can check Dutch, German, French, Spanish and more. Download a language in File › Options › Proofing (it works offline after that), then pick it in the Spelling dialog.",
     target: "Spelling",
   },
+  {
+    id: "workbook-switcher",
+    title: "New: Several workbooks open at once",
+    text: "Start or open another workbook and the ones you had stay open. Tap the workbook's name up here to switch between them or to close one.",
+    target: "Switch workbooks",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

@@ -6126,3 +6126,152 @@ button.rel-row:hover,
   color: var(--app-ribbon-muted);
   font-weight: normal;
 }
+
+/* Several workbooks in one window (Android, a browser): the title bar's name opens the list of open workbooks. */
+.titlebar-switch {
+  display: inline-flex;
+  max-width: 320px;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+}
+
+.titlebar-switch:hover,
+.titlebar-switch[data-state="open"] {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.titlebar-switch-name,
+.phone-title-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-switch-count {
+  flex: none;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.25);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.wb-switch {
+  display: flex;
+  min-width: 260px;
+  max-width: min(360px, 92vw);
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.wb-switch-row {
+  display: flex;
+  align-items: center;
+}
+
+.wb-switch-row:hover,
+.wb-switch-action:hover {
+  background: var(--app-hover);
+}
+
+.wb-switch-item,
+.wb-switch-action {
+  display: flex;
+  min-width: 0;
+  min-height: 32px;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--app-ribbon-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+
+.wb-switch-action {
+  padding-left: 30px;
+}
+
+.wb-switch-row.is-current .wb-switch-name {
+  font-weight: 600;
+}
+
+.wb-switch-check {
+  display: inline-flex;
+  width: 16px;
+  flex: none;
+  justify-content: center;
+}
+
+.wb-switch-icon {
+  flex: none;
+  color: var(--app-theme-primary);
+}
+
+.wb-switch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-switch-dirty {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--app-theme-primary);
+}
+
+.wb-switch-close {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-ribbon-muted);
+}
+
+.wb-switch-close:hover {
+  background: var(--app-pressed);
+  color: var(--app-ribbon-text);
+}
+
+.wb-switch-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--app-divider);
+}
+
+/* Fingers on a phone: taller rows. */
+.is-phone .wb-switch {
+  max-width: none;
+}
+
+.is-phone .wb-switch-item,
+.is-phone .wb-switch-action {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.is-phone .wb-switch-close {
+  width: 44px;
+  height: 44px;
+}

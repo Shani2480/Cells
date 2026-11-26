@@ -470,3 +470,82 @@ describe("Workbook Links (formulas that use other workbooks)", () => {
     expect(c.wb.links.list).toEqual([])
   })
 })
+
+describe("several workbooks in one window (Android, a browser)", () => {
+  beforeEach(() => localStorage.clear())
+
+  const multiple = () => {
+    const s = setup("discard")
+    s.commands.multiple = true
+    return s
+  }
+
+  it("an untouched new workbook is replaced, as in Excel; otherwise New and Open add workbooks, nothing asked", async () => {
+    const { files, ui, commands } = multiple()
+    files.disk.set("/home/alex/Budget.xlsx", await budget())
+    files.disk.set("/home/alex/Trips.xlsx", await budget("Trips.xlsx"))
+    files.nextOpen = "/home/alex/Budget.xlsx"
+    await commands.open()
+    expect(commands.docs.map((d) => d.fileName)).toEqual(["Budget.xlsx"])
+    enter(commands.doc, "changed")
+    await commands.newWorkbook()
+    files.nextOpen = "/home/alex/Trips.xlsx"
+    await commands.open()
+    // The new Book2 nobody typed in gave its place to Trips.
+    expect(commands.docs.map((d) => d.fileName)).toEqual(["Budget.xlsx", "Trips.xlsx"])
+    await commands.newWorkbook()
+    enter(commands.doc, "kept")
+    files.nextOpen = "/home/alex/Trips.xlsx"
+    await commands.open()
+    expect(commands.docs.map((d) => d.fileName)).toEqual(["Budget.xlsx", "Trips.xlsx", "Book3.xlsx"])
+    expect(commands.doc.fileName).toBe("Trips.xlsx")
+    expect(ui.asked).toEqual([])
+    // Opening one that's open shows it instead of reading it again.
+    const reads = files.reads
+    expect(await commands.openPath("/home/alex/Budget.xlsx")).toBe(true)
+    expect(commands.doc.fileName).toBe("Budget.xlsx")
+    expect(files.reads).toBe(reads)
+    expect(commands.doc.controller.sheet.cells.value(0, 0)).toBe("changed")
+  })
+
+  it("Switch Windows lists every workbook's windows; Ctrl+F6 goes through them all", async () => {
+    const { commands } = multiple()
+    enter(commands.doc, "x")
+    await commands.newWorkbook()
+    commands.docs[0]!.windows.newWindow()
+    expect(commands.windowList().map((w) => w.title)).toEqual(["Book1:1", "Book1:2", "Book2"])
+    expect(commands.doc.title).toBe("Book2")
+    commands.cycleWindows(1)
+    expect(commands.doc.title).toBe("Book1")
+    expect(commands.doc.windows.number(commands.doc.windows.active)).toBe(1)
+    commands.cycleWindows(-1)
+    expect(commands.doc.title).toBe("Book2")
+  })
+
+  it("Close closes the workbook shown and shows the one before; the last one leaves a new Book", async () => {
+    const { ui, commands } = multiple()
+    enter(commands.doc, "x")
+    const first = commands.doc
+    await commands.newWorkbook()
+    enter(commands.doc, "y")
+    await commands.close()
+    expect(ui.asked).toEqual(["Book2"])
+    expect(commands.docs).toEqual([first])
+    expect(commands.doc).toBe(first)
+    await commands.closeDocument(first)
+    expect(commands.docs).toHaveLength(1)
+    expect(commands.doc.title).toBe("Book3")
+  })
+
+  it("closing the window asks about each workbook with unsaved changes, showing it, and stops on Cancel", async () => {
+    const { ui, commands } = setup("cancel")
+    commands.multiple = true
+    enter(commands.doc, "x")
+    await commands.newWorkbook()
+    await commands.newWorkbook()
+    enter(commands.doc, "z")
+    expect(await commands.confirmCloseAll()).toBe(false)
+    expect(ui.asked).toEqual(["Book1"])
+    expect(commands.doc.title).toBe("Book1")
+  })
+})

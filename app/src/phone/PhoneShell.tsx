@@ -55,6 +55,8 @@ export function PhoneShell({
   children,
   onFile,
   onFocusGrid,
+  onTitle,
+  workbooks = 1,
 }: {
   controller: SheetController
   env: RibbonEnv
@@ -67,6 +69,10 @@ export function PhoneShell({
   children: ReactNode
   onFile: () => void
   onFocusGrid: () => void
+  /** Tapping the name shows the open workbooks (where several share the window). */
+  onTitle?: () => void
+  /** How many workbooks are open, shown beside the name when more than one. */
+  workbooks?: number
 }) {
   useSyncExternalStore(controller.subscribe, controller.getVersion)
   const [palette, setPalette] = useState<string | null>(null)
@@ -109,7 +115,20 @@ export function PhoneShell({
         <button type="button" className="phone-icon-button" aria-label="File" title="File" onClick={onFile}>
           <Menu size={22} aria-hidden />
         </button>
-        <span className="phone-title">{title}</span>
+        {onTitle ? (
+          <button
+            type="button"
+            className="phone-title phone-title-switch"
+            aria-label="Switch workbooks"
+            onClick={onTitle}
+          >
+            <span className="phone-title-name">{title}</span>
+            {workbooks > 1 ? <span className="wb-switch-count">{workbooks}</span> : null}
+            <ChevronDown size={16} aria-hidden />
+          </button>
+        ) : (
+          <span className="phone-title">{title}</span>
+        )}
         {tool("Undo", "Undo", <Undo2 size={20} />)}
         {tool("Redo", "Redo", <Redo2 size={20} />)}
         {tool("FindDialogExcel", "Find", <Search size={20} />)}
