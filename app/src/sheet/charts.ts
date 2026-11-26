@@ -21,10 +21,12 @@ import {
   type Sheet,
   type SheetChart,
   type Theme,
+  type ThemeSlot,
   type Op,
   chartSheetSnapshot,
   nextChartSheetName,
   sheetNameProblem,
+  colorCss,
 } from "@cells/core"
 import {
   chartParts,
@@ -37,6 +39,7 @@ import {
   withVariant,
   type ChartSpec,
   type PartFormat,
+  parseSchemeColor,
 } from "@cells/chart"
 import type { SheetController } from "./controller"
 import { DEFAULT_RECOMMENDED, recommendCharts } from "./chart-recommend"
@@ -71,6 +74,59 @@ export function anchorOf(sheet: Sheet, box: ChartBox): ChartAnchor {
  * Charts: Insert › Charts (and Alt+F1), selecting a chart and moving, sizing and deleting it, and the Chart Design
  * tab's changes. A chart's look is its spec; its numbers come from its ranges each time it is drawn.
  */
+/** DrawingML's names for the theme's text and background colours. */
+const SCHEME_ALIASES: Record<string, ThemeSlot> = { tx1: "dk1", bg1: "lt1", tx2: "dk2", bg2: "lt2" }
+
+/** A chart's theme colour ("scheme:accent2/lumMod=75000") as the theme shows it now; other colours as they are. */
+export function schemeColorHex(color: string, theme: Theme): string {
+  const scheme = parseSchemeColor(color)
+  if (!scheme) return color
+  const slot = (SCHEME_ALIASES[scheme.val] ?? scheme.val) as ThemeSlot
+  if (!(slot in theme.colors)) return color
+  const mod = (name: string) => scheme.mods.find(([n]) => n === name)?.[1]
+  const lumMod = mod("lumMod")
+  const lumOff = mod("lumOff")
+  let hex = colorCss(
+    {
+      theme: slot,
+      ...(lumMod !== undefined ? { lumMod: lumMod / 100000 } : {}),
+      ...(lumOff !== undefined ? { lumOff: lumOff / 100000 } : {}),
+    },
+    theme,
+  ).hex
+  // Tint moves the colour toward white, shade toward black, both in linear light as DrawingML does.
+  const tint = mod("tint")
+  const shade = mod("shade")
+  if (tint !== undefined || shade !== undefined) {
+    const toLinear = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+    const toSrgb = (v: number) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055)
+    const out = [1, 3, 5].map((i) => {
+      let c = toLinear(parseInt(hex.slice(i, i + 2), 16) / 255)
+      if (shade !== undefined) c *= shade / 100000
+      if (tint !== undefined) c = 1 - (1 - c) * (tint / 100000)
+      return Math.round(Math.min(1, Math.max(0, toSrgb(c))) * 255)
+    })
+    hex = `#${out
+      .map((v) => v.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase()}`
+  }
+  return hex
+}
+
+/** The spec with its theme colours (from a file) as the workbook's theme shows them, to draw it. */
+export function resolveSchemeColors(spec: ChartSpec, theme: Theme): ChartSpec {
+  let format: ChartSpec["format"] | null = null
+  for (const [part, look] of Object.entries(spec.format)) {
+    for (const [key, value] of Object.entries(look)) {
+      if (typeof value !== "string" || !value.startsWith("scheme:")) continue
+      format ??= { ...spec.format }
+      format[part] = { ...format[part], [key]: schemeColorHex(value, theme) }
+    }
+  }
+  return format ? { ...spec, format } : spec
+}
+
 /** A theme's six accents as charts take them. */
 export function themeAccents(theme: Theme): string[] {
   return (["accent1", "accent2", "accent3", "accent4", "accent5", "accent6"] as const).map((s) => `#${theme.colors[s]}`)
@@ -194,9 +250,16 @@ export class ChartCommands {
     this.c.changed()
   }
 
-  /** The spec a chart is drawn with: its own look, with the categories and series read from its ranges now. */
-  /** The chart as drawn: its look, its data read from the sheet, and the workbook theme's accent colours. */
+  /**
+   * The chart as drawn: its look, its data read from the sheet, and the workbook theme's accent colours; theme
+   * colours read from a file as the theme shows them now.
+   */
   liveSpec(chart: SheetChart): ChartSpec {
+    return resolveSchemeColors(this.dataSpec(chart), this.c.wb.theme)
+  }
+
+  /** The chart with its data, its theme colours still as links (what a change starts from, so it keeps them). */
+  private dataSpec(chart: SheetChart): ChartSpec {
     const look = chart.spec as Partial<ChartSpec>
     // A PivotChart: its points from its PivotTable, the outer row fields as the axis' outer levels.
     const pivot = chart.pivot && this.c.pivots.byLink(chart.pivot)
@@ -543,7 +606,7 @@ export class ChartCommands {
   change(change: (spec: ChartSpec) => ChartSpec, label = "Chart Format") {
     const chart = this.active()
     if (!chart) return
-    const live = this.liveSpec(chart)
+    const live = this.dataSpec(chart)
     const next = copyChart(chart)
     next.spec = keepLook(change(live), Boolean(chart.refs)) as unknown as Record<string, unknown>
     this.replace(chart, next, label)

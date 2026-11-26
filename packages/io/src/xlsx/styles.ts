@@ -330,13 +330,20 @@ export class StylesIn {
     const out: CFStyle = {}
     if (!dxf) return out
     const font = this.font(kid(dxf, "font"), false)
-    for (const k of ["bold", "italic", "underline", "strike", "fontColor"] as const)
+    for (const k of ["bold", "italic", "underline", "strike", "fontColor", "fontThemeColor"] as const)
       if (font[k] !== undefined) (out as Record<string, unknown>)[k] = font[k]
     const nf = kid(dxf, "numFmt")
     const code = nf ? (at(nf, "formatCode") ?? this.numberFormat(Number(at(nf, "numFmtId")))) : undefined
     if (code) out.numberFormat = code
-    const fill = this.fill(kid(dxf, "fill"), true)
-    if (fill) out.fill = fill
+    const fillNode = kid(dxf, "fill")
+    const fill = this.fill(fillNode, true)
+    if (fill) {
+      out.fill = fill
+      // As read: bgColor, or fgColor when Excel wrote a pattern type.
+      const p = kid(fillNode, "patternFill")
+      const ref = themeRef(this.color(kid(p, "bgColor")) ? kid(p, "bgColor") : kid(p, "fgColor"))
+      if (ref) out.fillThemeColor = ref
+    }
     const b = this.border(kid(dxf, "border"))
     for (const k of ["borderTop", "borderBottom", "borderLeft", "borderRight"] as const) if (b[k]) out[k] = b[k]
     return out
@@ -569,7 +576,8 @@ export class StylesOut {
       const id = this.numFmtId(style.numberFormat)
       x += `<numFmt numFmtId="${id}" formatCode="${escapeXml(style.numberFormat)}"/>`
     }
-    if (style.fill) x += `<fill><patternFill>${colorXml("bgColor", style.fill)}</patternFill></fill>`
+    if (style.fill)
+      x += `<fill><patternFill>${colorXml("bgColor", style.fill, style.fillThemeColor)}</patternFill></fill>`
     if (style.borderLeft || style.borderRight || style.borderTop || style.borderBottom) x += this.borderXml(style)
     return this.dxfs.add(`<dxf>${x}</dxf>`)
   }

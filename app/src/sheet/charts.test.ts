@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
-import { writeInputOp } from "@cells/core"
+import { copyChart, OFFICE_THEME, writeInputOp } from "@cells/core"
 import { SheetController } from "./controller"
-import { CHART_HEIGHT, CHART_WIDTH, chartBox } from "./charts"
+import { CHART_HEIGHT, CHART_WIDTH, chartBox, schemeColorHex } from "./charts"
 
 function sheet(rows: string[][]) {
   const c = new SheetController()
@@ -174,5 +174,38 @@ describe("copying charts (for Inkspire and back into Cells)", () => {
     expect(attr(html, "data-cells")).toContain(
       '"link":"cells://open?file=%2Fhome%2Falex%2FQ1%20Budget.xlsx&range=Sheet1%21A1%3AC4"',
     )
+  })
+})
+
+describe("theme colours in a chart from a file", () => {
+  it("are drawn with the workbook's theme, follow a new theme, and stay links through other changes", () => {
+    const c = sheet(SALES)
+    c.goTo({ r0: 1, c0: 1, r1: 1, c1: 1 })
+    const chart = c.charts.insert("column")!
+    // As read from a file: series 2 in Accent 5, darker.
+    const read = copyChart(chart)
+    read.spec = { ...read.spec, format: { "series:1": { fill: "scheme:accent5/lumMod=75000" } } }
+    c.transact([{ kind: "charts", sheet: 0, charts: [read] }], { label: "x", before: c.selection })
+    expect(c.charts.spec()!.format["series:1"].fill).toBe(schemeColorHex("scheme:accent5/lumMod=75000", c.wb.theme))
+    expect(schemeColorHex("scheme:accent5", c.wb.theme)).toBe(`#${OFFICE_THEME.colors.accent5}`)
+    c.transact([{ kind: "theme", theme: { ...OFFICE_THEME, colors: { ...OFFICE_THEME.colors, accent5: "FF0000" } } }], {
+      label: "x",
+      before: c.selection,
+    })
+    expect(c.charts.spec()!.format["series:1"].fill).toBe("#BF0000")
+    c.charts.change((s) => ({ ...s, legend: "bottom" }))
+    expect((c.sheet.charts[0].spec as { format: Record<string, { fill?: string }> }).format["series:1"].fill).toBe(
+      "scheme:accent5/lumMod=75000",
+    )
+  })
+
+  it("tint and shade move a theme colour toward white and black; text and background names work", () => {
+    expect(schemeColorHex("scheme:tx1", OFFICE_THEME)).toBe("#000000")
+    expect(schemeColorHex("scheme:bg1/shade=50000", OFFICE_THEME)).toBe("#BCBCBC")
+    expect(schemeColorHex("scheme:tx1/tint=50000", OFFICE_THEME)).toBe("#BCBCBC")
+    // As real Excel draws Facet's Accent 1 in the Monochromatic palette.
+    const facet = { ...OFFICE_THEME, colors: { ...OFFICE_THEME.colors, accent1: "90C226" } }
+    expect(schemeColorHex("scheme:accent1/shade=76000", facet)).toBe("#7FAC20")
+    expect(schemeColorHex("#123456", OFFICE_THEME)).toBe("#123456")
   })
 })

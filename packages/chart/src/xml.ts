@@ -50,8 +50,61 @@ function emu(points: number) {
 }
 
 function solid(color: string | undefined) {
+  const scheme = parseSchemeColor(color)
+  if (scheme) {
+    const mods = scheme.mods.map(([name, v]) => `<a:${name} val="${v}"/>`).join("")
+    return `<a:solidFill><a:schemeClr val="${scheme.val}"${mods ? `>${mods}</a:schemeClr>` : "/>"}</a:solidFill>`
+  }
   const value = hex(color)
   return value ? `<a:solidFill><a:srgbClr val="${value}"/></a:solidFill>` : "<a:noFill/>"
+}
+
+/**
+ * A theme colour in a chart's look, as the file has it (`<a:schemeClr val="accent2"><a:lumMod val="75000"/>`):
+ * written "scheme:accent2/lumMod=75000", so the chart keeps following the workbook's theme. It's drawn with the
+ * theme's colour (see `resolveSchemeColors` in the app) and written back as it was read.
+ */
+export type SchemeColor = { val: string; mods: [string, number][] }
+
+const SCHEME_MODS = new Set(["lumMod", "lumOff", "tint", "shade", "alpha"])
+
+export function parseSchemeColor(color: string | undefined): SchemeColor | null {
+  if (!color?.startsWith("scheme:")) return null
+  const [val, ...rest] = color.slice(7).split("/")
+  if (!val || !/^\w+$/.test(val)) return null
+  const mods: [string, number][] = []
+  for (const part of rest) {
+    const [name, v] = part.split("=")
+    if (name && SCHEME_MODS.has(name) && Number.isFinite(Number(v))) mods.push([name, Number(v)])
+  }
+  return { val, mods }
+}
+
+export const isSchemeColor = (color: string | undefined) => parseSchemeColor(color) !== null
+
+/** A solid fill's theme colour, as "scheme:…" (null when it has none). */
+export function schemeColor(element: Element | undefined): string | null {
+  const clr = child(child(element, "solidFill"), "schemeClr")
+  const val = clr?.attrs.val
+  if (!val || val === "phClr") return null
+  const mods = clr.children
+    .filter((m) => SCHEME_MODS.has(m.name) && m.attrs.val !== undefined && Number.isFinite(Number(m.attrs.val)))
+    .map((m) => `/${m.name}=${Number(m.attrs.val)}`)
+  return `scheme:${val}${mods.join("")}`
+}
+
+/**
+ * A series' (or pie slice's) own theme colour, unless it's the one the chart's colours give that place anyway
+ * (Excel writes accent1, accent2… for each series; those stay automatic, so Change Colors still recolours them).
+ */
+function ownSchemeFill(element: Element | undefined, index: number): string | undefined {
+  const scheme = parseSchemeColor(schemeColor(element) ?? undefined)
+  if (!scheme) return undefined
+  const automatic = `accent${(index % 6) + 1}`
+  // Past the sixth, Excel's automatic colours are the accents again, darker or lighter.
+  const shaded = index >= 6 && scheme.mods.every(([n]) => n === "lumMod" || n === "lumOff")
+  if (scheme.val === automatic && (!scheme.mods.length || shaded)) return undefined
+  return schemeColor(element) ?? undefined
 }
 
 export function column(index: number) {
@@ -990,7 +1043,7 @@ export function readChartSpace(xml: string): ChartSpec | null {
         categories.splice(0, categories.length, ...cats)
       }
       const shape = child(serie, "spPr")
-      const color = srgb(shape) ?? srgb(child(shape, "ln"))
+      const color = srgb(shape) ?? ownSchemeFill(shape, spec.series.length) ?? srgb(child(shape, "ln"))
       const trend = value(child(serie, "trendline"), "trendlineType")
       spec.series.push({
         name: names[0] || own || `Series ${spec.series.length + 1}`,
@@ -1006,9 +1059,10 @@ export function readChartSpace(xml: string): ChartSpec | null {
       }
       if (spec.type === "pie" || spec.type === "doughnut") {
         for (const point of children(serie, "dPt")) {
-          const pointColor = srgb(child(point, "spPr"))
+          const idx = Number(value(point, "idx") ?? 0)
+          const pointColor = srgb(child(point, "spPr")) ?? ownSchemeFill(child(point, "spPr"), idx)
           if (pointColor) {
-            spec.format[`point:${Number(value(point, "idx") ?? 0)}`] = { fill: pointColor }
+            spec.format[`point:${idx}`] = { fill: pointColor }
           }
         }
         spec.explosion = Number(value(serie, "explosion") ?? 0)
@@ -1213,11 +1267,14 @@ export function readChartSpace(xml: string): ChartSpec | null {
   spec.dataTable = Boolean(child(plot, "dTable"))
   // The chart area's fill and outline, and the plot area's fill.
   const areaShape = child(root, "spPr")
-  const areaFill = srgb(areaShape)
+  const areaScheme = schemeColor(areaShape)
+  const areaFill = srgb(areaShape) ?? (areaScheme === "scheme:bg1" || areaScheme === "scheme:lt1" ? null : areaScheme)
   if (areaFill && areaFill !== "#ffffff") {
     spec.format.chartArea = { fill: areaFill }
   }
-  const plotFill = srgb(child(plot, "spPr"))
+  const plotScheme = schemeColor(child(plot, "spPr"))
+  const plotFill =
+    srgb(child(plot, "spPr")) ?? (plotScheme === "scheme:bg1" || plotScheme === "scheme:lt1" ? null : plotScheme)
   if (plotFill) {
     spec.format.plotArea = { fill: plotFill }
   }

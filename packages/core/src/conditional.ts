@@ -8,7 +8,8 @@ import { evaluateFormula } from "./formula/evaluate"
 import { parseFormula } from "./formula/parser"
 import { isMatrix, isRef, type Area, type Scalar } from "./formula/types"
 import type { Sheet } from "./sheet"
-import type { Border, CellStyle } from "./styles"
+import { themed, type Border, type CellStyle } from "./styles"
+import type { Theme } from "./theme"
 import { isError, type CellValue } from "./values"
 
 /**
@@ -20,7 +21,15 @@ import { isError, type CellValue } from "./values"
 /** What a matching rule changes (Excel's "differential format": only these fields). */
 export type CFStyle = Pick<
   CellStyle,
-  "numberFormat" | "bold" | "italic" | "underline" | "strike" | "fontColor" | "fill"
+  | "numberFormat"
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strike"
+  | "fontColor"
+  | "fontThemeColor"
+  | "fill"
+  | "fillThemeColor"
 > & { borderTop?: Border; borderBottom?: Border; borderLeft?: Border; borderRight?: Border }
 
 export type CellIsOperator =
@@ -636,5 +645,18 @@ function cellIs(op: CellIsOperator, value: CellValue | undefined, a: Scalar, b: 
       const inside = b !== null && ((cmp(a) >= 0 && cmp(b) <= 0) || (cmp(b) >= 0 && cmp(a) <= 0))
       return op === "between" ? inside : !inside
     }
+  }
+}
+
+/**
+ * A new theme for the rules' formats: a font, fill or border in a theme colour (from a file) takes the theme's
+ * colour, as Excel's does. Rules change in place; nothing else does.
+ */
+export function rethemeConditional(entries: CFEntry[], theme: Theme) {
+  for (const entry of entries) {
+    const rule = entry.rule
+    if (!("style" in rule) || !rule.style) continue
+    const next = themed(rule.style as CellStyle, theme)
+    if (next) entry.rule = { ...rule, style: next as CFStyle } as CFRule
   }
 }

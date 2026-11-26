@@ -4,7 +4,7 @@ import { MAX_COLS, MAX_ROWS, rangeCols, rangeRows, type Range } from "./address"
 import type { Axis } from "./axis"
 import type { CellData } from "./cell-store"
 import type { AnnotationWrite } from "./annotations"
-import { copyEntries, shiftConditional, type CFEntry } from "./conditional"
+import { copyEntries, rethemeConditional, shiftConditional, type CFEntry } from "./conditional"
 import { copyValidations, shiftValidations, type ValidationEntry } from "./validation"
 import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
 import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
@@ -246,6 +246,7 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       const before = copyTheme(box.theme)
       box.theme = copyTheme(op.theme)
       styles.retheme(box.theme)
+      for (const each of sheets) rethemeConditional(each.conditional, box.theme)
       return { inverse: [{ kind: "theme", theme: before }], change: { sheet: 0, structural: false, format: true } }
     }
     case "queries": {

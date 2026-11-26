@@ -51,3 +51,19 @@ describe("chart part formats (the Format tab) in chart XML", () => {
     expect(plain.format.chartArea).toEqual({ line: "none" })
   })
 })
+
+describe("theme colours in chart XML", () => {
+  it("keeps a series' theme colour as a link to the theme, and leaves Excel's automatic accents automatic", () => {
+    const format: ChartSpec["format"] = {
+      "series:0": { fill: "scheme:accent1" },
+      "series:1": { fill: "scheme:accent5/lumMod=75000" },
+      plotArea: { fill: "scheme:accent4/lumMod=20000/lumOff=80000" },
+    }
+    const xml = chartSpaceXml({ ...chart(), format })
+    expect(xml).toContain('<a:schemeClr val="accent5"><a:lumMod val="75000"/></a:schemeClr>')
+    const back = readChartSpace(xml)!
+    expect(back.format["series:0"]).toBeUndefined()
+    expect(back.format["series:1"]).toEqual({ fill: "scheme:accent5/lumMod=75000" })
+    expect(back.format.plotArea).toMatchObject({ fill: "scheme:accent4/lumMod=20000/lumOff=80000" })
+  })
+})
