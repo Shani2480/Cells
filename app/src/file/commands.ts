@@ -45,6 +45,8 @@ export interface FileUi {
   textImport(bytes: Uint8Array, fileName: string): Promise<TextImport | null>
   /** A question with OK and Cancel; true for OK. */
   confirm(message: string): Promise<boolean>
+  /** File › Close on the desktop: closes this window when other Cells windows are open (true), else nothing. */
+  closeWindow?(): Promise<boolean>
 }
 
 /** Excel's message when a workbook of several sheets is saved as CSV or text. */
@@ -71,6 +73,19 @@ export class FileCommands {
   docs: WorkbookDocument[]
   /** Several workbooks in this window (see above). */
   multiple = false
+  /**
+   * The desktop's window per workbook: a new window for an open request (a path or a cells:// link; null for a new
+   * workbook). With it, Ctrl+N opens a window and a file opened in a window already in use opens in another, as in
+   * Excel.
+   */
+  newWindow: ((request: string | null, path: string | null) => Promise<void>) | null = null
+
+  /** Whether `path` should open in another window (this one shows something else), and opens it there if so. */
+  async openElsewhere(request: string, path: string): Promise<boolean> {
+    if (!this.newWindow || this.multiple || this.untouched(this.doc) || this.doc.ref?.path === path) return false
+    await this.newWindow(request, path)
+    return true
+  }
   private busy = false
   /** New workbooks are numbered per window, as Excel's Book1, Book2… */
   private books = 1
@@ -201,6 +216,10 @@ export class FileCommands {
 
   /** Ctrl+N: a new blank workbook. */
   async newWorkbook(): Promise<boolean> {
+    if (this.newWindow && !this.multiple) {
+      await this.newWindow(null, null)
+      return true
+    }
     if (this.replacing() && !(await this.confirmClose())) return false
     this.replace(newDocument(undefined, `Book${++this.books}.xlsx`))
     return true
@@ -220,7 +239,12 @@ export class FileCommands {
   }
 
   /** A file from the Recent list. */
-  async openRecent(entry: Pick<RecentFile, "name" | "path" | "handle">, remember = true): Promise<boolean> {
+  async openRecent(
+    entry: Pick<RecentFile, "name" | "path" | "handle">,
+    remember = true,
+    here = false,
+  ): Promise<boolean> {
+    if (!here && entry.path && (await this.openElsewhere(entry.path, entry.path))) return true
     const ref: FileRef = { name: entry.name, path: entry.path, handle: entry.handle }
     let bytes: Uint8Array
     try {
@@ -254,7 +278,7 @@ export class FileCommands {
   async openEmbedded(path: string, documentName: string): Promise<boolean> {
     if (this.doc.ref?.path !== path) {
       const name = fileNameOf(path)
-      if (!(await this.openRecent({ name, path }, false))) return false
+      if (!(await this.openRecent({ name, path }, false, true))) return false
     }
     const doc = this.doc
     doc.embeddedFor = documentName
@@ -294,6 +318,7 @@ export class FileCommands {
       this.switchTo(open)
       return true
     }
+    if (ref.path && (await this.openElsewhere(ref.path, ref.path))) return true
     if (this.replacing() && !(await this.confirmClose())) return false
     let text: TextImport | undefined
     if (isTextFile(ref.name) && extensionOf(ref.name) !== "csv") {
@@ -433,6 +458,8 @@ export class FileCommands {
    */
   async close(): Promise<boolean> {
     if (!(await this.confirmClose())) return false
+    // The desktop: the window goes when there are others (the workbook was its only one).
+    if (this.docs.length === 1 && (await this.ui.closeWindow?.())) return true
     const old = this.doc
     const rest = this.docs.filter((d) => d !== old)
     if (!rest.length) {

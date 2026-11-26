@@ -108,6 +108,15 @@ export function tauriPlatform(): Platform {
     },
     window: {
       controllable: webPlatform.os !== "android",
+      ...(webPlatform.os === "android"
+        ? {}
+        : {
+            primary: appWindow.label === "main",
+            openWindow: (request: string | null, path: string | null) => invoke<void>("open_window", { request, path }),
+            listWindows: () => invoke<{ id: string; title: string; current: boolean }[]>("list_windows"),
+            focusWindow: (id: string) => invoke<void>("focus_window", { id }),
+            setDocument: (path: string | null) => invoke<void>("window_document", { path }),
+          }),
       minimize: () => appWindow.minimize(),
       toggleMaximize: () => appWindow.toggleMaximize(),
       close: () => appWindow.close(),

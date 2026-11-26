@@ -240,7 +240,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 - [ ] 4 Shapes and text boxes
 - [ ] 6 Proofing
 - [ ] 7 Themes
-- [ ] 8 Several workbooks at once
+- [ ] 8 Several workbooks at once (✅ Android and browser switcher; ✅ desktop window per workbook; ⬜ view per window)
 
 ## Later (from Phase 7)
 

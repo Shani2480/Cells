@@ -6,11 +6,13 @@ mod ai;
 mod menu;
 mod screenshot;
 mod web;
+mod windows;
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
-use tauri::{Emitter, Manager};
+#[cfg(target_os = "macos")]
+use tauri::Emitter;
+use tauri::Manager;
 
 /// The window title for a workbook, as Excel shows it ("Book1 - Cells").
 pub fn window_title(workbook: &str) -> String {
@@ -427,11 +429,6 @@ fn system_defaults() -> SystemDefaults {
     }
 }
 
-/// `cells://` links and workbook files the app was started or called with, until the window takes them (it may not be
-/// listening yet when the app starts).
-#[derive(Default)]
-struct PendingOpens(Mutex<Vec<String>>);
-
 /// What in a launch's arguments the window should open: `cells://` links, and workbook files (relative paths are
 /// taken from the folder the launch came from). The first argument is the program itself.
 fn openable_arguments(args: &[String], cwd: &Path) -> Vec<String> {
@@ -461,35 +458,11 @@ fn openable_arguments(args: &[String], cwd: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Hands links and files to the window: queued for `take_pending_opens`, announced with `cells-open`, and the
-/// window brought to the front (a second launch lands here instead of opening a second Cells).
+/// Hands links and files to the window used last (windows.rs); a second launch lands here instead of opening a
+/// second Cells.
 #[cfg_attr(mobile, allow(dead_code))]
 fn deliver(app: &tauri::AppHandle, items: Vec<String>) {
-    if items.is_empty() {
-        return;
-    }
-    if let Some(pending) = app.try_state::<PendingOpens>() {
-        if let Ok(mut list) = pending.0.lock() {
-            list.extend(items);
-        }
-    }
-    let _ = app.emit_to("main", "cells-open", ());
-    if let Some(window) = app.get_webview_window("main") {
-        #[cfg(desktop)]
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
-}
-
-/// The links and files waiting to be opened, oldest first; the list is empty afterwards.
-#[tauri::command]
-fn take_pending_opens(pending: tauri::State<'_, PendingOpens>) -> Vec<String> {
-    pending
-        .0
-        .lock()
-        .map(|mut list| std::mem::take(&mut *list))
-        .unwrap_or_default()
+    windows::deliver_to(app, items);
 }
 
 #[cfg(target_os = "linux")]
@@ -508,20 +481,29 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         // Insert › Link: web pages, e-mail and files open in the system's apps.
         .plugin(tauri_plugin_opener::init())
-        .manage(PendingOpens::default())
+        .manage(windows::WindowState::default())
+        .on_window_event(|window, event| {
+            let state = window.state::<windows::WindowState>();
+            match event {
+                tauri::WindowEvent::Focused(true) => state.focused(window.label()),
+                tauri::WindowEvent::Destroyed => state.closed(window.label()),
+                _ => {}
+            }
+        })
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
             let cwd = std::env::current_dir().unwrap_or_default();
-            if let Ok(mut list) = app.state::<PendingOpens>().0.lock() {
-                list.extend(openable_arguments(&args, &cwd));
-            }
+            app.state::<windows::WindowState>()
+                .queue("main", openable_arguments(&args, &cwd));
             // The menu bar (macOS shows one for every app; elsewhere the window's ribbon is the menu).
             #[cfg(target_os = "macos")]
             {
                 app.set_menu(menu::menu_bar(app.handle())?)?;
                 app.on_menu_event(|app, event| {
                     if let Some(id) = menu::command_of(event.id().as_ref()) {
-                        let _ = app.emit_to("main", "menu-command", id.to_string());
+                        if let Some(window) = windows::target_window(app) {
+                            let _ = app.emit_to(window.label(), "menu-command", id.to_string());
+                        }
                     }
                 });
             }
@@ -559,7 +541,11 @@ pub fn run() {
             write_shared_settings,
             shared_settings_location,
             system_defaults,
-            take_pending_opens,
+            windows::take_pending_opens,
+            windows::window_document,
+            windows::open_window,
+            windows::list_windows,
+            windows::focus_window,
             read_link_wants,
             write_link_snapshot,
             is_edit_copy,

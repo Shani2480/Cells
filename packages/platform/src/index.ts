@@ -37,6 +37,19 @@ export interface WindowPort {
    * there is no menu bar. Returns an unsubscribe function.
    */
   onMenuCommand?(callback: (id: string) => void): () => void
+  /**
+   * The desktop's window per workbook (absent where the workbooks share one window: Android, a browser). A new
+   * window for an open request (a path or a cells:// link; null: a new workbook); `path` is the file it opens, so a
+   * window already showing it comes forward instead.
+   */
+  openWindow?(request: string | null, path: string | null): Promise<void>
+  /** Every Cells window with its title, in the order they were opened; `current` is this one. */
+  listWindows?(): Promise<{ id: string; title: string; current: boolean }[]>
+  focusWindow?(id: string): Promise<void>
+  /** Tells the other windows which file this one shows (null: a new workbook). */
+  setDocument?(path: string | null): Promise<void>
+  /** The window Cells started with (it offers what AutoRecover kept); false for the windows opened after. */
+  readonly primary?: boolean
 }
 
 /**

@@ -814,8 +814,12 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   closes the one shown; the workbook's name at the top (title bar, or the phone's top bar with a sheet from the
   bottom) lists them with an unsaved dot, Close on each, New Workbook and Open; View › Switch Windows and Ctrl+F6 go
   through every workbook's windows; closing asks about each unsaved one; AutoRecover keeps each. Inkspire's linked
-  ranges are kept up to date for the workbook shown. ⬜ desktop: a window per workbook; ⬜ every window's view saved
-  (Excel's workbookView per window).
+  ranges are kept up to date for the workbook shown. ✅ desktop: a window per workbook, as in Excel: New opens a
+  window; Open, a recent file, a file from the file manager or a cells:// link opens in the window when its workbook is
+  untouched, else in a window of its own, and a file already open brings its window forward (going to the link's
+  range); View › Switch Windows and Ctrl+F6 list every Cells window; File › Close closes the window when others are
+  open; only the first window offers what AutoRecover kept. ⬜ every window's view saved (Excel's workbookView per
+  window).
 
 Decided: the spelling dictionaries download from jsDelivr (pinned versions, SHA-256 checked) (6); several workbooks
 on Android: a switcher built into the app (8).

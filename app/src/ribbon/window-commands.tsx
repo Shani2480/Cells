@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react"
 import { Check } from "lucide-react"
+import { switchEntries, type SwitchEntry } from "@/file/switching"
+import { usePlatform } from "@/platform/context"
 import type { Command, RibbonEnv } from "./registry"
 
 /**
@@ -8,6 +11,42 @@ import type { Command, RibbonEnv } from "./registry"
  */
 
 const windowsOf = (env: RibbonEnv) => env.files?.doc.windows
+
+/** Switch Windows' list: every window of every workbook, the one shown ticked (see file/switching.ts). */
+function SwitchWindowsList({ env, close }: { env: RibbonEnv; close: () => void }) {
+  const platform = usePlatform()
+  const [list, setList] = useState<SwitchEntry[] | null>(null)
+  useEffect(() => {
+    let live = true
+    if (env.files) void switchEntries(env.files, platform.window).then((got) => live && setList(got))
+    return () => {
+      live = false
+    }
+  }, [env.files, platform])
+  if (!list) return null
+  return (
+    <div className="pl-list win-switch" role="menu" aria-label="Switch Windows">
+      {list.map((e, i) => (
+        <button
+          key={e.key}
+          type="button"
+          role="menuitemradio"
+          aria-checked={e.current}
+          className={`pl-item win-switch-item${e.current ? " is-current" : ""}`}
+          onClick={() => {
+            close()
+            e.go()
+          }}
+        >
+          <span className="win-switch-check">{e.current ? <Check size={14} /> : null}</span>
+          <span>
+            <u>{i + 1}</u> {e.title}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export function windowCommands(): Command[] {
   return [
@@ -87,35 +126,7 @@ export function windowCommands(): Command[] {
       enabled: (env) => windowsOf(env) !== undefined,
       menu: [
         {
-          panel: (env, close) => {
-            const files = env.files
-            if (!files) return null
-            return (
-              <div className="pl-list win-switch" role="menu" aria-label="Switch Windows">
-                {files.windowList().map(({ doc, c, title }, i) => {
-                  const current = doc === files.doc && c === doc.windows.active
-                  return (
-                    <button
-                      key={`${doc.id}:${doc.windows.key(c)}`}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={current}
-                      className={`pl-item win-switch-item${current ? " is-current" : ""}`}
-                      onClick={() => {
-                        close()
-                        files.showWindow(doc, c)
-                      }}
-                    >
-                      <span className="win-switch-check">{current ? <Check size={14} /> : null}</span>
-                      <span>
-                        <u>{i + 1}</u> {title}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )
-          },
+          panel: (env, close) => <SwitchWindowsList env={env} close={close} />,
         },
       ],
     },

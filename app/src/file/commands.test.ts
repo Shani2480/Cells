@@ -549,3 +549,43 @@ describe("several workbooks in one window (Android, a browser)", () => {
     expect(commands.doc.title).toBe("Book1")
   })
 })
+
+describe("a window per workbook (the desktop)", () => {
+  beforeEach(() => localStorage.clear())
+
+  it("Ctrl+N opens a window; a file opens here while this workbook is untouched, else in a window of its own", async () => {
+    const { files, commands } = setup("discard")
+    const opened: [string | null, string | null][] = []
+    commands.newWindow = async (request, path) => void opened.push([request, path])
+    files.disk.set("/home/alex/Budget.xlsx", await budget())
+    files.disk.set("/home/alex/Trips.xlsx", await budget("Trips.xlsx"))
+    await commands.newWorkbook()
+    expect(opened).toEqual([[null, null]])
+    files.nextOpen = "/home/alex/Budget.xlsx"
+    await commands.open()
+    expect(commands.doc.fileName).toBe("Budget.xlsx")
+    const reads = files.reads
+    await commands.openRecent({ name: "Trips.xlsx", path: "/home/alex/Trips.xlsx" })
+    expect(opened.at(-1)).toEqual(["/home/alex/Trips.xlsx", "/home/alex/Trips.xlsx"])
+    expect(files.reads).toBe(reads)
+    expect(commands.docs.map((d) => d.fileName)).toEqual(["Budget.xlsx"])
+    // A link to a range in the workbook shown stays here.
+    expect(await commands.openElsewhere("cells://open?file=/home/alex/Budget.xlsx", "/home/alex/Budget.xlsx")).toBe(
+      false,
+    )
+  })
+
+  it("File › Close closes the window when other windows are open, else leaves a new workbook", async () => {
+    const { ui, commands } = setup("discard")
+    let others = true
+    ui.closeWindow = async () => others
+    enter(commands.doc, "x")
+    const first = commands.doc
+    expect(await commands.close()).toBe(true)
+    expect(commands.doc).toBe(first)
+    others = false
+    await commands.close()
+    expect(commands.doc).not.toBe(first)
+    expect(commands.doc.title).toBe("Book2")
+  })
+})

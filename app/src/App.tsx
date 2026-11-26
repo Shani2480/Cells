@@ -40,6 +40,7 @@ import type { AiTool } from "@/ai/prompts"
 import { OptionsDialog, type OptionsPage } from "@/settings/OptionsDialog"
 import { FirstRunSetup } from "@/settings/FirstRunSetup"
 import { FeatureHints } from "@/hints/FeatureHints"
+import { cycleEntries } from "@/file/switching"
 import { parseOpenRequest } from "@/links/link"
 import { LiveLinks } from "@/links/live"
 import { SheetController } from "@/sheet/controller"
@@ -392,6 +393,8 @@ export function App({ controller: given }: { controller?: SheetController } = {}
     answer: (choices: TextImport | null) => void
   } | null>(null)
   const [question, setQuestion] = useState<{ message: string; answer: (ok: boolean) => void } | null>(null)
+  /** File › Close already asked about this window's workbook; the window just goes. */
+  const closingWindow = useRef(false)
   const [files] = useState(
     () =>
       new FileCommands(
@@ -405,6 +408,13 @@ export function App({ controller: given }: { controller?: SheetController } = {}
           recentChanged: setRecent,
           textImport: (bytes, fileName) => new Promise((answer) => setImporting({ bytes, fileName, answer })),
           confirm: (message) => new Promise((answer) => setQuestion({ message, answer })),
+          closeWindow: async () => {
+            const others = (await platform.window.listWindows?.().catch(() => []))?.length ?? 0
+            if (others < 2) return false
+            closingWindow.current = true
+            await platform.window.close()
+            return true
+          },
         },
         first,
       ),
@@ -412,6 +422,8 @@ export function App({ controller: given }: { controller?: SheetController } = {}
   // Android and a browser keep several workbooks in the one window, with a switcher; the desktop opens a window each.
   // (A browser reports the system it runs on as its os; neither it nor Android controls its own window.)
   files.multiple = platform.os === "android" || !platform.window.controllable
+  const openWindow = platform.window.openWindow?.bind(platform.window)
+  files.newWindow = !files.multiple && openWindow ? openWindow : null
 
   // cells:// links and files passed by the system: open the file, then go to the range.
   useEffect(
@@ -421,6 +433,8 @@ export function App({ controller: given }: { controller?: SheetController } = {}
           for (const item of items) {
             const request = parseOpenRequest(item)
             if (!request) continue
+            // The desktop: a window already in use leaves the file to a window of its own.
+            if (await files.openElsewhere(item, request.path)) continue
             if (request.editFor) {
               // Saving back as it changes is only for the copies Inkspire makes; any other file opens as usual.
               if (await platform.links.isEditCopy(request.path)) await files.openEmbedded(request.path, request.editFor)
@@ -465,9 +479,11 @@ export function App({ controller: given }: { controller?: SheetController } = {}
     setRecent(files.recent)
     loadDemo(first.controller, new URLSearchParams(window.location.search).get("demo"))
     files.startAutoRecover()
-    void files.recovered().then((list) => {
-      if (list.length) setRecovered(list)
-    })
+    // Only the window Cells started with offers what AutoRecover kept (the others' copies are their open workbooks).
+    if (platform.window.primary !== false)
+      void files.recovered().then((list) => {
+        if (list.length) setRecovered(list)
+      })
     return () => files.stop()
   }, [files, first])
 
@@ -476,6 +492,7 @@ export function App({ controller: given }: { controller?: SheetController } = {}
     () =>
       platform.window.onCloseRequested(() => {
         if (!platform.window.controllable) return !files.docs.some((d) => d.dirty)
+        if (closingWindow.current) return true
         return files.confirmCloseAll().then(async (ok) => {
           if (ok) for (const d of files.docs) await files.discardRecovered({ id: d.id } as RecoveredFile)
           return ok
@@ -591,6 +608,12 @@ function WorkbookWindow({
 }) {
   /** The phone's list of open workbooks. */
   const [workbookSheet, setWorkbookSheet] = useState(false)
+  // The desktop: the other windows learn which file this one shows (opening it again brings this window forward).
+  const docPath = doc.ref?.path ?? null
+  const platformForPath = usePlatform()
+  useEffect(() => {
+    void platformForPath.window.setDocument?.(docPath).catch(() => undefined)
+  }, [platformForPath, docPath])
   // View › New Window: the ribbon, formula bar, tabs and status bar follow the active window.
   const windowsVersion = useSyncExternalStore(doc.windows.subscribe, doc.windows.getVersion)
   const controller = doc.controller
@@ -1308,10 +1331,9 @@ function WorkbookWindow({
         setBackstage("print")
       } else if (event.key === "F6" && primary && !event.altKey && !document.querySelector('[aria-modal="true"]')) {
         // Ctrl+F6 / Ctrl+Shift+F6: the next or previous window, of this workbook or another one open here.
-        if (files.windowList().length < 2) return
         event.preventDefault()
         event.stopPropagation()
-        files.cycleWindows(event.shiftKey ? -1 : 1)
+        void cycleEntries(files, platform.window, event.shiftKey ? -1 : 1)
       }
     }
     window.addEventListener("keydown", onKey)
