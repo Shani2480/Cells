@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import type { SheetController } from "@/sheet/controller"
-import type { HFSection } from "@/sheet/header-footer"
+import { headerFooterEdges } from "@cells/core"
+import { headerFooterLabel, type HFSection } from "@/sheet/header-footer"
 import type { GridLayout } from "./layout"
 import { visiblePages, type PageRect } from "./page-layout"
 import { CELL_FONT_FAMILY } from "./theme"
@@ -13,15 +14,18 @@ export function headerFooterBox(controller: SheetController, page: PageRect, whe
   const setup = controller.sheet.pageSetup
   const scale = controller.print.current().scale || 1
   const pxPerIn = 96 / scale
-  const size = 11 / 0.75
+  const size = 11 / 0.75 / (setup.scaleWithDoc ? 1 : scale)
   const min = size * 1.2 + 8
+  const edges = headerFooterEdges(setup, page.w / pxPerIn)
+  const x = page.x + edges.left * pxPerIn
+  const w = (edges.right - edges.left) * pxPerIn
   if (where === "header") {
     const top = page.y + setup.margins.header * pxPerIn - 4
-    return { x: page.body.x, y: top, w: page.body.w, h: Math.max(min, page.body.y - top - 2), size }
+    return { x, y: top, w, h: Math.max(min, page.body.y - top - 2), size }
   }
   const bottom = page.y + page.h - setup.margins.footer * pxPerIn + 6
   const top = Math.min(page.body.y + page.body.h + 2, bottom - min)
-  return { x: page.body.x, y: top, w: page.body.w, h: bottom - top, size }
+  return { x, y: top, w, h: bottom - top, size }
 }
 
 /**
@@ -59,14 +63,17 @@ export function HeaderFooterOverlay({
   if (!e || !page) return null
   const box = headerFooterBox(controller, page, e.where)
   const third = box.w / 3
+  // "First Page Header", "Even Page Footer"…: which of the sheet's headers this page edits, when there's more than one.
+  const label = headerFooterLabel(controller.sheet.pageSetup, e.where, e.kind)
   return (
     <div
       className="hf-edit"
       role="group"
-      aria-label={e.where === "header" ? "Header" : "Footer"}
+      aria-label={label ?? (e.where === "header" ? "Header" : "Footer")}
       style={{ left: box.x * zoom, top: box.y * zoom, width: box.w * zoom, height: box.h * zoom }}
       onPointerDown={(event) => event.stopPropagation()}
     >
+      {label && <div className={`hf-edit-label is-${e.where}`}>{label}</div>}
       {SECTIONS.map((s, i) => (
         <textarea
           key={s}

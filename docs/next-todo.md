@@ -236,7 +236,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 - [x] 1 Quiet fixes (links with cut/paste and Insert/Delete Cells, Advanced Filter saved, Select locked cells,
       row refit, wheel by rows)
 - [ ] 2 Verify sweep (`docs/verify-list.md`)
-- [ ] 3 Printing and page layout
+- [ ] 3 Printing and page layout (first/odd/even headers and Options ✅)
 - [ ] 4 Shapes and text boxes
 - [ ] 6 Proofing
 - [ ] 7 Themes
@@ -282,8 +282,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
   Refers to cells is typed (no collapse-to-pick button yet).
 
 - Page Layout: print titles aren't repeated on each page in the view (they are when printing); the Header & Footer
-  tab has no Picture or Format Picture, and no Options group (different first page, odd and even pages, scale with
-  document, align with margins).
+  tab has no Picture or Format Picture. ~~No Options group (different first page, odd and even pages, scale with
+  document, align with margins).~~ Done in Phase 9.
 
 - Custom Views: a view's filter settings aren't saved or shown (Excel's .wvu.FilterData is kept as read), nor are
   split panes or hidden sheets.

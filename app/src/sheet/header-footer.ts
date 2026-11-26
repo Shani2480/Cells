@@ -1,4 +1,10 @@
-import type { HeaderFooterText } from "@cells/core"
+import {
+  headerFooterKey,
+  headerFooterKind,
+  type HeaderFooterKind,
+  type HeaderFooterText,
+  type PageSetup,
+} from "@cells/core"
 import type { SheetController } from "./controller"
 
 /** Excel shows codes by name while editing (&[Page]) and keeps them as letters in the file (&P). */
@@ -31,6 +37,8 @@ export const HF_ELEMENTS = {
 
 export type HFEditing = {
   where: HFWhere
+  /** Which of the sheet's headers the page shows: the first page's, an even page's or the usual one. */
+  kind: HeaderFooterKind
   /** The page it's edited on (the page's row and column band in Page Layout). */
   rowBand: number
   colBand: number
@@ -43,6 +51,42 @@ export type HFEditing = {
   focus: number
 }
 
+export type HFOption = keyof Pick<
+  PageSetup,
+  "differentFirst" | "differentOddEven" | "scaleWithDoc" | "alignWithMargins"
+>
+
+const HF_OPTION_LABELS: Record<HFOption, string> = {
+  differentFirst: "Different First Page",
+  differentOddEven: "Different Odd & Even Pages",
+  scaleWithDoc: "Scale with Document",
+  alignWithMargins: "Align with Page Margins",
+}
+
+/** The name Excel shows by a header being edited when the sheet has more than one ("First Page Header"); null for one. */
+export function headerFooterLabel(setup: PageSetup, where: HFWhere, kind: HeaderFooterKind): string | null {
+  const noun = where === "header" ? "Header" : "Footer"
+  if (kind === "first") return `First Page ${noun}`
+  if (kind === "even") return `Even Page ${noun}`
+  return setup.differentOddEven ? `Odd Page ${noun}` : setup.differentFirst ? noun : null
+}
+
+/**
+ * A page's place in the sheet's printout (0 the first), from its row and column band in Page Layout view: the
+ * printed page that starts there, or its place in the page order.
+ */
+export function pagePlace(c: SheetController, rowBand: number, colBand: number): number {
+  const p = c.print.current()
+  const map = c.pageMap()
+  const rb = map?.rows.bands[rowBand]
+  const cb = map?.cols.bands[colBand]
+  const printed = rb && cb ? p.pages.findIndex((page) => page.rows[0] === rb.first && page.cols[0] === cb.first) : -1
+  if (printed >= 0) return printed
+  const rows = map?.rows.bands.length ?? 1
+  const cols = map?.cols.bands.length ?? 1
+  return c.sheet.pageSetup.order === "overThenDown" ? rowBand * cols + colBand : colBand * rows + rowBand
+}
+
 const named = (hf: HeaderFooterText): HeaderFooterText => ({
   left: codesToNames(hf.left),
   center: codesToNames(hf.center),
@@ -52,7 +96,8 @@ const named = (hf: HeaderFooterText): HeaderFooterText => ({
 /**
  * Page Layout view's header and footer, edited on the page as in Excel: a click in a page's top or bottom margin
  * opens its three sections there, the Header & Footer tab inserts elements and moves between header and footer, and
- * a click back on the cells keeps the text (Esc drops it). The same header and footer print on every page.
+ * a click back on the cells keeps the text (Esc drops it). With Different First Page or Different Odd & Even Pages
+ * on, each page edits the header it prints.
  */
 export class HeaderFooterEditor {
   editing: HFEditing | null = null
@@ -69,9 +114,11 @@ export class HeaderFooterEditor {
     if (this.editing) this.commit()
     if (this.c.view !== "pageLayout") this.c.setView("pageLayout")
     if (!page) page = this.activePage(where)
-    const text = named(this.c.sheet.pageSetup[where])
+    const kind = headerFooterKind(this.c.sheet.pageSetup, pagePlace(this.c, page.rowBand, page.colBand))
+    const text = named(this.c.sheet.pageSetup[headerFooterKey(where, kind)])
     this.editing = {
       where,
+      kind,
       ...page,
       text,
       section,
@@ -140,7 +187,8 @@ export class HeaderFooterEditor {
     // The other one's typed text is kept first; this one's is replaced by the ready-made one.
     if (e && e.where !== where) this.commit()
     this.editing = null
-    this.c.print.change((s) => (s[where] = { ...value }), where === "header" ? "Header" : "Footer")
+    const key = headerFooterKey(where, e?.kind ?? "odd")
+    this.c.print.change((s) => (s[key] = { ...value }), where === "header" ? "Header" : "Footer")
     if (e) this.open(where, { rowBand: e.rowBand, colBand: e.colBand }, e.section)
   }
 
@@ -161,10 +209,22 @@ export class HeaderFooterEditor {
       center: namesToCodes(e.text.center),
       right: namesToCodes(e.text.right),
     }
-    const before = this.c.sheet.pageSetup[e.where]
+    const key = headerFooterKey(e.where, e.kind)
+    const before = this.c.sheet.pageSetup[key]
     if (value.left !== before.left || value.center !== before.center || value.right !== before.right)
-      this.c.print.change((s) => (s[e.where] = value), e.where === "header" ? "Header" : "Footer")
+      this.c.print.change((s) => (s[key] = value), e.where === "header" ? "Header" : "Footer")
     this.c.changed()
+  }
+
+  /**
+   * Header & Footer › Options: Different First Page, Different Odd & Even Pages, Scale with Document, Align with Page
+   * Margins. The text typed so far is kept first, and the page goes on being edited (as its header may now differ).
+   */
+  toggleOption(option: HFOption) {
+    const e = this.editing
+    if (e) this.commit()
+    this.c.print.change((s) => (s[option] = !s[option]), HF_OPTION_LABELS[option])
+    if (e) this.open(e.where, { rowBand: e.rowBand, colBand: e.colBand }, e.section)
   }
 
   /** Esc: stop editing without keeping the text. */

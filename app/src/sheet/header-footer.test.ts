@@ -43,6 +43,31 @@ describe("Header & Footer on the page", () => {
     expect(c.sheet.pageSetup.header.center).toBe("Page &P")
   })
 
+  it("with Different First Page and Odd & Even, each page edits the header it prints", () => {
+    const c = setup()
+    c.headerFooter.open("header", { rowBand: 0, colBand: 0 }, "center")
+    c.headerFooter.toggleOption("differentFirst")
+    c.headerFooter.toggleOption("differentOddEven")
+    expect(c.sheet.pageSetup).toMatchObject({ differentFirst: true, differentOddEven: true })
+    // Still editing the first page, now its own header.
+    expect(c.headerFooter.editing).toMatchObject({ kind: "first", rowBand: 0 })
+    c.headerFooter.type("center", "Cover")
+    c.headerFooter.open("header", { rowBand: 1, colBand: 0 }, "center")
+    expect(c.headerFooter.editing!.kind).toBe("even")
+    c.headerFooter.type("center", "Even")
+    c.headerFooter.open("header", { rowBand: 2, colBand: 0 }, "center")
+    expect(c.headerFooter.editing!.kind).toBe("odd")
+    c.headerFooter.type("center", "Odd")
+    c.headerFooter.commit()
+    const s = c.sheet.pageSetup
+    expect([s.firstHeader.center, s.evenHeader.center, s.header.center]).toEqual(["Cover", "Even", "Odd"])
+    // A ready-made header goes to the page's own kind.
+    c.headerFooter.open("header", { rowBand: 1, colBand: 0 })
+    c.headerFooter.usePreset("header", { left: "", center: "Page &P", right: "" })
+    expect(c.sheet.pageSetup.evenHeader.center).toBe("Page &P")
+    expect(c.sheet.pageSetup.header.center).toBe("Odd")
+  })
+
   it("Esc drops the text; Go to Footer keeps what was typed in the header", () => {
     const c = setup()
     c.headerFooter.open("header")

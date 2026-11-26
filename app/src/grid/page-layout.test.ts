@@ -41,6 +41,17 @@ describe("Page Layout view", () => {
     expect(map.rows.bands.length).toBeGreaterThan(printed.length)
   })
 
+  it("fills a page with the columns that fit, past the last one in use, unless a print area ends it", () => {
+    const c = setup()
+    c.setView("pageLayout")
+    // A:C print on one page; the page carries on with D, E… as Excel's Page Layout shows it.
+    const first = c.pageMap()!.cols.bands[0]
+    expect(first.first).toBe(0)
+    expect(first.last).toBeGreaterThan(5)
+    c.print.change((s) => (s.printArea = [{ r0: 0, c0: 0, r1: 119, c1: 2 }]))
+    expect(c.pageMap()!.cols.bands[0].last).toBe(2)
+  })
+
   it("an empty sheet still shows whole pages", () => {
     const c = new SheetController()
     c.setView("pageLayout")

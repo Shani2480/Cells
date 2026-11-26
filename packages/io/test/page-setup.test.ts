@@ -2,7 +2,7 @@
 // into each sheet's page setup and written back as Excel writes them.
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { MAX_COLS, paginate, Workbook } from "@cells/core"
+import { headerFooterOf, MAX_COLS, paginate, Workbook } from "@cells/core"
 import { openXlsx, saveXlsx } from "../src"
 import { parseHeaderFooter } from "../src/xlsx/page-setup"
 import { readZip } from "@cells/ooxml"
@@ -101,5 +101,43 @@ describe("page setup in xlsx", () => {
       right: "Right",
     })
     expect(parseHeaderFooter("Just text")).toEqual({ left: "", center: "Just text", right: "" })
+  })
+
+  it("first-page and even-page headers, and the options (fixtures/excel/header-kinds.xlsx)", async () => {
+    const bytes = new Uint8Array(readFileSync(new URL("./fixtures/excel/header-kinds.xlsx", import.meta.url)))
+    const { workbook, source } = await openXlsx(bytes, "header-kinds.xlsx")
+    const setup = workbook.sheets[0].pageSetup
+    expect(setup).toMatchObject({
+      differentFirst: true,
+      differentOddEven: true,
+      scaleWithDoc: true,
+      alignWithMargins: true,
+      header: { center: "ODD &P" },
+      evenHeader: { center: "EVEN &P" },
+      firstHeader: { center: "FIRST &P" },
+      firstPageNumber: 2,
+    })
+    // Excel's own measure: pages 1, 2, 3 printed FIRST 2, EVEN 3, ODD 4 (by place, not number).
+    expect([0, 1, 2].map((i) => headerFooterOf(setup, "header", i).center)).toEqual(["FIRST &P", "EVEN &P", "ODD &P"])
+    const written = (await files(await saveXlsx(workbook, { source, fileName: "h.xlsx" }))).get(
+      "xl/worksheets/sheet1.xml",
+    )!
+    expect(written).toContain(
+      '<headerFooter differentOddEven="1" differentFirst="1"><oddHeader>&amp;CODD &amp;P</oddHeader><evenHeader>&amp;CEVEN &amp;P</evenHeader><firstHeader>&amp;CFIRST &amp;P</firstHeader></headerFooter>',
+    )
+    // Options off, and a new workbook's even footer.
+    const wb = new Workbook()
+    Object.assign(wb.sheets[0].pageSetup, {
+      scaleWithDoc: false,
+      alignWithMargins: false,
+      differentOddEven: true,
+      evenFooter: { left: "", center: "", right: "Even" },
+    })
+    const fresh = (await files(await saveXlsx(wb, { fileName: "n.xlsx" }))).get("xl/worksheets/sheet1.xml")!
+    expect(fresh).toContain(
+      '<headerFooter differentOddEven="1" scaleWithDoc="0" alignWithMargins="0"><evenFooter>&amp;REven</evenFooter></headerFooter>',
+    )
+    const back = (await openXlsx(await saveXlsx(wb, { fileName: "n.xlsx" }), "n.xlsx")).workbook.sheets[0].pageSetup
+    expect(back).toMatchObject({ scaleWithDoc: false, alignWithMargins: false, evenFooter: { right: "Even" } })
   })
 })

@@ -5,6 +5,7 @@ import {
   MAX_COLS,
   MAX_ROWS,
   quoteSheet,
+  type HeaderFooterKey,
   type HeaderFooterText,
   type PageSetup,
   type Range,
@@ -15,14 +16,14 @@ import { at, kid, kids, type XNode } from "./dom"
 /**
  * A sheet's print settings in SpreadsheetML: printOptions, pageMargins, pageSetup, headerFooter, rowBreaks and
  * colBreaks in the worksheet, fitToPage in sheetPr, and the Print_Area and Print_Titles names in the workbook.
- * What Cells doesn't model (the printer settings part, dpi, copies, even and first-page headers) goes back as read.
+ * What Cells doesn't model (the printer settings part, dpi, copies) goes back as read.
  */
 
 /** What a sheet's print elements held that Cells keeps without using. */
 export type PageSetupExtras = {
   /** pageSetup's other attributes (r:id of the printer settings, dpi, copies…), as written. */
   pageSetup: string
-  /** headerFooter's own attributes and its even and first-page headers and footers. */
+  /** headerFooter's attributes and children Cells doesn't know, as read. */
   headerFooterAttrs: string
   headerFooterKids: string[]
 }
@@ -40,6 +41,17 @@ const PAGE_SETUP_OWN = new Set([
   "useFirstPageNumber",
   "blackAndWhite",
 ])
+
+const HEADER_FOOTER_OWN = new Set(["differentFirst", "differentOddEven", "scaleWithDoc", "alignWithMargins"])
+/** headerFooter's children, in the order the schema wants them, and where each goes. */
+const HEADER_FOOTER_KIDS: Record<string, HeaderFooterKey> = {
+  oddHeader: "header",
+  oddFooter: "footer",
+  evenHeader: "evenHeader",
+  evenFooter: "evenFooter",
+  firstHeader: "firstHeader",
+  firstFooter: "firstFooter",
+}
 
 const yes = (v: string | undefined) => v === "1" || v === "true"
 const num = (v: string | undefined, fallback: number) => {
@@ -108,11 +120,15 @@ export function readPrintElement(local: string, node: XNode, setup: PageSetup, e
       break
     }
     case "headerFooter": {
+      setup.differentFirst = yes(at(node, "differentFirst"))
+      setup.differentOddEven = yes(at(node, "differentOddEven"))
+      setup.scaleWithDoc = !/^(0|false)$/.test(at(node, "scaleWithDoc") ?? "")
+      setup.alignWithMargins = !/^(0|false)$/.test(at(node, "alignWithMargins") ?? "")
       for (const [name, value] of Object.entries(node.attrs))
-        extras.headerFooterAttrs += ` ${name}="${escapeXml(value)}"`
+        if (!HEADER_FOOTER_OWN.has(name)) extras.headerFooterAttrs += ` ${name}="${escapeXml(value)}"`
       for (const k of node.children) {
-        if (k.local === "oddHeader") setup.header = parseHeaderFooter(k.text)
-        else if (k.local === "oddFooter") setup.footer = parseHeaderFooter(k.text)
+        const key = HEADER_FOOTER_KIDS[k.local]
+        if (key) setup[key] = parseHeaderFooter(k.text)
         else extras.headerFooterKids.push(`<${k.local}>${escapeXmlText(k.text)}</${k.local}>`)
       }
       break
@@ -161,9 +177,20 @@ export function printElementsXml(setup: PageSetup, extras: PageSetupExtras | und
   // Excel names the orientation whenever it writes the element (it reads a missing one as "default", not portrait).
   const written = setup.orientation === "landscape" || !!attrs(page(undefined)) || !!pageRest
   const pageAttrs = attrs(page(written ? setup.orientation : undefined))
-  const header = headerFooterText(setup.header)
-  const footer = headerFooterText(setup.footer)
-  const hfKids = extras?.headerFooterKids ?? []
+  const hfOwn =
+    attrs({
+      differentOddEven: flag(setup.differentOddEven),
+      differentFirst: flag(setup.differentFirst),
+      scaleWithDoc: setup.scaleWithDoc ? undefined : "0",
+      alignWithMargins: setup.alignWithMargins ? undefined : "0",
+    }) + (extras?.headerFooterAttrs ?? "")
+  const hfInner =
+    Object.entries(HEADER_FOOTER_KIDS)
+      .map(([local, key]) => {
+        const text = headerFooterText(setup[key])
+        return text ? `<${local}>${escapeXmlText(text)}</${local}>` : ""
+      })
+      .join("") + (extras?.headerFooterKids ?? []).join("")
   const breaks = (local: string, list: number[], max: number) =>
     list.length
       ? `<${local} count="${list.length}" manualBreakCount="${list.length}">${list.map((id) => `<brk id="${id}" max="${max}" man="1"/>`).join("")}</${local}>`
@@ -172,10 +199,7 @@ export function printElementsXml(setup: PageSetup, extras: PageSetupExtras | und
     printOptions: options ? `<printOptions${options}/>` : "",
     pageMargins: `<pageMargins left="${m.left}" right="${m.right}" top="${m.top}" bottom="${m.bottom}" header="${m.header}" footer="${m.footer}"/>`,
     pageSetup: pageAttrs || pageRest ? `<pageSetup${pageAttrs}${pageRest}/>` : "",
-    headerFooter:
-      header || footer || hfKids.length || extras?.headerFooterAttrs
-        ? `<headerFooter${extras?.headerFooterAttrs ?? ""}>${header ? `<oddHeader>${escapeXmlText(header)}</oddHeader>` : ""}${footer ? `<oddFooter>${escapeXmlText(footer)}</oddFooter>` : ""}${hfKids.join("")}</headerFooter>`
-        : "",
+    headerFooter: hfInner || hfOwn ? `<headerFooter${hfOwn}>${hfInner}</headerFooter>` : "",
     // A row break's max is the last column (and a column break's the last row), as Excel writes them.
     rowBreaks: breaks("rowBreaks", setup.rowBreaks, MAX_COLS - 1),
     colBreaks: breaks("colBreaks", setup.colBreaks, MAX_ROWS - 1),

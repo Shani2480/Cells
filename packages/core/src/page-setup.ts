@@ -32,8 +32,21 @@ export type PageSetup = {
   order: "downThenOver" | "overThenDown"
   /** The first page's number (null: automatic, 1 unless the sheet follows others). */
   firstPageNumber: number | null
+  /** The header and footer of odd pages (of every page, when the options below are off). */
   header: HeaderFooterText
   footer: HeaderFooterText
+  /** Header & Footer › Options › Different First Page: the first page prints `firstHeader` and `firstFooter`. */
+  differentFirst: boolean
+  /** Different Odd & Even Pages: even pages (by their place in the printout, as Excel counts) print the even ones. */
+  differentOddEven: boolean
+  firstHeader: HeaderFooterText
+  firstFooter: HeaderFooterText
+  evenHeader: HeaderFooterText
+  evenFooter: HeaderFooterText
+  /** Scale with Document: the header and footer's text shrinks and grows with the sheet's print scale. */
+  scaleWithDoc: boolean
+  /** Align with Page Margins: the left and right sections line up with the page's margins. */
+  alignWithMargins: boolean
   /** The print area: ranges each printing on pages of their own (null: everything with data). */
   printArea: Range[] | null
   /** Rows (and columns) to repeat on every page: first and last index. */
@@ -88,6 +101,14 @@ export function defaultPageSetup(): PageSetup {
     firstPageNumber: null,
     header: { ...EMPTY_HF },
     footer: { ...EMPTY_HF },
+    differentFirst: false,
+    differentOddEven: false,
+    firstHeader: { ...EMPTY_HF },
+    firstFooter: { ...EMPTY_HF },
+    evenHeader: { ...EMPTY_HF },
+    evenFooter: { ...EMPTY_HF },
+    scaleWithDoc: true,
+    alignWithMargins: true,
     printArea: null,
     titleRows: null,
     titleCols: null,
@@ -103,12 +124,51 @@ export function copyPageSetup(p: PageSetup): PageSetup {
     fitTo: p.fitTo ? { ...p.fitTo } : null,
     header: { ...p.header },
     footer: { ...p.footer },
+    firstHeader: { ...p.firstHeader },
+    firstFooter: { ...p.firstFooter },
+    evenHeader: { ...p.evenHeader },
+    evenFooter: { ...p.evenFooter },
     printArea: p.printArea ? p.printArea.map((r) => ({ ...r })) : null,
     titleRows: p.titleRows ? [...p.titleRows] : null,
     titleCols: p.titleCols ? [...p.titleCols] : null,
     rowBreaks: [...p.rowBreaks],
     colBreaks: [...p.colBreaks],
   }
+}
+
+/** Which header and footer a page prints: the first page's, an even page's, or the usual (odd) ones. */
+export type HeaderFooterKind = "odd" | "even" | "first"
+
+/** The field holding a header or footer of a kind ("header", "evenHeader", "firstFooter"…). */
+export type HeaderFooterKey = "header" | "footer" | "evenHeader" | "evenFooter" | "firstHeader" | "firstFooter"
+
+export function headerFooterKey(where: "header" | "footer", kind: HeaderFooterKind): HeaderFooterKey {
+  if (kind === "odd") return where
+  return `${kind}${where === "header" ? "Header" : "Footer"}` as HeaderFooterKey
+}
+
+/**
+ * The kind of header a page prints, by its place in the sheet's printout (0 the first page), not its number: Excel
+ * prints the even header on the second page even when it is numbered 3.
+ */
+export function headerFooterKind(p: PageSetup, index: number): HeaderFooterKind {
+  if (p.differentFirst && index === 0) return "first"
+  return p.differentOddEven && index % 2 === 1 ? "even" : "odd"
+}
+
+/** The header or footer a page prints. */
+export function headerFooterOf(p: PageSetup, where: "header" | "footer", index: number): HeaderFooterText {
+  return p[headerFooterKey(where, headerFooterKind(p, index))]
+}
+
+/**
+ * Where a header's left and right sections reach, in inches from the paper's left edge: the page's margins, or
+ * (Align with Page Margins off) 0.75 in from the paper's edges, as Excel prints them.
+ */
+export function headerFooterEdges(p: PageSetup, paperWidth: number): { left: number; right: number } {
+  return p.alignWithMargins
+    ? { left: p.margins.left, right: paperWidth - p.margins.right }
+    : { left: 0.75, right: paperWidth - 0.75 }
 }
 
 /** The paper size to use when a sheet names none: A4, but Letter where Letter is the standard. */

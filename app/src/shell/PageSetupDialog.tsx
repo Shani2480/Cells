@@ -4,6 +4,8 @@ import {
   PAPER_SIZES,
   paperOf,
   parseRange,
+  headerFooterKey,
+  type HeaderFooterKind,
   type HeaderFooterText,
   type PageSetup,
   type PrintPage,
@@ -176,11 +178,11 @@ export function PageSetupDialog({
       </div>
       {custom ? (
         <CustomHeaderFooterDialog
-          title={custom === "header" ? "Header" : "Footer"}
-          value={setup[custom]}
+          where={custom}
+          setup={setup}
           onCancel={() => setCustom(null)}
-          onAccept={(value) => {
-            set({ [custom]: value })
+          onAccept={(patch) => {
+            set(patch)
             setCustom(null)
           }}
         />
@@ -462,6 +464,24 @@ function HeaderFooterTab({
         {pick("footer")}
       </label>
       <HFPreview value={setup.footer} show={show} />
+      <div className="ps-hf-options">
+        <Check
+          label="Different odd and even pages"
+          checked={setup.differentOddEven}
+          onChange={(v) => set({ differentOddEven: v })}
+        />
+        <Check
+          label="Different first page"
+          checked={setup.differentFirst}
+          onChange={(v) => set({ differentFirst: v })}
+        />
+        <Check label="Scale with document" checked={setup.scaleWithDoc} onChange={(v) => set({ scaleWithDoc: v })} />
+        <Check
+          label="Align with page margins"
+          checked={setup.alignWithMargins}
+          onChange={(v) => set({ alignWithMargins: v })}
+        />
+      </div>
     </div>
   )
 }
@@ -545,23 +565,43 @@ function SheetTab({
   )
 }
 
-/** Custom Header / Custom Footer: the three sections, with buttons that insert Excel's codes. */
+/**
+ * Custom Header / Custom Footer: the three sections, with buttons that insert Excel's codes. With different first or
+ * even pages, a tab for each of the sheet's headers (Excel's Odd Page Header, Even Page Header, First Page Header).
+ */
 function CustomHeaderFooterDialog({
-  title,
-  value,
+  where,
+  setup,
   onCancel,
   onAccept,
 }: {
-  title: string
-  value: HeaderFooterText
+  where: "header" | "footer"
+  setup: PageSetup
   onCancel: () => void
-  onAccept: (value: HeaderFooterText) => void
+  onAccept: (patch: Partial<PageSetup>) => void
 }) {
-  const [text, setText] = useState(() => ({
-    left: codesToNames(value.left),
-    center: codesToNames(value.center),
-    right: codesToNames(value.right),
-  }))
+  const noun = where === "header" ? "Header" : "Footer"
+  const kinds: [HeaderFooterKind, string][] = [
+    ["odd", setup.differentOddEven ? `Odd Page ${noun}` : noun],
+    ...(setup.differentOddEven ? [["even", `Even Page ${noun}`] as [HeaderFooterKind, string]] : []),
+    ...(setup.differentFirst ? [["first", `First Page ${noun}`] as [HeaderFooterKind, string]] : []),
+  ]
+  const [texts, setTexts] = useState(() => {
+    const out = {} as Record<HeaderFooterKind, HeaderFooterText>
+    for (const [kind] of kinds) {
+      const value = setup[headerFooterKey(where, kind)]
+      out[kind] = {
+        left: codesToNames(value.left),
+        center: codesToNames(value.center),
+        right: codesToNames(value.right),
+      }
+    }
+    return out
+  })
+  const [kind, setKind] = useState<HeaderFooterKind>("odd")
+  const text = texts[kind]
+  const setText = (fn: (t: HeaderFooterText) => HeaderFooterText) =>
+    setTexts((all) => ({ ...all, [kind]: fn(all[kind]) }))
   const [focus, setFocus] = useState<keyof HeaderFooterText>("left")
   const insert = (name: string) => setText((t) => ({ ...t, [focus]: t[focus] + name }))
   const BUTTONS: [string, string][] = [
@@ -575,17 +615,38 @@ function CustomHeaderFooterDialog({
   ]
   return (
     <Dialog
-      title={title}
+      title={noun}
       width={560}
       onCancel={onCancel}
-      onAccept={() =>
-        onAccept({
-          left: namesToCodes(text.left),
-          center: namesToCodes(text.center),
-          right: namesToCodes(text.right),
-        })
-      }
+      onAccept={() => {
+        const patch: Partial<PageSetup> = {}
+        for (const [k] of kinds) {
+          const t = texts[k]
+          patch[headerFooterKey(where, k)] = {
+            left: namesToCodes(t.left),
+            center: namesToCodes(t.center),
+            right: namesToCodes(t.right),
+          }
+        }
+        onAccept(patch)
+      }}
     >
+      {kinds.length > 1 ? (
+        <div className="fc-tabs" role="tablist">
+          {kinds.map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={kind === k}
+              className="fc-tab"
+              onClick={() => setKind(k)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <p className="ps-note">
         To insert a page number, date, time, file path, filename, or tab name: position the insertion point in the edit
         box, then choose the appropriate button.

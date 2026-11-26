@@ -763,7 +763,8 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   changes, and edits over 20,000 rows refit too; the wheel scrolls by rows, as in Excel (a touchpad stays smooth).
 - ⬜ 2. Verify sweep: the open items in `docs/verify-list.md` checked in Excel 365 and on the OnePlus Pad / Pixel,
   fixed where they differ, ticked off as they pass.
-- ⬜ 3. Printing and page layout: different first page and odd/even headers and footers (the Options group) and
+- 🔄 3. Printing and page layout: ✅ different first page and odd/even headers and footers (the Options group, the
+  Page Setup dialog's options and Custom Header tabs; Excel picks them by the page's place, not its number); ⬜
   Picture / Format Picture in headers; print titles repeated on each page in Page Layout view; black-and-white
   printing applied; printing and PDF of chart sheets.
 - ⬜ 4. Shapes and text boxes: formatted text in shapes (runs, as in cells' rich text), the Format Shape pane, Shape

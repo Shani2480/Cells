@@ -35,14 +35,21 @@ export type PageAxis = AxisMetric & {
 /** How many pages to carry on past the printed cells (Excel shows blank pages to type into). */
 const EXTRA_PAGES = { rows: 4, cols: 2 }
 
-/** The rows or columns laid out on pages, from the sheet's pages (their breaks) and the paper. */
-export function pageAxis(axis: Axis, p: Pagination, which: "rows" | "cols", used: number): PageAxis {
+/**
+ * The rows or columns laid out on pages, from the sheet's pages (their breaks) and the paper. Without a print area
+ * the last printed page fills up with the lines after it, as Excel's Page Layout does (a sheet with data in column A
+ * shows A to H on its first page); a print area's far edge ends its pages.
+ */
+export function pageAxis(axis: Axis, p: Pagination, which: "rows" | "cols", used: number, printArea = false): PageAxis {
   const scale = p.scale || 1
   const toPx = (pt: number) => pt / PT_PER_PX / scale
   const page = toPx(which === "cols" ? p.paper.width : p.paper.height)
   const margin = toPx(which === "cols" ? p.body.x : p.body.y)
   const body = Math.max(1, toPx(which === "cols" ? p.body.width : p.body.height))
-  const breaks = which === "cols" ? pageBreaks(p).cols : pageBreaks(p).rows
+  const all = which === "cols" ? pageBreaks(p).cols : pageBreaks(p).rows
+  // Where printed pages start (the far edges of the last ones only count for a print area).
+  const starts = new Set(p.pages.map((page) => (which === "cols" ? page.cols[0] : page.rows[0])))
+  const breaks = printArea ? all : all.filter((b) => starts.has(b))
   const firsts: number[] = []
   // Greedy pages from `from` while they start before `to`: as many lines as fit the printable part (at least one),
   // up to `limit`. Returns where the next page starts.

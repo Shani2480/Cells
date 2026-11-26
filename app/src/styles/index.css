@@ -5820,6 +5820,30 @@ button.rel-row:hover,
   border: 1px solid var(--grid-selection-border);
 }
 
+/* "First Page Header", "Even Page Footer": a small tab on the box's outer edge, as Excel labels it. */
+.hf-edit-label {
+  position: absolute;
+  left: 0;
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  color: var(--grid-text);
+  background: var(--grid-bg);
+  border: 1px solid var(--grid-page-edge);
+  pointer-events: none;
+}
+
+.hf-edit-label.is-header {
+  bottom: 100%;
+  border-bottom: none;
+}
+
+.hf-edit-label.is-footer {
+  top: 100%;
+  border-top: none;
+}
+
 .hf-presets {
   display: flex;
   flex-direction: column;

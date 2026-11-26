@@ -1,6 +1,7 @@
-import type { PrintPage } from "@cells/core"
+import { headerFooterEdges, headerFooterOf, type PrintPage } from "@cells/core"
+import { pagePlace } from "@/sheet/header-footer"
 import type { SheetController } from "@/sheet/controller"
-import type { PageAxis, PageBand } from "@/sheet/page-map"
+import type { PageAxis } from "@/sheet/page-map"
 import { headerFooterLines } from "@/print/render"
 import type { GridLayout } from "./layout"
 import { CELL_FONT_FAMILY, type GridTheme } from "./theme"
@@ -56,15 +57,9 @@ export function visiblePages(layout: GridLayout): PageRect[] {
 }
 
 /** A page's number as printing numbers it (down, then over, unless the setup says over, then down). */
-function pageNumber(controller: SheetController, rowBand: PageBand, colBand: PageBand, ri: number, ci: number) {
+function pageNumber(controller: SheetController, place: number) {
   const p = controller.print.current()
-  const printed = p.pages.find((page) => page.rows[0] === rowBand.first && page.cols[0] === colBand.first)
-  if (printed) return printed.number
-  const map = controller.pageMap()
-  const rows = map?.rows.bands.length ?? 1
-  const cols = map?.cols.bands.length ?? 1
-  const first = p.pages[0]?.number ?? 1
-  return controller.sheet.pageSetup.order === "overThenDown" ? first + ri * cols + ci : first + ci * rows + ri
+  return p.pages[place]?.number ?? (p.pages[0]?.number ?? 1) + place
 }
 
 /** The desk, the margins, each page's edge, and the header and footer (after the cells). */
@@ -103,32 +98,30 @@ export function drawPageLayout(p: Painter, controller: SheetController, layout: 
   const pagination = controller.print.current()
   const scale = pagination.scale || 1
   const pxPerIn = 96 / scale
-  // 11 pt at the print scale, on a page drawn 1/scale as big: the same size on screen at any scale.
-  const size = 11 / 0.75
+  // 11 pt at the print scale, on a page drawn 1/scale as big: the same size on screen at any scale (without Scale
+  // with Document, 11 pt on the paper).
+  const size = 11 / 0.75 / (setup.scaleWithDoc ? 1 : scale)
   const lineHeight = size * 1.2
   p.font = `${size}px ${CELL_FONT_FAMILY}`
   p.textBaseline = "alphabetic"
   const ctx = { ...controller.printFile, now: new Date(), total: Math.max(1, pagination.pages.length) }
   const editing = controller.headerFooter.editing
   for (const page of pages) {
-    const number = pageNumber(
-      controller,
-      map.rows.bands[page.rowBand],
-      map.cols.bands[page.colBand],
-      page.rowBand,
-      page.colBand,
-    )
+    const place = pagePlace(controller, page.rowBand, page.colBand)
+    const number = pageNumber(controller, place)
     const printPage: PrintPage = { area: 0, rows: [0, 0], cols: [0, 0], titleRows: null, titleCols: null, number }
-    const left = page.body.x
-    const right = page.body.x + page.body.w
+    const edges = headerFooterEdges(setup, page.w / pxPerIn)
+    const left = page.x + edges.left * pxPerIn
+    const right = page.x + edges.right * pxPerIn
     for (const where of ["header", "footer"] as const) {
       // The one being edited shows in its boxes instead.
       if (editing?.where === where && editing.rowBand === page.rowBand && editing.colBand === page.colBand) continue
-      const hf = setup[where]
+      const hf = headerFooterOf(setup, where, place)
       const empty = !hf.left && !hf.center && !hf.right
       if (empty) {
-        // Excel's hint on the first page's empty header or footer, faint, where a click adds one.
-        if (page.rowBand || page.colBand) continue
+        // Excel's hint on the first page's empty header or footer (and the second's, when that one differs), faint,
+        // where a click adds one.
+        if (place > (setup.differentFirst || setup.differentOddEven ? 1 : 0)) continue
         p.fillStyle = theme.pageHint
         p.textAlign = "center"
         const y =

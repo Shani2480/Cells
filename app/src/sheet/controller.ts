@@ -833,6 +833,8 @@ export class SheetController {
   // ── Selection ──────────────────────────────────────────────────────────────────────────────────────────────
 
   setSelection(selection: Selection, reveal: CellAddress | null = selection.focus) {
+    // Going to a cell (the Name Box, Go To, a click) ends a header or footer being edited, keeping its text (Excel).
+    if (this.headerFooter.editing) this.headerFooter.commit()
     // Selecting cells leaves the selected objects (and a pending shape).
     this.objects.selected = []
     this.objects.editing = null
@@ -2464,7 +2466,7 @@ function pagesOf(sheet: Sheet, pagination: Pagination): { rows: PageAxis; cols: 
   const lastRow = Math.max(used?.r1 ?? 0, ...pagination.areas.map((a) => a.r1))
   const lastCol = Math.max(used?.c1 ?? 0, ...pagination.areas.map((a) => a.c1))
   return {
-    rows: pageAxis(sheet.rows, pagination, "rows", lastRow),
-    cols: pageAxis(sheet.cols, pagination, "cols", lastCol),
+    rows: pageAxis(sheet.rows, pagination, "rows", lastRow, sheet.pageSetup.printArea !== null),
+    cols: pageAxis(sheet.cols, pagination, "cols", lastCol, sheet.pageSetup.printArea !== null),
   }
 }

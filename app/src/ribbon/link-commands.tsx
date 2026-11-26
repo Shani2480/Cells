@@ -1,4 +1,4 @@
-import { HF_ELEMENTS, type HFWhere } from "@/sheet/header-footer"
+import { HF_ELEMENTS, type HFOption, type HFWhere } from "@/sheet/header-footer"
 import { headerPresets } from "@/shell/PageSetupDialog"
 import type { Command, RibbonEnv } from "./registry"
 
@@ -42,6 +42,38 @@ const ELEMENTS: [string, string, string, string, string][] = [
   ["HFFilePath", "File Path", "P", HF_ELEMENTS.path, "Add the workbook's folder and file name."],
   ["HFFileName", "File Name", "F", HF_ELEMENTS.file, "Add the workbook's file name."],
   ["HFSheetName", "Sheet Name", "S", HF_ELEMENTS.sheet, "Add the sheet's name."],
+]
+
+/** Header & Footer › Options, as Excel words them. */
+const OPTIONS: [string, string, string, HFOption, string][] = [
+  [
+    "HFDifferentFirstPage",
+    "Different First Page",
+    "A",
+    "differentFirst",
+    "Give the first page a header and footer of its own.",
+  ],
+  [
+    "HFDifferentOddEven",
+    "Different Odd & Even Pages",
+    "V",
+    "differentOddEven",
+    "Give even pages a header and footer of their own, different from odd pages.",
+  ],
+  [
+    "HFScaleWithDocument",
+    "Scale with Document",
+    "L",
+    "scaleWithDoc",
+    "Make the header and footer text bigger or smaller with the sheet when it's printed at another size.",
+  ],
+  [
+    "HFAlignWithMargins",
+    "Align with Page Margins",
+    "M",
+    "alignWithMargins",
+    "Line the header and footer up with the page's margins.",
+  ],
 ]
 
 /** Insert › Links and Text and Symbols: Link (Ctrl+K), Header & Footer and Symbol. */
@@ -106,6 +138,16 @@ export function linkCommands(): Command[] {
       enabled: (env) => env.c.headerFooter.editing?.where === "header",
       run: (env) => env.c.headerFooter.goTo("footer"),
     },
+    ...OPTIONS.map(([id, label, keytip, option, description]): Command => ({
+      id,
+      label,
+      description,
+      keytip,
+      check: true,
+      enabled: editingHF,
+      run: (env) => env.c.headerFooter.toggleOption(option),
+      pressed: (env) => env.c.sheet.pageSetup[option],
+    })),
     {
       id: "SymbolInsert",
       label: "Symbol",

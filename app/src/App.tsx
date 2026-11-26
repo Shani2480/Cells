@@ -599,6 +599,10 @@ function WorkbookWindow({
   const [recent, setRecent] = useState<string[]>([])
   // What's New (File › Account) opens by itself once after an update.
   const [backstage, setBackstage] = useState<string | null>(() => (whatsNewOnStart() ? "account" : null))
+  // File (print, save, export) keeps a header or footer still being edited, so it prints and saves as typed.
+  useEffect(() => {
+    if (backstage && controller.headerFooter.editing) controller.headerFooter.commit()
+  }, [backstage, controller])
   const registry = useMemo(() => buildRegistry(), [])
   const [qat, setQatState] = useState(loadQat)
   const setQat = (ids: string[]) => {

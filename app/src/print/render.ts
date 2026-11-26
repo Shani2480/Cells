@@ -1,5 +1,7 @@
 import { renderChart } from "@cells/chart"
 import {
+  headerFooterEdges,
+  headerFooterOf,
   columnName,
   isChart,
   slicerConnected,
@@ -290,8 +292,11 @@ export async function drawPage(
 
   // Header and footer, in the margins, at 11 pt in the body font, scaled with the sheet (Excel's "Scale with document").
   p.setTransform(pxPerPt, 0, 0, pxPerPt, 0, 0)
-  drawHeaderFooter(p, setup.header, sheet, page, ctx, pagination, "header")
-  drawHeaderFooter(p, setup.footer, sheet, page, ctx, pagination, "footer")
+  // The page's place in the sheet's printout picks the first page's or an even page's header, when they differ.
+  const found = pagination.pages.indexOf(page)
+  const place = found >= 0 ? found : pagination.pages.findIndex((q) => q.number === page.number)
+  drawHeaderFooter(p, headerFooterOf(setup, "header", Math.max(0, place)), sheet, page, ctx, pagination, "header")
+  drawHeaderFooter(p, headerFooterOf(setup, "footer", Math.max(0, place)), sheet, page, ctx, pagination, "footer")
 }
 
 function drawHeadings(p: CanvasRenderingContext2D, layout: GridLayout) {
@@ -330,13 +335,14 @@ function drawHeaderFooter(
   const m = sheet.pageSetup.margins
   const { paper } = pagination
   // The canvas is already in points here, so the font's size is given in canvas units (px), not pt.
-  const size = 11 * pagination.scale
+  const size = 11 * (sheet.pageSetup.scaleWithDoc ? pagination.scale : 1)
   const lineHeight = size * 1.2
   p.font = `${size}px ${CELL_FONT_FAMILY}`
   p.fillStyle = "#000000"
   p.textBaseline = "alphabetic"
-  const left = m.left * 72
-  const right = paper.width - m.right * 72
+  const edges = headerFooterEdges(sheet.pageSetup, paper.width / 72)
+  const left = edges.left * 72
+  const right = edges.right * 72
   for (const [section, align, x] of [
     ["left", "left", left],
     ["center", "center", (left + right) / 2],

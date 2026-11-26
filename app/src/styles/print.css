@@ -571,3 +571,11 @@
 .th-effects {
   overflow: visible;
 }
+
+/* Header/Footer tab: Excel's four options under the footer preview, in two columns to fit the tab. */
+.ps-hf-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 16px;
+  margin-top: 4px;
+}
