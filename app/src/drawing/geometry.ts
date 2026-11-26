@@ -564,6 +564,164 @@ export function adjustHandles(name: string, w: number, h: number, adjust: Adj = 
   }
 }
 
+/**
+ * A preset's connection sites (where Excel glues connectors), in Office's order, at w × h pixels with its adjust
+ * values. Measured in Excel 365 (each site of each shape at 200 × 100); shapes Cells draws its own way (the regular
+ * pentagon, the stars) put theirs on Cells' corners.
+ */
+export function connectionSites(name: string, w: number, h: number, adjust: Adj = {}): [number, number][] {
+  const ss = Math.min(w, h)
+  const a = (key: string, d: number) => (adjust[key] ?? d) / 100000
+  const T: [number, number] = [w / 2, 0]
+  const L: [number, number] = [0, h / 2]
+  const B: [number, number] = [w / 2, h]
+  const R: [number, number] = [w, h / 2]
+  const k = 0.1464
+  const oval: [number, number][] = [
+    T,
+    [w * k, h * k],
+    L,
+    [w * k, h * (1 - k)],
+    B,
+    [w * (1 - k), h * (1 - k)],
+    R,
+    [w * (1 - k), h * k],
+  ]
+  const tip = (): [number, number] => [w / 2 + w * a("adj1", -20833), h / 2 + h * a("adj2", 62500)]
+  /** The outer corners of Cells' regular shapes and stars, top first, then round the left side. */
+  const corners = (points: number): [number, number][] => {
+    const out: [number, number][] = []
+    for (let i = 0; i < points; i++) {
+      const t = -Math.PI / 2 - (i * 2 * Math.PI) / points
+      out.push([w / 2 + (Math.cos(t) * w) / 2, h / 2 + (Math.sin(t) * h) / 2])
+    }
+    return out
+  }
+  switch (name) {
+    case "line":
+    case "straightConnector1":
+    case "bentConnector3":
+    case "curvedConnector3":
+      return []
+    case "snip1Rect":
+      return [R, B, L, T]
+    case "ellipse":
+    case "flowChartConnector":
+    case "donut":
+    case "smileyFace":
+      return oval
+    case "wedgeEllipseCallout":
+      return [...oval, tip()]
+    case "wedgeRectCallout":
+    case "wedgeRoundRectCallout":
+      return [T, L, B, R, tip()]
+    case "triangle": {
+      const x = w * a("adj", 50000)
+      return [
+        [x, 0],
+        [x / 2, h / 2],
+        [0, h],
+        [x, h],
+        [w, h],
+        [(x + w) / 2, h / 2],
+      ]
+    }
+    case "rtTriangle":
+      return [
+        [0, 0],
+        [0, h / 2],
+        [0, h],
+        [w / 2, h],
+        [w, h],
+        [w / 2, h / 2],
+      ]
+    case "parallelogram": {
+      const x = ss * a("adj", 25000)
+      return [T, [w / 2 + x / 2, 0], [w - x / 2, h / 2], [w / 2 - x / 2, h], B, [x / 2, h / 2]]
+    }
+    case "trapezoid": {
+      const x = ss * a("adj", 25000)
+      return [T, [x / 2, h / 2], B, [w - x / 2, h / 2]]
+    }
+    case "pentagon": {
+      const [top, left, bl, br, right] = corners(5)
+      return [top, left, bl, [w / 2, bl[1]], br, right]
+    }
+    case "hexagon": {
+      const x = ss * a("adj", 25000)
+      return [R, [w - x, h], [x, h], L, [x, 0], [w - x, 0]]
+    }
+    case "octagon": {
+      const x = ss * a("adj", 29289)
+      return [
+        [w, x],
+        [w, h - x],
+        [w - x, h],
+        [x, h],
+        [0, h - x],
+        [0, x],
+        [x, 0],
+        [w - x, 0],
+      ]
+    }
+    case "can":
+      return [[w / 2, Math.min(ss * a("adj", 25000), h / 2)], T, L, B, R]
+    case "heart":
+      return [[w / 2, h / 4], B]
+    case "lightningBolt":
+      return [
+        [w * 0.3922, 0],
+        [0, h * 0.1801],
+        [w * 0.2325, h * 0.4493],
+        [w * 0.4635, h * 0.6905],
+        [w, h],
+        [w * 0.7675, h * 0.5559],
+        [w * 0.5954, h * 0.2815],
+      ]
+    case "moon":
+      return [[w, 0], L, [w, h], [w - w * a("adj", 50000), h / 2]]
+    case "cloud":
+      return [
+        [w * 0.9992, h / 2],
+        [w / 2, h * 0.9989],
+        [w * 0.0031, h / 2],
+        [w / 2, h * 0.0572],
+      ]
+    case "cloudCallout":
+      return [[w * 0.0031, h / 2], [w / 2, h * 0.9989], [w * 0.9992, h / 2], [w / 2, h * 0.0572], tip()]
+    case "rightArrow":
+    case "leftArrow": {
+      const head = Math.min(ss * a("adj2", 50000), w)
+      const x = name === "rightArrow" ? w - head : head
+      return [[x, 0], L, [x, h], R]
+    }
+    case "leftRightArrow": {
+      const shaft = h * a("adj1", 50000)
+      const head = Math.min(ss * a("adj2", 50000), w / 2)
+      const y0 = (h - shaft) / 2
+      return [[w - head, 0], [w / 2, y0], [head, 0], L, [head, h], [w / 2, y0 + shaft], [w - head, h], R]
+    }
+    case "chevron": {
+      const x = Math.min(ss * a("adj", 50000), w)
+      return [[(w - x) / 2, 0], [x, h / 2], [(w - x) / 2, h], R]
+    }
+    case "homePlate": {
+      const x = Math.min(ss * a("adj", 50000), w)
+      return [[(w - x) / 2, 0], L, [(w - x) / 2, h], R]
+    }
+    case "star5":
+      return corners(5)
+    case "star6": {
+      // Office's order: from the upper right, clockwise round to the top.
+      const c = corners(6)
+      return [c[5], c[4], c[3], c[2], c[1], c[0]]
+    }
+    default:
+      // Rectangles, the diamond, the cross, the frame, the sun, up and down arrows, flowcharts, the 4-point star.
+      return [T, L, B, R]
+  }
+}
+
 const inset = (w: number, h: number, k: number) => ({ x: w * k, y: h * k, w: w * (1 - 2 * k), h: h * (1 - 2 * k) })
 
 /** Insert › Shapes, by group, as Excel's gallery lists them (Cells' subset). */

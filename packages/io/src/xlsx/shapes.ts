@@ -334,6 +334,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 /** What reading a drawing object needs from around it. */
 export type ObjectReader = {
   nextId(): number
+  /** Each object's id in the file → its id in Cells (connectors name the shapes they're glued to by file id). */
+  ids?: Map<number, number>
   /** The drawing as read (an equation keeps the math elements Cells doesn't model as they came). */
   doc?: XDoc
   /** A picture's data URL from its relationship id (undefined: missing). */
@@ -347,6 +349,8 @@ type Common = Pick<DrawingObject, "id" | "name" | "rotation" | "flipH" | "flipV"
 function readCommon(nvPr: XNode | undefined, xfrm: XNode | undefined, r: ObjectReader, decorative: boolean): Common {
   const c = kid(nvPr, "cNvPr")
   const id = r.nextId()
+  const fileId = Number(at(c, "id"))
+  if (r.ids && Number.isFinite(fileId)) r.ids.set(fileId, id)
   const out: Common = { id, name: at(c, "name") || `Object ${id}` }
   const descr = at(c, "descr")
   if (descr) out.altText = descr
@@ -425,6 +429,17 @@ export function readObject(
     if (Object.keys(adjust).length) shape.adjust = adjust
     if (textBox) shape.textBox = true
     if (connector) shape.connector = true
+    // Glued ends, by the file's ids for now (the drawing's reader turns them into Cells' ids).
+    const cxn = kid(nv, "cNvCxnSpPr")
+    for (const [tag, end] of [
+      ["stCxn", "from"],
+      ["endCxn", "to"],
+    ] as const) {
+      const g = kid(cxn, tag)
+      const id = Number(at(g, "id"))
+      const site = Number(at(g, "idx"))
+      if (g && Number.isFinite(id) && Number.isFinite(site)) shape[end] = { id, site }
+    }
     const text = readText(body, style.font, r.doc)
     if (text && (text.paragraphs.some((p) => p.runs.some((x) => x.text)) || !connector)) shape.text = text
     const pr = kid(body, "bodyPr")
@@ -541,7 +556,12 @@ export type ObjectWriter = {
   /** A 3D model's file as a relationship (the same part when it is the one read as `was`); absent in groups. */
   modelRel?(data: Uint8Array, was?: string): string
   decorativeXml(o: DrawingObject, id: number): string
+  /** Notes the id an object is written with (a connector glued to it names it so). */
+  written?(cellsId: number, fileId: number): void
 }
+
+/** A glued end's shape, named by its Cells id until the drawing is written and its file id known. */
+export const glueRef = (cellsId: number) => `@@cxn:${cellsId}@@`
 
 const xfrmXml = (o: DrawingObject, box: ChildBox, group?: { w: number; h: number }) => {
   const attrs =
@@ -562,6 +582,7 @@ function effectColor(o: SheetShape): string {
 /** An object's XML (sp, cxnSp, pic or grpSp) at `box` (pixels: on the sheet, or in its group). */
 export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): string {
   const id = w.nextId()
+  w.written?.(o.id, id)
   const descr = o.altText ? ` descr="${esc(o.altText)}"` : ""
   const hidden = o.hidden ? ` hidden="1"` : ""
   const ext = w.decorativeXml(o, id)
@@ -584,7 +605,13 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
         ? `<a:effectLst><a:outerShdw blurRad="50800" dist="38100" dir="2700000" algn="tl" rotWithShape="0"><a:prstClr val="black"><a:alpha val="40000"/></a:prstClr></a:outerShdw></a:effectLst>`
         : "") +
       `</xdr:spPr>`
-    if (o.connector) return `<xdr:cxnSp macro="">${nv("nvCxnSpPr", "<xdr:cNvCxnSpPr/>")}${spPr}</xdr:cxnSp>`
+    if (o.connector) {
+      const glue =
+        (o.from ? `<a:stCxn id="${glueRef(o.from.id)}" idx="${o.from.site}"/>` : "") +
+        (o.to ? `<a:endCxn id="${glueRef(o.to.id)}" idx="${o.to.site}"/>` : "")
+      const cxn = glue ? `<xdr:cNvCxnSpPr>${glue}</xdr:cNvCxnSpPr>` : "<xdr:cNvCxnSpPr/>"
+      return `<xdr:cxnSp macro="">${nv("nvCxnSpPr", cxn)}${spPr}</xdr:cxnSp>`
+    }
     const txBox = o.textBox ? ` txBox="1"` : ""
     // A theme effect: a style naming it (its fill and line are the shape's own, set in spPr; text stays dark 1).
     const style =

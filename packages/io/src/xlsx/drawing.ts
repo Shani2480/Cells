@@ -13,6 +13,7 @@ import {
   dataUrl,
   dataUrlBytes,
   DEFAULT_SLICER_STYLE,
+  allObjects,
   isChart,
   parsePivotSourceName,
   PICTURE_TYPES,
@@ -157,6 +158,7 @@ export function readDrawing(
     return url
   }
   let unread = 0
+  const ids = new Map<number, number>()
   for (const anchor of doc.root.children) {
     const placed = anchorOf(sheet, anchor)
     // A table slicer: its settings come from the sheet's slicers part (its table and column from its cache).
@@ -257,7 +259,7 @@ export function readDrawing(
     const read3d = modelNode && modelPic ? readModel3d(doc, modelNode, model) : null
     const content = mathShape ?? (read3d ? modelPic : undefined) ?? anchor.children.find((c) => OBJECTS.has(c.local))
     if (placed && content && content.local !== "graphicFrame") {
-      const object = readObject(content, { nextId, image, layer, doc }, isDecorative)
+      const object = readObject(content, { nextId, image, layer, doc, ids }, isDecorative)
       if (object) {
         object.anchor = placed.anchor
         if (placed.placement) object.placement = placed.placement
@@ -341,6 +343,17 @@ export function readDrawing(
     sheet.objects.push(chart)
     source.chartRels.add(rid!)
     source.charts.set(chart.id, { partName: rel.partName, print: print(chart), cache: cacheOf(spec) })
+  }
+  // Connectors' glued ends: the file's ids → Cells' (an end glued to something Cells didn't read lets go).
+  for (const o of allObjects(sheet.objects)) {
+    if (isChart(o) || o.kind !== "shape" || !o.connector) continue
+    for (const end of ["from", "to"] as const) {
+      const g = o[end]
+      if (!g) continue
+      const id = ids.get(g.id)
+      if (id === undefined) delete o[end]
+      else o[end] = { id, site: g.site }
+    }
   }
   if (unread)
     warnings.push(
@@ -534,13 +547,18 @@ export function writeDrawing(
       return rid
     },
     decorativeXml: (o: DrawingObject) => (o.decorative ? decorativeExt() : ""),
+    written: (cellsId: number, fileId: number) => writtenIds.set(cellsId, fileId),
   }
+  const writtenIds = new Map<number, number>()
   const anchors: string[] = []
   for (const object of drawn) {
     if (!isChart(object)) {
       const box = boxOf(sheet, object.anchor)
       // Unchanged since it was read (and still in this drawing): written back exactly as it came.
+      // A glued connector is always written anew: the shapes it names may get new ids.
+      const glued = object.kind === "shape" && object.connector && (object.from || object.to)
       const same =
+        !glued &&
         object.source &&
         object.source.part === partName &&
         !rawUsed.has(object.source.xml) &&
@@ -565,6 +583,10 @@ export function writeDrawing(
           placedXml(object.anchor, object.placement, contentPartXml(rid, ++shapeId, object.name, box, extra)),
         )
         continue
+      }
+      if (same) {
+        const fileId = /<[\w:]*cNvPr\b[^>]*\bid="(\d+)"/.exec(object.source!.xml)?.[1]
+        if (fileId) writtenIds.set(object.id, Number(fileId))
       }
       const xml = same
         ? object.source!.xml
@@ -599,7 +621,18 @@ export function writeDrawing(
   if (source) for (const [id, c] of source.charts) if (!used.has(id)) out.removeTree(c.partName)
   const open = source?.rootTag ?? `<xdr:wsDr xmlns:xdr="${NS_XDR}" xmlns:a="${NS_A}"`
   const name = /^<([^\s>/]+)/.exec(open)![1]
-  out.put(partName, CT_DRAWING, `${open}>${source?.kept.join("") ?? ""}${anchors.join("")}</${name}>`)
+  // Glued ends name their shapes by the ids they were written with (an end whose shape wasn't written lets go).
+  const body = anchors
+    .join("")
+    .replace(
+      /<a:(stCxn|endCxn) id="@@cxn:(\d+)@@" idx="(\d+)"\/>/g,
+      (_m, tag: string, cellsId: string, idx: string) => {
+        const id = writtenIds.get(Number(cellsId))
+        return id === undefined ? "" : `<a:${tag} id="${id}" idx="${idx}"/>`
+      },
+    )
+    .replace(/<xdr:cNvCxnSpPr><\/xdr:cNvCxnSpPr>/g, "<xdr:cNvCxnSpPr/>")
+  out.put(partName, CT_DRAWING, `${open}>${source?.kept.join("") ?? ""}${body}</${name}>`)
   return out.addRel(sheetPart, REL_DRAWING, partName)
 }
 

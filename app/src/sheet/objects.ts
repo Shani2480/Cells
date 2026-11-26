@@ -1,3 +1,4 @@
+import { lineBox, lineEnds, nearestSite, routeConnectors, type Point } from "./connectors"
 import {
   alignAt,
   alignText,
@@ -182,6 +183,12 @@ export class ObjectCommands {
   /** The sheet's drawing replaced as one undo step. */
   commit(objects: SheetObject[], label: string): boolean {
     if (this.c.edit) this.c.commitEdit()
+    // Lines glued to shapes follow them, in the same undo step.
+    objects = routeConnectors(
+      objects,
+      (o) => chartBox(this.c.sheet, o.anchor),
+      (o, box) => ({ ...o, anchor: anchorOf(this.c.sheet, box) }),
+    )
     const sel = this.c.selection
     return (
       this.c.transact([{ kind: "objects", sheet: this.c.sheetIndex, objects }], { label, before: sel, after: sel }) !==
@@ -391,6 +398,71 @@ export class ObjectCommands {
     if (!this.pending) return
     this.pending = null
     this.c.changed()
+  }
+
+  /** How close (screen pixels) a line's end must come to a shape's connection site to glue to it. */
+  static readonly GLUE_RADIUS = 10
+
+  /** The site a line's end at `at` glues to, if one is near (none for the line itself). */
+  glueAt(at: Point, skip?: number) {
+    return nearestSite(this.list, at, ObjectCommands.GLUE_RADIUS / this.c.zoom, (o) => this.box(o), skip)
+  }
+
+  /**
+   * Insert › Shapes › a line or arrow drawn from `from` to `to`: in that direction, each end glued to a shape's
+   * connection site when it's dropped on one (Excel's connectors).
+   */
+  drawLine(from: Point, to: Point): SheetShape | null {
+    const p = this.pending
+    if (!p) return null
+    this.pending = null
+    const start = this.glueAt(from)
+    const end = this.glueAt(to)
+    const a = start?.point ?? from
+    let b = end?.point ?? to
+    // A click: Excel's 1-inch line there.
+    if (Math.hypot(b.x - a.x, b.y - a.y) < 4) b = { x: a.x + SHAPE_SIZE, y: a.y }
+    const line = lineBox(a, b)
+    const id = this.nextId()
+    const shape: SheetShape = {
+      kind: "shape",
+      id,
+      name: objectName({ kind: "shape", geometry: p.geometry }, id),
+      anchor: anchorOf(this.c.sheet, line.box),
+      geometry: p.geometry,
+      ...defaultShape(p.geometry),
+      ...(line.flipH ? { flipH: true } : {}),
+      ...(line.flipV ? { flipV: true } : {}),
+      ...(start ? { from: { id: start.id, site: start.site } } : {}),
+    }
+    // Both ends on one site would be no line at all: the end stays loose.
+    if (end && !(start && start.id === end.id && start.site === end.site)) shape.to = { id: end.id, site: end.site }
+    return this.put(shape, "Insert Shape") as SheetShape
+  }
+
+  /** A selected line's end dragged to `at`: glued to the site it's dropped on, or loose there (one undo step). */
+  moveLineEnd(id: number, which: "from" | "to", at: Point) {
+    const o = this.find(id)
+    if (!o || !this.list.includes(o) || isChart(o) || o.kind !== "shape" || !o.connector) return
+    const glue = this.glueAt(at, id)
+    const [a, b] = lineEnds(o, this.box(o))
+    const point = glue?.point ?? at
+    const line = which === "from" ? lineBox(point, b) : lineBox(a, point)
+    this.update(
+      "Move Line End",
+      (x) => {
+        const shape = x as SheetShape
+        shape.anchor = anchorOf(this.c.sheet, line.box)
+        if (line.flipH) shape.flipH = true
+        else delete shape.flipH
+        if (line.flipV) shape.flipV = true
+        else delete shape.flipV
+        delete shape.rotation
+        if (glue) shape[which] = { id: glue.id, site: glue.site }
+        else delete shape[which]
+      },
+      [id],
+    )
   }
 
   /** The pending shape drawn at a box (a click: Excel's 1-inch shape there). Text boxes start typing. */
@@ -764,6 +836,11 @@ export class ObjectCommands {
         if (!box) return
         const was = this.box(o)
         o.anchor = anchorOf(this.c.sheet, box)
+        // A line moved or sized by itself lets go of the shapes it isn't moved with (as in Excel).
+        if (!isChart(o) && o.kind === "shape" && o.connector) {
+          if (o.from && !boxes.has(o.from.id)) delete o.from
+          if (o.to && !boxes.has(o.to.id)) delete o.to
+        }
         // Cells' own SmartArt is laid out again in its new frame (Office's keep their shapes, scaled).
         if (!isChart(o) && o.kind === "group" && o.smartArt && smartArtLayout(o.smartArt.layout)) {
           o.child = { w: box.w, h: box.h }

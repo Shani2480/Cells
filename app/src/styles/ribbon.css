@@ -4283,3 +4283,50 @@
   stroke-dasharray: 4 3;
   stroke-width: 1;
 }
+
+/* A line's ends (a glued end is green, as in Excel), and the guides while a line is drawn. */
+.line-end-handle {
+  position: absolute;
+  z-index: 3;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  margin: -5px 0 0 -5px;
+  border: 1px solid #5a5a5a;
+  border-radius: 50%;
+  background: #fff;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.line-end-handle.is-glued {
+  border-color: #1e6b2e;
+  background: #44b35a;
+}
+
+.line-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.line-guide line {
+  stroke: var(--chart-select, #5a5a5a);
+  stroke-dasharray: 4 3;
+  stroke-width: 1;
+}
+
+.line-guide circle {
+  fill: #fff;
+  stroke: #5a5a5a;
+  stroke-width: 1;
+}
+
+.line-guide circle.is-on {
+  fill: #44b35a;
+  stroke: #1e6b2e;
+}

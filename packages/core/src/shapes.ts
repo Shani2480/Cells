@@ -91,6 +91,9 @@ export type TextEffects = {
   reflection?: boolean
 }
 
+/** Where a connector's end is glued: a shape and one of its connection sites (0-based). */
+export type ShapeGlue = { id: number; site: number }
+
 /** A box inside a group, in the group's own pixels (it scales with the group). */
 export type ChildBox = { x: number; y: number; w: number; h: number }
 
@@ -135,6 +138,12 @@ export type SheetShape = ObjectBase & {
   textBox?: boolean
   /** A line or arrow (Excel's connector shapes): no fill or text. */
   connector?: boolean
+  /**
+   * A connector's ends glued to shapes (Excel's stCxn and endCxn): the shape's id and its connection site, counted
+   * as Office counts them. A glued end follows its shape as it moves, turns or changes size.
+   */
+  from?: ShapeGlue
+  to?: ShapeGlue
   fill: ShapeFill
   line: ShapeLine
   text?: ShapeText

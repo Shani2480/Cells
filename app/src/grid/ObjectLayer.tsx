@@ -1,3 +1,5 @@
+import { isLineGeometry, lineEnds, type Point } from "@/sheet/connectors"
+import { LineGuide, stepAngle, type LineDrag } from "./LineGuide"
 import { AdjustHandles } from "./AdjustHandles"
 import { ShapeTextEditor } from "./ShapeTextEditor"
 import { ChartPartMark, chartPartAt } from "./ChartPartMark"
@@ -194,6 +196,15 @@ export function ObjectLayer({
   const turnNow = useRef(turn)
   turnNow.current = turn
   const drawStart = useRef<{ x: number; y: number } | null>(null)
+  // A line being drawn, or a selected line's end being dragged: its other end, and where the pointer is.
+  const [line, setLineState] = useState<LineDrag | null>(null)
+  const lineNow = useRef<LineDrag | null>(null)
+  const setLine = (l: LineDrag | null) => {
+    lineNow.current = l
+    setLineState(l)
+  }
+  // Where the pointer is while a line waits to be drawn (the sites of the shape under it show).
+  const [hover, setHover] = useState<Point | null>(null)
   /** The stroke being drawn with a Draw tab pen (sheet pixels), or the eraser's path so far. */
   const [stroke, setStroke] = useState<number[] | null>(null)
   const strokeNow = useRef<number[] | null>(null)
@@ -631,7 +642,40 @@ export function ObjectLayer({
                 }}
               />
             ) : null}
-            {single && !editing
+            {single && !editing && !isChart(o) && o.kind === "shape" && o.connector && !dragging
+              ? (["from", "to"] as const).map((which) => {
+                  const [a, b] = lineEnds(o, { x: 0, y: 0, w: p.box.w, h: p.box.h })
+                  const at = which === "from" ? a : b
+                  return (
+                    <span
+                      key={which}
+                      className={`object-handle line-end-handle${(which === "from" ? o.from : o.to) ? " is-glued" : ""}`}
+                      aria-label={which === "from" ? "Start of line" : "End of line"}
+                      style={{ left: at.x * zoom, top: at.y * zoom }}
+                      onPointerDown={(event) => {
+                        if (event.button !== 0) return
+                        event.stopPropagation()
+                        event.preventDefault()
+                        capture(event)
+                        const ends = lineEnds(o, p.box)
+                        const fixed = which === "from" ? ends[1] : ends[0]
+                        setLine({ fixed, to: sheetPoint(event), end: { id: o.id, which } })
+                      }}
+                      onPointerMove={(event) => {
+                        if (!lineNow.current?.end) return
+                        setLine({ ...lineNow.current, to: sheetPoint(event) })
+                      }}
+                      onPointerUp={() => {
+                        const l = lineNow.current
+                        setLine(null)
+                        if (l?.end) objects.moveLineEnd(l.end.id, l.end.which, l.to)
+                        onDone()
+                      }}
+                    />
+                  )
+                })
+              : null}
+            {single && !editing && !(!isChart(o) && o.kind === "shape" && o.connector)
               ? HANDLES.map((h) => (
                   <span
                     key={h}
@@ -657,7 +701,12 @@ export function ObjectLayer({
             {single && !editing && !dragging && !isChart(o) && o.kind === "shape" && !o.connector ? (
               <AdjustHandles shape={o} box={p.box} zoom={zoom} rotation={rotation} objects={objects} />
             ) : null}
-            {single && !editing && !isChart(o) && o.kind !== "slicer" && !(o.kind === "picture" && o.model3d) ? (
+            {single &&
+            !editing &&
+            !isChart(o) &&
+            o.kind !== "slicer" &&
+            !(o.kind === "shape" && o.connector) &&
+            !(o.kind === "picture" && o.model3d) ? (
               <span
                 className="object-rotate"
                 title="Rotate"
@@ -740,6 +789,17 @@ export function ObjectLayer({
           ) : null}
         </div>
       ) : null}
+      {line || (hover && pending) ? (
+        <LineGuide
+          objects={objects}
+          line={line}
+          hover={pending ? hover : null}
+          toLayer={(pt) => ({
+            x: (colX(sheet, layout, 0) - left - sheet.cols.offset(0) + pt.x) * zoom,
+            y: (rowY(sheet, layout, 0) - top - sheet.rows.offset(0) + pt.y) * zoom,
+          })}
+        />
+      ) : null}
       {pending ? (
         <div
           className="object-draw"
@@ -748,11 +808,26 @@ export function ObjectLayer({
             event.preventDefault()
             event.stopPropagation()
             const at = sheetPoint(event)
+            if (isLineGeometry(pending.geometry)) {
+              // A line runs from where it starts to where it's let go, glued to the sites it's dropped on.
+              setLine({ fixed: at, to: at })
+              capture(event)
+              return
+            }
             drawStart.current = at
             setDraw({ ...at, w: 0, h: 0 })
             capture(event)
           }}
           onPointerMove={(event) => {
+            const l = lineNow.current
+            if (l && !l.end) {
+              let to = sheetPoint(event)
+              // Shift: a line at 45° steps.
+              if (event.shiftKey) to = stepAngle(l.fixed, to)
+              setLine({ ...l, to })
+              return
+            }
+            if (isLineGeometry(pending.geometry)) setHover(sheetPoint(event))
             const s = drawStart.current
             if (!s) return
             const at = sheetPoint(event)
@@ -767,6 +842,14 @@ export function ObjectLayer({
             setDraw({ x: Math.min(s.x, s.x + w), y: Math.min(s.y, s.y + h), w: Math.abs(w), h: Math.abs(h) })
           }}
           onPointerUp={() => {
+            const l = lineNow.current
+            if (l && !l.end) {
+              setLine(null)
+              setHover(null)
+              objects.drawLine(l.fixed, l.to)
+              onDone()
+              return
+            }
             const box = drawNow.current
             drawStart.current = null
             setDraw(null)
