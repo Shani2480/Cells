@@ -1,6 +1,6 @@
 import { copyQueries, type WorkbookQuery } from "./power-query"
 import { copyTableStyleSet, type TableStyleSet } from "./table/custom-styles"
-import { MAX_COLS, MAX_ROWS, type Range } from "./address"
+import { MAX_COLS, MAX_ROWS, rangeCols, rangeRows, type Range } from "./address"
 import type { Axis } from "./axis"
 import type { CellData } from "./cell-store"
 import type { AnnotationWrite } from "./annotations"
@@ -10,7 +10,15 @@ import { copyScenarios, shiftScenarios, type ScenarioSet } from "./scenarios"
 import { copyAdvancedFilter, shiftAdvancedFilter, type AdvancedFilter } from "./advanced-filter"
 import { copyConsolidate, type ConsolidateSettings } from "./consolidate"
 import { copyQueryTables, shiftQueryTables, type QueryTable } from "./query-tables"
-import { copyHyperlinks, shiftHyperlinks, type Hyperlink } from "./hyperlinks"
+import {
+  copyHyperlinks,
+  pasteHyperlinks,
+  readHyperlinks,
+  shiftHyperlinks,
+  shiftHyperlinksInBand,
+  withoutHyperlinksIn,
+  type Hyperlink,
+} from "./hyperlinks"
 import { copyEditRanges, shiftEditRanges, type EditRange } from "./edit-ranges"
 import { copySparklineGroups, rewriteSparklineRefs, shiftSparklines, type SparklineGroup } from "./sparklines"
 import { copyPivotCache, copyPivotTables, shiftPivots } from "./pivot/sheet"
@@ -773,12 +781,16 @@ function insertCells(sheets: readonly Sheet[], index: number, range: Range, shif
     dropped = sheet.cells.entries({ r0: MAX_ROWS - n, r1: MAX_ROWS - 1, c0: range.c0, c1: range.c1 })
     sheet.cells.shiftRows(range.r0, n, range.c0, range.c1)
     sheet.annotations.shift("rows", range.r0, n, [range.c0, range.c1])
+    if (sheet.hyperlinks.length)
+      sheet.hyperlinks = shiftHyperlinksInBand(sheet.hyperlinks, "rows", range.r0, n, [range.c0, range.c1])
   } else {
     const n = range.c1 - range.c0 + 1
     texts = rewriteReferences(sheets, index, shiftMapper("cols", range.c0, n, [range.r0, range.r1]))
     dropped = sheet.cells.entries({ r0: range.r0, r1: range.r1, c0: MAX_COLS - n, c1: MAX_COLS - 1 })
     sheet.cells.shiftCols(range.c0, n, range.r0, range.r1)
     sheet.annotations.shift("cols", range.c0, n, [range.r0, range.r1])
+    if (sheet.hyperlinks.length)
+      sheet.hyperlinks = shiftHyperlinksInBand(sheet.hyperlinks, "cols", range.c0, n, [range.r0, range.r1])
   }
   const inverse: Op[] = [{ kind: "deleteCells", sheet: index, range, shift: shift === "down" ? "up" : "left" }]
   if (dropped.length) {
@@ -792,6 +804,7 @@ function deleteCells(sheets: readonly Sheet[], index: number, range: Range, shif
   const sheet = sheets[index]
   const removed = sheet.cells.entries(range)
   const notes = sheet.annotations.within(range)
+  const linksBefore = sheet.hyperlinks.length ? copyHyperlinks(sheet.hyperlinks) : null
   const texts =
     shift === "up"
       ? rewriteReferences(
@@ -808,9 +821,19 @@ function deleteCells(sheets: readonly Sheet[], index: number, range: Range, shif
   if (shift === "up") {
     sheet.cells.shiftRows(range.r1 + 1, -(range.r1 - range.r0 + 1), range.c0, range.c1)
     sheet.annotations.shift("rows", range.r0, -(range.r1 - range.r0 + 1), [range.c0, range.c1])
+    if (linksBefore)
+      sheet.hyperlinks = shiftHyperlinksInBand(sheet.hyperlinks, "rows", range.r0, -(range.r1 - range.r0 + 1), [
+        range.c0,
+        range.c1,
+      ])
   } else {
     sheet.cells.shiftCols(range.c1 + 1, -(range.c1 - range.c0 + 1), range.r0, range.r1)
     sheet.annotations.shift("cols", range.c0, -(range.c1 - range.c0 + 1), [range.r0, range.r1])
+    if (linksBefore)
+      sheet.hyperlinks = shiftHyperlinksInBand(sheet.hyperlinks, "cols", range.c0, -(range.c1 - range.c0 + 1), [
+        range.r0,
+        range.r1,
+      ])
   }
   const inverse: Op[] = [{ kind: "insertCells", sheet: index, range, shift: shift === "up" ? "down" : "right" }]
   if (removed.length) {
@@ -818,6 +841,8 @@ function deleteCells(sheets: readonly Sheet[], index: number, range: Range, shif
   }
   // The deleted cells' notes and comments come back with them.
   if (notes.length) inverse.push({ kind: "annotations", sheet: index, writes: notes })
+  // The links as they were, those of the deleted cells included (after the insert above has shifted the rest).
+  if (linksBefore) inverse.push({ kind: "hyperlinks", sheet: index, links: linksBefore })
   inverse.push(...texts)
   return { inverse, change: { sheet: index, structural: true } }
 }
@@ -886,7 +911,24 @@ function moveCells(sheets: readonly Sheet[], op: Extract<Op, { kind: "moveCells"
     if (!notesBefore.has(k)) notesBefore.set(k, { row: a.row + dr, col: a.col + dc, value: null })
     sheet.annotations.set(a.row + dr, a.col + dc, a.value)
   }
+  // Links wholly inside the cut go with it and replace the destination's; one reaching outside stays (Excel 365).
+  let linksBefore: Hyperlink[] | null = null
+  if (sheet.hyperlinks.length) {
+    const carried = readHyperlinks(sheet.hyperlinks, source, true)
+    const next = pasteHyperlinks(
+      withoutHyperlinksIn(sheet.hyperlinks, source),
+      dest,
+      carried,
+      rangeRows(source),
+      rangeCols(source),
+    )
+    if (JSON.stringify(next) !== JSON.stringify(sheet.hyperlinks)) {
+      linksBefore = copyHyperlinks(sheet.hyperlinks)
+      sheet.hyperlinks = next
+    }
+  }
   const inverse: Op[] = [{ kind: "setCells", sheet: op.sheet, cells: [...previous.values()] }, ...texts]
+  if (linksBefore) inverse.push({ kind: "hyperlinks", sheet: op.sheet, links: linksBefore })
   if (notesBefore.size)
     inverse.splice(1, 0, { kind: "annotations", sheet: op.sheet, writes: [...notesBefore.values()] })
   return { inverse, change: { sheet: op.sheet, structural: true } }

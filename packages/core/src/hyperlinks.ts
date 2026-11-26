@@ -74,6 +74,84 @@ export function shiftHyperlinks(links: readonly Hyperlink[], axis: "rows" | "col
   return out
 }
 
+/**
+ * Insert or Delete Cells (count > 0 inserts, < 0 deletes at `at`), shifting only the `band` (first and last column
+ * for rows, row for columns): a link wholly in the band moves with its cells (shrinks, or goes with deleted ones);
+ * one that reaches outside the band stays where it is, as measured in Excel 365.
+ */
+export function shiftHyperlinksInBand(
+  links: readonly Hyperlink[],
+  axis: "rows" | "cols",
+  at: number,
+  count: number,
+  band: [number, number],
+): Hyperlink[] {
+  const out: Hyperlink[] = []
+  for (const l of links) {
+    const [a0, a1] = axis === "rows" ? [l.range.c0, l.range.c1] : [l.range.r0, l.range.r1]
+    if (a0 < band[0] || a1 > band[1]) {
+      out.push(l)
+      continue
+    }
+    const range = shiftRange(l.range, axis, at, count)
+    if (range) out.push({ ...l, range })
+  }
+  return out
+}
+
+const within = (r: Range, outer: Range) => r.r0 >= outer.r0 && r.r1 <= outer.r1 && r.c0 >= outer.c0 && r.c1 <= outer.c1
+
+/**
+ * The links a copy (or, with `whole`, a cut) of `range` takes along, placed relative to its top-left cell: a copy
+ * takes each link on its cells, trimmed to them; a cut only the links wholly inside (Excel leaves one that reaches
+ * outside where it is).
+ */
+export function readHyperlinks(links: readonly Hyperlink[], range: Range, whole = false): Hyperlink[] {
+  const out: Hyperlink[] = []
+  for (const l of links) {
+    if (!overlaps(l.range, range) || (whole && !within(l.range, range))) continue
+    const r = {
+      r0: Math.max(l.range.r0, range.r0) - range.r0,
+      r1: Math.min(l.range.r1, range.r1) - range.r0,
+      c0: Math.max(l.range.c0, range.c0) - range.c0,
+      c1: Math.min(l.range.c1, range.c1) - range.c0,
+    }
+    out.push({ ...l, range: r })
+  }
+  return out
+}
+
+/**
+ * The sheet's links after pasting a block of `rows` × `cols` carrying `block` (from readHyperlinks) over `area`,
+ * repeated where the paste is tiled: the area's own links give way, as cells pasted in Excel replace theirs.
+ */
+export function pasteHyperlinks(
+  links: readonly Hyperlink[],
+  area: Range,
+  block: readonly Hyperlink[],
+  rows: number,
+  cols: number,
+): Hyperlink[] {
+  const out = withHyperlink(links, [area], null)
+  for (let r0 = area.r0; r0 <= area.r1; r0 += rows)
+    for (let c0 = area.c0; c0 <= area.c1; c0 += cols)
+      for (const l of block) {
+        const range = {
+          r0: r0 + l.range.r0,
+          c0: c0 + l.range.c0,
+          r1: Math.min(area.r1, r0 + l.range.r1),
+          c1: Math.min(area.c1, c0 + l.range.c1),
+        }
+        if (range.r0 <= range.r1 && range.c0 <= range.c1) out.push({ ...l, range })
+      }
+  return out
+}
+
+/** The sheet's links once a cut of `range` has taken the ones wholly inside it away. */
+export function withoutHyperlinksIn(links: readonly Hyperlink[], range: Range): Hyperlink[] {
+  return links.filter((l) => !within(l.range, range))
+}
+
 /** Drops empty fields, so a link compares and saves the same however the dialog filled it. */
 function clean(link: Omit<Hyperlink, "range">): Omit<Hyperlink, "range"> {
   const out: Omit<Hyperlink, "range"> = {}

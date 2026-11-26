@@ -55,7 +55,10 @@ import {
   pasteArea,
   pointedText,
   pasteBlockOp,
+  cutLinksOp,
+  pasteLinksOp,
   pasteNotesOp,
+  readHyperlinks,
   readNotes,
   rangeCols,
   rangeName,
@@ -1500,7 +1503,12 @@ export class SheetController {
     const range = clampToUsed(this.sheet, this.selection.ranges[0])
     const content = this.rangeContent(this.sheetIndex, range)
     // Notes and comments go with a copy pasted in Cells (not onto the system clipboard's text).
-    const block = { ...content.block, notes: readNotes(this.sheet, range) }
+    const block = {
+      ...content.block,
+      notes: readNotes(this.sheet, range),
+      // Links too: a copy takes each on its cells; a cut only those wholly inside (Excel 365).
+      links: readHyperlinks(this.sheet.hyperlinks, range, cut),
+    }
     this.clip = { range, cut, text: content.text, block, sheet: this.sheet }
     this.changed()
     return { text: content.text, html: content.html }
@@ -1570,8 +1578,10 @@ export class SheetController {
           : [
               pasteBlockOp(this.sheetIndex, area, block),
               ...optional(pasteNotesOp(this.sheetIndex, this.sheet, area, block)),
+              ...optional(pasteLinksOp(this.sheetIndex, this.sheet, area, block)),
               clearCellsOp(from, this.clip.sheet, this.clip.range),
               ...optional(clearNotesOp(from, this.clip.sheet, this.clip.range)),
+              ...optional(cutLinksOp(from, this.clip.sheet, this.clip.range)),
             ]
       const after = selectRange(area, { row: area.r0, col: area.c0 })
       this.clip = null
@@ -1582,7 +1592,11 @@ export class SheetController {
     const area = pasteArea(target, block)
     const after = selectRange(area, this.selection.active)
     this.transact(
-      [pasteBlockOp(this.sheetIndex, area, block), ...optional(pasteNotesOp(this.sheetIndex, this.sheet, area, block))],
+      [
+        pasteBlockOp(this.sheetIndex, area, block),
+        ...optional(pasteNotesOp(this.sheetIndex, this.sheet, area, block)),
+        ...optional(pasteLinksOp(this.sheetIndex, this.sheet, area, block)),
+      ],
       { label: "Paste", before, after },
     )
     this.setSelection(after, null)

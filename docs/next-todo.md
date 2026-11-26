@@ -291,8 +291,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 - Links: Create New Document isn't there (Cells shows one workbook per window); Browse for File is on the desktop
   only (Android's picker gives links that don't last). A click follows a link anywhere in its cell (newer Excel
   follows only on the text). The Symbol dialog's Font list stays "(normal text)": a cell has one font, so a symbol
-  takes the cell's. Links don't move with a cut and paste or Insert/Delete Cells (they do with whole rows and
-  columns), and a pasted cell doesn't bring its link.
+  takes the cell's. ~~Links don't move with a cut and paste or Insert/Delete Cells, and a pasted cell doesn't
+  bring its link.~~ Done in Phase 9.
 
 - ~~The Name Box doesn't take a list of ranges (B1,B3) yet.~~ Done in Phase 8.
 - Data tables in .xls files open as their values (the BIFF TABLE record isn't read).

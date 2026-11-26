@@ -1,5 +1,6 @@
 import { MAX_COLS, MAX_ROWS, rangeCols, rangeRows, type Range } from "./address"
 import { copyAnnotation, type Annotation, type AnnotationWrite } from "./annotations"
+import { pasteHyperlinks, withoutHyperlinksIn, type Hyperlink } from "./hyperlinks"
 import type { CellData } from "./cell-store"
 import { fillSeries } from "./fill"
 import { copyFormula } from "./formula/adjust"
@@ -21,6 +22,8 @@ export type CellBlock = {
    * too, replacing the destination's, as a copy within Cells does; absent for text from elsewhere, which leaves them.
    */
   notes?: { row: number; col: number; value: Annotation }[]
+  /** The links copied (or cut) with the cells, placed in the block; like `notes`, absent for text from elsewhere. */
+  links?: Hyperlink[]
 }
 
 /** The notes and comments of `range`, by place, for a copied block. */
@@ -48,6 +51,22 @@ export function pasteNotesOp(sheetIndex: number, sheet: Sheet, area: Range, bloc
         writes.set(`${row},${col}`, { row, col, value: copyAnnotation(n.value) })
       }
   return writes.size ? { kind: "annotations", sheet: sheetIndex, writes: [...writes.values()] } : null
+}
+
+/** The links a paste of `block` over `area` leaves on the sheet (see pasteHyperlinks), or null when unchanged. */
+export function pasteLinksOp(sheetIndex: number, sheet: Sheet, area: Range, block: CellBlock): Op | null {
+  if (!block.links) return null
+  if (!block.links.length && !sheet.hyperlinks.length) return null
+  const links = pasteHyperlinks(sheet.hyperlinks, area, block.links, block.rows, block.cols)
+  return JSON.stringify(links) === JSON.stringify(sheet.hyperlinks)
+    ? null
+    : { kind: "hyperlinks", sheet: sheetIndex, links }
+}
+
+/** The links of `range` removed by a cut pasted on another sheet (those wholly inside it), or null. */
+export function cutLinksOp(sheetIndex: number, sheet: Sheet, range: Range): Op | null {
+  const links = withoutHyperlinksIn(sheet.hyperlinks, range)
+  return links.length === sheet.hyperlinks.length ? null : { kind: "hyperlinks", sheet: sheetIndex, links }
 }
 
 /** A cell's content written `dr` rows and `dc` columns from where it was: formulas adjust relative references. */
