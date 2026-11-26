@@ -224,6 +224,7 @@ const PICTURES: Record<string, LucideIcon> = {
   ShapeOutlineColorPicker: L.SquareDashed,
   ShapeEffectsMenu: L.Sparkles,
   ShapeStylesGallery: L.Palette,
+  WordArtStylesGallery: L.Type,
   TextFillColorPicker: L.Baseline,
   TextOutlineColorPicker: L.Type,
   TextEffectsMenu: L.WandSparkles,

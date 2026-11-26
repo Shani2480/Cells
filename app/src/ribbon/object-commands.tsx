@@ -153,46 +153,81 @@ const cropShapesPanel: MenuEntry = {
 
 const ratioId = ([w, h]: [number, number]) => `PictureCropAspectRatio${w}x${h}`
 
-const wordArtPanel: MenuEntry = {
-  panel: (env, close) => (
-    <div className="wordart-gallery" role="menu" aria-label="WordArt">
-      {WORDART_STYLES.map((w) => {
-        const fill = w.fill?.kind === "solid" ? colorCss(w.fill.color, env.c.wb.theme).hex : "transparent"
-        const outline = w.effects?.outline?.color ? colorCss(w.effects.outline.color, env.c.wb.theme).hex : undefined
-        return (
-          <button
-            key={w.name}
-            type="button"
-            role="menuitem"
-            className="wordart-gallery-item"
-            title={w.name}
-            aria-label={w.name}
-            onClick={() => {
-              close()
-              env.c.objects.insertWordArt({ wordArt: { fill: w.fill, effects: w.effects } })
-              env.c.shell.showTab?.("TabDrawingToolsFormat")
-            }}
-          >
-            <span
-              style={{
-                color: fill,
-                WebkitTextStroke: outline ? `1px ${outline}` : undefined,
-                textShadow: [
-                  w.effects?.shadow ? "2px 2px 2px rgb(0 0 0 / 0.4)" : "",
-                  w.effects?.glow ? `0 0 6px ${colorCss(w.effects.glow, env.c.wb.theme).hex}` : "",
-                ]
-                  .filter(Boolean)
-                  .join(", "),
+/** WordArt's styles as a gallery: Insert › WordArt adds one; Shape Format › WordArt Styles gives the shapes one. */
+function wordArtGallery(
+  pick: (env: RibbonEnv, style: (typeof WORDART_STYLES)[number]) => void,
+  clear = false,
+): MenuEntry {
+  return {
+    panel: (env, close) => (
+      <div className="wordart-gallery" role="menu" aria-label="WordArt">
+        {WORDART_STYLES.map((w) => {
+          const fill = w.fill?.kind === "solid" ? colorCss(w.fill.color, env.c.wb.theme).hex : "transparent"
+          const outline = w.effects?.outline?.color ? colorCss(w.effects.outline.color, env.c.wb.theme).hex : undefined
+          return (
+            <button
+              key={w.name}
+              type="button"
+              role="menuitem"
+              className="wordart-gallery-item"
+              title={w.name}
+              aria-label={w.name}
+              onClick={() => {
+                close()
+                pick(env, w)
               }}
             >
-              A
-            </span>
+              <span
+                style={{
+                  color: fill,
+                  WebkitTextStroke: outline ? `1px ${outline}` : undefined,
+                  textShadow: [
+                    w.effects?.shadow ? "2px 2px 2px rgb(0 0 0 / 0.4)" : "",
+                    w.effects?.glow ? `0 0 6px ${colorCss(w.effects.glow, env.c.wb.theme).hex}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(", "),
+                }}
+              >
+                A
+              </span>
+            </button>
+          )
+        })}
+        {clear ? (
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-row wordart-gallery-clear"
+            onClick={() => {
+              close()
+              env.c.objects.update("Clear WordArt", (o) => {
+                if (!isChart(o) && o.kind === "shape") delete o.wordArt
+              })
+            }}
+          >
+            Clear WordArt
           </button>
-        )
-      })}
-    </div>
-  ),
+        ) : null}
+      </div>
+    ),
+  }
 }
+
+const wordArtPanel = wordArtGallery((env, w) => {
+  env.c.objects.insertWordArt({ wordArt: { fill: w.fill, effects: w.effects } })
+  env.c.shell.showTab?.("TabDrawingToolsFormat")
+})
+
+/** Shape Format › WordArt Styles: the style on all the text of each selected shape (lines and ink have none). */
+const wordArtStylesPanel = wordArtGallery(
+  (env, w) =>
+    env.c.objects.update("WordArt Style", (o) => {
+      if (isChart(o) || o.kind !== "shape" || o.connector || o.ink) return
+      o.wordArt = { fill: w.fill && structuredClone(w.fill), effects: w.effects && structuredClone(w.effects) }
+    }),
+  true,
+)
 
 const hasDrawing = (env: RibbonEnv) => env.c.objects.drawings().length > 0
 const hasObjects = (env: RibbonEnv) => env.c.objects.selected.length > 0
@@ -440,6 +475,14 @@ export function objectCommands(): Command[] {
     },
 
     // ── Shape Format › WordArt Styles ──
+    {
+      id: "WordArtStylesGallery",
+      label: "WordArt Styles",
+      description: "Make the shape's text stand out with a ready-made WordArt look: letter fill, outline and effects.",
+      keytip: "WS",
+      enabled: hasShape,
+      menu: [wordArtStylesPanel],
+    },
     {
       id: "TextFillColorPicker",
       label: "Text Fill",

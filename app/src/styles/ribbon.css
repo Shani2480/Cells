@@ -4248,3 +4248,9 @@
 .shape-text-p {
   min-height: 1.2em;
 }
+
+/* Shape Format › WordArt Styles: Clear WordArt under the styles. */
+.wordart-gallery-clear {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}

@@ -592,7 +592,10 @@ export const SHAPE_FORMAT: Tab = {
     {
       id: "GroupWordArtStyles",
       label: "WordArt Styles",
-      columns: [smalls(S("TextFillColorPicker"), S("TextOutlineColorPicker"), S("TextEffectsMenu"))],
+      columns: [
+        L("WordArtStylesGallery"),
+        smalls(S("TextFillColorPicker"), S("TextOutlineColorPicker"), S("TextEffectsMenu")),
+      ],
     },
     { id: "GroupShapeAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
     ARRANGE,

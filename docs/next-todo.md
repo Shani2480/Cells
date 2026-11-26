@@ -248,8 +248,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
   picker in the Spelling dialog; Excel's proofing options (ignore words in UPPERCASE, with numbers, addresses) in
   File › Options › Proofing; AutoCorrect; checking text in charts, text boxes, comments and the header/footer.
 
-- Shapes and pictures: no Crop tool, picture corrections, colour or artistic effects yet; no Shape Styles or WordArt
-  Styles galleries on the Format tabs (the colour menus are there); Edit Shape / Edit Points, freeform drawing and
+- Shapes and pictures: no Crop tool, picture corrections, colour or artistic effects yet; ~~no Shape Styles or WordArt
+  Styles galleries on the Format tabs (the colour menus are there);~~ (done; WordArt Styles in Phase 9) Edit Shape / Edit Points, freeform drawing and
   connectors that stay glued to shapes are missing; adjustment handles (the yellow dots) aren't shown; ~~text in a
   shape is typed as plain text (one format for all of it);~~ (done in Phase 9) Graphics Fill for icons; the Size dialog (Format Shape
   pane). Spelling doesn't check text in shapes yet.
