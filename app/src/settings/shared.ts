@@ -51,6 +51,12 @@ export type SharedSettings = {
   aiAddresses: Partial<Record<AddressedProvider, string>>
   /** Words added to the dictionary (Spelling › Add to Dictionary), shared by both apps (`proofing.customWords`). */
   dictionaryWords: string[]
+  /** The dictionary Spelling uses, as a BCP 47 tag (`proofing.language`); "en-US" comes with the apps. */
+  spellLanguage: string
+  /** File › Options › Proofing: words Spelling passes over (`proofing.ignoreUppercase` …); all on, as in Excel. */
+  ignoreUppercase: boolean
+  ignoreNumbers: boolean
+  ignoreAddresses: boolean
   /** Hints that introduce Cells' special features are shown (on by default; `apps.cells.hints`). */
   hintsEnabled: boolean
   /** The hints already dismissed, by id (`apps.cells.hintsDismissed`); emptied by Show hints again. */
@@ -75,6 +81,10 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   aiModels: {},
   aiAddresses: {},
   dictionaryWords: [],
+  spellLanguage: "en-US",
+  ignoreUppercase: true,
+  ignoreNumbers: true,
+  ignoreAddresses: true,
   hintsEnabled: true,
   hintsDismissed: [],
 }
@@ -128,6 +138,10 @@ export function parseShared(source: string | null): SharedSettings {
     dictionaryWords: Array.isArray(proofing.customWords)
       ? proofing.customWords.filter((w): w is string => typeof w === "string" && w.trim() !== "")
       : [],
+    spellLanguage: text(proofing.language) || "en-US",
+    ignoreUppercase: proofing.ignoreUppercase !== false,
+    ignoreNumbers: proofing.ignoreNumbers !== false,
+    ignoreAddresses: proofing.ignoreAddresses !== false,
     hintsEnabled: cells.hints !== false,
     hintsDismissed: Array.isArray(cells.hintsDismissed)
       ? cells.hintsDismissed.filter((id): id is string => typeof id === "string")
@@ -158,6 +172,10 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   aiModels: ["ai", "models"],
   aiAddresses: ["ai", "addresses"],
   dictionaryWords: ["proofing", "customWords"],
+  spellLanguage: ["proofing", "language"],
+  ignoreUppercase: ["proofing", "ignoreUppercase"],
+  ignoreNumbers: ["proofing", "ignoreNumbers"],
+  ignoreAddresses: ["proofing", "ignoreAddresses"],
   hintsEnabled: ["apps", "cells", "hints"],
   hintsDismissed: ["apps", "cells", "hintsDismissed"],
 }

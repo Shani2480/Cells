@@ -4,6 +4,7 @@ import { setClipboardImageReader } from "./pdf/picture"
 import { clipboardImageReader } from "./platform/clipboard-image"
 import { setPictureReader } from "./sheet/picture-data"
 import { setAutoFlashFill } from "./sheet/data"
+import { loadInstalled } from "./proofing/dictionaries"
 import { fileName, setFileReader, setRecognitionSwitch, setRecognizer, setWebPort } from "./sheet/get-data"
 import { updateSettings, useSettings } from "./settings/settings"
 import React from "react"
@@ -26,6 +27,8 @@ const web =
     : webPlatform
 const platform = isTauri() ? tauriPlatform() : web
 setWebPort(platform.web)
+// The spelling dictionaries downloaded earlier (they stay on the device).
+void loadInstalled()
 setFileReader((path) => platform.files.read({ name: fileName(path), path }))
 setClipboardImageReader(clipboardImageReader(isTauri(), platform.os))
 // Text recognition for scanned PDFs follows its setting (opt-in); a prompt can turn it on, which saves the setting.

@@ -29,7 +29,7 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
     "models": { "ollama": "llama3.2", "anthropic": "" },
     "addresses": { "lmstudio": "http://127.0.0.1:1234/v1" }
   },
-  "proofing": { "customWords": ["Zorbly", "Q-Ledger"] },
+  "proofing": { "customWords": ["Zorbly", "Q-Ledger"], "language": "nl-NL", "ignoreUppercase": true },
   "apps": {
     "cells": { "setupDone": true, "ai": true, "hints": true, "hintsDismissed": ["quick-analysis", "ai-tools"] },
     "inkspire": { "setupDone": true }
@@ -47,6 +47,10 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
   (`docs/ai.md`).
 - `proofing.customWords`: words added to the dictionary (Spelling › Add to Dictionary) in either app, kept as
   typed. An app adds its words to the list in the file (never replaces it), so both apps' words stay.
+- `proofing.language`: the dictionary Spelling uses, a BCP 47 tag (`en-US`, which comes with the apps, or one
+  downloaded such as `nl-NL`); missing means `en-US`. An app that doesn't have that dictionary uses its own default.
+- `proofing.ignoreUppercase`, `proofing.ignoreNumbers`, `proofing.ignoreAddresses`: Office's proofing options (words in
+  UPPERCASE, words with numbers, Internet and file addresses are passed over); missing means on.
 - `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on; Cells' `ocr`: scanned PDFs are read with text recognition on the
   device; Cells' `hints`:
   feature hints are shown, missing means on; `hintsDismissed`: the ids of the hints already dismissed, replaced as a

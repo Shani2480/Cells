@@ -100,6 +100,10 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
     where: "PivotTable Design › PivotTable Styles › New PivotTable Style (in a PivotTable)",
     keywords: "pivottable style new custom own modify duplicate delete default format element stripe",
   },
+  "spelling-languages": {
+    where: "File › Options › Proofing to download a language; Review › Spelling (F7) to pick it",
+    keywords: "spelling spell check language dictionary download dutch german french spanish proofing offline",
+  },
   "table-new-style": {
     where: "Table Design › Quick Styles › New Table Style (in a table), or Home › Format as Table",
     keywords: "table style new custom own modify duplicate delete default format element stripe quick styles",

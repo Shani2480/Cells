@@ -159,6 +159,12 @@ export const FEATURE_HINTS: FeatureHint[] = [
     text: "Make a table style of your own: Table Design › Quick Styles › New Table Style. Right-click a style to modify, duplicate or delete it, or to make it the default for new tables.",
     target: "Quick Styles",
   },
+  {
+    id: "spelling-languages",
+    title: "New: Spelling in more languages",
+    text: "Spelling can check Dutch, German, French, Spanish and more. Download a language in File › Options › Proofing (it works offline after that), then pick it in the Spelling dialog.",
+    target: "Spelling",
+  },
 ]
 
 /** The first hint not yet dismissed whose control is on screen, or none. */

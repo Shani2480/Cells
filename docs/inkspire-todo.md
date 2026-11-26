@@ -60,3 +60,9 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       (`editor/chart-spec.ts` and its XML) reads back only fills, so a title colour or a line weight set in Word's
       Format pane is lost on reopening; the same change fixes it. Cells' Recommended Charts rules
       (`app/src/sheet/chart-recommend.ts`) could also feed Word's Insert Chart dialog.
+- [ ] I15. **Spelling languages and options, shared.** Cells now keeps the spelling language in `proofing.language`
+      and Office's three proofing options in `proofing.ignoreUppercase` / `ignoreNumbers` / `ignoreAddresses`
+      (docs/shared-settings.md). Reading them lets a language picked in either app hold in both. Cells' downloads
+      (`app/src/proofing/dictionaries.ts` + `dictionaries-data.ts`, made by `scripts/build-dictionaries.mjs`: wooorm's
+      dictionary-* packages pinned on jsDelivr with SHA-256, kept in IndexedDB, read by nspell in a worker) can be
+      reused as they are; Italian and Portuguese are left out because nspell can't read them.

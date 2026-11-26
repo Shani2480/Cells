@@ -28,6 +28,10 @@ describe("the settings file shared with Inkspire", () => {
       aiModels: {},
       aiAddresses: {},
       dictionaryWords: [],
+      spellLanguage: "en-US",
+      ignoreUppercase: true,
+      ignoreNumbers: true,
+      ignoreAddresses: true,
       hintsEnabled: true,
       hintsDismissed: [],
     })

@@ -4,14 +4,15 @@ import { cn } from "@/lib/cn"
 import { Dialog } from "@/shell/Dialog"
 import { updateSettings, useSettings } from "./settings"
 import { AiFields } from "./AiFields"
+import { ProofingFields } from "./ProofingFields"
 import { PersonalFields, RegionalFields, ThemeField, separatorProblem } from "./SettingsFields"
 import type { SharedSettings } from "./shared"
 
-export type OptionsPage = "general" | "advanced" | "ai"
+export type OptionsPage = "general" | "proofing" | "advanced" | "ai"
 
 /**
  * Excel Options (File › Options), with the pages Cells has settings for: General (user name, initials, Office
- * Theme) and Advanced (the date format and separators; Excel takes the date format from the system's region, Cells
+ * Theme), Proofing (what Spelling passes over, its dictionary language and the languages to download) and Advanced (the date format and separators; Excel takes the date format from the system's region, Cells
  * keeps its own so it can share it with Inkspire), and AI (Cells' own page: Excel has no such page, its Copilot is an
  * account setting). Everything here is shared with Inkspire, except whether the AI tools are on in Cells.
  */
@@ -62,6 +63,7 @@ export function OptionsDialog({
           {(
             [
               ["general", "General"],
+              ["proofing", "Proofing"],
               ["advanced", "Advanced"],
               ["ai", "AI"],
             ] as const
@@ -106,6 +108,11 @@ export function OptionsDialog({
               <button type="button" className="dialog-btn options-setup" onClick={onRunSetup}>
                 Run setup again…
               </button>
+            </>
+          ) : page === "proofing" ? (
+            <>
+              <p className="options-intro">Change how Cells checks the spelling of your text.</p>
+              <ProofingFields value={draft} onChange={change} />
             </>
           ) : page === "ai" ? (
             <>

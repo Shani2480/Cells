@@ -31,14 +31,14 @@ describe("words to check", () => {
 })
 
 describe("the English dictionary", () => {
-  it("knows words, suggests for misspellings, and takes added words", () => {
-    expect(speller.correct("receive")).toBe(true)
-    expect(speller.correct("recieve")).toBe(false)
-    expect(speller.suggest("recieve")).toContain("receive")
-    expect(speller.correct("Cells")).toBe(true)
-    expect(speller.correct("Zorbly")).toBe(false)
+  it("knows words, suggests for misspellings, and takes added words", async () => {
+    expect((await speller.check(["receive"]))[0]).toBe(true)
+    expect((await speller.check(["recieve"]))[0]).toBe(false)
+    expect(await speller.suggest("recieve")).toContain("receive")
+    expect((await speller.check(["Cells"]))[0]).toBe(true)
+    expect((await speller.check(["Zorbly"]))[0]).toBe(false)
     speller.add("Zorbly")
-    expect(speller.correct("Zorbly")).toBe(true)
+    expect((await speller.check(["Zorbly"]))[0]).toBe(true)
   })
 })
 

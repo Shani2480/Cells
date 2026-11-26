@@ -3,6 +3,7 @@ import { usePlatform } from "@/platform/context"
 import { Dialog } from "@/shell/Dialog"
 import { updateSettings, useSettings } from "./settings"
 import { AiFields } from "./AiFields"
+import { SetupDictionary } from "./ProofingFields"
 import { PersonalFields, RegionalFields, ThemeField, separatorProblem } from "./SettingsFields"
 import { detectSettings, initialsOf, type SharedSettings } from "./shared"
 
@@ -17,7 +18,7 @@ const STEPS: Step[] = [
   {
     id: "region",
     title: "Dates and numbers",
-    text: "How you write dates and numbers. You can change it later in File › Options › Advanced.",
+    text: "How you write dates and numbers, and the language Spelling checks. You can change them later in File › Options.",
   },
   {
     id: "theme",
@@ -133,7 +134,12 @@ export function FirstRunSetup({ onDone }: { onDone?: () => void }) {
           <h2 className="setup-title">{current.title}</h2>
           <p className="setup-text">{current.text}</p>
           {current.id === "name" ? <PersonalFields value={draft} onChange={change} /> : null}
-          {current.id === "region" ? <RegionalFields value={draft} onChange={change} /> : null}
+          {current.id === "region" ? (
+            <>
+              <RegionalFields value={draft} onChange={change} />
+              <SetupDictionary locale={draft.locale || (typeof navigator === "undefined" ? "" : navigator.language)} />
+            </>
+          ) : null}
           {current.id === "theme" ? (
             <ThemeField
               value={draft}

@@ -27,7 +27,7 @@ export class SpellingSession {
 
   constructor(
     private readonly c: SheetController,
-    private readonly speller: Speller,
+    private speller: Speller,
     private readonly onAdd: (word: string) => void = () => undefined,
     private readonly options: SpellOptions = DEFAULT_SPELL_OPTIONS,
   ) {
@@ -70,21 +70,31 @@ export class SpellingSession {
     return typeof v === "string" ? v : ""
   }
 
+  /** Another language's dictionary (the Spelling dialog's picker): the check goes on from the current word. */
+  useSpeller(speller: Speller): Promise<SpellingIssue | null> {
+    this.speller = speller
+    if (this.current) this.offset = this.current.start
+    return this.next()
+  }
+
   /** Moves to the next word not in the dictionary (null: the check is done). Change All words change on the way. */
-  next(): SpellingIssue | null {
+  async next(): Promise<SpellingIssue | null> {
     while (this.at < this.cells.length) {
       const p = this.cells[this.at]
-      const words = wordsIn(this.text(p), this.options).filter((w) => w.start >= this.offset)
+      const words = wordsIn(this.text(p), this.options).filter(
+        (w) => w.start >= this.offset && !this.ignored.has(w.word.toLowerCase()),
+      )
+      const known = words.length ? await this.speller.check(words.map((w) => w.word)) : []
       let found: SpellingIssue | null = null
-      for (const w of words) {
-        if (this.ignored.has(w.word.toLowerCase()) || this.speller.correct(w.word)) continue
+      for (const [i, w] of words.entries()) {
+        if (known[i]) continue
         const to = this.changeAll.get(w.word.toLowerCase())
         if (to !== undefined) {
           this.replace(p, w.start, w.end, matchCase(w.word, to))
           this.offset = w.start + to.length
           return this.next()
         }
-        found = { ...p, start: w.start, end: w.end, word: w.word, suggestions: this.speller.suggest(w.word) }
+        found = { ...p, start: w.start, end: w.end, word: w.word, suggestions: await this.speller.suggest(w.word) }
         break
       }
       if (found) {
@@ -99,17 +109,17 @@ export class SpellingSession {
     return null
   }
 
-  ignoreOnce(): SpellingIssue | null {
+  ignoreOnce(): Promise<SpellingIssue | null> {
     if (this.current) this.offset = this.current.end
     return this.next()
   }
 
-  ignoreAll(): SpellingIssue | null {
+  ignoreAll(): Promise<SpellingIssue | null> {
     if (this.current) this.ignored.add(this.current.word.toLowerCase())
     return this.ignoreOnce()
   }
 
-  addToDictionary(): SpellingIssue | null {
+  addToDictionary(): Promise<SpellingIssue | null> {
     if (this.current) {
       this.speller.add(this.current.word)
       this.onAdd(this.current.word)
@@ -117,7 +127,7 @@ export class SpellingSession {
     return this.ignoreOnce()
   }
 
-  change(to: string): SpellingIssue | null {
+  change(to: string): Promise<SpellingIssue | null> {
     const cur = this.current
     if (!cur) return this.next()
     this.replace(cur, cur.start, cur.end, to)
@@ -125,7 +135,7 @@ export class SpellingSession {
     return this.next()
   }
 
-  changeEvery(to: string): SpellingIssue | null {
+  changeEvery(to: string): Promise<SpellingIssue | null> {
     if (this.current) this.changeAll.set(this.current.word.toLowerCase(), to)
     return this.change(to)
   }

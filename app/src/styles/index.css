@@ -2210,6 +2210,79 @@ html.is-browser .app-window-frame {
   margin-top: auto;
 }
 
+.options-dictionary {
+  align-self: flex-start;
+  min-width: 240px;
+}
+
+/* Proofing › More spelling languages: a scrolling list, each language with its size, licence and button. */
+.dictionary-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--app-divider);
+  list-style: none;
+}
+
+.dictionary-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--app-divider);
+  font-size: 13px;
+}
+
+.dictionary-item:last-child {
+  border-bottom: 0;
+}
+
+.dictionary-name {
+  grid-column: 1;
+}
+
+.dictionary-meta {
+  grid-column: 1;
+  color: var(--app-ribbon-muted);
+  font-size: 12px;
+}
+
+.dictionary-btn,
+.dictionary-progress {
+  display: inline-flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-items: center;
+  gap: 4px;
+}
+
+.dictionary-progress {
+  font-size: 12px;
+}
+
+.setup-dictionary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.setup-dictionary .dialog-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dictionary-error {
+  grid-column: 1 / -1;
+}
+
 .setup {
   display: flex;
   gap: 18px;

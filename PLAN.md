@@ -786,9 +786,13 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   corner or dragged freehand and closed at its start, and Freeform: Scribble; Shape Format › Edit Shape › Change
   Shape and Edit Points: drag a point, Ctrl+click to take one out, the box following the points; read and written as
   Excel's custGeom, which Excel opens as freeforms). Item 4 done.
-- ⬜ 6. Proofing: more spelling languages as optional downloads (setup and Settings, the language picker in the
-  Spelling dialog), File › Options › Proofing (ignore UPPERCASE, words with numbers, addresses), AutoCorrect,
-  checking text in shapes, comments and headers/footers.
+- 🔄 6. Proofing: ✅ more spelling languages as downloads and File › Options › Proofing (14 languages from the
+  Hunspell word lists, wooorm's dictionary-* packages pinned on jsDelivr and checked by SHA-256 before they're kept in
+  the app's storage, so they work offline; offered in the setup for the region picked, listed with size and licence
+  in Options › Proofing, picked in the Spelling dialog, which checks on in the new language; the dictionary is read in
+  a worker, as big ones take seconds; the three ignore options; language and options shared with Inkspire);
+  ⬜ AutoCorrect; ⬜ checking text in shapes, comments and headers/footers. Left out: Italian and Portuguese, whose
+  files nspell can't read.
 - ⬜ 7. Themes: Customize Colors and Customize Fonts, Save Current Theme, Reset to Theme from Template; conditional
   formats and chart colours from files following the theme.
 - ⬜ 8. Several workbooks at once: each open workbook in its own window on the desktop (and a switcher on phones and

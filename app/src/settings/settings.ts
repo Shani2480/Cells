@@ -33,6 +33,10 @@ const pick = (s: SharedSettings): SharedSettings => ({
   aiModels: s.aiModels,
   aiAddresses: s.aiAddresses,
   dictionaryWords: s.dictionaryWords,
+  spellLanguage: s.spellLanguage,
+  ignoreUppercase: s.ignoreUppercase,
+  ignoreNumbers: s.ignoreNumbers,
+  ignoreAddresses: s.ignoreAddresses,
   hintsEnabled: s.hintsEnabled,
   hintsDismissed: s.hintsDismissed,
 })
