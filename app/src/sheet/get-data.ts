@@ -86,11 +86,16 @@ export function setFileReader(read: (path: string) => Promise<Uint8Array>) {
   fileReader = read
 }
 
+/** Names given with a path (an Android content link ends in an id, not the name the person knows). */
+const names = new Map<string, string>()
+
 /** A file's name from its path or content link ("/home/alex/Report.pdf" → "Report.pdf"). */
 export const fileName = (path: string) =>
+  names.get(path) ??
   decodeURIComponent(path.split(/[/\\]/).pop() ?? path)
     .split(/[:/]/)
-    .pop() ?? path
+    .pop() ??
+  path
 
 /**
  * Whether a table's first row is its headings (Power Query promotes them): every cell filled with text that isn't a
@@ -170,9 +175,14 @@ export function setRecognizer(r: Recognizer | null) {
 }
 
 let turnOnRecognition: (() => void) | null = null
-/** How text recognition is turned on from a prompt (the app saves the setting, which sets the recognizer). */
-export function setRecognitionSwitch(on: (() => void) | null) {
+let recognitionPlace = "computer"
+/**
+ * How text recognition is turned on from a prompt (the app saves the setting, which sets the recognizer), and what
+ * the prompt calls the place it runs ("computer", "device").
+ */
+export function setRecognitionSwitch(on: (() => void) | null, place = "computer") {
   turnOnRecognition = on
+  recognitionPlace = place
 }
 
 /** A file read again from its path; null where it can't be (moved, or a browser that only knows its name). */
@@ -368,7 +378,8 @@ export class GetData {
    * From PDF: the file's tables and pages in the Navigator (a PDF with none says so). `path` is where Refresh reads it
    * again: a full path or content link, or only its name where the platform gives none (a browser).
    */
-  async fromPdf(path: string, bytes: Uint8Array): Promise<void> {
+  async fromPdf(path: string, bytes: Uint8Array, name?: string): Promise<void> {
+    if (name) names.set(path, name)
     const read = await this.readPdf(bytes)
     this.pdfs.set(path, { bytes, items: read.items })
     remember({ kind: "pdf", path, name: fileName(path) })
@@ -377,7 +388,7 @@ export class GetData {
       const on = turnOnRecognition
       this.c.shell.confirm(
         "This PDF is scanned: its pages are pictures of text. Read them with text recognition on this " +
-          "computer? Nothing is sent anywhere. You can turn it off again in File › Options › AI.",
+          `${recognitionPlace}? Nothing is sent anywhere. You can turn it off again in File › Options › AI.`,
         () => {
           on()
           void this.fromPdf(path, bytes).catch((e: unknown) => this.c.shell.alert(message(e)))
@@ -466,7 +477,7 @@ export class GetData {
     const bytes = await readFile(source.path)
     const known = this.pdfs.get(source.path)?.bytes ?? null
     if (!bytes && !known) throw new QueryError("Cells can't open it again from here. Choose Get Data › From PDF.")
-    return this.fromPdf(source.path, (bytes ?? known) as Uint8Array)
+    return this.fromPdf(source.path, (bytes ?? known) as Uint8Array, source.name)
   }
 
   /** Edit: the editor on one of the workbook's queries (only the ones Cells can run). */

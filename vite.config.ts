@@ -36,6 +36,8 @@ function ocrFiles(): Plugin {
       })
     },
     generateBundle() {
+      // Android reads scans with ML Kit (AndroidOcr.kt), so its app goes without Tesseract's 15 MB.
+      if (process.env.TAURI_ENV_PLATFORM === "android") return
       for (const [fileName, source] of Object.entries(OCR_FILES))
         this.emitFile({ type: "asset", fileName, source: readFileSync(path.resolve(rootDir, source)) })
     },

@@ -28,6 +28,25 @@ function pdfDate(d: Date): string {
   return `D:${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}Z`
 }
 
+/**
+ * The colour space of a JPEG's pixels, from its frame header's channel count: grey (1), RGB (3) or CMYK (4). A reader
+ * that trusts the PDF over the picture (Android's) draws nothing when they disagree.
+ */
+export function jpegColorSpace(jpeg: Uint8Array): "/DeviceGray" | "/DeviceRGB" | "/DeviceCMYK" {
+  let i = 2
+  while (i + 9 < jpeg.length && jpeg[i] === 0xff) {
+    const marker = jpeg[i + 1]
+    const length = (jpeg[i + 2] << 8) | jpeg[i + 3]
+    // Start of frame (baseline, extended, progressive, lossless…), not DHT (C4), JPG (C8) or DAC (CC).
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      const channels = jpeg[i + 9]
+      return channels === 1 ? "/DeviceGray" : channels === 4 ? "/DeviceCMYK" : "/DeviceRGB"
+    }
+    i += 2 + length
+  }
+  return "/DeviceRGB"
+}
+
 const num = (n: number) => (Math.round(n * 1000) / 1000).toString()
 
 export function pdfFromImages(pages: readonly PdfPage[], info: PdfInfo = {}): Uint8Array {
@@ -74,7 +93,7 @@ export function pdfFromImages(pages: readonly PdfPage[], info: PdfInfo = {}): Ui
     object(id + 1, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`)
     object(id + 2, () => {
       write(
-        `<< /Type /XObject /Subtype /Image /Width ${page.pixelWidth} /Height ${page.pixelHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.jpeg.length} >>\nstream\n`,
+        `<< /Type /XObject /Subtype /Image /Width ${page.pixelWidth} /Height ${page.pixelHeight} /ColorSpace ${jpegColorSpace(page.jpeg)} /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.jpeg.length} >>\nstream\n`,
       )
       write(page.jpeg)
       write("\nendstream")

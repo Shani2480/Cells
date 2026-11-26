@@ -398,7 +398,7 @@ export class FileCommands {
     }
     if (!picked) return false
     try {
-      await this.doc.controller.getData.fromPdf(picked.ref.path ?? picked.ref.name, picked.bytes)
+      await this.doc.controller.getData.fromPdf(picked.ref.path ?? picked.ref.name, picked.bytes, picked.ref.name)
       return true
     } catch (error) {
       this.doc.controller.shell.alert(`Cells couldn't read ${picked.ref.name}. ${message(error)}`)

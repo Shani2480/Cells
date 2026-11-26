@@ -10,7 +10,8 @@ import type { Recognizer } from "./pdf"
 /** Tesseract's result, as far as it's used here: blocks of paragraphs of lines of words, boxes in pixels. */
 export type OcrBox = { x0: number; y0: number; x1: number; y1: number }
 export type OcrWord = { text: string; confidence: number; bbox: OcrBox }
-export type OcrLine = { bbox: OcrBox; words: OcrWord[] }
+/** `angle`: how far the line is turned, in degrees clockwise (ML Kit gives it; Tesseract's pages come straight). */
+export type OcrLine = { bbox: OcrBox; words: OcrWord[]; angle?: number }
 export type OcrPage = { blocks: { paragraphs: { lines: OcrLine[] }[] }[] | null }
 
 /** The dpi pages are drawn at for recognition (Tesseract reads best at 300). */
@@ -64,6 +65,49 @@ export async function recognizePage(engine: OcrEngine, image: unknown): Promise<
   return lines
 }
 
+const middle = (values: number[]) => {
+  const s = [...values].sort((a, b) => a - b)
+  return s.length ? s[Math.floor(s.length / 2)] : 0
+}
+
+/**
+ * How far a page is turned, in degrees clockwise: the middle of its lines' angles (lines of two or more words). 0 when
+ * the recognizer gives none (Tesseract straightens the page itself).
+ */
+export function pageAngle(lines: OcrLine[]): number {
+  const given = lines.flatMap((l) => (typeof l.angle === "number" && l.words.length >= 2 ? [l.angle] : []))
+  return given.length >= 3 ? middle(given) : 0
+}
+
+/**
+ * The lines turned back by the page's angle (about its top left), so a column's edge runs straight down the page and
+ * the table finder sees its words line up. A scan is rarely square; over a page, 0.4° moves a column by about a word
+ * gap. Pages turned less than 0.05° are left as they are.
+ */
+export function straighten(lines: OcrLine[]): OcrLine[] {
+  const angle = pageAngle(lines)
+  if (Math.abs(angle) < 0.05) return lines
+  const r = (-angle * Math.PI) / 180
+  const cos = Math.cos(r)
+  const sin = Math.sin(r)
+  // A box turned, as the box around its turned corners' middle, kept its size (the corners would widen it).
+  const turn = (b: OcrBox): OcrBox => {
+    const cx = (b.x0 + b.x1) / 2
+    const cy = (b.y0 + b.y1) / 2
+    const x = cx * cos - cy * sin
+    const y = cx * sin + cy * cos
+    const hw = (b.x1 - b.x0) / 2
+    const hh = (b.y1 - b.y0) / 2
+    return { x0: x - hw, y0: y - hh, x1: x + hw, y1: y + hh }
+  }
+  return lines.map((l) => ({
+    ...l,
+    angle: 0,
+    bbox: turn(l.bbox),
+    words: l.words.map((w) => ({ ...w, bbox: turn(w.bbox) })),
+  }))
+}
+
 /**
  * A recognized page's text as runs in points: a run for each chunk of text (words close together), with each word's
  * place, sized by the chunk's height. Rule marks (| _ ¦ or a run of dashes, from a table's lines) and specks are left
@@ -71,7 +115,7 @@ export async function recognizePage(engine: OcrEngine, image: unknown): Promise<
  */
 export function runsFromOcr(lines: OcrLine[], scale: number): PdfRun[] {
   const runs: PdfRun[] = []
-  for (const line of lines) {
+  for (const line of straighten(lines)) {
     const words = line.words
       .map((w) => ({ ...w, text: w.text.trim() }))
       .filter((w) => w.text && !isRule(w.text) && (w.confidence >= NOISE || /[\p{L}\p{N}]{2,}/u.test(w.text)))

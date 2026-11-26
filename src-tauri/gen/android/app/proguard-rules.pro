@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# The page's bridges (window.CellsFiles, window.CellsOcr): their methods are called by name from JavaScript.
+-keepclassmembers class app.cells.AndroidFiles, app.cells.AndroidOcr {
+  @android.webkit.JavascriptInterface public <methods>;
+}

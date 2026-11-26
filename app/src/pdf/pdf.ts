@@ -20,8 +20,15 @@ function pdfjs(): Promise<PdfJs> {
   return lib
 }
 
-/** Reads a scanned page's text: the page drawn as a picture, its words found in it. */
-export type Recognizer = (page: PdfPage, draw: (scale: number) => Promise<HTMLCanvasElement>) => Promise<PdfPage>
+/**
+ * Reads a scanned page's text: the page drawn as a picture, its words found in it. `pdf`: the file and the page's
+ * index in it (from 0), for a recognizer that draws pages itself (Android's).
+ */
+export type Recognizer = (
+  page: PdfPage,
+  draw: (scale: number) => Promise<HTMLCanvasElement>,
+  pdf: { bytes: Uint8Array; index: number },
+) => Promise<PdfPage>
 
 export type PdfRead = {
   items: PdfItem[]
@@ -60,16 +67,20 @@ export async function pdfItems(
         progress?.(++done, scans)
         const proxy = await read.doc.getPage(i + 1)
         pages.push(
-          await recognize(page, async (scale) => {
-            const viewport = proxy.getViewport({ scale })
-            const canvas = document.createElement("canvas")
-            canvas.width = Math.ceil(viewport.width)
-            canvas.height = Math.ceil(viewport.height)
-            const ctx = canvas.getContext("2d")
-            if (!ctx) throw new PdfError("The page can't be drawn here.")
-            await proxy.render({ canvasContext: ctx, viewport, canvas }).promise
-            return canvas
-          }),
+          await recognize(
+            page,
+            async (scale) => {
+              const viewport = proxy.getViewport({ scale })
+              const canvas = document.createElement("canvas")
+              canvas.width = Math.ceil(viewport.width)
+              canvas.height = Math.ceil(viewport.height)
+              const ctx = canvas.getContext("2d")
+              if (!ctx) throw new PdfError("The page can't be drawn here.")
+              await proxy.render({ canvasContext: ctx, viewport, canvas }).promise
+              return canvas
+            },
+            { bytes, index: i },
+          ),
         )
       }
     }

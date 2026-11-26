@@ -6,3 +6,4 @@ src-tauri/icons
 package-lock.json
 tests/**/*.json
 tmp
+packages/*/test/fixtures/**/*.json

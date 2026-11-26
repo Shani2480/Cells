@@ -78,7 +78,7 @@ export const FEATURE_HINTS: FeatureHint[] = [
   {
     id: "pdf-tables",
     title: "New: Tables from a PDF",
-    text: "Get Data › From PDF finds the tables in a PDF, such as a statement or an invoice, even without lines around them and across pages. Pick the ones you want and load them, with numbers and dates read as numbers and dates. Scanned PDFs too, read with text recognition on this computer once you turn it on.",
+    text: "Get Data › From PDF finds the tables in a PDF, such as a statement or an invoice, even without lines around them and across pages. Pick the ones you want and load them, with numbers and dates read as numbers and dates. Scanned PDFs too, read with text recognition right here, nothing sent anywhere, once you turn it on.",
     target: "Get Data",
   },
   {

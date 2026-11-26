@@ -122,6 +122,7 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     this.webView = webView
     webView.addJavascriptInterface(AndroidFiles(this), "CellsFiles")
+    webView.addJavascriptInterface(AndroidOcr(this, webView), "CellsOcr")
     // Back closes what is open over the sheet (a panel, dialog, menu, the File view or the cell being edited), as Esc
     // does; with nothing open, Cells goes to the background instead of ending with unsaved work. Added after Wry's
     // own handler (web history), so it comes first.

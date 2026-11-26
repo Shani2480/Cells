@@ -1,6 +1,7 @@
 // The PDF writer: one page per picture, with a cross-reference table that points at every object.
 import { describe, expect, it } from "vitest"
 import { pdfFromImages } from "../src"
+import { jpegColorSpace } from "../src/pdf"
 
 // The smallest JPEG: a 1×1 white picture.
 const JPEG = Uint8Array.from(
@@ -34,5 +35,17 @@ describe("PDF of pictures", () => {
       const at = Number(line.slice(0, 10))
       expect(text.slice(at, at + `${i + 1} 0 obj`.length)).toBe(`${i + 1} 0 obj`)
     })
+  })
+
+  it("declares a picture's colours as its JPEG has them (grey scans stay grey)", () => {
+    // The 1×1 picture above is grey: its frame header has one channel.
+    expect(jpegColorSpace(JPEG)).toBe("/DeviceGray")
+    const rgb = JPEG.slice()
+    rgb[rgb.indexOf(0xc0, 2) + 8] = 3
+    expect(jpegColorSpace(rgb)).toBe("/DeviceRGB")
+    const text = new TextDecoder("latin1").decode(
+      pdfFromImages([{ width: 10, height: 10, jpeg: JPEG, pixelWidth: 1, pixelHeight: 1 }]),
+    )
+    expect(text).toContain("/ColorSpace /DeviceGray")
   })
 })

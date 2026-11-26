@@ -653,9 +653,19 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       blurred, noisy: `scan-statement.jpg`, `scan-invoice.jpg`) with the real engine; checked in the app in light and
       dark.
       Limits: English only for now; a page takes about a second (more on a slow machine); handwriting and very poor
-      scans read badly; Excel itself can't read scanned PDFs, so such a query refreshes only in Cells; the install
-      grows by about 15 MB (engine and model).
-    - ⬜ Android: ML Kit text recognition (on-device, uses the NPU/GPU where the phone has one).
+      scans read badly; the install grows by about 15 MB (engine and model). Checked in Excel 365: Pdf.Tables finds
+      no tables in a scanned PDF and its pages come back empty; a Cells workbook with queries from one opens without
+      repair with its data, and Excel's Refresh fails (the table isn't there for it) and leaves the data as it was.
+    - ✅ Android: Google's ML Kit text recognition with the Latin model bundled (offline, no Play services, nothing
+      sent anywhere; ML Kit picks how to run its model on the device, Cells can't choose the NPU). `AndroidOcr.kt`
+      is `window.CellsOcr`: the PDF is handed over once and Android's own PDF renderer draws each scanned page at
+      300 dpi straight into ML Kit (drawing it in the web view and encoding a JPEG took seconds a page); a page it
+      draws blank is drawn by pdf.js and sent as a picture instead. ML Kit doesn't straighten a scan, so the words are
+      turned back by its lines' angle before columns are found (0.4° moves a column by a word gap over a page). The
+      Android app leaves Tesseract's files out. The prompt says "this device", and a content link's PDF is named by
+      the picker's name (it showed "189117"). On the OnePlus Pad: 0.3–0.6 s a page, the demo scans' tables exactly
+      right, 1.2 s from picking the file to the Navigator. ML Kit's answers are kept as a fixture
+      (`mlkit-scans.json`). Also: Cells' PDF of pictures now says a grey JPEG is grey (Android drew it blank).
     - ⬜ Data from Picture (Excel's Data › From Picture): a photo or screenshot of a table into cells, through the
       same recognition and table finder, with a review step before it goes in.
   - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,

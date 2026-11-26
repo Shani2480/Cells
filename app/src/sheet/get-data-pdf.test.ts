@@ -215,6 +215,13 @@ describe("Get Data › From PDF, scanned", () => {
     expect(c.getData.busy).toBeNull()
   })
 
+  it("names an Android content link's PDF by the name the picker gave", async () => {
+    const c = new SheetController()
+    setRecognitionSwitch(() => setRecognizer(fake))
+    await c.getData.fromPdf("content://docs/document/189117", scan, "invoice.pdf")
+    await vi.waitFor(() => expect(c.getData.navigator?.title).toBe("invoice.pdf"))
+  })
+
   it("says why when text recognition isn't available", async () => {
     const c = new SheetController()
     setRecognitionSwitch(null)

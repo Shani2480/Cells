@@ -1,4 +1,5 @@
 import { tesseractRecognizer } from "./pdf/ocr"
+import { androidOcr, mlkitRecognizer } from "./pdf/ocr-android"
 import { fileName, setFileReader, setRecognitionSwitch, setRecognizer, setWebPort } from "./sheet/get-data"
 import { updateSettings, useSettings } from "./settings/settings"
 import React from "react"
@@ -23,10 +24,11 @@ const platform = isTauri() ? tauriPlatform() : web
 setWebPort(platform.web)
 setFileReader((path) => platform.files.read({ name: fileName(path), path }))
 // Text recognition for scanned PDFs follows its setting (opt-in); a prompt can turn it on, which saves the setting.
-const recognition = (on: boolean) => setRecognizer(on ? tesseractRecognizer : null)
+// On Android ML Kit reads them (on the device); elsewhere Tesseract in the web view.
+const recognition = (on: boolean) => setRecognizer(on ? (androidOcr() ? mlkitRecognizer : tesseractRecognizer) : null)
 recognition(useSettings.getState().ocrEnabled)
 useSettings.subscribe((s, before) => s.ocrEnabled !== before.ocrEnabled && recognition(s.ocrEnabled))
-setRecognitionSwitch(() => void updateSettings({ ocrEnabled: true }))
+setRecognitionSwitch(() => void updateSettings({ ocrEnabled: true }), androidOcr() ? "device" : "computer")
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
