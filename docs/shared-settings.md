@@ -47,7 +47,8 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
   (`docs/ai.md`).
 - `proofing.customWords`: words added to the dictionary (Spelling › Add to Dictionary) in either app, kept as
   typed. An app adds its words to the list in the file (never replaces it), so both apps' words stay.
-- `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on; Cells' `hints`:
+- `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on; Cells' `ocr`: scanned PDFs are read with text recognition on the
+  device; Cells' `hints`:
   feature hints are shown, missing means on; `hintsDismissed`: the ids of the hints already dismissed, replaced as a
   whole, so Show hints again can empty it). An app never
   changes another app's entry.

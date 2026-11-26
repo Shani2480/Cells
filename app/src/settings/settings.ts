@@ -27,6 +27,7 @@ const pick = (s: SharedSettings): SharedSettings => ({
   theme: s.theme,
   setupDone: s.setupDone,
   aiEnabled: s.aiEnabled,
+  ocrEnabled: s.ocrEnabled,
   aiProvider: s.aiProvider,
   aiModels: s.aiModels,
   aiAddresses: s.aiAddresses,

@@ -85,6 +85,7 @@ export function NavigatorDialog({ controller, onClose }: { controller: SheetCont
   if (!nav) return null
   const item = nav.items[picked]
   const table = item.preview ?? item.data
+  const doubtful = new Set((item.unsure ?? []).map(([r, c]) => `${r}:${c}`))
   const chosen = multiple ? ticked : [picked]
   const cancel = () => {
     controller.getData.navigator = null
@@ -178,7 +179,27 @@ export function NavigatorDialog({ controller, onClose }: { controller: SheetCont
           {nav.unread.length ? (
             <p className="dialog-note nav-unread">
               {nav.unread.length === 1 ? `Page ${nav.unread[0]} is a scan` : `${nav.unread.length} pages are scans`} and
-              can't be read without text recognition (File › Options › AI).
+              weren&apos;t read.{" "}
+              {controller.getData.canTurnOnRecognition ? (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    onClose()
+                    controller.getData
+                      .readScans()
+                      .catch((e: unknown) => controller.shell.alert(`Cells couldn't read the scans. ${message(e)}`))
+                  }}
+                >
+                  Read them with text recognition
+                </button>
+              ) : null}
+            </p>
+          ) : null}
+          {item.unsure?.length ? (
+            <p className="dialog-note nav-unsure">
+              <span className="nav-unsure-swatch" aria-hidden /> Check the marked cells: text recognition wasn&apos;t
+              sure of them.
             </p>
           ) : null}
         </div>
@@ -197,7 +218,18 @@ export function NavigatorDialog({ controller, onClose }: { controller: SheetCont
                 {table.rows.slice(0, 50).map((r, i) => (
                   <tr key={i}>
                     {r.map((v, k) => (
-                      <td key={k} className={v === null ? "is-null" : typeof v === "number" ? "is-number" : undefined}>
+                      <td
+                        key={k}
+                        className={
+                          [
+                            v === null ? "is-null" : typeof v === "number" ? "is-number" : "",
+                            doubtful.has(`${i}:${k}`) ? "is-unsure" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ") || undefined
+                        }
+                        title={doubtful.has(`${i}:${k}`) ? "Text recognition wasn't sure of this" : undefined}
+                      >
                         {shown(v, table.types[k])}
                       </td>
                     ))}

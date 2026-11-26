@@ -641,8 +641,20 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       wide date column from its description, or join pages) a query refreshed in the other app can give other
       columns; a browser reads the file again only in the session it was picked in; turned and vertical text is left
       out; Excel's other Pdf.Tables options (EnforceBorderLines, StartPage) are kept but not run.
-    - ⬜ Scanned pages: text recognition on this device, opt-in (setup and File › Options › AI), Tesseract in the
-      web view on desktop (CPU, English bundled, more languages downloaded on request).
+    - ✅ Scanned pages: text recognition on this device, opt-in ("Read scanned PDFs with text recognition" in the
+      setup's AI step and File › Options › AI, `apps.cells.ocr`). Opening a scanned PDF with it off asks once
+      ("This PDF is scanned…"); the Navigator's note on unread scan pages has "Read them with text recognition".
+      Tesseract (tesseract.js 7, LSTM, English `best_int` model) runs in a worker in the web view, from files Cells
+      ships (`vite.config.ts` copies them to `/ocr/`, nothing fetched from the internet; CSP allows wasm). Pages are
+      drawn at 300 dpi, straightened, read as sparse text (a table's rows stay apart), and chunks it wasn't sure of are
+      read again on their own as a line, the better reading kept; the words go to the same table finder, a recognized
+      chunk's words staying one cell. Cells still unsure are marked in the Navigator's preview ("Check the marked
+      cells"). The status bar shows "Recognizing text: page 2 of 5…". Tests read two demo scans (300 dpi, tilted,
+      blurred, noisy: `scan-statement.jpg`, `scan-invoice.jpg`) with the real engine; checked in the app in light and
+      dark.
+      Limits: English only for now; a page takes about a second (more on a slow machine); handwriting and very poor
+      scans read badly; Excel itself can't read scanned PDFs, so such a query refreshes only in Cells; the install
+      grows by about 15 MB (engine and model).
     - ⬜ Android: ML Kit text recognition (on-device, uses the NPU/GPU where the phone has one).
     - ⬜ Data from Picture (Excel's Data › From Picture): a photo or screenshot of a table into cells, through the
       same recognition and table finder, with a review step before it goes in.

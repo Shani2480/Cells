@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { pdfTables } from "@cells/io"
+import { pdfFromImages, pdfTables } from "@cells/io"
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs"
 import { describe, expect, it } from "vitest"
 import { readPdf, type PdfJs } from "./read-pdf"
@@ -81,5 +81,10 @@ describe("From PDF: tables found in real PDFs", () => {
   it("marks a page that is only a picture as a scan", async () => {
     const { pages } = await readPdf(fixture("ruled.pdf"), pdfjs as unknown as PdfJs)
     expect(pages[0].scanned).toBe(false)
+    const jpeg = fixture("scan-statement.jpg")
+    const scan = pdfFromImages([{ width: 618, height: 797, jpeg, pixelWidth: 2574, pixelHeight: 3320 }])
+    const read = await readPdf(scan, pdfjs as unknown as PdfJs)
+    expect(read.pages[0].scanned).toBe(true)
+    expect(pdfTables(read.pages).map((i) => [i.name, i.rows.length])).toEqual([["Page001", 0]])
   })
 })

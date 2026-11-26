@@ -9,8 +9,20 @@
  * with the same columns, is one table ("Table001 (Page 1-2)"), its repeated header row dropped.
  */
 
-/** A run of text on a page: one line's text in one font, or one recognized word. */
-export type PdfRun = { text: string; x0: number; y0: number; x1: number; y1: number; size: number }
+/**
+ * A run of text on a page: a piece of a line in one font, or a chunk of recognized text. A recognized chunk gives
+ * each word's place (`words`); its words stay one cell unless a column edge runs between them.
+ */
+export type PdfRun = {
+  text: string
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+  size: number
+  /** A recognized chunk's words; `unsure`: recognition wasn't sure of it. */
+  words?: { text: string; x0: number; x1: number; unsure?: boolean }[]
+}
 
 /** A line drawn on the page (a thin filled rectangle counts too). */
 export type PdfRule = { x0: number; y0: number; x1: number; y1: number }
@@ -27,9 +39,21 @@ export type PdfItem = {
   pages: number[]
   /** Its cells as text ("" for an empty cell), every row as wide as the widest. */
   rows: string[][]
+  /** Cells holding recognized text that recognition wasn't sure of, as [row, column], for a person to check. */
+  unsure?: [number, number][]
 }
 
-type Word = { text: string; x0: number; y0: number; x1: number; y1: number; size: number }
+/** A word, or a piece of a run set as one; `chunk` is shared by a recognized chunk's words. */
+type Word = {
+  text: string
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+  size: number
+  chunk?: number
+  unsure?: boolean
+}
 type Line = { words: Word[]; y0: number; y1: number }
 /** A table's cells, each the words in it. */
 type Grid = Word[][][]
@@ -48,7 +72,24 @@ function median(values: number[]): number {
  * run's characters. A single space keeps words together: a run is set as one piece of text, so its words never part
  * into cells.
  */
+let chunks = 0
+
 function wordsOf(run: PdfRun): Word[] {
+  if (run.words?.length) {
+    const chunk = ++chunks
+    return run.words
+      .filter((w) => w.text.trim())
+      .map((w) => ({
+        text: w.text.trim(),
+        x0: w.x0,
+        x1: w.x1,
+        y0: run.y0,
+        y1: run.y1,
+        size: run.size,
+        chunk,
+        ...(w.unsure ? { unsure: true } : {}),
+      }))
+  }
   if (!run.text.trim()) return []
   const per = (run.x1 - run.x0) / Math.max(1, run.text.length)
   const out: Word[] = []
@@ -91,7 +132,7 @@ function phrases(line: Line): Word[][] {
   for (const w of line.words) {
     const last = out[out.length - 1]
     const prev = last?.[last.length - 1]
-    if (prev && w.x0 - prev.x1 < cellGap(w)) last.push(w)
+    if (prev && ((w.chunk !== undefined && w.chunk === prev.chunk) || w.x0 - prev.x1 < cellGap(w))) last.push(w)
     else out.push([w])
   }
   return out
@@ -376,14 +417,15 @@ function mergeWrapped(block: Line[], edges: number[]): Grid {
 
 // ── Pages ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** A page's text in rows and columns: a row per line, columns from the gaps in its lines of two or more cells. */
-function pageRows(words: Word[]): string[][] {
-  const lines = linesOf(words)
-  const edges = columnEdges(lines.filter((l) => phrases(l).length >= 2))
-  return texts(tidy(lines.map((l) => splitLine(l, edges))))
-}
-
 const texts = (grid: Grid) => grid.map((r) => r.map(cellText))
+const doubts = (grid: Grid) => grid.map((r) => r.map((c) => c.some((w) => w.unsure)))
+
+/** The cells marked unsure, as [row, column]; undefined when there are none. */
+function unsureCells(flags: boolean[][]): [number, number][] | undefined {
+  const out: [number, number][] = []
+  flags.forEach((r, i) => r.forEach((f, k) => f && out.push([i, k])))
+  return out.length ? out : undefined
+}
 
 /** Where each column's text runs across the page. */
 function spans(grid: Grid): [number, number][] {
@@ -418,6 +460,9 @@ export function pdfTables(pages: PdfPageText[]): PdfItem[] {
   const pageItems: PdfItem[] = []
   pages.forEach((p, index) => {
     const words = p.runs.flatMap(wordsOf)
+    // The page: a row per line, columns from the gaps in its lines of two or more cells.
+    const lines = linesOf(words)
+    const pageGrid = tidy(lines.map((l) => splitLine(l, columnEdges(lines.filter((x) => phrases(x).length >= 2)))))
     const used = new Set<Word>()
     const ruled = ruledTables(index, words, p.rules, used)
     const loose = unruledTables(
@@ -425,36 +470,42 @@ export function pdfTables(pages: PdfPageText[]): PdfItem[] {
       words.filter((w) => !used.has(w)),
     )
     found.push(...[...ruled, ...loose].sort((a, b) => a.top - b.top))
+    const unsure = unsureCells(doubts(pageGrid))
     pageItems.push({
       id: `Page${pad3(index + 1)}`,
       name: `Page${pad3(index + 1)}`,
       kind: "Page",
       pages: [index + 1],
-      rows: widen(pageRows(words)),
+      rows: widen(texts(pageGrid)),
+      ...(unsure ? { unsure } : {}),
     })
   })
   // Tables carried over to the next page joined, a repeated header row dropped.
-  const joined: { pages: number[]; rows: string[][]; last: Found }[] = []
+  const joined: { pages: number[]; rows: string[][]; flags: boolean[][]; last: Found }[] = []
   for (const t of found) {
     const prev = joined[joined.length - 1]
     const rows = texts(t.cells)
+    const flags = doubts(t.cells)
     if (prev && continues(prev.last, t, pages)) {
-      const same = rows[0]?.join("\t") === prev.rows[0]?.join("\t")
-      prev.rows.push(...(same ? rows.slice(1) : rows))
+      const skip = rows[0]?.join("\t") === prev.rows[0]?.join("\t") ? 1 : 0
+      prev.rows.push(...rows.slice(skip))
+      prev.flags.push(...flags.slice(skip))
       prev.pages.push(t.page + 1)
       prev.last = t
-    } else joined.push({ pages: [t.page + 1], rows, last: t })
+    } else joined.push({ pages: [t.page + 1], rows, flags, last: t })
   }
   const tables = joined.map((t, i): PdfItem => {
     const first = t.pages[0]
     const last = t.pages[t.pages.length - 1]
     const id = `Table${pad3(i + 1)}`
+    const unsure = unsureCells(t.flags)
     return {
       id,
       name: `${id} (Page ${first === last ? first : `${first}-${last}`})`,
       kind: "Table",
       pages: t.pages,
       rows: widen(t.rows),
+      ...(unsure ? { unsure } : {}),
     }
   })
   return [...tables, ...pageItems]

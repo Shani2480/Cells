@@ -39,8 +39,21 @@ export function AiFields({ value, onChange, compact = false }: FieldsProps & { c
   const provider = value.aiProvider
   const say = (text: string, error = false) => setMessage({ text, error })
 
+  const recognition = (
+    <label className="settings-check">
+      <input type="checkbox" checked={value.ocrEnabled} onChange={(e) => onChange({ ocrEnabled: e.target.checked })} />
+      Read scanned PDFs with text recognition on this {platform.os === "android" ? "device" : "computer"} (nothing is
+      sent anywhere)
+    </label>
+  )
+
   if (!platform.ai.available)
-    return <p className="dialog-note">The AI tools need the Cells desktop app; they aren't in the browser version.</p>
+    return (
+      <div className="ai-fields">
+        {recognition}
+        <p className="dialog-note">The AI tools need the Cells desktop app; they aren't in the browser version.</p>
+      </div>
+    )
 
   const saveKey = async () => {
     if (!isKeyed(provider)) return
@@ -75,6 +88,7 @@ export function AiFields({ value, onChange, compact = false }: FieldsProps & { c
   const keyState = isKeyed(provider) ? keys?.[provider] : undefined
   return (
     <div className="ai-fields">
+      {recognition}
       <label className="settings-check">
         <input type="checkbox" checked={value.aiEnabled} onChange={(e) => onChange({ aiEnabled: e.target.checked })} />
         Turn on the AI tools (Home › AI Tools)

@@ -1,4 +1,6 @@
-import { fileName, setFileReader, setWebPort } from "./sheet/get-data"
+import { tesseractRecognizer } from "./pdf/ocr"
+import { fileName, setFileReader, setRecognitionSwitch, setRecognizer, setWebPort } from "./sheet/get-data"
+import { updateSettings, useSettings } from "./settings/settings"
 import React from "react"
 import ReactDOM from "react-dom/client"
 import { App } from "./App"
@@ -20,6 +22,11 @@ const web =
 const platform = isTauri() ? tauriPlatform() : web
 setWebPort(platform.web)
 setFileReader((path) => platform.files.read({ name: fileName(path), path }))
+// Text recognition for scanned PDFs follows its setting (opt-in); a prompt can turn it on, which saves the setting.
+const recognition = (on: boolean) => setRecognizer(on ? tesseractRecognizer : null)
+recognition(useSettings.getState().ocrEnabled)
+useSettings.subscribe((s, before) => s.ocrEnabled !== before.ocrEnabled && recognition(s.ocrEnabled))
+setRecognitionSwitch(() => void updateSettings({ ocrEnabled: true }))
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

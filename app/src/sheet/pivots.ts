@@ -111,7 +111,7 @@ import { withSheetData, type ChartSpec } from "@cells/chart"
 import type { SheetController } from "./controller"
 
 /** The width autofit adds for a cell's filter button (17 px and a gap). */
-const FILTER_BUTTON_ROOM = 19
+export const FILTER_BUTTON_ROOM = 19
 
 /** Where Generate GetPivotData's "off" is kept. */
 const GETPIVOTDATA_KEY = "cells.generateGetPivotData"

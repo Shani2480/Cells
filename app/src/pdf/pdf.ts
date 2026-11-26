@@ -32,7 +32,11 @@ export type PdfRead = {
 export class PdfError extends Error {}
 
 /** A PDF's tables and pages. Rejects with a PdfError a person can read for a file pdf.js can't open. */
-export async function pdfItems(bytes: Uint8Array, recognize: Recognizer | null): Promise<PdfRead> {
+export async function pdfItems(
+  bytes: Uint8Array,
+  recognize: Recognizer | null,
+  progress?: (page: number, of: number) => void,
+): Promise<PdfRead> {
   const m = await pdfjs()
   let read: Awaited<ReturnType<typeof readPdf>>
   try {
@@ -44,6 +48,8 @@ export async function pdfItems(bytes: Uint8Array, recognize: Recognizer | null):
   }
   const unread: number[] = []
   const pages: PdfPage[] = []
+  const scans = read.pages.filter((p) => p.scanned).length
+  let done = 0
   try {
     for (const [i, page] of read.pages.entries()) {
       if (!page.scanned) pages.push(page)
@@ -51,6 +57,7 @@ export async function pdfItems(bytes: Uint8Array, recognize: Recognizer | null):
         unread.push(i + 1)
         pages.push(page)
       } else {
+        progress?.(++done, scans)
         const proxy = await read.doc.getPage(i + 1)
         pages.push(
           await recognize(page, async (scale) => {

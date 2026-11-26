@@ -39,6 +39,8 @@ export type SharedSettings = {
   setupDone: boolean
   /** Cells' AI tools are turned on (opt-in, per app: `apps.cells.ai`). */
   aiEnabled: boolean
+  /** Text recognition on this device reads scanned PDFs (opt-in: `apps.cells.ocr`). */
+  ocrEnabled: boolean
   /** The provider both apps use (`ai.provider`); blank until one is chosen. */
   aiProvider: AiProviderName | ""
   /** A model per provider (`ai.models`); blank: the provider's default. */
@@ -65,6 +67,7 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   theme: "system",
   setupDone: false,
   aiEnabled: false,
+  ocrEnabled: false,
   aiProvider: "",
   aiModels: {},
   aiAddresses: {},
@@ -114,6 +117,7 @@ export function parseShared(source: string | null): SharedSettings {
     theme: theme === "light" || theme === "dark" ? theme : "system",
     setupDone: cells.setupDone === true,
     aiEnabled: cells.ai === true,
+    ocrEnabled: cells.ocr === true,
     aiProvider: AI_PROVIDERS.includes(ai.provider as AiProviderName) ? (ai.provider as AiProviderName) : "",
     aiModels: strings(ai.models, AI_PROVIDERS),
     aiAddresses: strings(ai.addresses, Object.keys(DEFAULT_ADDRESSES)),
@@ -144,6 +148,7 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   theme: ["appearance", "theme"],
   setupDone: ["apps", "cells", "setupDone"],
   aiEnabled: ["apps", "cells", "ai"],
+  ocrEnabled: ["apps", "cells", "ocr"],
   aiProvider: ["ai", "provider"],
   aiModels: ["ai", "models"],
   aiAddresses: ["ai", "addresses"],

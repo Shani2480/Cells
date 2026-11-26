@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { EN_US, readQueryPlan, setRegional, type Regional } from "@cells/core"
-import { afterEach, describe, expect, it } from "vitest"
+import { pdfFromImages, type PdfRun } from "@cells/io"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { SheetController } from "./controller"
-import { hasHeadings, setFileReader } from "./get-data"
+import type { Recognizer } from "@/pdf/pdf"
+import { hasHeadings, setFileReader, setRecognitionSwitch, setRecognizer } from "./get-data"
 import { dateFrom, numberFrom } from "./power-query"
 
 const fixture = (name: string) =>
@@ -13,7 +15,10 @@ const GB: Regional = { decimal: ".", group: ",", dateSeparator: "/", dateOrder: 
 const NL: Regional = { decimal: ",", group: ".", dateSeparator: "-", dateOrder: "dmy", shortDate: "d-m-yyyy" }
 const serial = (y: number, m: number, d: number) => (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000
 
-afterEach(() => setFileReader(async () => Promise.reject(new Error("no file"))))
+afterEach(() => {
+  setFileReader(async () => Promise.reject(new Error("no file")))
+  setRecognizer(null)
+})
 
 describe("text as numbers and dates, as Power Query reads them", () => {
   it("reads numbers with the region's separators, signs in brackets or after, and percentages", () => {
@@ -156,5 +161,65 @@ describe("Get Data › From PDF", () => {
       label: "Q",
     })
     await expect(c.getData.loadConnection("Gone")).rejects.toThrow("Cells couldn't read gone.pdf")
+  })
+})
+
+describe("Get Data › From PDF, scanned", () => {
+  // The demo invoice scanned at 300 dpi, as a PDF of that one picture.
+  const jpeg = fixture("scan-invoice.jpg")
+  const scan = pdfFromImages([
+    { width: (2507 * 72) / 300, height: (3528 * 72) / 300, jpeg, pixelWidth: 2507, pixelHeight: 3528 },
+  ])
+  const run = (text: string, x0: number, y: number, unsure = false): PdfRun => ({
+    text,
+    x0,
+    x1: x0 + text.length * 5,
+    y0: y,
+    y1: y + 10,
+    size: 10,
+    words: [{ text, x0, x1: x0 + text.length * 5, ...(unsure ? { unsure } : {}) }],
+  })
+  // Stands in for Tesseract (ocr.test.ts reads the real scans): a heading and two rows, one figure unsure.
+  const fake: Recognizer = async (page) => ({
+    ...page,
+    runs: [
+      run("Item", 60, 100),
+      run("Qty", 300, 100),
+      run("A-210", 60, 120),
+      run("500", 300, 120),
+      run("C-300", 60, 140),
+      run("25", 300, 140, true),
+    ],
+  })
+
+  it("asks to turn text recognition on, then reads the scan and marks what it wasn't sure of", async () => {
+    const c = new SheetController()
+    const asked: string[] = []
+    c.shell = { ...c.shell, confirm: (m, ok) => (asked.push(m), ok()) }
+    const busy: (string | null)[] = []
+    c.subscribe(() => busy.push(c.getData.busy))
+    setRecognitionSwitch(() => setRecognizer(fake))
+    await c.getData.fromPdf("/home/alex/Scans/invoice.pdf", scan)
+    expect(asked[0]).toMatch(/^This PDF is scanned/)
+    await vi.waitFor(() => expect(c.getData.navigator).not.toBeNull())
+    const nav = c.getData.navigator
+    expect(nav?.unread).toEqual([])
+    expect(nav?.items[0].preview?.columns).toEqual(["Item", "Qty"])
+    expect(nav?.items[0].preview?.rows).toEqual([
+      ["A-210", 500],
+      ["C-300", 25],
+    ])
+    // The heading promoted, the unsure figure is the second row's.
+    expect(nav?.items[0].unsure).toEqual([[1, 1]])
+    expect(busy).toContain("Recognizing text…")
+    expect(c.getData.busy).toBeNull()
+  })
+
+  it("says why when text recognition isn't available", async () => {
+    const c = new SheetController()
+    setRecognitionSwitch(null)
+    await expect(c.getData.fromPdf("/home/alex/Scans/invoice.pdf", scan)).rejects.toThrow(
+      "text recognition isn't available here",
+    )
   })
 })

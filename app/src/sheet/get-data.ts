@@ -15,6 +15,7 @@ import type { PdfItem } from "@cells/io"
 import type { WebPort } from "@cells/platform"
 import { pdfItems, type PdfRead, type Recognizer } from "@/pdf/pdf"
 import type { SheetController } from "./controller"
+import { FILTER_BUTTON_ROOM } from "./pivots"
 import {
   applyStep,
   dateFrom,
@@ -54,6 +55,8 @@ export type NavigatorItem = {
   data: QueryResult
   /** What it loads as (headings promoted, types set), for the preview. */
   preview?: QueryResult
+  /** The preview's cells recognition wasn't sure of, as [row, column] (a heading row isn't counted). */
+  unsure?: [number, number][]
   /** The step that picks it from its source, and the name it gives the query. */
   step: QueryStep
   base: string
@@ -166,6 +169,12 @@ export function setRecognizer(r: Recognizer | null) {
   recognizer = r
 }
 
+let turnOnRecognition: (() => void) | null = null
+/** How text recognition is turned on from a prompt (the app saves the setting, which sets the recognizer). */
+export function setRecognitionSwitch(on: (() => void) | null) {
+  turnOnRecognition = on
+}
+
 /** A file read again from its path; null where it can't be (moved, or a browser that only knows its name). */
 async function readFile(path: string): Promise<Uint8Array | null> {
   try {
@@ -182,6 +191,8 @@ export class GetData {
   editor: EditorRequest | null = null
   /** The Navigator (From Web's page tables, From PDF's tables and pages), while it's open. */
   navigator: NavigatorState | null = null
+  /** What's under way that takes a while ("Recognizing text: page 2 of 5…"), for the status bar. */
+  busy: string | null = null
   /** PDFs read this session, by path: the editor's previews don't read the file again; Refresh does. */
   private pdfs = new Map<string, { bytes: Uint8Array; items: PdfItem[] }>()
 
@@ -214,11 +225,35 @@ export class GetData {
 
   /** The tables and pages of a PDF (scanned pages read when text recognition is on). */
   private async readPdf(bytes: Uint8Array): Promise<PdfRead> {
+    const say = (text: string | null) => {
+      this.busy = text
+      this.c.changed()
+    }
     try {
-      return await pdfItems(bytes, recognizer)
+      return await pdfItems(bytes, recognizer, (page, of) =>
+        say(of > 1 ? `Recognizing text: page ${page} of ${of}…` : "Recognizing text…"),
+      )
     } catch (e) {
       throw new QueryError(message(e))
+    } finally {
+      if (this.busy) say(null)
     }
+  }
+
+  /** Whether scanned pages can be read once the person agrees (text recognition is off, and can be turned on). */
+  get canTurnOnRecognition(): boolean {
+    return !recognizer && turnOnRecognition !== null
+  }
+
+  /** Turns text recognition on and reads the Navigator's PDF again, its scanned pages too. */
+  async readScans(): Promise<void> {
+    const nav = this.navigator
+    if (!nav || nav.source.kind !== "pdf" || !turnOnRecognition) return
+    const known = this.pdfs.get(nav.source.path)
+    if (!known) return
+    turnOnRecognition()
+    this.navigator = null
+    await this.fromPdf(nav.source.path, known.bytes)
   }
 
   private names(): string[] {
@@ -338,10 +373,22 @@ export class GetData {
     this.pdfs.set(path, { bytes, items: read.items })
     remember({ kind: "pdf", path, name: fileName(path) })
     const items = read.items.filter((i) => i.rows.length)
+    if (!items.length && read.unread.length && turnOnRecognition) {
+      const on = turnOnRecognition
+      this.c.shell.confirm(
+        "This PDF is scanned: its pages are pictures of text. Read them with text recognition on this " +
+          "computer? Nothing is sent anywhere. You can turn it off again in File › Options › AI.",
+        () => {
+          on()
+          void this.fromPdf(path, bytes).catch((e: unknown) => this.c.shell.alert(message(e)))
+        },
+      )
+      return
+    }
     if (!items.length)
       throw new QueryError(
         read.unread.length
-          ? "The PDF's pages are scans. Turn on text recognition to read them."
+          ? "The PDF's pages are scans, and text recognition isn't available here."
           : "The PDF has no text to load.",
       )
     this.navigator = {
@@ -356,10 +403,14 @@ export class GetData {
       })),
       unread: read.unread,
     }
-    for (const item of this.navigator.items) {
+    for (const [n, item] of this.navigator.items.entries()) {
+      const steps = this.itemPlan(this.navigator, item).steps.slice(1)
       let data: QueryResult | SourceItem[] = item.data
-      for (const { step } of this.itemPlan(this.navigator, item).steps.slice(1)) data = applyStep(data, step)
+      for (const { step } of steps) data = applyStep(data, step)
       if (!Array.isArray(data)) item.preview = data
+      const shift = steps.some((s) => s.step.op === "promote") ? 1 : 0
+      const unsure = items[n].unsure?.filter(([r]) => r >= shift).map(([r, c]): [number, number] => [r - shift, c])
+      if (unsure?.length) item.unsure = unsure
     }
     this.c.shell.openDialog?.("queryNavigator")
   }
@@ -468,11 +519,14 @@ export class GetData {
       )
       const entry = c.transact(ops2, { label: "Load Query", before: c.selection })
       c.activate(loaded.sheet)
-      // The columns fitted to the data, as Excel's query tables adjust their column widths.
+      // The columns fitted to the data, as Excel's query tables adjust their column widths (a heading with room
+      // for its filter button).
       const fit = c.columnFit
       const widths = []
       for (let col = 0; fit && entry && col < result.columns.length; col++) {
-        const size = fit(col, { r0: 0, r1: result.rows.length }, loaded.sheet)
+        const heading = fit(col, { r0: 0, r1: 0 }, loaded.sheet)
+        const body = fit(col, { r0: 1, r1: result.rows.length }, loaded.sheet)
+        const size = Math.max(heading === null ? 0 : heading + FILTER_BUTTON_ROOM, body ?? 0) || null
         if (size !== null && size > c.sheet.cols.size(col)) widths.push({ index: col, size, hidden: false })
       }
       if (entry && widths.length)

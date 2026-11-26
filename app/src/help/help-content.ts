@@ -45,7 +45,8 @@ const EXTRA: Record<string, { command?: string; where?: string; keywords: string
   "pdf-tables": {
     where: "Data › Get Data › From File › From PDF",
     command: "PowerQueryGetTransformDataMenuSubscription19",
-    keywords: "pdf import table statement invoice bank extract recognize scan get data navigator",
+    keywords:
+      "pdf import table statement invoice bank extract recognize scan scanned ocr text recognition get data navigator",
   },
   "chart-format": {
     where: "Format, beside Chart Design (select a chart first)",

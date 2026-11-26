@@ -53,6 +53,7 @@ export function StatusBar({ controller, onZoomDialog }: { controller: SheetContr
   return (
     <footer className="status-bar" aria-label="Status bar">
       <span>{MODE_LABEL[controller.mode]}</span>
+      {controller.getData.busy ? <span role="status">{controller.getData.busy}</span> : null}
       {records && controller.mode === "ready" ? (
         <span>
           {records.shown} of {records.total} records found

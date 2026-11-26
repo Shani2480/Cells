@@ -10,14 +10,16 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 }
-window.matchMedia ??= (query: string) =>
-  ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addEventListener() {},
-    removeEventListener() {},
-    addListener() {},
-    removeListener() {},
-    dispatchEvent: () => false,
-  }) as MediaQueryList
+// (Tests that run in Node, such as text recognition's, have no window.)
+if (typeof window !== "undefined")
+  window.matchMedia ??= (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList

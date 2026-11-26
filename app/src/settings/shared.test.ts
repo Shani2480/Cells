@@ -22,6 +22,7 @@ describe("the settings file shared with Inkspire", () => {
       theme: "dark",
       setupDone: false,
       aiEnabled: false,
+      ocrEnabled: false,
       aiProvider: "builtin",
       aiModels: {},
       aiAddresses: {},

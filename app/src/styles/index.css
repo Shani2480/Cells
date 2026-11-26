@@ -5256,8 +5256,38 @@ html.is-phone .help-search input {
   min-height: 0;
 }
 
-.nav-unread {
+.nav-unread,
+.nav-unsure {
   margin: 0;
+}
+
+.nav-unread .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--app-theme-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.nav-unsure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qe-grid td.is-unsure,
+.nav-unsure-swatch {
+  background: color-mix(in srgb, #f2b200 22%, transparent);
+  box-shadow: inset 0 -2px 0 #d29a00;
+}
+
+.nav-unsure-swatch {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 12px;
 }
 
 .nav-list .dialog-list-item,
