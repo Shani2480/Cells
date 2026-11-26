@@ -274,7 +274,7 @@ Phase 1.
 7. Printing/PDF: page setup, print area, titles, headers/footers, Page Layout view, export to PDF.
 
 **Status (2026-11-15):** items 1–7 are built and committed. Left out for later: Page Layout view and Page Break
-Preview, sparklines, the chart Format tab and `.ods`. PDF pages are images for now. What's left to check
+Preview, sparklines, the chart Format tab and `.ods`. PDF pages are images (with searchable text since Phase 8). What's left to check
 by hand is in `docs/verify-list.md`, and the remaining steps are in `docs/next-todo.md`. Phase 4 is done; the summary
 is in `docs/changes.md`.
 
@@ -680,8 +680,18 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
       and on the OnePlus Pad: a screenshot and the invoice scan read right in about 1.2 s.
       Limits: Picture From Clipboard is off on Android (no picture clipboard there); no camera capture yet;
       English / Latin text only; no Excel file part (it only puts in values).
-  - ⬜ Searchable PDF text, notes that move with inserted cells, Name Box lists, live Flash Fill,
-    .xlsb and .ods.
+  - ✅ Searchable PDF text: File › Export › Create PDF lays each page's text invisibly over its picture, where it
+    was drawn (as a scanner's searchable PDF), so the PDF can be searched and its text selected and copied, while
+    the page still looks exactly as on screen. The text is recorded as the page draws it (`print/text-layer.ts`
+    wraps the canvas's fillText: transform, alignment, baseline, turned text) and set in a 512-byte shapeless
+    TrueType font Cells writes itself (`pdf-font.ts`, as Tesseract's GlyphLessFont) with a ToUnicode map, so any
+    character copies right (accents, CJK, emoji). Checked with pdftotext, pdffonts and Ghostscript (the page renders
+    the same, the words' boxes sit on the drawn words, wrapped, right-aligned and turned text included) and pdf.js:
+    Cells' own Get Data › From PDF reads an exported table back cell for cell.
+    Limits: text inside charts, shapes and pictures isn't in the layer (they're drawn as pictures); a cell's text
+    is there in full where the picture clips it (as Office's PDFs keep clipped text); diagonal text comes out in
+    pieces in some readers; the system Print dialog's "Save as PDF" still makes pictures only.
+  - ⬜ Notes that move with inserted cells, Name Box lists, live Flash Fill, .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

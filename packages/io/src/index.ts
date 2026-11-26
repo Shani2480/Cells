@@ -41,6 +41,6 @@ export {
   type ColumnFormat,
 } from "./text/read"
 export { saveText, textSaveFor, type TextSave } from "./text/write"
-export { pdfFromImages, type PdfPage, type PdfInfo } from "./pdf"
+export { pdfFromImages, type PdfPage, type PdfInfo, type PdfText } from "./pdf"
 export { themeFromFile } from "./xlsx/theme"
 export { pdfTables, type PdfItem, type PdfPageText, type PdfRule, type PdfRun } from "./pdf-tables"

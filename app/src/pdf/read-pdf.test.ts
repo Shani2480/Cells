@@ -88,3 +88,35 @@ describe("From PDF: tables found in real PDFs", () => {
     expect(pdfTables(read.pages).map((i) => [i.name, i.rows.length])).toEqual([["Page001", 0]])
   })
 })
+
+describe("From PDF: Cells' own exported PDFs", () => {
+  it("reads the invisible text over an exported page's picture, so its table comes back", async () => {
+    const jpeg = fixture("scan-invoice.jpg")
+    const row = (y: number, cells: string[]) =>
+      cells.map((text, i) => ({ text, x: 72 + i * 110, y, size: 11, width: text.length * 5.5 }))
+    const bytes = pdfFromImages([
+      {
+        width: 612,
+        height: 792,
+        jpeg,
+        pixelWidth: 2550,
+        pixelHeight: 3300,
+        text: [
+          ...row(90, ["Region", "Product", "Units"]),
+          ...row(106, ["North", "Pens", "10"]),
+          ...row(122, ["South", "Paper", "25"]),
+          ...row(138, ["Zürich", "Café", "7"]),
+        ],
+      },
+    ])
+    const read = await readPdf(bytes, pdfjs as unknown as PdfJs)
+    expect(read.pages[0].scanned).toBe(false)
+    const [table] = pdfTables(read.pages)
+    expect(table.rows).toEqual([
+      ["Region", "Product", "Units"],
+      ["North", "Pens", "10"],
+      ["South", "Paper", "25"],
+      ["Zürich", "Café", "7"],
+    ])
+  })
+})

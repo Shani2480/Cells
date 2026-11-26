@@ -1,7 +1,8 @@
 import type { Pagination, PrintPage, Sheet } from "@cells/core"
-import { pdfFromImages, type PdfPage } from "@cells/io"
+import { pdfFromImages, type PdfPage, type PdfText } from "@cells/io"
 import type { SheetController } from "@/sheet/controller"
 import { drawPage, type PrintContext } from "./render"
+import { recordText } from "./text-layer"
 
 /** File › Print › Settings: what prints. */
 export type PrintWhat = "active" | "workbook" | "selection"
@@ -27,17 +28,24 @@ export function printJob(c: SheetController, what: PrintWhat, ignorePrintArea = 
   return out
 }
 
-/** A page drawn on a new canvas at `pxPerPt` pixels per point. */
+/** A page drawn on a new canvas at `pxPerPt` pixels per point; the text drawn goes into `text` when it's given. */
 export async function pageCanvas(
   c: SheetController,
   job: JobPage,
   ctx: PrintContext,
   pxPerPt: number,
+  text?: PdfText[],
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas")
-  canvas.width = Math.round(job.pagination.paper.width * pxPerPt)
-  canvas.height = Math.round(job.pagination.paper.height * pxPerPt)
-  await drawPage(canvas, c, job.sheet, job.pagination, job.page, ctx, pxPerPt)
+  const paper = job.pagination.paper
+  canvas.width = Math.round(paper.width * pxPerPt)
+  canvas.height = Math.round(paper.height * pxPerPt)
+  const stop = text ? recordText(canvas.getContext("2d")!, pxPerPt, paper) : null
+  try {
+    await drawPage(canvas, c, job.sheet, job.pagination, job.page, ctx, pxPerPt)
+  } finally {
+    if (stop) text?.push(...stop())
+  }
   return canvas
 }
 
@@ -49,7 +57,10 @@ const blobOf = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("The page couldn't be drawn."))), type, quality),
   )
 
-/** The job as a PDF: each page drawn at print resolution. */
+/**
+ * The job as a PDF: each page drawn at print resolution, with its text laid invisibly over the picture where it was
+ * drawn, so the PDF can be searched and its text copied.
+ */
 export async function jobPdf(
   c: SheetController,
   pages: readonly JobPage[],
@@ -59,7 +70,8 @@ export async function jobPdf(
   const pxPerPt = PRINT_DPI / 72
   const out: PdfPage[] = []
   for (const [i, job] of pages.entries()) {
-    const canvas = await pageCanvas(c, job, ctx, pxPerPt)
+    const text: PdfText[] = []
+    const canvas = await pageCanvas(c, job, ctx, pxPerPt, text)
     const jpeg = new Uint8Array(await (await blobOf(canvas, "image/jpeg", 0.92)).arrayBuffer())
     out.push({
       width: job.pagination.paper.width,
@@ -67,6 +79,7 @@ export async function jobPdf(
       jpeg,
       pixelWidth: canvas.width,
       pixelHeight: canvas.height,
+      text,
     })
     progress?.((i + 1) / pages.length)
     // Let the window draw the progress between pages.
