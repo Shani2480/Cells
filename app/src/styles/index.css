@@ -6120,3 +6120,9 @@ button.rel-row:hover,
     max-height: 180px;
   }
 }
+
+/* Spelling: where a word outside the cells is (a note, a shape, a header). */
+.spelling-where {
+  color: var(--app-ribbon-muted);
+  font-weight: normal;
+}

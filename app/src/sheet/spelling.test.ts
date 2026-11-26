@@ -98,3 +98,69 @@ describe("Spelling in another language", () => {
     expect((await s.useSpeller(dutch))!.word).toBe("recieve")
   })
 })
+
+describe("Spelling beyond the cells", () => {
+  it("checks notes, comments, shapes and headers after the cells, each word changed in its place", async () => {
+    const c = setup([["A1", "fine"]])
+    c.wb.transact(
+      [
+        {
+          kind: "annotations",
+          sheet: 0,
+          writes: [{ row: 2, col: 1, value: { kind: "note", author: "Alex Demo", text: "chekc this", shown: false } }],
+        },
+      ],
+      { label: "x", before: c.selection },
+    )
+    c.wb.transact(
+      [
+        {
+          kind: "annotations",
+          sheet: 0,
+          writes: [
+            {
+              row: 4,
+              col: 0,
+              value: { kind: "comment", resolved: false, posts: [{ author: "Alex Demo", text: "agreeed", time: 0 }] },
+            },
+          ],
+        },
+      ],
+      { label: "x", before: c.selection },
+    )
+    const shape = c.objects.insertShape("rect", { x: 300, y: 40, w: 120, h: 60 })
+    c.objects.setRichText(shape.id, {
+      paragraphs: [{ runs: [{ text: "Budgt", bold: true }, { text: " plan" }] }],
+    })
+    c.wb.transact(
+      [
+        {
+          kind: "pageSetup",
+          sheet: 0,
+          setup: { ...c.sheet.pageSetup, header: { left: "", center: '&"Arial,Bold"&14Quartrly &P', right: "" } },
+        },
+      ],
+      { label: "x", before: c.selection },
+    )
+    c.objects.select(null)
+    c.setSelection(selectRange(parseRange("A1")!))
+    const s = new SpellingSession(c, dict())
+    const note = (await s.next())!
+    expect(note).toMatchObject({ row: 2, col: 1, word: "chekc", place: { kind: "note" } })
+    expect(s.where()).toBe("In the note on B3")
+    const comment = (await s.change("check"))!
+    expect(c.sheet.annotations.get(2, 1)).toMatchObject({ text: "check this" })
+    expect(comment).toMatchObject({ word: "agreeed", place: { kind: "comment", post: 0 } })
+    const inShape = (await s.change("agreed"))!
+    expect(inShape).toMatchObject({ word: "Budgt", place: { kind: "shape", id: shape.id } })
+    expect(c.objects.selected).toEqual([shape.id])
+    const header = (await s.change("Budget"))!
+    expect(c.objects.find(shape.id)).toMatchObject({
+      text: { paragraphs: [{ runs: [{ text: "Budget", bold: true }, { text: " plan" }] }] },
+    })
+    expect(header).toMatchObject({ word: "Quartrly", place: { kind: "header", field: "header", section: "center" } })
+    expect(s.where()).toBe("In the center section of the header")
+    expect(await s.change("Quarterly")).toBeNull()
+    expect(c.sheet.pageSetup.header.center).toBe('&"Arial,Bold"&14Quarterly &P')
+  })
+})

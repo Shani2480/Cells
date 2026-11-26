@@ -246,13 +246,14 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 
 - ~~Spelling and Thesaurus: more languages as optional downloads (first-run setup / Settings), with the language
   picker in the Spelling dialog; Excel's proofing options (ignore words in UPPERCASE, with numbers, addresses) in
-  File › Options › Proofing;~~ (spelling done in Phase 9; the thesaurus stays English) ~~AutoCorrect;~~ (done in Phase 9) checking text in charts, text boxes, comments and the header/footer.
+  File › Options › Proofing;~~ (spelling done in Phase 9; the thesaurus stays English) ~~AutoCorrect;~~ (done in Phase 9) ~~checking text in text boxes, comments and the header/footer~~ (done in
+  Phase 9); left: text in charts, AutoCorrect while typing in a shape.
 
 - Shapes and pictures: no Crop tool, picture corrections, colour or artistic effects yet; ~~no Shape Styles or WordArt
   Styles galleries on the Format tabs (the colour menus are there);~~ (done; WordArt Styles in Phase 9) ~~Edit Shape / Edit Points, freeform drawing~~ (done in Phase 9) and
   ~~connectors that stay glued to shapes~~ (done in Phase 9) are missing; ~~adjustment handles (the yellow dots) aren't shown;~~ (done in Phase 9) ~~text in a
   shape is typed as plain text (one format for all of it);~~ (done in Phase 9) Graphics Fill for icons; ~~the Size dialog (Format Shape
-  pane).~~ (done in Phase 9) Spelling doesn't check text in shapes yet.
+  pane).~~ (done in Phase 9) ~~Spelling doesn't check text in shapes yet.~~ (done in Phase 9)
 
 - Themes: Effects (the gallery is shown but not built: Cells' shapes don't use the theme's effect styles yet);
   Customize Colors and Customize Fonts (custom sets); Save Current Theme; Reset to Theme from Template. Conditional

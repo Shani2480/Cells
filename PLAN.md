@@ -786,7 +786,7 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   corner or dragged freehand and closed at its start, and Freeform: Scribble; Shape Format › Edit Shape › Change
   Shape and Edit Points: drag a point, Ctrl+click to take one out, the box following the points; read and written as
   Excel's custGeom, which Excel opens as freeforms). Item 4 done.
-- 🔄 6. Proofing: ✅ more spelling languages as downloads and File › Options › Proofing (14 languages from the
+- ✅ 6. Proofing: ✅ more spelling languages as downloads and File › Options › Proofing (14 languages from the
   Hunspell word lists, wooorm's dictionary-* packages pinned on jsDelivr and checked by SHA-256 before they're kept in
   the app's storage, so they work offline; offered in the setup for the region picked, listed with size and licence
   in Options › Proofing, picked in the Spelling dialog, which checks on in the new language; the dictionary is read in
@@ -795,7 +795,10 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   in, is corrected; Replace text as you type with Office's symbols and common slips, kept in the typed case; TWo
   INitial CApitals, Caps Lock words, day names, a sentence's first letter but not a cell's; formulas untouched; the
   AutoCorrect dialog from Options › Proofing adds, replaces and deletes entries; shared with Inkspire);
-  ⬜ checking text in shapes, comments and headers/footers. Left out: Italian and Portuguese, whose
+  ✅ Spelling beyond the cells (checking the whole sheet goes on to its notes, comments, shapes and text boxes, and
+  headers and footers, each word changed in its place, a shape's keeping its formatting, a header's codes never taken
+  for words; the dialog says where a word outside the cells is; selected shapes are checked alone). Item 6 done.
+  Not yet: AutoCorrect while typing in a shape (it works in cells and the formula bar), text in charts. Left out: Italian and Portuguese, whose
   files nspell can't read.
 - ⬜ 7. Themes: Customize Colors and Customize Fonts, Save Current Theme, Reset to Theme from Template; conditional
   formats and chart colours from files following the theme.

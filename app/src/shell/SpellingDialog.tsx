@@ -96,7 +96,7 @@ export function SpellingDialog({ controller, onClose }: { controller: SheetContr
       ) : (
         <div className="spelling">
           <label className="dialog-label" htmlFor="spelling-word">
-            Not in Dictionary:
+            Not in Dictionary:{s?.where() ? <span className="spelling-where"> {s.where()}</span> : null}
           </label>
           <div />
           <input id="spelling-word" className="dialog-field" value={word} onChange={(e) => setWord(e.target.value)} />

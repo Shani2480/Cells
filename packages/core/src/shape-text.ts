@@ -156,3 +156,45 @@ export function alignAt(text: ShapeText, at: number): TextParagraph["align"] {
 export function tidyText(text: ShapeText): ShapeText {
   return { ...text, paragraphs: text.paragraphs.map((p) => (p.math ? p : { ...p, runs: tidy(p.runs) })) }
 }
+
+/** The text as positions here count it: each paragraph's runs, paragraphs joined by "\n" (an equation is empty). */
+export function textPositions(text: ShapeText): string {
+  return text.paragraphs.map((p) => (p.math ? "" : p.runs.map((r) => r.text).join(""))).join("\n")
+}
+
+/**
+ * The text with `insert` in place of `from` to `to` (both in one paragraph, as a word is): the new text takes the
+ * look of the run the change starts in, and the runs around keep theirs.
+ */
+export function replaceText(text: ShapeText, from: number, to: number, insert: string): ShapeText {
+  const out = copyText(text)
+  const starts = paragraphStarts(out)
+  let i = starts.length - 1
+  while (i > 0 && starts[i] > from) i--
+  const p = out.paragraphs[i]
+  if (!p || p.math) return out
+  const a = from - starts[i]
+  const b = Math.min(paragraphLength(p), to - starts[i])
+  // The run holding the first character changed (or the last run, at the paragraph's end) takes the new text.
+  let at = 0
+  let k = p.runs.length - 1
+  for (const [j, r] of p.runs.entries()) {
+    if (a >= at && a < at + r.text.length) {
+      k = j
+      break
+    }
+    at += r.text.length
+  }
+  at = 0
+  const clamp = (v: number, n: number) => Math.max(0, Math.min(n, v))
+  const runs = p.runs.map((r, j) => {
+    const s = at
+    at += r.text.length
+    const before = r.text.slice(0, clamp(a - s, r.text.length))
+    const after = r.text.slice(clamp(b - s, r.text.length))
+    return { ...r, text: before + (j === k ? insert : "") + after }
+  })
+  if (!runs.length) runs.push({ text: insert })
+  p.runs = tidy(runs)
+  return out
+}

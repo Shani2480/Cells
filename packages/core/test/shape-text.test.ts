@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { alignText, formatText, lookAt, textLength, type ShapeText } from "../src"
+import { alignText, formatText, lookAt, replaceText, textLength, textPositions, type ShapeText } from "../src"
 
 const text = (): ShapeText => ({
   paragraphs: [{ runs: [{ text: "Hello world", size: 14 }] }, { runs: [] }, { align: "ctr", runs: [{ text: "Bye" }] }],
@@ -37,5 +37,24 @@ describe("formatting part of a shape's text", () => {
     const t = alignText(text(), 2, 2, "r")
     expect(t.paragraphs.map((p) => p.align)).toEqual(["r", undefined, "ctr"])
     expect(alignText(text(), 0, 16, null).paragraphs.map((p) => p.align)).toEqual([undefined, undefined, undefined])
+  })
+})
+
+describe("replacing a word in shape text", () => {
+  const text: ShapeText = {
+    paragraphs: [
+      { runs: [{ text: "Plan " }, { text: "teh", bold: true }, { text: " year" }] },
+      { runs: [{ text: "wrnog" }] },
+    ],
+  }
+
+  it("keeps the look of the run the word is in, and the runs around it", () => {
+    expect(textPositions(text)).toBe("Plan teh year\nwrnog")
+    const out = replaceText(text, 5, 8, "the")
+    expect(out.paragraphs[0].runs).toEqual([{ text: "Plan " }, { text: "the", bold: true }, { text: " year" }])
+    expect(replaceText(text, 14, 19, "wrong").paragraphs[1].runs).toEqual([{ text: "wrong" }])
+    // A word spanning two runs takes the first run's look.
+    const split: ShapeText = { paragraphs: [{ runs: [{ text: "re", italic: true }, { text: "cieve" }] }] }
+    expect(replaceText(split, 0, 7, "receive").paragraphs[0].runs).toEqual([{ text: "receive", italic: true }])
   })
 })
