@@ -229,6 +229,19 @@ an account, a pen layer or a desktop capture Cells doesn't have; View Code and M
 run (macros in `.xlsm` files are kept). SmartArt, 3D Models, Equations, Signature Line and Object (OLE) are
 built in Part 8b.
 
+## Phase 9 — Trust, printing, shapes and the rest of the gaps (0.9.0)
+
+Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes along with each part.
+
+- [ ] 1 Quiet fixes (links with cut/paste and Insert/Delete Cells, Advanced Filter saved, Select locked cells,
+      row refit, wheel by rows)
+- [ ] 2 Verify sweep (`docs/verify-list.md`)
+- [ ] 3 Printing and page layout
+- [ ] 4 Shapes and text boxes
+- [ ] 6 Proofing
+- [ ] 7 Themes
+- [ ] 8 Several workbooks at once
+
 ## Later (from Phase 7)
 
 - Spelling and Thesaurus: more languages as optional downloads (first-run setup / Settings), with the language

@@ -752,6 +752,34 @@ own cell (Excel: the last changed cell), INFO("recalc") always says Automatic.
 
 ---
 
+### Phase 9 — Trust, printing, shapes and the rest of the gaps (0.9.0) 🔄
+
+Chosen 2026-11-26 from the shortlist (the .ods/.xlsb round two stays for later). In this order, one commit per
+part; the verify sweep runs alongside, area by area, as each part touches it.
+
+- ⬜ 1. Quiet fixes: links move with cut and paste and with Insert/Delete Cells, and a pasted cell brings its link;
+  an Advanced Filter in place is saved as Excel saves it (_FilterDatabase, Criteria) so Clear and Reapply work
+  after reopening; "Select locked cells" off is enforced on a protected sheet; rows refit when a column width
+  changes, and edits over 20,000 rows refit too; the wheel scrolls by rows, as in Excel.
+- ⬜ 2. Verify sweep: the open items in `docs/verify-list.md` checked in Excel 365 and on the OnePlus Pad / Pixel,
+  fixed where they differ, ticked off as they pass.
+- ⬜ 3. Printing and page layout: different first page and odd/even headers and footers (the Options group) and
+  Picture / Format Picture in headers; print titles repeated on each page in Page Layout view; black-and-white
+  printing applied; printing and PDF of chart sheets.
+- ⬜ 4. Shapes and text boxes: formatted text in shapes (runs, as in cells' rich text), the Format Shape pane, Shape
+  Styles and WordArt Styles galleries, adjustment handles, Edit Points and freeform drawing, connectors that stay
+  glued to shapes.
+- ⬜ 6. Proofing: more spelling languages as optional downloads (setup and Settings, the language picker in the
+  Spelling dialog), File › Options › Proofing (ignore UPPERCASE, words with numbers, addresses), AutoCorrect,
+  checking text in shapes, comments and headers/footers.
+- ⬜ 7. Themes: Customize Colors and Customize Fonts, Save Current Theme, Reset to Theme from Template; conditional
+  formats and chart colours from files following the theme.
+- ⬜ 8. Several workbooks at once: each open workbook in its own window on the desktop (and a switcher on phones and
+  tablets), with every window's view saved (Excel's workbookView per window).
+
+To decide when we get there: where the spelling dictionaries are downloaded from (6); how several workbooks look
+on Android (8).
+
 ## 4. Verifying against Excel (all phases)
 
 - **Mechanism:** local, git-ignored tooling like Inkspire's Word renderer: copy files into the Office VM through the
