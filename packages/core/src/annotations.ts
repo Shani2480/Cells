@@ -70,17 +70,28 @@ export class Annotations {
     this.map.clear()
   }
 
+  /** The annotations in a range. */
+  within(range: Range): { row: number; col: number; value: Annotation }[] {
+    return this.all().filter((a) => a.row >= range.r0 && a.row <= range.r1 && a.col >= range.c0 && a.col <= range.c1)
+  }
+
   /**
    * Inserting (count > 0) or deleting (count < 0) lines at `at`: annotations below or right move; those in deleted
-   * lines go.
+   * lines go. With `band` (the first and last column for rows, row for columns), only that part of the lines moves:
+   * Insert or Delete Cells, shifting cells down / up or right / left.
    */
-  shift(axis: "rows" | "cols", at: number, count: number) {
+  shift(axis: "rows" | "cols", at: number, count: number, band?: [number, number]) {
     if (!this.map.size) return
     const items = [...this.map.values()]
     this.map.clear()
     for (const a of items) {
       let { row, col } = a
       const pos = axis === "rows" ? row : col
+      const across = axis === "rows" ? col : row
+      if (band && (across < band[0] || across > band[1])) {
+        this.map.set(key(row, col), a)
+        continue
+      }
       if (count < 0 && pos >= at && pos < at - count) continue
       if (pos >= at) {
         if (axis === "rows") row += count

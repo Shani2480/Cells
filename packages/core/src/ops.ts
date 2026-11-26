@@ -772,11 +772,13 @@ function insertCells(sheets: readonly Sheet[], index: number, range: Range, shif
     texts = rewriteReferences(sheets, index, shiftMapper("rows", range.r0, n, [range.c0, range.c1]))
     dropped = sheet.cells.entries({ r0: MAX_ROWS - n, r1: MAX_ROWS - 1, c0: range.c0, c1: range.c1 })
     sheet.cells.shiftRows(range.r0, n, range.c0, range.c1)
+    sheet.annotations.shift("rows", range.r0, n, [range.c0, range.c1])
   } else {
     const n = range.c1 - range.c0 + 1
     texts = rewriteReferences(sheets, index, shiftMapper("cols", range.c0, n, [range.r0, range.r1]))
     dropped = sheet.cells.entries({ r0: range.r0, r1: range.r1, c0: MAX_COLS - n, c1: MAX_COLS - 1 })
     sheet.cells.shiftCols(range.c0, n, range.r0, range.r1)
+    sheet.annotations.shift("cols", range.c0, n, [range.r0, range.r1])
   }
   const inverse: Op[] = [{ kind: "deleteCells", sheet: index, range, shift: shift === "down" ? "up" : "left" }]
   if (dropped.length) {
@@ -789,6 +791,7 @@ function insertCells(sheets: readonly Sheet[], index: number, range: Range, shif
 function deleteCells(sheets: readonly Sheet[], index: number, range: Range, shift: "up" | "left"): Applied {
   const sheet = sheets[index]
   const removed = sheet.cells.entries(range)
+  const notes = sheet.annotations.within(range)
   const texts =
     shift === "up"
       ? rewriteReferences(
@@ -804,13 +807,17 @@ function deleteCells(sheets: readonly Sheet[], index: number, range: Range, shif
   sheet.cells.clear(range)
   if (shift === "up") {
     sheet.cells.shiftRows(range.r1 + 1, -(range.r1 - range.r0 + 1), range.c0, range.c1)
+    sheet.annotations.shift("rows", range.r0, -(range.r1 - range.r0 + 1), [range.c0, range.c1])
   } else {
     sheet.cells.shiftCols(range.c1 + 1, -(range.c1 - range.c0 + 1), range.r0, range.r1)
+    sheet.annotations.shift("cols", range.c0, -(range.c1 - range.c0 + 1), [range.r0, range.r1])
   }
   const inverse: Op[] = [{ kind: "insertCells", sheet: index, range, shift: shift === "up" ? "down" : "right" }]
   if (removed.length) {
     inverse.push({ kind: "setCells", sheet: index, cells: removed })
   }
+  // The deleted cells' notes and comments come back with them.
+  if (notes.length) inverse.push({ kind: "annotations", sheet: index, writes: notes })
   inverse.push(...texts)
   return { inverse, change: { sheet: index, structural: true } }
 }
@@ -867,6 +874,20 @@ function moveCells(sheets: readonly Sheet[], op: Extract<Op, { kind: "moveCells"
     delete data.spill
     sheet.cells.set(entry.row + dr, entry.col + dc, data)
   }
+  // Notes and comments go with their cells, replacing the destination's (as Excel's cut and paste).
+  const notesMoved = sheet.annotations.within(source)
+  const notesBefore = new Map<string, AnnotationWrite>()
+  for (const a of [...notesMoved, ...sheet.annotations.within(dest)]) {
+    notesBefore.set(`${a.row},${a.col}`, { row: a.row, col: a.col, value: a.value })
+    sheet.annotations.set(a.row, a.col, null)
+  }
+  for (const a of notesMoved) {
+    const k = `${a.row + dr},${a.col + dc}`
+    if (!notesBefore.has(k)) notesBefore.set(k, { row: a.row + dr, col: a.col + dc, value: null })
+    sheet.annotations.set(a.row + dr, a.col + dc, a.value)
+  }
   const inverse: Op[] = [{ kind: "setCells", sheet: op.sheet, cells: [...previous.values()] }, ...texts]
+  if (notesBefore.size)
+    inverse.splice(1, 0, { kind: "annotations", sheet: op.sheet, writes: [...notesBefore.values()] })
   return { inverse, change: { sheet: op.sheet, structural: true } }
 }

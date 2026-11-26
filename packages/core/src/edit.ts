@@ -1,4 +1,5 @@
 import { MAX_COLS, MAX_ROWS, rangeCols, rangeRows, type Range } from "./address"
+import { copyAnnotation, type Annotation, type AnnotationWrite } from "./annotations"
 import type { CellData } from "./cell-store"
 import { fillSeries } from "./fill"
 import { copyFormula } from "./formula/adjust"
@@ -15,6 +16,38 @@ export type CellBlock = {
   cells: (CellData | undefined)[][]
   /** Where the block was copied from; pasted formulas move their relative references by the distance. */
   origin?: { row: number; col: number }
+  /**
+   * The notes and comments copied with the cells, by place in the block. Present (even empty) when they're pasted
+   * too, replacing the destination's, as a copy within Cells does; absent for text from elsewhere, which leaves them.
+   */
+  notes?: { row: number; col: number; value: Annotation }[]
+}
+
+/** The notes and comments of `range`, by place, for a copied block. */
+export function readNotes(sheet: Sheet, range: Range): NonNullable<CellBlock["notes"]> {
+  return sheet.annotations
+    .within(range)
+    .map((a) => ({ row: a.row - range.r0, col: a.col - range.c0, value: copyAnnotation(a.value) }))
+}
+
+/**
+ * The notes and comments a paste of `block` over `area` writes (repeated with the cells when it's tiled): each the
+ * block's at its place, and the destination's others removed. Null when the block carries none or nothing changes.
+ */
+export function pasteNotesOp(sheetIndex: number, sheet: Sheet, area: Range, block: CellBlock): Op | null {
+  if (!block.notes) return null
+  const writes = new Map<string, AnnotationWrite>()
+  for (const a of sheet.annotations.within(area))
+    writes.set(`${a.row},${a.col}`, { row: a.row, col: a.col, value: null })
+  for (let r0 = area.r0; r0 <= area.r1; r0 += block.rows)
+    for (let c0 = area.c0; c0 <= area.c1; c0 += block.cols)
+      for (const n of block.notes) {
+        const row = r0 + n.row
+        const col = c0 + n.col
+        if (row > area.r1 || col > area.c1) continue
+        writes.set(`${row},${col}`, { row, col, value: copyAnnotation(n.value) })
+      }
+  return writes.size ? { kind: "annotations", sheet: sheetIndex, writes: [...writes.values()] } : null
 }
 
 /** A cell's content written `dr` rows and `dc` columns from where it was: formulas adjust relative references. */

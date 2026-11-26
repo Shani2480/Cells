@@ -691,7 +691,13 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     Limits: text inside charts, shapes and pictures isn't in the layer (they're drawn as pictures); a cell's text
     is there in full where the picture clips it (as Office's PDFs keep clipped text); diagonal text comes out in
     pieces in some readers; the system Print dialog's "Save as PDF" still makes pictures only.
-  - ⬜ Notes that move with inserted cells, Name Box lists, live Flash Fill, .xlsb and .ods.
+  - ✅ Notes and comments that move with their cells, as measured in Excel 365: Insert Cells (shift down or right)
+    and Delete Cells (shift up or left) move them along their rows or columns, a deleted cell's note going with it;
+    cut and paste moves them, on the sheet or to another, replacing the destination's; copy and paste copies them,
+    tiled with the cells, also replacing the destination's (a cell without a note pasted over one takes it away).
+    Sort already moved them with their rows; Fill and text pasted from other apps leave them, as in Excel. Every
+    case undoes in one step. Checked in the app: a note's red corner follows its cell.
+  - ⬜ Name Box lists, live Flash Fill, .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

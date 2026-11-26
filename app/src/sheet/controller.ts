@@ -55,6 +55,8 @@ import {
   pasteArea,
   pointedText,
   pasteBlockOp,
+  pasteNotesOp,
+  readNotes,
   rangeCols,
   rangeName,
   rangeOf,
@@ -270,6 +272,14 @@ function clearCellsOp(sheetIndex: number, sheet: Sheet, range: Range): Op {
   const cells: CellWrite[] = sheet.cells.entries(range).map((e) => ({ row: e.row, col: e.col, data: undefined }))
   return { kind: "setCells", sheet: sheetIndex, cells }
 }
+
+/** The notes and comments of a range removed: the source of a cut pasted on another sheet. */
+function clearNotesOp(sheetIndex: number, sheet: Sheet, range: Range): Op | null {
+  const writes = sheet.annotations.within(range).map((a) => ({ row: a.row, col: a.col, value: null }))
+  return writes.length ? { kind: "annotations", sheet: sheetIndex, writes } : null
+}
+
+const optional = (op: Op | null): Op[] => (op ? [op] : [])
 
 /** Excel's message when an edit would change some of a What-If data table's cells. */
 const DATA_TABLE_MESSAGE = "Cannot change part of a data table."
@@ -1485,7 +1495,9 @@ export class SheetController {
     if (this.selection.ranges.length !== 1) return null
     const range = clampToUsed(this.sheet, this.selection.ranges[0])
     const content = this.rangeContent(this.sheetIndex, range)
-    this.clip = { range, cut, text: content.text, block: content.block, sheet: this.sheet }
+    // Notes and comments go with a copy pasted in Cells (not onto the system clipboard's text).
+    const block = { ...content.block, notes: readNotes(this.sheet, range) }
+    this.clip = { range, cut, text: content.text, block, sheet: this.sheet }
     this.changed()
     return { text: content.text, html: content.html }
   }
@@ -1548,10 +1560,15 @@ export class SheetController {
       const area = { r0: target.r0, c0: target.c0, r1: target.r0 + block.rows - 1, c1: target.c0 + block.cols - 1 }
       const from = this.wb.sheets.indexOf(this.clip.sheet)
       if (from < 0) return false
-      const ops =
+      const ops: Op[] =
         from === this.sheetIndex
           ? moveBlockOps(this.sheetIndex, this.clip.range, area)
-          : [pasteBlockOp(this.sheetIndex, area, block), clearCellsOp(from, this.clip.sheet, this.clip.range)]
+          : [
+              pasteBlockOp(this.sheetIndex, area, block),
+              ...optional(pasteNotesOp(this.sheetIndex, this.sheet, area, block)),
+              clearCellsOp(from, this.clip.sheet, this.clip.range),
+              ...optional(clearNotesOp(from, this.clip.sheet, this.clip.range)),
+            ]
       const after = selectRange(area, { row: area.r0, col: area.c0 })
       this.clip = null
       this.transact(ops, { label: "Move", before, after })
@@ -1560,7 +1577,10 @@ export class SheetController {
     }
     const area = pasteArea(target, block)
     const after = selectRange(area, this.selection.active)
-    this.transact([pasteBlockOp(this.sheetIndex, area, block)], { label: "Paste", before, after })
+    this.transact(
+      [pasteBlockOp(this.sheetIndex, area, block), ...optional(pasteNotesOp(this.sheetIndex, this.sheet, area, block))],
+      { label: "Paste", before, after },
+    )
     this.setSelection(after, null)
     return true
   }
