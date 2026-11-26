@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { copyTheme, OFFICE_THEME, type Theme } from "@cells/core"
 import { readZip } from "@cells/ooxml"
-import { openXlsx, saveXlsx } from "../src"
+import { openXlsx, saveXlsx, themeFileBytes, themeFromFile } from "../src"
 
 const fixture = (name: string) => new Uint8Array(readFileSync(join(__dirname, "fixtures/excel", `${name}.xlsx`)))
 
@@ -90,5 +90,27 @@ describe("Page Layout › Themes", () => {
     }
     expect(await names()).not.toContain("xl/theme/theme1.xml")
     expect(await names({ ...copyTheme(OFFICE_THEME), ...FACET })).toContain("xl/theme/theme1.xml")
+  })
+})
+
+describe("Save Current Theme", () => {
+  it("writes an Office theme file that Browse for Themes reads back", async () => {
+    const theme = {
+      ...OFFICE_THEME,
+      name: "Harbour",
+      colors: { ...OFFICE_THEME.colors, accent1: "1F6F8B", dk2: "203040" },
+      fonts: { major: "Georgia", minor: "Verdana" },
+      colorsName: "Harbour Blues",
+      fontsName: "Harbour Type",
+    }
+    const back = await themeFromFile(await themeFileBytes(theme))
+    expect(back).toMatchObject({
+      name: "Harbour",
+      fonts: { major: "Georgia", minor: "Verdana" },
+      colorsName: "Harbour Blues",
+      fontsName: "Harbour Type",
+    })
+    expect(back!.colors.accent1).toBe("1F6F8B")
+    expect(back!.colors.dk2).toBe("203040")
   })
 })

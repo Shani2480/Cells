@@ -256,7 +256,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
   pane).~~ (done in Phase 9) ~~Spelling doesn't check text in shapes yet.~~ (done in Phase 9)
 
 - Themes: Effects (the gallery is shown but not built: Cells' shapes don't use the theme's effect styles yet);
-  Customize Colors and Customize Fonts (custom sets); Save Current Theme; Reset to Theme from Template. Conditional
+  ~~Customize Colors and Customize Fonts (custom sets); Save Current Theme~~ (done in Phase 9; Reset to Theme from
+  Template is Word's and PowerPoint's, Excel has none). Conditional
   formats and colours in charts read from a file keep their colours (Excel's follow the theme). .xls files keep their
   colours as read (BIFF8 has no theme references).
 - Equations: typing happens in the linear form (Office's Linear view) and builds up when the editor closes; Office

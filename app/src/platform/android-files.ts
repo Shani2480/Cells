@@ -48,6 +48,7 @@ const MIME: Record<string, string> = {
   gif: "image/gif",
   heic: "image/heic",
   heif: "image/heif",
+  thmx: "application/vnd.ms-officetheme",
 }
 
 export const mimeTypeOf = (extension: string) => MIME[extension.toLowerCase()] ?? "application/octet-stream"

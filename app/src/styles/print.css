@@ -594,3 +594,74 @@
   gap: 6px 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+
+/* Create New Theme Colors / Theme Fonts */
+.thc,
+.thf {
+  display: flex;
+  gap: 20px;
+}
+
+.thc-slots {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.thc-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.thc-slot .cfp-color {
+  width: 64px;
+}
+
+.thc-preview,
+.thf-preview {
+  display: flex;
+  flex-direction: column;
+}
+
+.thc-samples {
+  display: flex;
+  gap: 8px;
+}
+
+.thc-name {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.thf-fields {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: 4px;
+}
+
+.thf-fields .dialog-label:not(:first-child) {
+  margin-top: 8px;
+}
+
+.thf-sample {
+  width: 200px;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  background: #fff;
+  color: #000;
+  font-size: 12px;
+}
+
+.thf-heading {
+  margin-bottom: 4px;
+  font-size: 18px;
+}

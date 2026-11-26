@@ -7,7 +7,11 @@ import {
   type ThemeEffects,
   type ThemeSlot,
 } from "@cells/core"
+import { useState } from "react"
 import { themeEffectFilter } from "@/drawing/render"
+import { updateSettings, useSettings } from "@/settings/settings"
+import type { CustomThemeColors, CustomThemeFonts } from "@/settings/shared"
+import { ContextMenu, type MenuItem } from "@/shell/ContextMenu"
 import { EFFECT_SCHEMES } from "./effects-data"
 import type { SheetController } from "@/sheet/controller"
 import { COLOR_SETS, FONT_SETS, THEMES } from "./themes-data"
@@ -59,17 +63,33 @@ export const OFFICE_FONT_SETS: { label: string; name: string; major: string; min
 const shownName = (name: string) => (name === "Office Theme" ? "Office" : name.replace(/ Theme$/, ""))
 
 /** The theme with its colours or fonts replaced (Excel keeps the theme's name and names the set apart). */
-function withColors(theme: Theme, set: (typeof OFFICE_COLOR_SETS)[number]): Theme {
+function withColors(theme: Theme, set: { name: string; colors: Theme["colors"] }): Theme {
   return { ...copyTheme(theme), colors: { ...set.colors }, colorsName: set.name }
 }
 
-function withFonts(theme: Theme, set: (typeof OFFICE_FONT_SETS)[number]): Theme {
+function withFonts(theme: Theme, set: { name: string; major: string; minor: string }): Theme {
   return { ...copyTheme(theme), fonts: { major: set.major, minor: set.minor }, fontsName: set.name }
+}
+
+/** A colour set (Office's or the person's) given to the workbook's theme, as one step to undo. */
+export function applyThemeColors(c: SheetController, set: { name: string; colors: Theme["colors"] }) {
+  setTheme(c, withColors(c.wb.theme, set), "Theme Colors")
+}
+
+export function applyThemeFonts(c: SheetController, set: { name: string; major: string; minor: string }) {
+  setTheme(c, withFonts(c.wb.theme, set), "Theme Fonts")
 }
 
 function setTheme(c: SheetController, theme: Theme, label: string) {
   const now = c.wb.theme
-  if (sameLook(theme, now) && theme.name === now.name && theme.effects?.scheme === now.effects?.scheme) return
+  if (
+    sameLook(theme, now) &&
+    theme.name === now.name &&
+    theme.colorsName === now.colorsName &&
+    theme.fontsName === now.fontsName &&
+    theme.effects?.scheme === now.effects?.scheme
+  )
+    return
   if (c.edit) c.commitEdit()
   c.transact([{ kind: "theme", theme }], { label, before: c.selection })
 }
@@ -144,6 +164,202 @@ function Chips({ colors }: { colors: Theme["colors"] }) {
   )
 }
 
+/** A right-click menu on a gallery's custom entries (Edit…, Delete…), drawn over the gallery. */
+function useEntryMenu() {
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+  const open = (items: MenuItem[]) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    // The entry's menu, not the ribbon's (Add to Quick Access Toolbar…).
+    e.stopPropagation()
+    setMenu({ x: e.clientX, y: e.clientY, items })
+  }
+  const shown = menu ? <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} /> : null
+  return { open, shown }
+}
+
+function confirmDelete(env: RibbonEnv, what: string, then: () => void) {
+  env.c.shell.confirm(`Delete these theme ${what}?`, then)
+}
+
+/** Page Layout › Colors: the person's sets (Custom) above Office's. */
+function ColorsPanel({ env, close }: { env: RibbonEnv; close: () => void }) {
+  const custom = useSettings((s) => s.themeColors)
+  const menu = useEntryMenu()
+  const now = env.c.wb.theme
+  const row = (key: string, label: string, set: { name: string; colors: Theme["colors"] }, items?: MenuItem[]) => {
+    const current = sameColors(set.colors, now.colors) && (!items || now.colorsName === set.name)
+    return (
+      <button
+        key={key}
+        type="button"
+        role="menuitemradio"
+        aria-checked={current}
+        className={`pl-item th-row${current ? " is-current" : ""}`}
+        onClick={() => {
+          applyThemeColors(env.c, set)
+          close()
+        }}
+        onContextMenu={items ? menu.open(items) : undefined}
+      >
+        <Chips colors={set.colors} />
+        <span>{label}</span>
+      </button>
+    )
+  }
+  const customItems = (set: CustomThemeColors): MenuItem[] => [
+    { kind: "item", label: "Edit...", onSelect: () => (close(), env.dialog(`themeColors:${set.name}`)) },
+    {
+      kind: "item",
+      label: "Delete...",
+      onSelect: () =>
+        confirmDelete(env, "colors", () => void updateSettings({ themeColors: custom.filter((x) => x !== set) })),
+    },
+  ]
+  return (
+    <div className="pl-list th-list" role="menu" aria-label="Colors">
+      {custom.length ? (
+        <>
+          <div className="th-heading">Custom</div>
+          {custom.map((set) => row(`custom:${set.name}`, set.name, set, customItems(set)))}
+          <div className="th-heading">Office</div>
+        </>
+      ) : null}
+      {OFFICE_COLOR_SETS.map((set) => row(set.label, set.label, set))}
+      {menu.shown}
+    </div>
+  )
+}
+
+/** Page Layout › Fonts: the person's pairs (Custom) above Office's. */
+function FontsPanel({ env, close }: { env: RibbonEnv; close: () => void }) {
+  const custom = useSettings((s) => s.themeFonts)
+  const menu = useEntryMenu()
+  const now = env.c.wb.theme
+  const row = (key: string, label: string, set: { name: string; major: string; minor: string }, items?: MenuItem[]) => {
+    const current =
+      set.major === now.fonts.major && set.minor === now.fonts.minor && (!items || now.fontsName === set.name)
+    return (
+      <button
+        key={key}
+        type="button"
+        role="menuitemradio"
+        aria-checked={current}
+        className={`pl-item th-font${current ? " is-current" : ""}`}
+        onClick={() => {
+          applyThemeFonts(env.c, set)
+          close()
+        }}
+        onContextMenu={items ? menu.open(items) : undefined}
+      >
+        <span className="th-font-aa" style={{ fontFamily: `"${set.major}", sans-serif` }} aria-hidden>
+          Aa
+        </span>
+        <span className="pl-text">
+          <strong>{label}</strong>
+          <span style={{ fontFamily: `"${set.major}", sans-serif` }}>{set.major}</span>
+          <span style={{ fontFamily: `"${set.minor}", sans-serif` }}>{set.minor}</span>
+        </span>
+      </button>
+    )
+  }
+  const customItems = (set: CustomThemeFonts): MenuItem[] => [
+    { kind: "item", label: "Edit...", onSelect: () => (close(), env.dialog(`themeFonts:${set.name}`)) },
+    {
+      kind: "item",
+      label: "Delete...",
+      onSelect: () =>
+        confirmDelete(env, "fonts", () => void updateSettings({ themeFonts: custom.filter((x) => x !== set) })),
+    },
+  ]
+  return (
+    <div className="pl-list th-list" role="menu" aria-label="Fonts">
+      {custom.length ? (
+        <>
+          <div className="th-heading">Custom</div>
+          {custom.map((set) => row(`custom:${set.name}`, set.name, set, customItems(set)))}
+          <div className="th-heading">Office</div>
+        </>
+      ) : null}
+      {OFFICE_FONT_SETS.map((set) => row(set.label, set.label, set))}
+      {menu.shown}
+    </div>
+  )
+}
+
+/** Page Layout › Themes: the themes the person saved (Custom) above Office's. */
+function ThemesPanel({ env, close }: { env: RibbonEnv; close: () => void }) {
+  const saved = useSettings((s) => s.savedThemes)
+  const menu = useEntryMenu()
+  const now = env.c.wb.theme
+  const tile = (t: Theme, key: string, items?: MenuItem[]) => {
+    const current = t.name === now.name && sameLook(t, now)
+    return (
+      <button
+        key={key}
+        type="button"
+        role="menuitemradio"
+        aria-checked={current}
+        className={`th-item${current ? " is-current" : ""}`}
+        title={shownName(t.name)}
+        onClick={() => {
+          setTheme(env.c, copyTheme(t), "Theme")
+          close()
+        }}
+        onContextMenu={items ? menu.open(items) : undefined}
+      >
+        <ThemeTile theme={t} />
+        <span className="th-name">{shownName(t.name)}</span>
+      </button>
+    )
+  }
+  return (
+    <div className="th-panel" role="menu" aria-label="Themes">
+      {saved.length ? (
+        <>
+          <div className="th-heading">Custom</div>
+          <div className="th-grid">
+            {saved.map((t) =>
+              tile(t, `custom:${t.name}`, [
+                {
+                  kind: "item",
+                  label: "Delete...",
+                  onSelect: () =>
+                    env.c.shell.confirm(
+                      "Delete this theme?",
+                      () => void updateSettings({ savedThemes: saved.filter((x) => x !== t) }),
+                    ),
+                },
+              ]),
+            )}
+          </div>
+        </>
+      ) : null}
+      <div className="th-heading">Office</div>
+      <div className="th-grid">{OFFICE_THEMES.map((t) => tile(t, t.name))}</div>
+      {menu.shown}
+    </div>
+  )
+}
+
+/**
+ * Save Current Theme: the workbook's theme as an Office theme file (.thmx), named as the file is; it's also kept
+ * with the person's themes (shared with Inkspire), so the Themes gallery lists it under Custom.
+ */
+async function saveCurrentTheme(env: RibbonEnv) {
+  if (!env.files) return
+  const theme = env.c.wb.theme
+  const { themeFileBytes } = await import("@cells/io")
+  const base = theme.name === "Office Theme" ? "Theme1" : shownName(theme.name)
+  const name = await env.files.saveOther(`${base}.thmx`, { name: "Office Theme", extensions: ["thmx"] }, (chosen) =>
+    themeFileBytes({ ...copyTheme(theme), name: chosen }),
+  )
+  if (!name) return
+  const kept: Theme = { ...copyTheme(theme), name }
+  const saved = useSettings.getState().savedThemes
+  void updateSettings({ savedThemes: [...saved.filter((t) => t.name !== name), kept] })
+  setTheme(env.c, kept, "Theme")
+}
+
 /** Browse for Themes: an Office theme file, or a document whose theme to use. */
 function browseTheme(env: RibbonEnv) {
   const input = document.createElement("input")
@@ -175,36 +391,7 @@ export function themeCommands(): Command[] {
       keytip: "TH",
       menu: [
         {
-          panel: (env, close) => {
-            const now = env.c.wb.theme
-            return (
-              <div className="th-panel" role="menu" aria-label="Themes">
-                <div className="th-heading">Office</div>
-                <div className="th-grid">
-                  {OFFICE_THEMES.map((t) => {
-                    const current = t.name === now.name && sameLook(t, now)
-                    return (
-                      <button
-                        key={t.name}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={current}
-                        className={`th-item${current ? " is-current" : ""}`}
-                        title={shownName(t.name)}
-                        onClick={() => {
-                          setTheme(env.c, copyTheme(t), "Theme")
-                          close()
-                        }}
-                      >
-                        <ThemeTile theme={t} />
-                        <span className="th-name">{shownName(t.name)}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          },
+          panel: (env, close) => <ThemesPanel env={env} close={close} />,
         },
         "-",
         "ThemeBrowseForThemes",
@@ -217,7 +404,14 @@ export function themeCommands(): Command[] {
       description: "Use the theme of an Office theme file (.thmx) or of another workbook, document or presentation.",
       run: browseTheme,
     },
-    { id: "ThemeSaveCurrentTheme", label: "Save Current Theme..." },
+    {
+      id: "ThemeSaveCurrentTheme",
+      label: "Save Current Theme...",
+      description:
+        "Save the workbook's theme as an Office theme file (.thmx), to use in other workbooks and documents.",
+      enabled: (env) => !!env.files,
+      run: (env) => void saveCurrentTheme(env),
+    },
     {
       id: "ThemeColorsGallery",
       label: "Colors",
@@ -226,38 +420,18 @@ export function themeCommands(): Command[] {
       keytip: "TC",
       menu: [
         {
-          panel: (env, close) => {
-            const now = env.c.wb.theme
-            return (
-              <div className="pl-list th-list" role="menu" aria-label="Colors">
-                {OFFICE_COLOR_SETS.map((set) => {
-                  const current = sameColors(set.colors, now.colors)
-                  return (
-                    <button
-                      key={set.label}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={current}
-                      className={`pl-item th-row${current ? " is-current" : ""}`}
-                      onClick={() => {
-                        setTheme(env.c, withColors(env.c.wb.theme, set), "Theme Colors")
-                        close()
-                      }}
-                    >
-                      <Chips colors={set.colors} />
-                      <span>{set.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )
-          },
+          panel: (env, close) => <ColorsPanel env={env} close={close} />,
         },
         "-",
         "ThemeColorsCustomize",
       ],
     },
-    { id: "ThemeColorsCustomize", label: "Customize Colors..." },
+    {
+      id: "ThemeColorsCustomize",
+      label: "Customize Colors...",
+      description: "Make a set of theme colors of your own.",
+      run: (env) => env.dialog("themeColors"),
+    },
     {
       id: "ThemeFontsGallery",
       label: "Fonts",
@@ -265,44 +439,18 @@ export function themeCommands(): Command[] {
       keytip: "TF",
       menu: [
         {
-          panel: (env, close) => {
-            const now = env.c.wb.theme
-            return (
-              <div className="pl-list th-list" role="menu" aria-label="Fonts">
-                {OFFICE_FONT_SETS.map((set) => {
-                  const current = set.major === now.fonts.major && set.minor === now.fonts.minor
-                  return (
-                    <button
-                      key={set.label}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={current}
-                      className={`pl-item th-font${current ? " is-current" : ""}`}
-                      onClick={() => {
-                        setTheme(env.c, withFonts(env.c.wb.theme, set), "Theme Fonts")
-                        close()
-                      }}
-                    >
-                      <span className="th-font-aa" style={{ fontFamily: `"${set.major}", sans-serif` }} aria-hidden>
-                        Aa
-                      </span>
-                      <span className="pl-text">
-                        <strong>{set.label}</strong>
-                        <span style={{ fontFamily: `"${set.major}", sans-serif` }}>{set.major}</span>
-                        <span style={{ fontFamily: `"${set.minor}", sans-serif` }}>{set.minor}</span>
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )
-          },
+          panel: (env, close) => <FontsPanel env={env} close={close} />,
         },
         "-",
         "ThemeFontsCustomize",
       ],
     },
-    { id: "ThemeFontsCustomize", label: "Customize Fonts..." },
+    {
+      id: "ThemeFontsCustomize",
+      label: "Customize Fonts...",
+      description: "Pick the theme's heading and body fonts and save them as a set of your own.",
+      run: (env) => env.dialog("themeFonts"),
+    },
     {
       id: "ThemeEffectsGallery",
       label: "Effects",

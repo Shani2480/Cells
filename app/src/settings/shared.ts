@@ -5,6 +5,7 @@
  * The file is written by two apps, so Cells never writes it from memory: it reads the latest text, puts its own
  * values in at their places and leaves every other key (Inkspire's, a later version's) as it found it.
  */
+import type { Theme, ThemeSlot } from "@cells/core"
 import type { SystemFacts } from "@cells/platform"
 import { DEFAULT_AUTOCORRECT, type AutoCorrectSettings } from "@/proofing/autocorrect"
 
@@ -23,6 +24,26 @@ export const DEFAULT_ADDRESSES: Record<AddressedProvider, string> = {
   lmstudio: "http://127.0.0.1:1234/v1",
   compatible: "",
 }
+
+/** Page Layout › Colors › Customize Colors: a colour set the person made (Office keeps these for all its apps). */
+export type CustomThemeColors = { name: string; colors: Record<ThemeSlot, string> }
+/** Page Layout › Fonts › Customize Fonts: a headings and body font pair the person made. */
+export type CustomThemeFonts = { name: string; major: string; minor: string }
+
+export const THEME_SLOTS: ThemeSlot[] = [
+  "dk1",
+  "lt1",
+  "dk2",
+  "lt2",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+  "hlink",
+  "folHlink",
+]
 
 export type SharedSettings = {
   /** The name notes and comments are signed with (File › Options › User name in Excel). */
@@ -60,6 +81,10 @@ export type SharedSettings = {
   ignoreAddresses: boolean
   /** AutoCorrect's options and the person's changes to its list (`proofing.autoCorrect`), shared as Office's are. */
   autoCorrect: AutoCorrectSettings
+  /** Custom theme colours, fonts and saved themes (`themes.colors`, `themes.fonts`, `themes.saved`), shared as Office's are. */
+  themeColors: CustomThemeColors[]
+  themeFonts: CustomThemeFonts[]
+  savedThemes: Theme[]
   /** Hints that introduce Cells' special features are shown (on by default; `apps.cells.hints`). */
   hintsEnabled: boolean
   /** The hints already dismissed, by id (`apps.cells.hintsDismissed`); emptied by Show hints again. */
@@ -89,6 +114,9 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   ignoreNumbers: true,
   ignoreAddresses: true,
   autoCorrect: DEFAULT_AUTOCORRECT,
+  themeColors: [],
+  themeFonts: [],
+  savedThemes: [],
   hintsEnabled: true,
   hintsDismissed: [],
 }
@@ -119,6 +147,7 @@ export function parseShared(source: string | null): SharedSettings {
   const cells = section(section(root, "apps"), "cells")
   const ai = section(root, "ai")
   const proofing = section(root, "proofing")
+  const themes = section(root, "themes")
   const theme = appearance.theme
   const strings = (value: unknown, keys: readonly string[]) =>
     Object.fromEntries(
@@ -147,11 +176,59 @@ export function parseShared(source: string | null): SharedSettings {
     ignoreNumbers: proofing.ignoreNumbers !== false,
     ignoreAddresses: proofing.ignoreAddresses !== false,
     autoCorrect: parseAutoCorrect(proofing.autoCorrect),
+    themeColors: list(themes.colors, parseColors),
+    themeFonts: list(themes.fonts, parseFonts),
+    savedThemes: list(themes.saved, parseSavedTheme),
     hintsEnabled: cells.hints !== false,
     hintsDismissed: Array.isArray(cells.hintsDismissed)
       ? cells.hintsDismissed.filter((id): id is string => typeof id === "string")
       : [],
   }
+}
+
+const HEX = /^[0-9A-Fa-f]{6}$/
+
+/** A list's entries that read well, by name (the last of a name wins, as a list written whole has one of each). */
+function list<T extends { name: string }>(value: unknown, parse: (v: Json) => T | null): T[] {
+  if (!Array.isArray(value)) return []
+  const byName = new Map<string, T>()
+  for (const v of value) {
+    const item = isObject(v) ? parse(v) : null
+    if (item) byName.set(item.name, item)
+  }
+  return [...byName.values()]
+}
+
+function slotColors(value: unknown): Record<ThemeSlot, string> | null {
+  if (!isObject(value) || !THEME_SLOTS.every((k) => typeof value[k] === "string" && HEX.test(value[k] as string)))
+    return null
+  return Object.fromEntries(THEME_SLOTS.map((k) => [k, (value[k] as string).toUpperCase()])) as Record<
+    ThemeSlot,
+    string
+  >
+}
+
+function parseColors(v: Json): CustomThemeColors | null {
+  const colors = slotColors(v.colors)
+  return text(v.name).trim() && colors ? { name: text(v.name).trim(), colors } : null
+}
+
+function parseFonts(v: Json): CustomThemeFonts | null {
+  const [name, major, minor] = [text(v.name).trim(), text(v.major).trim(), text(v.minor).trim()]
+  return name && major && minor ? { name, major, minor } : null
+}
+
+function parseSavedTheme(v: Json): Theme | null {
+  const colors = slotColors(v.colors)
+  const fonts = isObject(v.fonts) ? parseFonts({ name: "x", ...v.fonts }) : null
+  const name = text(v.name).trim()
+  if (!name || !colors || !fonts) return null
+  const theme: Theme = { name, colors, fonts: { major: fonts.major, minor: fonts.minor } }
+  if (text(v.colorsName)) theme.colorsName = text(v.colorsName)
+  if (text(v.fontsName)) theme.fontsName = text(v.fontsName)
+  if (isObject(v.effects) && text(v.effects.name) && /^<a:fmtScheme\b/.test(text(v.effects.scheme)))
+    theme.effects = { name: text(v.effects.name), scheme: text(v.effects.scheme) }
+  return theme
 }
 
 /** AutoCorrect's settings in the file: each option on unless it says false; pairs and names of the right types. */
@@ -202,6 +279,9 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   ignoreNumbers: ["proofing", "ignoreNumbers"],
   ignoreAddresses: ["proofing", "ignoreAddresses"],
   autoCorrect: ["proofing", "autoCorrect"],
+  themeColors: ["themes", "colors"],
+  themeFonts: ["themes", "fonts"],
+  savedThemes: ["themes", "saved"],
   hintsEnabled: ["apps", "cells", "hints"],
   hintsDismissed: ["apps", "cells", "hintsDismissed"],
 }

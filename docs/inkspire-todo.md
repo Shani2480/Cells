@@ -69,3 +69,5 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       AutoCorrect is shared the same way (`proofing.autoCorrect`; engine and built-in list in
       `app/src/proofing/autocorrect.ts`, dialog in `app/src/settings/AutoCorrectDialog.tsx`): Word's own AutoCorrect
       could read the person's added and deleted entries from there.
+      Custom theme sets are shared too (`themes.colors`, `themes.fonts`, `themes.saved`; see shared-settings.md):
+      Word's Design › Colors / Fonts › Customize and Save Current Theme could list and add to them.

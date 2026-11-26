@@ -800,8 +800,11 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   for words; the dialog says where a word outside the cells is; selected shapes are checked alone). Item 6 done.
   Not yet: AutoCorrect while typing in a shape (it works in cells and the formula bar), text in charts. Left out: Italian and Portuguese, whose
   files nspell can't read.
-- ⬜ 7. Themes: Customize Colors and Customize Fonts, Save Current Theme, Reset to Theme from Template; conditional
-  formats and chart colours from files following the theme.
+- 🔄 7. Themes: ✅ Customize Colors and Customize Fonts (Create New Theme Colors / Fonts with a sample and a name;
+  the sets are listed under Custom in the Colors and Fonts galleries, right-click Edit… or Delete…), Save Current
+  Theme (an Office .thmx that real Excel applies, listed under Custom in Themes); the person's sets and saved themes
+  are shared with Inkspire (`themes.*`). Reset to Theme from Template is left out: it's Word's and PowerPoint's, Excel
+  has none. ⬜ conditional formats and chart colours from files following the theme.
 - ⬜ 8. Several workbooks at once: each open workbook in its own window on the desktop (and a switcher on phones and
   tablets), with every window's view saved (Excel's workbookView per window).
 

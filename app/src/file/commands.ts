@@ -1,6 +1,6 @@
 import { allQueryTables, type Op } from "@cells/core"
 import { openOds, openXls, openXlsb, openXlsx, sheetNameFor, type TextImport } from "@cells/io"
-import type { FilePort, FileRef } from "@cells/platform"
+import type { FilePort, FileRef, FileType } from "@cells/platform"
 import {
   classifyOpenError,
   extensionOf,
@@ -328,6 +328,29 @@ export class FileCommands {
     } finally {
       this.busy = false
       this.ui.progress(null)
+    }
+  }
+
+  /**
+   * A file that isn't the workbook (Save Current Theme's .thmx), saved where the person picks: the name they gave it
+   * (without its extension), or null when they cancelled or it couldn't be written (the problem is shown).
+   */
+  async saveOther(name: string, type: FileType, make: (name: string) => Promise<Uint8Array>): Promise<string | null> {
+    let ref: FileRef | null
+    try {
+      ref = await this.files.pickSave(name, [type])
+    } catch (error) {
+      this.ui.problem(new FileProblem("write", name, error instanceof Error ? error.message : String(error)))
+      return null
+    }
+    if (!ref) return null
+    const base = ref.name.replace(/\.[^.]+$/, "")
+    try {
+      await this.files.write(ref, await make(base))
+      return base
+    } catch (error) {
+      this.ui.problem(new FileProblem("write", ref.name, error instanceof Error ? error.message : String(error)))
+      return null
     }
   }
 

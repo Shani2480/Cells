@@ -54,6 +54,12 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
 - `proofing.autoCorrect`: AutoCorrect, as Office shares it between its apps: `twoInitialCaps`, `sentenceCaps`,
   `dayNames`, `capsLock`, `replaceText` (missing means on), `added` (`[replace, with]` pairs the person added or
   changed, over the built-in list) and `removed` (built-in entries the person deleted). Each list is written whole.
+- `themes.colors`, `themes.fonts`, `themes.saved`: the person's own theme sets, which Office keeps for all its apps
+  (Page Layout › Colors › Customize Colors, Fonts › Customize Fonts, Themes › Save Current Theme; Word's Design tab
+  has the same). `colors`: `{ name, colors }` with the twelve slots `dk1`, `lt1`, `dk2`, `lt2`, `accent1`…`accent6`,
+  `hlink`, `folHlink` as six hex digits; `fonts`: `{ name, major, minor }` (headings and body); `saved`: whole themes
+  `{ name, colors, fonts: { major, minor }, colorsName?, fontsName?, effects?: { name, scheme } }` (`scheme` is the
+  DrawingML `<a:fmtScheme>`). Each list is written whole; an entry that doesn't read is left out.
 - `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on; Cells' `ocr`: scanned PDFs are read with text recognition on the
   device; Cells' `hints`:
   feature hints are shown, missing means on; `hintsDismissed`: the ids of the hints already dismissed, replaced as a

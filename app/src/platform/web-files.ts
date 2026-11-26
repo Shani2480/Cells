@@ -26,6 +26,7 @@ const MIME: Record<string, string> = {
   csv: "text/csv",
   tsv: "text/tab-separated-values",
   txt: "text/plain",
+  thmx: "application/vnd.ms-officetheme",
 }
 
 const pickerTypes = (types: FileType[]) =>

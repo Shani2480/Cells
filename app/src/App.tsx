@@ -203,6 +203,7 @@ import { CreateTableDialog, ResizeTableDialog } from "@/shell/TableDialogs"
 import { SelectDataDialog } from "@/shell/SelectDataDialog"
 import type { CreateTableInit } from "@/sheet/tables"
 import { LinkDialog } from "@/shell/LinkDialog"
+import { ThemeColorsDialog, ThemeFontsDialog } from "@/shell/ThemeDialogs"
 import { SymbolDialog } from "@/shell/SymbolDialog"
 import { HeaderPictureDialog } from "@/shell/HeaderPictureDialog"
 import { FILE_LINK_WARNING, type LinkTarget } from "@/sheet/hyperlinks"
@@ -283,6 +284,7 @@ type DialogState =
         | "headerPicture"
     }
   | { kind: "cfQuick"; quick: QuickKind }
+  | { kind: "themeColors" | "themeFonts"; edit?: string }
   | { kind: "unlockRange"; name: string; then: () => void }
   | { kind: "sort"; range: Range }
   | { kind: "sortWarning"; then: (expand: boolean) => void; warning?: "sort" | "duplicates" }
@@ -1113,6 +1115,8 @@ function WorkbookWindow({
   const openDialog = (name: string) => {
     const [kind, arg] = name.split(":")
     if (kind === "goto") setDialog({ kind: "goto" })
+    else if (kind === "themeColors" || kind === "themeFonts")
+      setDialog({ kind, edit: name.slice(kind.length + 1) || undefined })
     else if (kind === "createPivot") setDialog({ kind: "createPivot", source: arg })
     else if (kind === "pivotSource") setDialog({ kind: "createPivot", mode: "source" })
     else if (kind === "pivotMove") setDialog({ kind: "createPivot", mode: "move" })
@@ -1606,6 +1610,12 @@ function WorkbookWindow({
         {dialog?.kind === "defineName" ? <DefineNameDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "insertLink" ? <LinkDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "symbol" ? <SymbolDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "themeColors" ? (
+          <ThemeColorsDialog controller={controller} edit={dialog.edit} onClose={closeDialog} />
+        ) : null}
+        {dialog?.kind === "themeFonts" ? (
+          <ThemeFontsDialog controller={controller} edit={dialog.edit} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "headerPicture" ? (
           <HeaderPictureDialog controller={controller} onClose={closeDialog} />
         ) : null}

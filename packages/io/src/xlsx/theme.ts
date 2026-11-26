@@ -7,7 +7,7 @@ import {
   type Theme,
   type ThemeSlot,
 } from "@cells/core"
-import { escapeXml, readZip } from "@cells/ooxml"
+import { escapeXml, readZip, writeZip } from "@cells/ooxml"
 import { themeColorsFrom, DEFAULT_THEME_COLORS, type ThemeColors } from "./colors"
 import { at, kid, parseTree, type XNode } from "./dom"
 
@@ -169,4 +169,46 @@ export async function themeFromFile(bytes: Uint8Array): Promise<Theme | null> {
   }
   if (!xml || !/clrScheme/.test(xml)) return null
   return readTheme(xml, readThemeColors(xml))
+}
+
+/**
+ * Page Layout › Themes › Save Current Theme: the theme as an Office theme file (.thmx), which Excel, Word and
+ * PowerPoint open with Browse for Themes.
+ */
+export async function themeFileBytes(theme: Theme): Promise<Uint8Array> {
+  const enc = (s: string) => new TextEncoder().encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n${s}`)
+  const ct = "application/vnd.openxmlformats-officedocument"
+  const rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  const parts = [
+    {
+      name: "[Content_Types].xml",
+      data: enc(
+        `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+          `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+          `<Default Extension="xml" ContentType="application/xml"/>` +
+          `<Override PartName="/theme/theme/themeManager.xml" ContentType="${ct}.themeManager+xml"/>` +
+          `<Override PartName="/theme/theme/theme1.xml" ContentType="${ct}.theme+xml"/></Types>`,
+      ),
+    },
+    {
+      name: "_rels/.rels",
+      data: enc(
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+          `<Relationship Id="rId1" Type="${rel}/officeDocument" Target="theme/theme/themeManager.xml"/></Relationships>`,
+      ),
+    },
+    {
+      name: "theme/theme/themeManager.xml",
+      data: enc(`<a:themeManager xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/>`),
+    },
+    {
+      name: "theme/theme/_rels/themeManager.xml.rels",
+      data: enc(
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+          `<Relationship Id="rId1" Type="${rel}/theme" Target="theme1.xml"/></Relationships>`,
+      ),
+    },
+    { name: "theme/theme/theme1.xml", data: enc(themeXml(theme)) },
+  ]
+  return writeZip(parts.map((p) => ({ ...p, stored: false })))
 }

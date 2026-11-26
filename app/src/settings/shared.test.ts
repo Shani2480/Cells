@@ -34,6 +34,9 @@ describe("the settings file shared with Inkspire", () => {
       ignoreNumbers: true,
       ignoreAddresses: true,
       autoCorrect: DEFAULT_AUTOCORRECT,
+      themeColors: [],
+      themeFonts: [],
+      savedThemes: [],
       hintsEnabled: true,
       hintsDismissed: [],
     })
@@ -134,5 +137,51 @@ describe("dictionary words", () => {
     const file = JSON.stringify({ proofing: { customWords: ["Zorbly"] } })
     const merged = mergeShared(file, { dictionaryWords: ["Flurbo"] })
     expect(parseShared(merged).dictionaryWords).toEqual(["Zorbly", "Flurbo"])
+  })
+})
+
+describe("custom theme sets in the shared file", () => {
+  it("reads colour sets, font pairs and saved themes, leaving out entries that don't read well", () => {
+    const colors = {
+      dk1: "000000",
+      lt1: "FFFFFF",
+      dk2: "203040",
+      lt2: "eeeeee",
+      accent1: "1F6F8B",
+      accent2: "E97132",
+      accent3: "196B24",
+      accent4: "0F9ED5",
+      accent5: "A02B93",
+      accent6: "4EA72E",
+      hlink: "467886",
+      folHlink: "96607D",
+    }
+    const file = JSON.stringify({
+      themes: {
+        colors: [
+          { name: "Harbour", colors },
+          { name: "Broken", colors: { ...colors, accent1: "blue" } },
+        ],
+        fonts: [
+          { name: "Letters", major: "Georgia", minor: "Verdana" },
+          { name: "", major: "a", minor: "b" },
+        ],
+        saved: [{ name: "Harbour", colors, fonts: { major: "Georgia", minor: "Verdana" }, colorsName: "Harbour" }],
+      },
+    })
+    const s = parseShared(file)
+    expect(s.themeColors).toEqual([{ name: "Harbour", colors: { ...colors, lt2: "EEEEEE" } }])
+    expect(s.themeFonts).toEqual([{ name: "Letters", major: "Georgia", minor: "Verdana" }])
+    expect(s.savedThemes).toEqual([
+      {
+        name: "Harbour",
+        colors: { ...colors, lt2: "EEEEEE" },
+        fonts: { major: "Georgia", minor: "Verdana" },
+        colorsName: "Harbour",
+      },
+    ])
+    const merged = JSON.parse(mergeShared(file, { themeFonts: [] }))
+    expect(merged.themes.fonts).toEqual([])
+    expect(merged.themes.colors).toHaveLength(2)
   })
 })
