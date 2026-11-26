@@ -4254,3 +4254,32 @@
   grid-column: 1 / -1;
   margin-top: 4px;
 }
+
+/* Adjustment handles: Excel's yellow dots, and the shape's outline as it's adjusted. */
+.adjust-handle {
+  position: absolute;
+  z-index: 3;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  margin: -5px 0 0 -5px;
+  border: 1px solid #6b5600;
+  border-radius: 50%;
+  background: #ffd629;
+  cursor: default;
+  touch-action: none;
+}
+
+.adjust-ghost {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.adjust-ghost path {
+  fill: none;
+  stroke: var(--chart-select, #5a5a5a);
+  stroke-dasharray: 4 3;
+  stroke-width: 1;
+}

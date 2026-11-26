@@ -1,3 +1,4 @@
+import { AdjustHandles } from "./AdjustHandles"
 import { ShapeTextEditor } from "./ShapeTextEditor"
 import { ChartPartMark, chartPartAt } from "./ChartPartMark"
 import { CropView } from "./CropView"
@@ -652,6 +653,9 @@ export function ObjectLayer({
               >
                 <Rotate3d size={22} strokeWidth={1.75} aria-hidden />
               </span>
+            ) : null}
+            {single && !editing && !dragging && !isChart(o) && o.kind === "shape" && !o.connector ? (
+              <AdjustHandles shape={o} box={p.box} zoom={zoom} rotation={rotation} objects={objects} />
             ) : null}
             {single && !editing && !isChart(o) && o.kind !== "slicer" && !(o.kind === "picture" && o.model3d) ? (
               <span

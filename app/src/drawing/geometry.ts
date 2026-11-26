@@ -463,6 +463,107 @@ export function presetGeometry(name: string, w: number, h: number, adjust: Adj =
   }
 }
 
+/**
+ * A shape's adjustment handle (the yellow dot): where it is, and the adjust values a drag to a point gives (both in
+ * the shape's own pixels, unturned), kept in the range Office allows.
+ */
+export type AdjustHandle = { x: number; y: number; drag: (x: number, y: number) => Adj }
+
+/** The handles of a preset at w × h pixels with its adjust values (none for shapes without any). */
+export function adjustHandles(name: string, w: number, h: number, adjust: Adj = {}): AdjustHandle[] {
+  const ss = Math.max(1, Math.min(w, h))
+  const a = (key: string, d: number) => (adjust[key] ?? d) / 100000
+  const clamp = (v: number, max: number, min = 0) => Math.round(Math.min(max, Math.max(min, v)))
+  /** One adjust value along the top edge: x pixels as a share of the shorter side. */
+  const top = (key: string, x: number, max: number, from: (px: number) => number): AdjustHandle => ({
+    x,
+    y: 0,
+    drag: (px) => ({ [key]: clamp((from(px) / ss) * 100000, max) }),
+  })
+  const wide = (k: number) => (k * 100000 * w) / ss
+  switch (name) {
+    case "roundRect":
+    case "flowChartAlternateProcess": {
+      const r = Math.min(ss * a("adj", 16667), ss / 2)
+      return [top("adj", r, 50000, (px) => px)]
+    }
+    case "snip1Rect":
+      return [top("adj", w - ss * a("adj", 16667), 50000, (px) => w - px)]
+    case "triangle":
+      return [{ x: w * a("adj", 50000), y: 0, drag: (px) => ({ adj: clamp((px / w) * 100000, 100000) }) }]
+    case "parallelogram":
+      return [top("adj", ss * a("adj", 25000), wide(1), (px) => px)]
+    case "trapezoid":
+    case "hexagon":
+      return [top("adj", ss * a("adj", 25000), wide(0.5), (px) => px)]
+    case "octagon":
+      return [top("adj", ss * a("adj", 29289), 50000, (px) => px)]
+    case "plus":
+      return [top("adj", ss * a("adj", 25000), 50000, (px) => px)]
+    case "frame":
+      return [top("adj1", ss * a("adj1", 12500), 50000, (px) => px)]
+    case "chevron":
+    case "homePlate":
+      return [top("adj", w - Math.min(ss * a("adj", 50000), w), wide(1), (px) => w - px)]
+    case "donut": {
+      const t = ss * a("adj", 25000)
+      return [{ x: t, y: h / 2, drag: (px) => ({ adj: clamp((px / ss) * 100000, 50000) }) }]
+    }
+    case "can": {
+      const y = Math.min(ss * a("adj", 25000), h / 2)
+      return [{ x: w / 2, y, drag: (_px, py) => ({ adj: clamp((py / ss) * 100000, (50000 * h) / ss) }) }]
+    }
+    case "moon": {
+      const t = w * a("adj", 50000)
+      return [{ x: w - t, y: h / 2, drag: (px) => ({ adj: clamp(((w - px) / w) * 100000, 87500) }) }]
+    }
+    case "rightArrow":
+    case "leftArrow":
+    case "leftRightArrow": {
+      const shaft = h * a("adj1", 50000)
+      const head = Math.min(ss * a("adj2", 50000), name === "leftRightArrow" ? w / 2 : w)
+      const left = name !== "rightArrow"
+      const hx = left ? head : w - head
+      const maxHead = name === "leftRightArrow" ? wide(0.5) : wide(1)
+      return [
+        { x: hx, y: (h - shaft) / 2, drag: (_px, py) => ({ adj1: clamp(((h - 2 * py) / h) * 100000, 100000) }) },
+        { x: hx, y: 0, drag: (px) => ({ adj2: clamp(((left ? px : w - px) / ss) * 100000, maxHead) }) },
+      ]
+    }
+    case "upArrow":
+    case "downArrow": {
+      const shaft = w * a("adj1", 50000)
+      const head = Math.min(ss * a("adj2", 50000), h)
+      const down = name === "downArrow"
+      const hy = down ? h - head : head
+      return [
+        { x: (w - shaft) / 2, y: hy, drag: (px) => ({ adj1: clamp(((w - 2 * px) / w) * 100000, 100000) }) },
+        {
+          x: 0,
+          y: hy,
+          drag: (_px, py) => ({ adj2: clamp(((down ? h - py : py) / ss) * 100000, (100000 * h) / ss) }),
+        },
+      ]
+    }
+    case "wedgeRectCallout":
+    case "wedgeRoundRectCallout":
+    case "wedgeEllipseCallout":
+      // The callout's point, anywhere.
+      return [
+        {
+          x: w / 2 + w * a("adj1", -20833),
+          y: h / 2 + h * a("adj2", 62500),
+          drag: (px, py) => ({
+            adj1: Math.round(((px - w / 2) / Math.max(1, w)) * 100000),
+            adj2: Math.round(((py - h / 2) / Math.max(1, h)) * 100000),
+          }),
+        },
+      ]
+    default:
+      return []
+  }
+}
+
 const inset = (w: number, h: number, k: number) => ({ x: w * k, y: h * k, w: w * (1 - 2 * k), h: h * (1 - 2 * k) })
 
 /** Insert › Shapes, by group, as Excel's gallery lists them (Cells' subset). */

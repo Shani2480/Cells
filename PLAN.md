@@ -775,7 +775,8 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
 - 🔄 4. Shapes and text boxes: ✅ formatted text in shapes (typed in place in its own fonts, sizes and colours; Home's
   Font and Alignment commands and Ctrl+B/I/U format the selected text while typing, or all of a selected shape's
   text; typed text takes the look it's typed into; equations and turned text keep the plain editor); ✅ WordArt
-  Styles gallery on Shape Format (with Clear WordArt; Shape Styles was already there); ⬜ the Format Shape pane, adjustment handles, Edit Points and freeform drawing,
+  Styles gallery on Shape Format (with Clear WordArt; Shape Styles was already there); ✅ adjustment handles (the yellow dots on 21 shapes: corners, arrow heads and shafts, callout points;
+  a dashed outline while dragging, one undo step); ⬜ the Format Shape pane, Edit Points and freeform drawing,
   connectors that stay glued to shapes.
 - ⬜ 6. Proofing: more spelling languages as optional downloads (setup and Settings, the language picker in the
   Spelling dialog), File › Options › Proofing (ignore UPPERCASE, words with numbers, addresses), AutoCorrect,
