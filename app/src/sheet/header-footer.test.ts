@@ -68,6 +68,35 @@ describe("Header & Footer on the page", () => {
     expect(c.sheet.pageSetup.header.center).toBe("Odd")
   })
 
+  it("Picture puts &[Picture] at the caret and keeps the picture with the text; deleting the code drops it", () => {
+    const c = setup()
+    const confirm = vi.fn((_message: string, ok: () => void) => ok())
+    c.shell.confirm = confirm
+    const logo = { src: "data:image/png;base64,AAAA", w: 200, h: 100, name: "logo.png" }
+    c.headerFooter.open("header", { rowBand: 0, colBand: 0 }, "center")
+    c.headerFooter.type("center", "Acme ", 5)
+    c.headerFooter.insertPicture(logo)
+    expect(c.headerFooter.editing!.text.center).toBe("Acme &[Picture]")
+    expect(c.headerFooter.currentPicture()).toMatchObject({ title: "logo", width: 150, height: 75 })
+    // Format Picture's settings go with it.
+    c.headerFooter.formatPicture({ ...c.headerFooter.currentPicture()!, color: "grayscale", width: 75, height: 37.5 })
+    c.headerFooter.commit()
+    const setup1 = c.sheet.pageSetup
+    expect(setup1.header.center).toBe("Acme &G")
+    expect(setup1.pictures.CH).toMatchObject({ color: "grayscale", width: 75 })
+    // A second picture in the same section asks first.
+    c.headerFooter.open("header", { rowBand: 0, colBand: 0 }, "center")
+    c.headerFooter.insertPicture({ ...logo, name: "other.png" })
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(c.headerFooter.editing!.text.center).toBe("Acme &[Picture]")
+    c.headerFooter.type("center", "Acme ")
+    c.headerFooter.commit()
+    expect(c.sheet.pageSetup.pictures).toEqual({})
+    // Undo brings the picture back with its text.
+    c.undo()
+    expect(c.sheet.pageSetup.pictures.CH).toMatchObject({ color: "grayscale" })
+  })
+
   it("Esc drops the text; Go to Footer keeps what was typed in the header", () => {
     const c = setup()
     c.headerFooter.open("header")

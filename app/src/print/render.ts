@@ -1,16 +1,18 @@
 import { renderChart } from "@cells/chart"
 import {
   headerFooterEdges,
-  headerFooterOf,
+  headerFooterKey,
+  headerFooterKind,
+  headerPictureId,
   columnName,
   isChart,
   slicerConnected,
   type CellAddress,
-  type HeaderFooterText,
   type Pagination,
   type PrintPage,
   type Sheet,
 } from "@cells/core"
+import { drawHeaderSection, loadHeaderImages, sectionPicture } from "./header-pictures"
 import { canvasMeasure, objectAt } from "@/drawing/render"
 import { chartBox, type ChartBox } from "@/sheet/charts"
 import type { SheetController } from "@/sheet/controller"
@@ -250,8 +252,9 @@ export async function drawPage(
   if (sheet.chartSheet) {
     await drawChartSheet(p, c, sheet, body)
     p.setTransform(pxPerPt, 0, 0, pxPerPt, 0, 0)
-    drawHeaderFooter(p, headerFooterOf(setup, "header", 0), sheet, page, ctx, pagination, "header")
-    drawHeaderFooter(p, headerFooterOf(setup, "footer", 0), sheet, page, ctx, pagination, "footer")
+    await loadHeaderImages(setup)
+    drawHeaderFooter(p, 0, sheet, page, ctx, pagination, "header")
+    drawHeaderFooter(p, 0, sheet, page, ctx, pagination, "footer")
     return
   }
 
@@ -305,8 +308,9 @@ export async function drawPage(
   // The page's place in the sheet's printout picks the first page's or an even page's header, when they differ.
   const found = pagination.pages.indexOf(page)
   const place = found >= 0 ? found : pagination.pages.findIndex((q) => q.number === page.number)
-  drawHeaderFooter(p, headerFooterOf(setup, "header", Math.max(0, place)), sheet, page, ctx, pagination, "header")
-  drawHeaderFooter(p, headerFooterOf(setup, "footer", Math.max(0, place)), sheet, page, ctx, pagination, "footer")
+  await loadHeaderImages(setup)
+  drawHeaderFooter(p, Math.max(0, place), sheet, page, ctx, pagination, "header")
+  drawHeaderFooter(p, Math.max(0, place), sheet, page, ctx, pagination, "footer")
 }
 
 /** A chart sheet's chart, drawn to fill the page inside its margins (the canvas is in points here). */
@@ -364,24 +368,28 @@ function drawHeadings(p: CanvasRenderingContext2D, layout: GridLayout) {
   p.restore()
 }
 
+/** The header or footer a page prints (by its place in the printout), its pictures with it. */
 function drawHeaderFooter(
   p: CanvasRenderingContext2D,
-  hf: HeaderFooterText,
+  place: number,
   sheet: Sheet,
   page: PrintPage,
   ctx: PrintContext,
   pagination: Pagination,
   where: "header" | "footer",
 ) {
-  const m = sheet.pageSetup.margins
+  const setup = sheet.pageSetup
+  const m = setup.margins
   const { paper } = pagination
+  const kind = headerFooterKind(setup, place)
+  const hf = setup[headerFooterKey(where, kind)]
   // The canvas is already in points here, so the font's size is given in canvas units (px), not pt.
-  const size = 11 * (sheet.pageSetup.scaleWithDoc ? pagination.scale : 1)
-  const lineHeight = size * 1.2
+  const pt = setup.scaleWithDoc ? pagination.scale : 1
+  const size = 11 * pt
   p.font = `${size}px ${CELL_FONT_FAMILY}`
   p.fillStyle = "#000000"
   p.textBaseline = "alphabetic"
-  const edges = headerFooterEdges(sheet.pageSetup, paper.width / 72)
+  const edges = headerFooterEdges(setup, paper.width / 72)
   const left = edges.left * 72
   const right = edges.right * 72
   for (const [section, align, x] of [
@@ -391,11 +399,20 @@ function drawHeaderFooter(
   ] as const) {
     const text = hf[section]
     if (!text) continue
-    const lines = headerFooterLines(text, page, sheet, ctx)
-    p.textAlign = align
-    // A header hangs from its margin; a footer stands on its own.
-    const top =
-      where === "header" ? m.header * 72 + size : paper.height - m.footer * 72 - (lines.length - 1) * lineHeight
-    lines.forEach((line, i) => p.fillText(line, x, top + i * lineHeight))
+    drawHeaderSection(p, {
+      text,
+      picture: sectionPicture(setup, headerPictureId(where, kind, section), text),
+      align,
+      x,
+      // A header hangs from its margin; a footer stands on its own.
+      y: where === "header" ? m.header * 72 : paper.height - m.footer * 72,
+      where,
+      size,
+      pt,
+      page,
+      sheet,
+      ctx,
+      mono: setup.blackAndWhite,
+    })
   }
 }

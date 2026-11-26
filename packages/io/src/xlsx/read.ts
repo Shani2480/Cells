@@ -20,6 +20,7 @@ import {
   type ModelRelationship,
   type ModelTable,
   copyTableStyleSet,
+  type HeaderPicture,
   parseRange,
   type Range,
 } from "@cells/core"
@@ -77,6 +78,7 @@ import {
   type TimelineCacheRead,
 } from "./timelines"
 import { readSlicerCache, readSlicerPart, REL_SLICER, REL_SLICER_CACHE, type SlicerCacheRead } from "./slicers"
+import { readHeaderPictureVml } from "./header-pictures"
 import { readPasswordHash, readSheet, unescapeText, DEFAULT_VIEW, type SheetView } from "./sheet-read"
 import { StylesIn } from "./styles"
 import { readTable, structuredFromFile } from "./table"
@@ -469,6 +471,27 @@ export async function openXlsx(
       }
       if (h.link.address || h.link.location) sheet.hyperlinks.push(h.link)
     }
+    // Header and footer pictures: into the page setup (written anew), or kept as read when the drawing has more.
+    let headerPicturesRead = false
+    const hfRel = read.legacyDrawingHF
+      ? rels.find((r) => r.id === read.legacyDrawingHF && r.type === REL_VML)
+      : undefined
+    const hfVml = partText(pkg, hfRel?.partName)
+    const hfShapes = hfVml ? readHeaderPictureVml(hfVml) : null
+    if (hfRel?.partName && hfShapes) {
+      const vmlRels = relationshipsFor(pkg, hfRel.partName)
+      const pictures: Record<string, HeaderPicture> = {}
+      for (const shape of hfShapes) {
+        const image = vmlRels.find((r) => r.id === shape.relId && r.type === REL_IMAGE)
+        const imagePart = image?.partName ? findPart(pkg, image.partName) : undefined
+        if (imagePart) pictures[shape.id] = { ...shape.picture, src: pictureUrl(image!.partName!, imagePart) }
+      }
+      if (Object.keys(pictures).length === hfShapes.length) {
+        sheet.pageSetup.pictures = pictures
+        read.kept = read.kept.filter((k) => k.local !== "legacyDrawingHF")
+        headerPicturesRead = true
+      }
+    }
     // Page Layout › Background.
     const pictureRel = rels.find((r) => r.id === read.picture && r.type === REL_IMAGE)
     const picturePart = pictureRel?.partName ? findPart(pkg, pictureRel.partName) : undefined
@@ -628,7 +651,8 @@ export async function openXlsx(
           r.type !== REL_OLE_OBJECT &&
           r.type !== REL_PACKAGE &&
           !oleImageRels.has(r.id) &&
-          !(r.type === REL_VML && r.id === read.legacyDrawing),
+          !(r.type === REL_VML && r.id === read.legacyDrawing) &&
+          !(headerPicturesRead && r.id === read.legacyDrawingHF),
       ),
       tables,
       drawing,

@@ -1,6 +1,9 @@
 import {
   headerFooterKey,
   headerFooterKind,
+  headerPictureId,
+  newHeaderPicture,
+  type HeaderPicture,
   type HeaderFooterKind,
   type HeaderFooterText,
   type PageSetup,
@@ -16,9 +19,10 @@ const CODE_NAMES: [string, string][] = [
   ["&Z", "&[Path]"],
   ["&F", "&[File]"],
   ["&A", "&[Tab]"],
+  ["&G", "&[Picture]"],
 ]
 export const codesToNames = (s: string) =>
-  s.replace(/&&|&[PNDTZFA]/g, (code) => CODE_NAMES.find(([c]) => c === code)?.[1] ?? code)
+  s.replace(/&&|&[PNDTZFAG]/g, (code) => CODE_NAMES.find(([c]) => c === code)?.[1] ?? code)
 export const namesToCodes = (s: string) => CODE_NAMES.reduce((out, [code, name]) => out.split(name).join(code), s)
 
 export type HFWhere = "header" | "footer"
@@ -49,7 +53,37 @@ export type HFEditing = {
   caret: Record<HFSection, number>
   /** Counts the times the caret is put back in the section from outside (the overlay focuses it again). */
   focus: number
+  /** Each section's picture (Header & Footer › Picture), kept with the text. */
+  pictures: Record<HFSection, HeaderPicture | null>
 }
+
+const PICTURE = "&[Picture]"
+
+/**
+ * A header's text and pictures put in a page setup: a section keeps its picture while its text has &G, and loses
+ * it otherwise (as Excel drops a picture whose &[Picture] was deleted).
+ */
+function putHeader(
+  s: PageSetup,
+  where: HFWhere,
+  kind: HeaderFooterKind,
+  text: HeaderFooterText,
+  pictures: Partial<Record<HFSection, HeaderPicture | null>>,
+) {
+  s[headerFooterKey(where, kind)] = text
+  const next = { ...s.pictures }
+  for (const section of ["left", "center", "right"] as const) {
+    const id = headerPictureId(where, kind, section)
+    const picture = pictures[section] ?? s.pictures[id]
+    if (picture && /(^|[^&])(&&)*&G/.test(text[section])) next[id] = picture
+    else delete next[id]
+  }
+  s.pictures = next
+}
+
+/** Excel's question when a section that has a picture gets another. */
+export const REPLACE_PICTURE_MESSAGE =
+  "Only one picture can be inserted in each section of the header.\n\nDo you want to replace the existing picture?"
 
 export type HFOption = keyof Pick<
   PageSetup,
@@ -115,10 +149,13 @@ export class HeaderFooterEditor {
     if (this.c.view !== "pageLayout") this.c.setView("pageLayout")
     if (!page) page = this.activePage(where)
     const kind = headerFooterKind(this.c.sheet.pageSetup, pagePlace(this.c, page.rowBand, page.colBand))
-    const text = named(this.c.sheet.pageSetup[headerFooterKey(where, kind)])
+    const setup = this.c.sheet.pageSetup
+    const text = named(setup[headerFooterKey(where, kind)])
+    const pictureOf = (section: HFSection) => setup.pictures[headerPictureId(where, kind, section)] ?? null
     this.editing = {
       where,
       kind,
+      pictures: { left: pictureOf("left"), center: pictureOf("center"), right: pictureOf("right") },
       ...page,
       text,
       section,
@@ -187,8 +224,10 @@ export class HeaderFooterEditor {
     // The other one's typed text is kept first; this one's is replaced by the ready-made one.
     if (e && e.where !== where) this.commit()
     this.editing = null
-    const key = headerFooterKey(where, e?.kind ?? "odd")
-    this.c.print.change((s) => (s[key] = { ...value }), where === "header" ? "Header" : "Footer")
+    this.c.print.change(
+      (s) => putHeader(s, where, e?.kind ?? "odd", { ...value }, {}),
+      where === "header" ? "Header" : "Footer",
+    )
     if (e) this.open(where, { rowBand: e.rowBand, colBand: e.colBand }, e.section)
   }
 
@@ -209,10 +248,11 @@ export class HeaderFooterEditor {
       center: namesToCodes(e.text.center),
       right: namesToCodes(e.text.right),
     }
-    const key = headerFooterKey(e.where, e.kind)
-    const before = this.c.sheet.pageSetup[key]
-    if (value.left !== before.left || value.center !== before.center || value.right !== before.right)
-      this.c.print.change((s) => (s[key] = value), e.where === "header" ? "Header" : "Footer")
+    // One undo step for the text and its pictures (print.change leaves out what didn't change).
+    this.c.print.change(
+      (s) => putHeader(s, e.where, e.kind, value, e.pictures),
+      e.where === "header" ? "Header" : "Footer",
+    )
     this.c.changed()
   }
 
@@ -225,6 +265,43 @@ export class HeaderFooterEditor {
     if (e) this.commit()
     this.c.print.change((s) => (s[option] = !s[option]), HF_OPTION_LABELS[option])
     if (e) this.open(e.where, { rowBand: e.rowBand, colBand: e.colBand }, e.section)
+  }
+
+  /**
+   * Header & Footer › Picture: the picked picture in the section being edited, at the caret as &[Picture]. A
+   * section holds one picture; one that has one asks before replacing it (Excel's question).
+   */
+  insertPicture(picked: { src: string; w: number; h: number; name: string }) {
+    const e = this.editing
+    if (!e) return
+    const put = () => {
+      const now = this.editing
+      if (!now) return
+      const section = now.section
+      const picture = newHeaderPicture(picked.src, picked.name.replace(/\.[^.]*$/, ""), picked.w, picked.h)
+      this.editing = { ...now, pictures: { ...now.pictures, [section]: picture } }
+      if (now.text[section].includes(PICTURE)) {
+        this.editing = { ...this.editing, focus: this.focusCount++ }
+        this.c.changed()
+      } else this.insert(PICTURE)
+    }
+    if (e.text[e.section].includes(PICTURE) && e.pictures[e.section]) this.c.shell.confirm(REPLACE_PICTURE_MESSAGE, put)
+    else put()
+  }
+
+  /** The picture Format Picture works on: the section being edited, when its text has one. */
+  currentPicture(): HeaderPicture | null {
+    const e = this.editing
+    if (!e || !e.text[e.section].includes(PICTURE)) return null
+    return e.pictures[e.section]
+  }
+
+  /** Format Picture's OK: the section's picture as the dialog left it (kept with the text). */
+  formatPicture(picture: HeaderPicture) {
+    const e = this.editing
+    if (!e) return
+    this.editing = { ...e, pictures: { ...e.pictures, [e.section]: picture }, focus: this.focusCount++ }
+    this.c.changed()
   }
 
   /** Esc: stop editing without keeping the text. */

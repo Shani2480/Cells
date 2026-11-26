@@ -11,6 +11,55 @@ export type PageMargins = { left: number; right: number; top: number; bottom: nu
 /** One header or footer: its three sections, in Excel's codes (&P page, &N pages, &D date, &A sheet, &F file…). */
 export type HeaderFooterText = { left: string; center: string; right: string }
 
+/**
+ * A picture in a header or footer (Header & Footer › Picture, printed where its section has &G), with Format
+ * Picture's settings.
+ */
+export type HeaderPicture = {
+  /** The picture, as a data URL. */
+  src: string
+  /** Its name (the file it came from, without the extension). */
+  title: string
+  /** The size it prints at, in points, after cropping. */
+  width: number
+  height: number
+  /** Cropped from each side, as a share of the picture's own size (0–1). */
+  crop: { top: number; bottom: number; left: number; right: number }
+  lockAspect: boolean
+  /** Image control › Color. */
+  color: "automatic" | "grayscale" | "blackAndWhite"
+  /** Image control: 0–1, 0.5 as the picture is (Washout is brightness 0.85 and contrast 0.15). */
+  brightness: number
+  contrast: number
+}
+
+/** Where a header or footer picture belongs: "CH" (centre header), "LF" (left footer), "RHEVEN", "CFFIRST"… */
+export type HeaderPictureId = string
+
+export function headerPictureId(
+  where: "header" | "footer",
+  kind: HeaderFooterKind,
+  section: keyof HeaderFooterText,
+): HeaderPictureId {
+  const side = section === "left" ? "L" : section === "center" ? "C" : "R"
+  return side + (where === "header" ? "H" : "F") + (kind === "odd" ? "" : kind.toUpperCase())
+}
+
+/** A new picture's settings: as big as it is (in points at 96 dpi), uncropped, its colours as they are. */
+export function newHeaderPicture(src: string, title: string, pixelWidth: number, pixelHeight: number): HeaderPicture {
+  return {
+    src,
+    title,
+    width: pixelWidth * 0.75,
+    height: pixelHeight * 0.75,
+    crop: { top: 0, bottom: 0, left: 0, right: 0 },
+    lockAspect: true,
+    color: "automatic",
+    brightness: 0.5,
+    contrast: 0.5,
+  }
+}
+
 export type PageSetup = {
   orientation: "portrait" | "landscape"
   /**
@@ -47,6 +96,8 @@ export type PageSetup = {
   scaleWithDoc: boolean
   /** Align with Page Margins: the left and right sections line up with the page's margins. */
   alignWithMargins: boolean
+  /** Header and footer pictures, by where they belong (each prints where its section has &G). */
+  pictures: Record<HeaderPictureId, HeaderPicture>
   /** The print area: ranges each printing on pages of their own (null: everything with data). */
   printArea: Range[] | null
   /** Rows (and columns) to repeat on every page: first and last index. */
@@ -109,6 +160,7 @@ export function defaultPageSetup(): PageSetup {
     evenFooter: { ...EMPTY_HF },
     scaleWithDoc: true,
     alignWithMargins: true,
+    pictures: {},
     printArea: null,
     titleRows: null,
     titleCols: null,
@@ -128,6 +180,9 @@ export function copyPageSetup(p: PageSetup): PageSetup {
     firstFooter: { ...p.firstFooter },
     evenHeader: { ...p.evenHeader },
     evenFooter: { ...p.evenFooter },
+    pictures: Object.fromEntries(
+      Object.entries(p.pictures).map(([id, pic]) => [id, { ...pic, crop: { ...pic.crop } }]),
+    ),
     printArea: p.printArea ? p.printArea.map((r) => ({ ...r })) : null,
     titleRows: p.titleRows ? [...p.titleRows] : null,
     titleCols: p.titleCols ? [...p.titleCols] : null,

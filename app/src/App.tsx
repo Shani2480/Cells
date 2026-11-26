@@ -203,6 +203,7 @@ import { SelectDataDialog } from "@/shell/SelectDataDialog"
 import type { CreateTableInit } from "@/sheet/tables"
 import { LinkDialog } from "@/shell/LinkDialog"
 import { SymbolDialog } from "@/shell/SymbolDialog"
+import { HeaderPictureDialog } from "@/shell/HeaderPictureDialog"
 import { FILE_LINK_WARNING, type LinkTarget } from "@/sheet/hyperlinks"
 import type { TextImport } from "@cells/io"
 
@@ -278,6 +279,7 @@ type DialogState =
         | "queryProperties"
         | "insertLink"
         | "symbol"
+        | "headerPicture"
     }
   | { kind: "cfQuick"; quick: QuickKind }
   | { kind: "unlockRange"; name: string; then: () => void }
@@ -1231,7 +1233,8 @@ function WorkbookWindow({
       kind === "forecast" ||
       kind === "queryProperties" ||
       kind === "insertLink" ||
-      kind === "symbol"
+      kind === "symbol" ||
+      kind === "headerPicture"
     )
       setDialog({ kind })
   }
@@ -1600,6 +1603,9 @@ function WorkbookWindow({
         {dialog?.kind === "defineName" ? <DefineNameDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "insertLink" ? <LinkDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "symbol" ? <SymbolDialog controller={controller} onClose={closeDialog} /> : null}
+        {dialog?.kind === "headerPicture" ? (
+          <HeaderPictureDialog controller={controller} onClose={closeDialog} />
+        ) : null}
         {dialog?.kind === "nameManager" ? <NameManagerDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "createNames" ? <CreateNamesDialog controller={controller} onClose={closeDialog} /> : null}
         {dialog?.kind === "outlineGroup" || dialog?.kind === "outlineUngroup" ? (

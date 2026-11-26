@@ -1,3 +1,4 @@
+import { pickPicture } from "@/drawing/pictures"
 import { HF_ELEMENTS, type HFOption, type HFWhere } from "@/sheet/header-footer"
 import { headerPresets } from "@/shell/PageSetupDialog"
 import type { Command, RibbonEnv } from "./registry"
@@ -122,6 +123,25 @@ export function linkCommands(): Command[] {
       enabled: editingHF,
       run: (env) => env.c.headerFooter.insert(code),
     })),
+    {
+      id: "HFPicture",
+      label: "Picture",
+      description: "Add a picture to the header or footer, such as a logo. It prints where &[Picture] is.",
+      keytip: "PC",
+      enabled: editingHF,
+      run: (env) =>
+        void pickPicture().then((p) => {
+          if (p) env.c.headerFooter.insertPicture(p)
+        }),
+    },
+    {
+      id: "HFFormatPicture",
+      label: "Format Picture",
+      description: "Size, crop and adjust the colour, brightness and contrast of the header or footer's picture.",
+      keytip: "FP",
+      enabled: (env) => env.c.headerFooter.currentPicture() !== null,
+      run: (env) => env.dialog("headerPicture"),
+    },
     {
       id: "HFGoToHeader",
       label: "Go to Header",

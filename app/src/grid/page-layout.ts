@@ -1,8 +1,8 @@
-import { headerFooterEdges, headerFooterOf, type PrintPage } from "@cells/core"
+import { headerFooterEdges, headerFooterKind, headerFooterOf, headerPictureId, type PrintPage } from "@cells/core"
 import { pagePlace } from "@/sheet/header-footer"
 import type { SheetController } from "@/sheet/controller"
 import type { PageAxis } from "@/sheet/page-map"
-import { headerFooterLines } from "@/print/render"
+import { drawHeaderSection, sectionPicture, type SectionPainter } from "@/print/header-pictures"
 import type { GridLayout } from "./layout"
 import { CELL_FONT_FAMILY, type GridTheme } from "./theme"
 import type { Painter } from "./draw"
@@ -101,7 +101,6 @@ export function drawPageLayout(p: Painter, controller: SheetController, layout: 
   // 11 pt at the print scale, on a page drawn 1/scale as big: the same size on screen at any scale (without Scale
   // with Document, 11 pt on the paper).
   const size = 11 / 0.75 / (setup.scaleWithDoc ? 1 : scale)
-  const lineHeight = size * 1.2
   p.font = `${size}px ${CELL_FONT_FAMILY}`
   p.textBaseline = "alphabetic"
   const ctx = { ...controller.printFile, now: new Date(), total: Math.max(1, pagination.pages.length) }
@@ -132,6 +131,7 @@ export function drawPageLayout(p: Painter, controller: SheetController, layout: 
         continue
       }
       p.fillStyle = theme.text
+      const kind = headerFooterKind(setup, place)
       for (const [section, align, x] of [
         ["left", "left", left],
         ["center", "center", (left + right) / 2],
@@ -139,13 +139,25 @@ export function drawPageLayout(p: Painter, controller: SheetController, layout: 
       ] as const) {
         const text = hf[section]
         if (!text) continue
-        const lines = headerFooterLines(text, printPage, controller.sheet, ctx)
-        p.textAlign = align
-        const top =
-          where === "header"
-            ? page.y + setup.margins.header * pxPerIn + size
-            : page.y + page.h - setup.margins.footer * pxPerIn - (lines.length - 1) * lineHeight
-        lines.forEach((line, i) => p.fillText(line, x, top + i * lineHeight))
+        drawHeaderSection(p as SectionPainter, {
+          text,
+          picture: sectionPicture(setup, headerPictureId(where, kind, section), text),
+          align,
+          x,
+          y:
+            where === "header"
+              ? page.y + setup.margins.header * pxPerIn
+              : page.y + page.h - setup.margins.footer * pxPerIn,
+          where,
+          size,
+          // Points on the page as drawn (1/scale as big; without Scale with Document, a point on paper).
+          pt: size / 11,
+          page: printPage,
+          sheet: controller.sheet,
+          ctx,
+          // Pictures load once; the view draws again when one has.
+          onImage: () => controller.changed(),
+        })
       }
     }
   }

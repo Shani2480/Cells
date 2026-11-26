@@ -763,9 +763,13 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   changes, and edits over 20,000 rows refit too; the wheel scrolls by rows, as in Excel (a touchpad stays smooth).
 - ⬜ 2. Verify sweep: the open items in `docs/verify-list.md` checked in Excel 365 and on the OnePlus Pad / Pixel,
   fixed where they differ, ticked off as they pass.
-- 🔄 3. Printing and page layout: ✅ different first page and odd/even headers and footers (the Options group, the
-  Page Setup dialog's options and Custom Header tabs; Excel picks them by the page's place, not its number); ⬜
-  Picture / Format Picture in headers; ⏸ print titles repeated on each page in Page Layout view (left out: Excel
+- ✅ 3. Printing and page layout: ✅ different first page and odd/even headers and footers (the Options group, the
+  Page Setup dialog's options and Custom Header tabs; Excel picks them by the page's place, not its number); ✅
+  Picture / Format Picture in headers and footers (Header & Footer › Picture puts &[Picture] at the caret, asking
+  before replacing a section's picture; Format Picture's Size and Picture tabs: size, scale, aspect lock, crop,
+  colour, brightness, contrast, Reset; drawn in line with the section's text in Page Layout and printing; saved as
+  Excel does in a legacyDrawingHF VML drawing, one image part per picture; checked in Excel 365, which reads every
+  setting back); ⏸ print titles repeated on each page in Page Layout view (left out: Excel
   shows them only when printing, as Cells does); ✅ black-and-white printing applied (no fills, text and borders
   black, objects in greys, as Excel's PDF shows); ✅ printing and PDF of chart sheets (one page, the chart filling it inside the margins).
 - ⬜ 4. Shapes and text boxes: formatted text in shapes (runs, as in cells' rich text), the Format Shape pane, Shape

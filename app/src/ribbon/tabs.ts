@@ -968,8 +968,8 @@ export function controlIds(tab: Tab): string[] {
 
 /**
  * Header & Footer, while a header or footer is edited on the page in Page Layout view: Excel's ready-made ones, the
- * elements (page number, date, file and sheet names…), moving between header and footer, and the Options group.
- * Excel's Picture isn't built yet.
+ * elements (page number, date, file and sheet names, a picture and its format), moving between header and footer,
+ * and the Options group.
  */
 export const HEADER_FOOTER: Tab = {
   id: "TabHeaderFooter",
@@ -989,6 +989,8 @@ export const HEADER_FOOTER: Tab = {
         L("HFFilePath"),
         L("HFFileName"),
         L("HFSheetName"),
+        L("HFPicture"),
+        L("HFFormatPicture"),
       ],
     },
     { id: "GroupHFNavigation", label: "Navigation", columns: [L("HFGoToHeader"), L("HFGoToFooter")] },

@@ -92,6 +92,8 @@ export type SheetRead = {
   kept: Kept[]
   /** The vmlDrawing relationship of the sheet's notes (legacyDrawing), dropped and written anew. */
   legacyDrawing: string | null
+  /** The vmlDrawing relationship of the header and footer pictures (legacyDrawingHF), when the sheet has one. */
+  legacyDrawingHF: string | null
   /** The relationship of the sheet's drawing (charts, pictures), read and written anew. */
   drawing: string | null
   /** The relationship of the sheet's background picture (Page Layout › Background). */
@@ -195,6 +197,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let rootTag = ""
   let view: SheetView = { ...DEFAULT_VIEW }
   let legacyDrawing: string | null = null
+  let legacyDrawingHF: string | null = null
   let drawing: string | null = null
   let picture: string | null = null
   let oleObjects: string | null = null
@@ -440,6 +443,10 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
           sheet.outline.summaryRight = !falsy(at(outlinePr, "summaryRight"))
         }
       }
+      if (local === "legacyDrawingHF") {
+        // Header and footer pictures: read into the page setup when they can be (see read.ts), else kept as read.
+        legacyDrawingHF = /\br:id\s*=\s*"([^"]*)"/.exec(source)?.[1] ?? null
+      }
       if (local === "customSheetViews") {
         customViews.push(...readCustomSheetViews(parseFragment(source, rootTag).root, warnings))
         return
@@ -599,6 +606,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
     rootTag,
     kept,
     legacyDrawing,
+    legacyDrawingHF,
     drawing,
     picture,
     oleObjects,

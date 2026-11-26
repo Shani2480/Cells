@@ -212,7 +212,15 @@ function Radio({
   )
 }
 
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+export function Check({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
   return (
     <label className="fc-check">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
@@ -221,7 +229,7 @@ function Check({ label, checked, onChange }: { label: string; checked: boolean; 
   )
 }
 
-function NumberBox({
+export function NumberBox({
   value,
   onChange,
   min,

@@ -111,6 +111,8 @@ export type SheetWriteContext = {
   spills: ReadonlyMap<string, Range>
   /** The relationship id of the sheet's notes drawing, when it has notes. */
   legacyDrawing: string | null
+  /** The relationship id of the header and footer pictures' drawing, when the sheet has any (replaces a kept one). */
+  legacyDrawingHF?: string
   /** The relationship id of the sheet's drawing (charts, and pictures kept from the file). */
   drawing?: string | null
   /** The sheet's `oleObjects` element (Insert › Object's embedded files), or "". */
@@ -251,6 +253,7 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
     customSheetViews: ctx.customSheetViews ?? "",
     drawing: ctx.drawing ? `<drawing r:id="${ctx.drawing}"/>` : "",
     legacyDrawing: ctx.legacyDrawing ? `<legacyDrawing r:id="${ctx.legacyDrawing}"/>` : "",
+    ...(ctx.legacyDrawingHF ? { legacyDrawingHF: `<legacyDrawingHF r:id="${ctx.legacyDrawingHF}"/>` } : {}),
     picture: ctx.picture ? `<picture r:id="${ctx.picture}"/>` : "",
     oleObjects: ctx.oleObjects ?? "",
     ...printElementsXml(sheet.pageSetup, ctx.source?.pageExtras),

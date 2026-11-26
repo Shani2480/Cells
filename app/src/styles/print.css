@@ -579,3 +579,18 @@
   gap: 4px 16px;
   margin-top: 4px;
 }
+
+/* Header & Footer › Format Picture. */
+.hp-page {
+  min-height: 280px;
+}
+
+.hp-label {
+  min-width: 52px;
+}
+
+.hp-grid {
+  display: grid;
+  gap: 6px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

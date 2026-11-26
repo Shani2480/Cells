@@ -217,6 +217,8 @@ const PICTURES: Record<string, LucideIcon> = {
   HFFileName: L.File,
   HFSheetName: L.Sheet,
   HFGoToHeader: L.ArrowUpToLine,
+  HFPicture: L.Image,
+  HFFormatPicture: L.ImageUpscale,
   HFGoToFooter: L.ArrowDownToLine,
   ChartResetToMatchStyle: L.RotateCcw,
   ShapeOutlineColorPicker: L.SquareDashed,

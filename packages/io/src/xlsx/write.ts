@@ -67,6 +67,7 @@ import {
   REL_CHARTSHEET,
 } from "./constants"
 import { assemble, attrText, kid, raw, type Kept } from "./dom"
+import { headerPictureVml } from "./header-pictures"
 import { boxOf, isSignatureLine, putPicture, REL_IMAGE, writeDrawing } from "./drawing"
 import { patchThemeXml, themeChanged, themeXml } from "./theme"
 import {
@@ -596,6 +597,28 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       parts.set(partKey(vml), { name: vml, contentType: CT_VML, data: new TextEncoder().encode(xml) })
       legacyDrawing = addRel(partName, REL_VML, vml)
     }
+    // Header and footer pictures: their own VML drawing, each picture an image of it.
+    let legacyDrawingHF: string | undefined
+    const hfPictures = sheet.pageSetup.pictures
+    if (Object.keys(hfPictures).length) {
+      const vml = freeName((n) => `/xl/drawings/vmlDrawing${n}.vml`)
+      const putBytes = (name: string, contentType: string, data: Uint8Array) =>
+        parts.set(partKey(name), { name, contentType, data })
+      // A picture used in several places is one media part.
+      const media = new Map<string, string>()
+      const relOf = (id: string) => {
+        const src = hfPictures[id].src
+        let rel = media.get(src)
+        if (!rel) {
+          rel = addRel(vml, REL_IMAGE, putPicture(src, { freeName, putBytes }))
+          media.set(src, rel)
+        }
+        return rel
+      }
+      const xml = headerPictureVml(hfPictures, relOf, i)
+      parts.set(partKey(vml), { name: vml, contentType: CT_VML, data: new TextEncoder().encode(xml) })
+      legacyDrawingHF = addRel(partName, REL_VML, vml)
+    }
     if (notes) {
       const comments = freeName((n) => `/xl/comments${n}.xml`)
       put(comments, CT_COMMENTS, notes.legacy)
@@ -738,6 +761,7 @@ export async function saveXlsx(wb: Workbook, options: SaveOptions = {}): Promise
       source: s,
       spills: spills.get(i) ?? new Map(),
       legacyDrawing,
+      legacyDrawingHF,
       oleObjects: oleObjectsXml(oleItems),
       drawing,
       tableParts,

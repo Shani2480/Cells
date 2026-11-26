@@ -282,8 +282,9 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
   Refers to cells is typed (no collapse-to-pick button yet).
 
 - Page Layout: print titles aren't repeated on each page in the view (they are when printing; Excel doesn't
-  repeat them in the view either, as far as known: not changed in Phase 9); the Header & Footer
-  tab has no Picture or Format Picture. ~~No Options group (different first page, odd and even pages, scale with
+  repeat them in the view either, as far as known: not changed in Phase 9); ~~the Header & Footer
+  tab has no Picture or Format Picture.~~ Done in Phase 9 (not in the Custom Header dialog: its Insert Picture and
+  Format Picture buttons are left out). ~~No Options group (different first page, odd and even pages, scale with
   document, align with margins).~~ Done in Phase 9.
 
 - Custom Views: a view's filter settings aren't saved or shown (Excel's .wvu.FilterData is kept as read), nor are
