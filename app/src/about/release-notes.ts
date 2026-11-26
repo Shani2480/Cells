@@ -6,6 +6,20 @@ export type ReleaseNote = { version: string; date: string; notes: string[] }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "0.9.0",
+    date: "2026-11-26",
+    notes: [
+      "Several workbooks at once. On a computer, each workbook opens in its own window, as in Excel: New opens another window, a file opened from a window already in use gets a window of its own, and opening a file that's already open brings its window forward. On a phone, tablet or in a browser, tap the workbook's name at the top to see the open workbooks, switch between them, close one, or start or open another. View › Switch Windows and Ctrl+F6 go through all of them.",
+      "A workbook with more than one window (View › New Window) now opens again with every window, each on its own sheet with its own zoom and scroll position, in Cells and in Excel.",
+      "Themes of your own: Page Layout › Colors › Customize Colors and Fonts › Customize Fonts make your own sets, which you can edit or delete with a right-click, and Themes › Save Current Theme keeps the whole theme as a file Excel and PowerPoint can use. Conditional formatting and chart colours now follow the theme, as they do in Excel.",
+      "Spelling in fourteen more languages: download the ones you want in File › Options › Proofing (they work offline after that) and pick one in the Spelling dialog. Proofing also has Excel's options to skip words in capitals, words with numbers, and web and file addresses. Spelling now checks notes, comments, shapes and headers and footers too.",
+      "AutoCorrect: common typos are fixed as you type (teh becomes the), two capitals at the start of a word and a lowercase start of a sentence are put right, and (c) becomes ©. File › Options › Proofing › AutoCorrect Options lists them, with your own additions and exceptions.",
+      "Shapes: text in a shape or text box can be formatted word by word (font, size, colour, bold), WordArt Styles are on the Shape Format tab, yellow handles reshape a shape (a rounded corner, an arrow's head), lines and arrows stay glued to the shapes they join when you move them, and the Format Shape pane has fill, line, effects, size and text options. Freeform and Scribble draw shapes of your own, and Edit Points changes them point by point.",
+      "Printing: a different header and footer on the first page and on odd and even pages, pictures in headers and footers (a logo, for example) with Format Picture, chart sheets print, and Black and white in Page Setup prints without colour.",
+      "Like Excel: cutting cells and pasting them on another sheet moves them, and formulas that pointed at them follow. Links move with their cells, rows refit when you change a column's width, the mouse wheel scrolls three rows at a time, and a protected sheet can stop locked cells being selected. Flash Fill enters numbers as numbers, a chart of square data takes its series from the rows, new shapes and text boxes have Excel's colours, a copied sheet's tables are named as Excel names them, and split panes and No Fill colour filters in files sit and work as they do in Excel.",
+    ],
+  },
+  {
     version: "0.8.1",
     date: "2026-11-26",
     notes: [

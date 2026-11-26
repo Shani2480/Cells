@@ -757,6 +757,10 @@ own cell (Excel: the last changed cell), INFO("recalc") always says Automatic.
 Chosen 2026-11-26 from the shortlist (the .ods/.xlsb round two stays for later). In this order, one commit per
 part; the verify sweep runs alongside, area by area, as each part touches it.
 
+Released as 0.9.0 on 2026-11-26 with every part but the rest of the verify sweep (2), which waits on what only a
+person can do: screenshots of Excel's own window, a Mac and a Windows install, cloud pickers and a stylus on the
+tablet, a real AI model, and Inkspire's side of the shared features.
+
 - ✅ 1. Quiet fixes: links move with cut and paste and with Insert/Delete Cells, and a pasted cell brings its link;
   an Advanced Filter in place is saved as Excel saves it (_FilterDatabase, Criteria) so Clear and Reapply work
   after reopening; "Select locked cells" off is enforced on a protected sheet; rows refit when a column width
