@@ -37,6 +37,7 @@ const pick = (s: SharedSettings): SharedSettings => ({
   ignoreUppercase: s.ignoreUppercase,
   ignoreNumbers: s.ignoreNumbers,
   ignoreAddresses: s.ignoreAddresses,
+  autoCorrect: s.autoCorrect,
   hintsEnabled: s.hintsEnabled,
   hintsDismissed: s.hintsDismissed,
 })

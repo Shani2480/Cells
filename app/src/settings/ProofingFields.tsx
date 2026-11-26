@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Download, Trash2 } from "lucide-react"
 import { usePlatform } from "@/platform/context"
 import { updateSettings } from "./settings"
@@ -12,12 +13,14 @@ import {
   usableLanguages,
   useDictionaries,
 } from "@/proofing/dictionaries"
+import { AutoCorrectDialog } from "./AutoCorrectDialog"
 import type { SharedSettings } from "./shared"
 
 type Props = { value: SharedSettings; onChange: (patch: Partial<SharedSettings>) => void }
 
 /** Excel's Proofing options: the words Spelling passes over, and which dictionary it uses. */
 export function ProofingFields({ value, onChange }: Props) {
+  const [autoCorrect, setAutoCorrect] = useState(false)
   const installed = useDictionaries((d) => d.installed)
   const languages = usableLanguages(installed)
   const check = (key: "ignoreUppercase" | "ignoreNumbers" | "ignoreAddresses", label: string) => (
@@ -28,6 +31,23 @@ export function ProofingFields({ value, onChange }: Props) {
   )
   return (
     <>
+      <h3 className="options-heading">AutoCorrect options</h3>
+      <span className="options-row">
+        Change how Cells corrects and formats text as you type:
+        <button type="button" className="dialog-btn" onClick={() => setAutoCorrect(true)}>
+          AutoCorrect Options…
+        </button>
+      </span>
+      {autoCorrect ? (
+        <AutoCorrectDialog
+          value={value.autoCorrect}
+          onCancel={() => setAutoCorrect(false)}
+          onDone={(next) => {
+            setAutoCorrect(false)
+            onChange({ autoCorrect: next })
+          }}
+        />
+      ) : null}
       <h3 className="options-heading">When correcting spelling</h3>
       {check("ignoreUppercase", "Ignore words in UPPERCASE")}
       {check("ignoreNumbers", "Ignore words that contain numbers")}

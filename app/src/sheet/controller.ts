@@ -117,6 +117,7 @@ import { CustomViewCommands } from "./custom-views"
 import { EditRangeCommands } from "./edit-ranges"
 import { PAGE_GAP, pageAxis, plainMetric, type AxisMetric, type PageAxis } from "./page-map"
 import { SHEET_MESSAGES, SheetCommands } from "./sheets"
+import { autoCorrectEntry, autoCorrectTyped } from "@/proofing/autocorrect"
 
 /**
  * Ready: the grid has the keys. Enter: typing a fresh entry (arrows commit). Edit: F2 editing (arrows move the
@@ -959,8 +960,24 @@ export class SheetController {
 
   /** Typing changed the text: any reference being pointed at is finished. */
   setEditText(text: string, selStart = text.length, selEnd = selStart) {
-    if (!this.edit) return
-    this.edit = { ...this.edit, text, selStart, selEnd, point: null, pick: 0 }
+    const prev = this.edit
+    if (!prev) return
+    // One character typed at the caret: AutoCorrect looks at the word it ended.
+    if (
+      selStart === selEnd &&
+      prev.selStart === prev.selEnd &&
+      selStart === prev.selStart + 1 &&
+      text.length === prev.text.length + 1 &&
+      text.startsWith(prev.text.slice(0, prev.selStart)) &&
+      text.endsWith(prev.text.slice(prev.selEnd))
+    ) {
+      const fixed = autoCorrectTyped(text, selStart)
+      if (fixed) {
+        text = fixed.text
+        selStart = selEnd = fixed.caret
+      }
+    }
+    this.edit = { ...prev, text, selStart, selEnd, point: null, pick: 0 }
     this.changed()
   }
 
@@ -1151,8 +1168,10 @@ export class SheetController {
    * edited. A new entry clears the marching ants, as in Excel.
    */
   commitEdit(fill = false, extra?: CommitExtra): boolean {
-    const edit = this.edit
-    if (!edit) return false
+    const typed = this.edit
+    if (!typed) return false
+    // AutoCorrect's last look: the entry's final word.
+    const edit = { ...typed, text: autoCorrectEntry(typed.text) }
     this.edit = null
     const before = this.selection
     let op: Op

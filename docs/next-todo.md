@@ -246,7 +246,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 
 - ~~Spelling and Thesaurus: more languages as optional downloads (first-run setup / Settings), with the language
   picker in the Spelling dialog; Excel's proofing options (ignore words in UPPERCASE, with numbers, addresses) in
-  File › Options › Proofing;~~ (spelling done in Phase 9; the thesaurus stays English) AutoCorrect; checking text in charts, text boxes, comments and the header/footer.
+  File › Options › Proofing;~~ (spelling done in Phase 9; the thesaurus stays English) ~~AutoCorrect;~~ (done in Phase 9) checking text in charts, text boxes, comments and the header/footer.
 
 - Shapes and pictures: no Crop tool, picture corrections, colour or artistic effects yet; ~~no Shape Styles or WordArt
   Styles galleries on the Format tabs (the colour menus are there);~~ (done; WordArt Styles in Phase 9) ~~Edit Shape / Edit Points, freeform drawing~~ (done in Phase 9) and

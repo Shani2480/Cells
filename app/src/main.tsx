@@ -5,6 +5,7 @@ import { clipboardImageReader } from "./platform/clipboard-image"
 import { setPictureReader } from "./sheet/picture-data"
 import { setAutoFlashFill } from "./sheet/data"
 import { loadInstalled } from "./proofing/dictionaries"
+import { setAutoCorrect } from "./proofing/autocorrect"
 import { fileName, setFileReader, setRecognitionSwitch, setRecognizer, setWebPort } from "./sheet/get-data"
 import { updateSettings, useSettings } from "./settings/settings"
 import React from "react"
@@ -37,6 +38,8 @@ const recognition = (on: boolean) => {
   setRecognizer(on ? (androidOcr() ? mlkitRecognizer : tesseractRecognizer) : null)
   setPictureReader(on ? (androidOcr() ? mlkitPicture : tesseractPicture) : null)
 }
+setAutoCorrect(useSettings.getState().autoCorrect)
+useSettings.subscribe((s, before) => s.autoCorrect !== before.autoCorrect && setAutoCorrect(s.autoCorrect))
 setAutoFlashFill(useSettings.getState().autoFlashFill)
 useSettings.subscribe((s, before) => s.autoFlashFill !== before.autoFlashFill && setAutoFlashFill(s.autoFlashFill))
 recognition(useSettings.getState().ocrEnabled)

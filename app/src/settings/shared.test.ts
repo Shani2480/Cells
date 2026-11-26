@@ -1,3 +1,4 @@
+import { DEFAULT_AUTOCORRECT } from "@/proofing/autocorrect"
 import { describe, expect, it } from "vitest"
 import { DEFAULT_SETTINGS, detectSettings, hasSharedValues, mergeShared, nameFromAccount, parseShared } from "./shared"
 
@@ -32,6 +33,7 @@ describe("the settings file shared with Inkspire", () => {
       ignoreUppercase: true,
       ignoreNumbers: true,
       ignoreAddresses: true,
+      autoCorrect: DEFAULT_AUTOCORRECT,
       hintsEnabled: true,
       hintsDismissed: [],
     })

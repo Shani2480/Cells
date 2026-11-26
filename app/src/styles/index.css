@@ -2210,6 +2210,56 @@ html.is-browser .app-window-frame {
   margin-top: auto;
 }
 
+.options-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 13px;
+}
+
+/* AutoCorrect: the fixes, then Replace / With over the two-column list. */
+.autocorrect {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.autocorrect-fields {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2px 8px;
+  margin-top: 6px;
+}
+
+.autocorrect-list {
+  height: 180px;
+  overflow-y: auto;
+}
+
+/* What's typed shows as typed: no ligature turning "-->" or "..." into the symbol it's replaced with. */
+.autocorrect-list,
+.autocorrect-row,
+.autocorrect-fields input {
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+  font-variant-ligatures: none;
+}
+
+.autocorrect-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+  text-align: left;
+}
+
+.autocorrect-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .options-dictionary {
   align-self: flex-start;
   min-width: 240px;

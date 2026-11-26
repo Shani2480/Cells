@@ -66,3 +66,6 @@ Work for the **Inkspire** project, not this repo. Collected here so it can be pi
       (`app/src/proofing/dictionaries.ts` + `dictionaries-data.ts`, made by `scripts/build-dictionaries.mjs`: wooorm's
       dictionary-* packages pinned on jsDelivr with SHA-256, kept in IndexedDB, read by nspell in a worker) can be
       reused as they are; Italian and Portuguese are left out because nspell can't read them.
+      AutoCorrect is shared the same way (`proofing.autoCorrect`; engine and built-in list in
+      `app/src/proofing/autocorrect.ts`, dialog in `app/src/settings/AutoCorrectDialog.tsx`): Word's own AutoCorrect
+      could read the person's added and deleted entries from there.

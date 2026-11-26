@@ -791,7 +791,11 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   the app's storage, so they work offline; offered in the setup for the region picked, listed with size and licence
   in Options › Proofing, picked in the Spelling dialog, which checks on in the new language; the dictionary is read in
   a worker, as big ones take seconds; the three ignore options; language and options shared with Inkspire);
-  ⬜ AutoCorrect; ⬜ checking text in shapes, comments and headers/footers. Left out: Italian and Portuguese, whose
+  ✅ AutoCorrect (as Excel: the word just finished by a space or punctuation, and the last one when the entry goes
+  in, is corrected; Replace text as you type with Office's symbols and common slips, kept in the typed case; TWo
+  INitial CApitals, Caps Lock words, day names, a sentence's first letter but not a cell's; formulas untouched; the
+  AutoCorrect dialog from Options › Proofing adds, replaces and deletes entries; shared with Inkspire);
+  ⬜ checking text in shapes, comments and headers/footers. Left out: Italian and Portuguese, whose
   files nspell can't read.
 - ⬜ 7. Themes: Customize Colors and Customize Fonts, Save Current Theme, Reset to Theme from Template; conditional
   formats and chart colours from files following the theme.

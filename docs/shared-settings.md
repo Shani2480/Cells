@@ -51,6 +51,9 @@ The browser build keeps the same text in `localStorage["inkspire.shared-settings
   downloaded such as `nl-NL`); missing means `en-US`. An app that doesn't have that dictionary uses its own default.
 - `proofing.ignoreUppercase`, `proofing.ignoreNumbers`, `proofing.ignoreAddresses`: Office's proofing options (words in
   UPPERCASE, words with numbers, Internet and file addresses are passed over); missing means on.
+- `proofing.autoCorrect`: AutoCorrect, as Office shares it between its apps: `twoInitialCaps`, `sentenceCaps`,
+  `dayNames`, `capsLock`, `replaceText` (missing means on), `added` (`[replace, with]` pairs the person added or
+  changed, over the built-in list) and `removed` (built-in entries the person deleted). Each list is written whole.
 - `apps.<app>`: what only one app uses (its own first-run setup; Cells' `ai`: the AI tools are on; Cells' `ocr`: scanned PDFs are read with text recognition on the
   device; Cells' `hints`:
   feature hints are shown, missing means on; `hintsDismissed`: the ids of the hints already dismissed, replaced as a

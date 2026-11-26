@@ -6,6 +6,7 @@
  * values in at their places and leaves every other key (Inkspire's, a later version's) as it found it.
  */
 import type { SystemFacts } from "@cells/platform"
+import { DEFAULT_AUTOCORRECT, type AutoCorrectSettings } from "@/proofing/autocorrect"
 
 export type ThemeChoice = "system" | "light" | "dark"
 
@@ -57,6 +58,8 @@ export type SharedSettings = {
   ignoreUppercase: boolean
   ignoreNumbers: boolean
   ignoreAddresses: boolean
+  /** AutoCorrect's options and the person's changes to its list (`proofing.autoCorrect`), shared as Office's are. */
+  autoCorrect: AutoCorrectSettings
   /** Hints that introduce Cells' special features are shown (on by default; `apps.cells.hints`). */
   hintsEnabled: boolean
   /** The hints already dismissed, by id (`apps.cells.hintsDismissed`); emptied by Show hints again. */
@@ -85,6 +88,7 @@ export const DEFAULT_SETTINGS: SharedSettings = {
   ignoreUppercase: true,
   ignoreNumbers: true,
   ignoreAddresses: true,
+  autoCorrect: DEFAULT_AUTOCORRECT,
   hintsEnabled: true,
   hintsDismissed: [],
 }
@@ -142,10 +146,31 @@ export function parseShared(source: string | null): SharedSettings {
     ignoreUppercase: proofing.ignoreUppercase !== false,
     ignoreNumbers: proofing.ignoreNumbers !== false,
     ignoreAddresses: proofing.ignoreAddresses !== false,
+    autoCorrect: parseAutoCorrect(proofing.autoCorrect),
     hintsEnabled: cells.hints !== false,
     hintsDismissed: Array.isArray(cells.hintsDismissed)
       ? cells.hintsDismissed.filter((id): id is string => typeof id === "string")
       : [],
+  }
+}
+
+/** AutoCorrect's settings in the file: each option on unless it says false; pairs and names of the right types. */
+function parseAutoCorrect(value: unknown): AutoCorrectSettings {
+  const v = isObject(value) ? value : {}
+  const on = (key: string) => v[key] !== false
+  return {
+    twoInitialCaps: on("twoInitialCaps"),
+    sentenceCaps: on("sentenceCaps"),
+    dayNames: on("dayNames"),
+    capsLock: on("capsLock"),
+    replaceText: on("replaceText"),
+    added: Array.isArray(v.added)
+      ? v.added.filter(
+          (p): p is [string, string] =>
+            Array.isArray(p) && p.length === 2 && typeof p[0] === "string" && p[0] !== "" && typeof p[1] === "string",
+        )
+      : [],
+    removed: Array.isArray(v.removed) ? v.removed.filter((x): x is string => typeof x === "string") : [],
   }
 }
 
@@ -176,6 +201,7 @@ const PLACES: Record<keyof SharedSettings, string[]> = {
   ignoreUppercase: ["proofing", "ignoreUppercase"],
   ignoreNumbers: ["proofing", "ignoreNumbers"],
   ignoreAddresses: ["proofing", "ignoreAddresses"],
+  autoCorrect: ["proofing", "autoCorrect"],
   hintsEnabled: ["apps", "cells", "hints"],
   hintsDismissed: ["apps", "cells", "hintsDismissed"],
 }
