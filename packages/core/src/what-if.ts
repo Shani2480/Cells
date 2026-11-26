@@ -177,8 +177,19 @@ export function breaksDataTable(sheet: Sheet, op: Op): boolean {
     }
     case "insertCells":
     case "deleteCells":
+    case "moveCellsToSheet":
     case "moveCells": {
-      const area = op.kind === "moveCells" ? op.source : op.range
+      const area =
+        op.kind === "moveCells"
+          ? op.source
+          : op.kind === "moveCellsToSheet"
+            ? {
+                r0: op.at.row,
+                c0: op.at.col,
+                r1: op.at.row + op.source.r1 - op.source.r0,
+                c1: op.at.col + op.source.c1 - op.source.c0,
+              }
+            : op.range
       return dataTableBlocks(sheet).some(
         (b) =>
           b.r0 <= area.r1 &&

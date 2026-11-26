@@ -144,6 +144,15 @@ export function breaksPivot(sheet: Sheet, op: Op): boolean {
     case "insertCells":
     case "deleteCells":
       return areas.some((a) => sameBand(a, op))
+    case "moveCellsToSheet":
+      return areas.some((a) =>
+        overlaps(a, {
+          r0: op.at.row,
+          c0: op.at.col,
+          r1: op.at.row + op.source.r1 - op.source.r0,
+          c1: op.at.col + op.source.c1 - op.source.c0,
+        }),
+      )
     case "moveCells": {
       const target = {
         r0: op.source.r0 + op.dr,

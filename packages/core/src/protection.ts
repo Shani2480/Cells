@@ -274,6 +274,16 @@ export function protectionBlocks(sheet: Sheet, styles: StyleTable, op: Op): bool
       const s = op.source
       return anyLocked(sheet, styles, [s, { r0: s.r0 + op.dr, r1: s.r1 + op.dr, c0: s.c0 + op.dc, c1: s.c1 + op.dc }])
     }
+    // The cells a move from another sheet lands on (the source sheet is checked as the cells are cleared there).
+    case "moveCellsToSheet":
+      return anyLocked(sheet, styles, [
+        {
+          r0: op.at.row,
+          c0: op.at.col,
+          r1: op.at.row + op.source.r1 - op.source.r0,
+          c1: op.at.col + op.source.c1 - op.source.c0,
+        },
+      ])
     case "format":
     case "styles":
       return !p.formatCells

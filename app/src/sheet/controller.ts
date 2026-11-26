@@ -1640,7 +1640,15 @@ export class SheetController {
         from === this.sheetIndex
           ? moveBlockOps(this.sheetIndex, this.clip.range, area)
           : [
-              pasteBlockOp(this.sheetIndex, area, block),
+              // The cells move and references to them follow (Excel); the clear after it is empty, but it lets a
+              // protected source sheet or a PivotTable there refuse the cut.
+              {
+                kind: "moveCellsToSheet",
+                from,
+                source: this.clip.range,
+                sheet: this.sheetIndex,
+                at: { row: area.r0, col: area.c0 },
+              },
               ...optional(pasteNotesOp(this.sheetIndex, this.sheet, area, block)),
               ...optional(pasteLinksOp(this.sheetIndex, this.sheet, area, block)),
               clearCellsOp(from, this.clip.sheet, this.clip.range),

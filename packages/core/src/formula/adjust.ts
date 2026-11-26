@@ -17,7 +17,10 @@ type Span = { r0: number; r1: number; c0: number; c1: number }
  * Maps one reference (as an absolute rectangle on its sheet) to its new rectangle, or null when it is destroyed.
  * `onSheet` says whether the reference points at the sheet being changed.
  */
-export type RefMapper = (ref: RefNode, onSheet: boolean) => RefNode | null | undefined
+export type RefMapper = (ref: RefNode, onSheet: boolean) => MappedRef | null | undefined
+
+/** A mapper's answer; `toSheet` moves the reference to another sheet (it's then written with that sheet's name). */
+export type MappedRef = RefNode & { toSheet?: string }
 
 /**
  * Rewrites `formula` (with or without its "="). `hostSheet` is the name of the sheet the formula is on and
@@ -45,8 +48,10 @@ export function rewriteFormula(
     const result = map(ref, target === null || sheet === target || (ref.sheet === null && host === target))
     if (result === undefined) continue
     const bang = token.text.lastIndexOf("!")
-    const prefix = bang >= 0 ? token.text.slice(0, bang + 1) : ""
-    const text = result === null ? `${prefix}#REF!` : prefix + refText({ ...result, sheet: null, sheetTo: null })
+    const prefix =
+      result?.toSheet !== undefined ? sheetPrefix(result.toSheet, null) : bang >= 0 ? token.text.slice(0, bang + 1) : ""
+    const text =
+      result === null ? `${prefix}#REF!` : prefix + refText({ ...withoutSheet(result), sheet: null, sheetTo: null })
     if (text !== token.text) {
       token.text = text
       changed = true
@@ -54,6 +59,10 @@ export function rewriteFormula(
   }
   if (!changed) return null
   return (eq ? "=" : "") + tokens.map((t) => t.text).join("")
+}
+
+function withoutSheet({ toSheet: _, ...ref }: MappedRef): RefNode {
+  return ref
 }
 
 function spanOf(ref: RefNode): Span {
@@ -164,6 +173,51 @@ export function moveMapper(source: Range, dr: number, dc: number): RefMapper {
     }
     if (inside(span, dest) && !overlaps(span, source)) return null
     return undefined
+  }
+}
+
+/**
+ * Cut on one sheet and pasted on another (`toSheet`), moved by (dr, dc): references wholly inside the source follow
+ * the cells there, as in Excel (=A1 on the source sheet becomes =Dst!C3).
+ */
+export function moveToSheetMapper(source: Range, dr: number, dc: number, toSheet: string): RefMapper {
+  return (ref, onSheet) => {
+    if (!onSheet || ref.from.row === null || ref.from.col === null) return undefined
+    const span = spanOf(ref)
+    if (span.r0 < source.r0 || span.r1 > source.r1 || span.c0 < source.c0 || span.c1 > source.c1) return undefined
+    return { ...withSpan(ref, { r0: span.r0 + dr, r1: span.r1 + dr, c0: span.c0 + dc, c1: span.c1 + dc }), toSheet }
+  }
+}
+
+/** References wholly inside `area` (cells a paste from another sheet overwrote) become #REF!. */
+export function overwrittenMapper(area: Range): RefMapper {
+  return (ref, onSheet) => {
+    if (!onSheet || ref.from.row === null || ref.from.col === null) return undefined
+    const span = spanOf(ref)
+    return span.r0 >= area.r0 && span.r1 <= area.r1 && span.c0 >= area.c0 && span.c1 <= area.c1 ? null : undefined
+  }
+}
+
+/**
+ * A formula cut from `fromSheet` to `toSheet`, as Excel rewrites it: references to cells that moved with it follow
+ * them (=A5*2 → =G7*2); the others keep pointing at the old sheet (=A2+1 → =Src!A2+1).
+ */
+export function movedFormulaMapper(
+  source: Range,
+  dr: number,
+  dc: number,
+  fromSheet: string,
+  toSheet: string,
+): RefMapper {
+  return (ref, onSheet) => {
+    if (!onSheet) return undefined
+    const span = spanOf(ref)
+    const whole = ref.from.row === null || ref.from.col === null
+    if (!whole && span.r0 >= source.r0 && span.r1 <= source.r1 && span.c0 >= source.c0 && span.c1 <= source.c1) {
+      const shifted = withSpan(ref, { r0: span.r0 + dr, r1: span.r1 + dr, c0: span.c0 + dc, c1: span.c1 + dc })
+      return ref.sheet === null ? shifted : { ...shifted, toSheet }
+    }
+    return ref.sheet === null ? { ...ref, toSheet: fromSheet } : undefined
   }
 }
 

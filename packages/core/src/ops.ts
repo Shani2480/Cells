@@ -32,7 +32,15 @@ import { copyAutoFilter, shiftAutoFilter, type AutoFilter } from "./filter"
 import { rewriteNames, type DefinedName, type SheetList } from "./names"
 import type { SheetProtection, WorkbookProtection } from "./protection"
 import { formatRanges, recordBounds, restoreStyles, shiftMerges, type StyleRecord } from "./formatting"
-import { moveMapper, rewriteFormula, shiftMapper, type RefMapper } from "./formula/adjust"
+import {
+  moveMapper,
+  movedFormulaMapper,
+  moveToSheetMapper,
+  overwrittenMapper,
+  rewriteFormula,
+  shiftMapper,
+  type RefMapper,
+} from "./formula/adjust"
 import type { OutlineSettings, Sheet } from "./sheet"
 import { applySheetOp, type SheetOp } from "./sheet-ops"
 import { StyleTable, type StylePatch } from "./styles"
@@ -75,6 +83,8 @@ export type Op =
    * workbook that point into the source follow the cells.
    */
   | { kind: "moveCells"; sheet: number; source: Range; dr: number; dc: number }
+  /** Cut on sheet `from` and pasted on sheet `sheet` at `at`: the cells move and references to them follow. */
+  | { kind: "moveCellsToSheet"; from: number; source: Range; sheet: number; at: { row: number; col: number } }
   /** Formats every cell of `ranges` (whole rows and columns as Excel stores them). */
   | { kind: "format"; sheet: number; ranges: Range[]; patch: StylePatch }
   /** Puts exact style ids back (the undo of a format, Format Painter). Ids belong to the workbook's style table. */
@@ -290,6 +300,8 @@ export function applyOp(sheets: Sheet[], op: Op, styles: StyleTable = fallbackSt
       return setAxis(sheet, op.sheet, op.axis, op.entries)
     case "moveCells":
       return moveCells(sheets, op)
+    case "moveCellsToSheet":
+      return moveCellsToSheet(sheets, op)
     case "format": {
       const record = formatRanges(sheet, styles, op.ranges, op.patch)
       return formatApplied(op.sheet, record)
@@ -875,6 +887,46 @@ function setAxis(sheet: Sheet, index: number, name: AxisName, entries: AxisEntry
     inverse: [{ kind: "axis", sheet: index, axis: name, entries: previous }],
     // Sizes alone change no value; hiding does (SUBTOTAL 101–111 and AGGREGATE skip hidden rows).
     change: visibility ? { sheet: index, structural: true } : { sheet: index, structural: false, format: true },
+  }
+}
+
+function moveCellsToSheet(sheets: readonly Sheet[], op: Extract<Op, { kind: "moveCellsToSheet" }>): Applied {
+  const { source, at } = op
+  const from = sheets[op.from]
+  const to = sheets[op.sheet]
+  const dr = at.row - source.r0
+  const dc = at.col - source.c0
+  const dest = { r0: at.row, c0: at.col, r1: source.r1 + dr, c1: source.c1 + dc }
+  const moved = from.cells.entries(source)
+  const previousFrom = moved.map((e) => ({ row: e.row, col: e.col, data: e.data }))
+  const previousTo = new Map<string, CellWrite>()
+  for (const e of to.cells.entries(dest)) previousTo.set(`${e.row},${e.col}`, { row: e.row, col: e.col, data: e.data })
+  for (const e of moved) {
+    const key = `${e.row + dr},${e.col + dc}`
+    if (!previousTo.has(key)) previousTo.set(key, { row: e.row + dr, col: e.col + dc, data: undefined })
+  }
+  from.cells.clear(source)
+  to.cells.clear(dest)
+  // With the cells out of the way: references to the cells the paste overwrote break, then references to the cut
+  // cells follow them. The texts' undo goes last, once the cells are back.
+  const texts = [
+    ...rewriteReferences(sheets, op.sheet, overwrittenMapper(dest)),
+    ...rewriteReferences(sheets, op.from, moveToSheetMapper(source, dr, dc, to.name)),
+  ]
+  const own = movedFormulaMapper(source, dr, dc, from.name, to.name)
+  for (const e of moved) {
+    const data = { ...e.data }
+    delete data.spill
+    if (data.input?.startsWith("=")) data.input = rewriteFormula(data.input, from.name, from.name, own) ?? data.input
+    to.cells.set(e.row + dr, e.col + dc, data)
+  }
+  return {
+    inverse: [
+      { kind: "setCells", sheet: op.sheet, cells: [...previousTo.values()] },
+      { kind: "setCells", sheet: op.from, cells: previousFrom },
+      ...texts,
+    ],
+    change: { sheet: op.sheet, structural: true },
   }
 }
 
