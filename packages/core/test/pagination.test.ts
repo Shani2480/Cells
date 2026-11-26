@@ -113,4 +113,15 @@ describe("pagination", () => {
     expect(p.paper.width).toBeCloseTo(841.89, 1)
     expect(p.paper.height).toBeCloseTo(595.28, 1)
   })
+
+  it("a chart sheet prints on one page, its chart filling the space inside the margins", () => {
+    const wb = new Workbook()
+    const sheet = wb.sheets[0]
+    sheet.chartSheet = true
+    const setup = { ...defaultPageSetup(), orientation: "landscape" as const, firstPageNumber: 4 }
+    const p = paginate(sheet, setup, { defaultPaper: 1 })
+    expect(p.pages).toEqual([{ area: 0, rows: [0, 0], cols: [0, 0], titleRows: null, titleCols: null, number: 4 }])
+    expect(p.paper).toEqual({ width: 792, height: 612 })
+    expect(p.body).toEqual({ x: 0.7 * 72, y: 0.75 * 72, width: 792 - 1.4 * 72, height: 612 - 1.5 * 72 })
+  })
 })

@@ -122,6 +122,12 @@ export function paginate(sheet: Sheet, setup: PageSetup, options: PaginateOption
     width: Math.max(36, paper.width - (m.left + m.right) * 72),
     height: Math.max(36, paper.height - (m.top + m.bottom) * 72),
   }
+  // A chart sheet prints its chart on one page, filling the space inside the margins (Excel's "Use full page").
+  if (sheet.chartSheet) {
+    const number = setup.firstPageNumber ?? options.firstNumber ?? 1
+    const page: PrintPage = { area: 0, rows: [0, 0], cols: [0, 0], titleRows: null, titleCols: null, number }
+    return { pages: [page], areas: [{ r0: 0, c0: 0, r1: 0, c1: 0 }], scale: 1, paper, body }
+  }
   const used = printedRange(sheet)
   const areas = options.ranges ?? (!options.ignorePrintArea && setup.printArea ? setup.printArea : used ? [used] : [])
   const headings = setup.headings ? (options.headings ?? { width: 27, height: 15 }) : { width: 0, height: 0 }

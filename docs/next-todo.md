@@ -236,7 +236,7 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 - [x] 1 Quiet fixes (links with cut/paste and Insert/Delete Cells, Advanced Filter saved, Select locked cells,
       row refit, wheel by rows)
 - [ ] 2 Verify sweep (`docs/verify-list.md`)
-- [ ] 3 Printing and page layout (first/odd/even headers and Options ✅, black and white ✅)
+- [ ] 3 Printing and page layout (first/odd/even headers and Options ✅, black and white ✅, chart sheets ✅)
 - [ ] 4 Shapes and text boxes
 - [ ] 6 Proofing
 - [ ] 7 Themes

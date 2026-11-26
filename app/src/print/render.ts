@@ -247,6 +247,14 @@ export async function drawPage(
   p.fillStyle = "#ffffff"
   p.fillRect(0, 0, paper.width, paper.height)
 
+  if (sheet.chartSheet) {
+    await drawChartSheet(p, c, sheet, body)
+    p.setTransform(pxPerPt, 0, 0, pxPerPt, 0, 0)
+    drawHeaderFooter(p, headerFooterOf(setup, "header", 0), sheet, page, ctx, pagination, "header")
+    drawHeaderFooter(p, headerFooterOf(setup, "footer", 0), sheet, page, ctx, pagination, "footer")
+    return
+  }
+
   // The cells, in sheet pixels scaled to points and the page's scale.
   const headingsW = setup.headings ? Math.max(20, String(page.rows[1] + 1).length * 6 + 9) * PX_PER_PT : 0
   const headingsH = setup.headings ? 20 : 0
@@ -299,6 +307,37 @@ export async function drawPage(
   const place = found >= 0 ? found : pagination.pages.findIndex((q) => q.number === page.number)
   drawHeaderFooter(p, headerFooterOf(setup, "header", Math.max(0, place)), sheet, page, ctx, pagination, "header")
   drawHeaderFooter(p, headerFooterOf(setup, "footer", Math.max(0, place)), sheet, page, ctx, pagination, "footer")
+}
+
+/** A chart sheet's chart, drawn to fill the page inside its margins (the canvas is in points here). */
+async function drawChartSheet(
+  p: CanvasRenderingContext2D,
+  c: SheetController,
+  sheet: Sheet,
+  body: { x: number; y: number; width: number; height: number },
+) {
+  const chart = sheet.objects.find(isChart)
+  if (!chart) return
+  // Laid out in CSS pixels at the page's size, so fonts keep their size on paper.
+  const w = body.width * PX_PER_PT
+  const h = body.height * PX_PER_PT
+  let markup: string
+  try {
+    markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${renderChart(c.charts.liveSpec(chart), w, h)}</svg>`
+  } catch {
+    return
+  }
+  const img = new Image()
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup)
+  try {
+    await img.decode()
+  } catch {
+    return
+  }
+  p.save()
+  if (sheet.pageSetup.blackAndWhite) p.filter = "grayscale(1) contrast(1.6)"
+  p.drawImage(img, body.x, body.y, body.width, body.height)
+  p.restore()
 }
 
 function drawHeadings(p: CanvasRenderingContext2D, layout: GridLayout) {
