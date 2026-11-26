@@ -200,7 +200,7 @@ export class SheetCommands {
   }
 
   /**
-   * Tables in a copied sheet get names of their own (Sales → Sales_2) and new ids; the copy's formulas that name them
+   * Tables in a copied sheet get new ids and names of their own, as Excel names them (Sales with id 3 → Sales4); the copy's formulas that name them
    * follow.
    */
   private renameCopiedTables(snapshot: SheetSnapshot) {
@@ -213,10 +213,9 @@ export class SheetCommands {
     ])
     let id = nextTableId(wb.sheets)
     for (const t of tables) {
-      const base = t.name.replace(/_\d+$/, "")
-      let n = 2
-      while (taken.has(`${base}_${n}`.toUpperCase())) n++
-      const name = `${base}_${n}`
+      // Excel's rule: the name followed by the new table's id + 1 (Sales with id 3 → Sales4; Sales4 copied → Sales45).
+      while (taken.has(`${t.name}${id + 1}`.toUpperCase())) id++
+      const name = `${t.name}${id + 1}`
       taken.add(name.toUpperCase())
       for (const w of snapshot.cells) {
         const input = w.data?.input

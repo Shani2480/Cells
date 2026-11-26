@@ -205,9 +205,9 @@ describe("Table Design", () => {
     type(c, 6, 0, "=SUM(Table1[Qty])")
     c.sheets.copy(0, 1)
     const copy = c.wb.sheets[1]
-    expect(copy.tables[0].name).toBe("Table1_2")
+    expect(copy.tables[0].name).toBe("Table13")
     expect(copy.tables[0].id).not.toBe(c.wb.sheets[0].tables[0].id)
-    expect(copy.cells.get(6, 0)?.input).toBe("=SUM(Table1_2[Qty])")
+    expect(copy.cells.get(6, 0)?.input).toBe("=SUM(Table13[Qty])")
     expect(copy.cells.get(6, 0)?.value).toBe(7)
     expect(c.wb.sheets[0].cells.get(6, 0)?.input).toBe("=SUM(Table1[Qty])")
   })
