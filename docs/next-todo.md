@@ -296,8 +296,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 
 - ~~The Name Box doesn't take a list of ranges (B1,B3) yet.~~ Done in Phase 8.
 - Data tables in .xls files open as their values (the BIFF TABLE record isn't read).
-- An Advanced Filter in place isn't saved as one (its hidden rows are): after reopening, Clear and Reapply don't
-  know it (Excel keeps it in the _FilterDatabase and Criteria names).
+- ~~An Advanced Filter in place isn't saved as one.~~ Done in Phase 9. "Unique records only" isn't in the file
+  (Excel doesn't keep it either), so a Reapply after reopening shows duplicates again.
 - Consolidate works with ranges in this workbook only (Excel's Browse... for other workbooks isn't there); settings
   that name another workbook are kept in the file as they were read.
 - FORECAST.ETS and its family give results close to Excel's, not equal: the season length and perfect patterns match

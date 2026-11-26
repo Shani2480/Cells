@@ -20,6 +20,8 @@ import {
   type ModelRelationship,
   type ModelTable,
   copyTableStyleSet,
+  parseRange,
+  type Range,
 } from "@cells/core"
 import { decodeXml, parseXmlEvents } from "@cells/ooxml"
 import { findPart, openPackage, relationshipsFor, type OpcPackage, type OpcRelationship } from "../opc"
@@ -411,6 +413,8 @@ export async function openXlsx(
   const total = sizes.reduce((a, b) => a + b, 0) || 1
   let before = 0
   let chartIds = 0
+  // Sheets whose rows a filter hides (sheetPr filterMode): with no AutoFilter, an Advanced Filter in place.
+  const filtered = new Set<Sheet>()
   for (const [i, node] of sheetNodes.entries()) {
     const sheet = wb.sheets[i]
     const state = at(node, "state") ?? "visible"
@@ -444,6 +448,7 @@ export async function openXlsx(
       progress: options.progress ? (done) => options.progress!(0.1 + 0.85 * (start + share * done)) : undefined,
     })
     dynamic ||= read.dynamic
+    if (read.filterMode) filtered.add(sheet)
     if (read.customViews.length) customSheetViews.set(sheet, read.customViews)
     const rels = relationshipsFor(pkg, rel.partName)
     const vmlRel = rels.find((r) => r.id === read.legacyDrawing)
@@ -768,19 +773,36 @@ export async function openXlsx(
     }
   }
 
-  // Defined names: workbook-wide ones Cells manages; the rest stay as read.
+  // Defined names: workbook-wide ones Cells manages; the rest stay as read. _FilterDatabase comes before Criteria.
+  const filterDatabase = new Map<Sheet, string>()
   const names: DefinedName[] = []
   const keptNames: XlsxSource["keptNames"] = []
   for (const n of kids(kid(root, "definedNames"), "definedName")) {
     const name = at(n, "name") ?? ""
     const hidden = at(n, "hidden") === "1" || at(n, "hidden") === "true"
-    // The filter's hidden name is written anew from each sheet's AutoFilter.
-    if (name === "_xlnm._FilterDatabase") continue
+    const sheetOf = at(n, "localSheetId") !== undefined ? wb.sheets[Number(at(n, "localSheetId"))] : undefined
+    // The filter's hidden name is written anew from each sheet's AutoFilter (or Advanced Filter, below).
+    if (name === "_xlnm._FilterDatabase") {
+      if (sheetOf) filterDatabase.set(sheetOf, n.text)
+      continue
+    }
+    // An Advanced Filter in place, as Excel keeps it: filterMode, the list as _FilterDatabase, the criteria range.
+    if (sheetOf && name === "_xlnm.Criteria" && filtered.has(sheetOf) && !sheetOf.autoFilter) {
+      const list = sheetRangeRef(filterDatabase.get(sheetOf) ?? "", wb)
+      const criteria = sheetRangeRef(n.text, wb)
+      if (list && criteria) {
+        sheetOf.advancedFilter = {
+          list: list.range,
+          criteria: { sheet: criteria.sheet, range: criteria.range },
+          unique: false,
+        }
+        continue
+      }
+    }
     // A slicer cache's name (#N/A) is written anew with its cache.
     if (slicersModelled && slicerCaches.has(name)) continue
     if (timelinesModelled && timelineCaches.has(name)) continue
     // The print area and titles belong to the sheet's page setup (written anew from it).
-    const sheetOf = at(n, "localSheetId") !== undefined ? wb.sheets[Number(at(n, "localSheetId"))] : undefined
     if (sheetOf && name === "_xlnm.Print_Area") {
       const area = readPrintArea(n.text)
       if (area) {
@@ -948,4 +970,14 @@ function readDataModel(root: XNode, connections: Map<number, { xml: string }>): 
     toColumn: at(r, "toColumn") ?? "",
   }))
   return { tables, relationships }
+}
+
+/** A defined name's single-area reference ("Sales!$A$1:$B$6", quoted sheet names too) as a sheet and range. */
+function sheetRangeRef(text: string, wb: Workbook): { sheet: number; range: Range } | null {
+  const m = /^(?:'((?:[^']|'')+)'|([^'!]+))!(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i.exec(text.trim())
+  if (!m) return null
+  const name = m[1] !== undefined ? m[1].replace(/''/g, "'") : m[2]
+  const sheet = wb.sheets.findIndex((s) => s.name.toLowerCase() === name.toLowerCase())
+  const range = parseRange(m[3].replace(/\$/g, ""))
+  return sheet >= 0 && range ? { sheet, range } : null
 }

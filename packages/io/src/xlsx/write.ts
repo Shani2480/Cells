@@ -1044,14 +1044,22 @@ function definedNamesXml(
     )
   }
   // Excel's hidden name for each sheet's AutoFilter range.
+  // An Advanced Filter in place is kept as Excel keeps it: its list as _FilterDatabase, its criteria range as
+  // Criteria (and filterMode on the sheet), so Clear and Reapply know it after reopening.
+  const abs = (row: number, col: number) => "$" + columnName(col) + "$" + (row + 1)
+  const areaRef = (name: string, r: Range) => quoteSheet(name) + "!" + abs(r.r0, r.c0) + ":" + abs(r.r1, r.c1)
   wb.sheets.forEach((sheet, index) => {
-    if (!sheet.autoFilter) return
-    const r = sheet.autoFilter.range
-    const abs = (row: number, col: number) => "$" + columnName(col) + "$" + (row + 1)
-    const ref = quoteSheet(sheet.name) + "!" + abs(r.r0, r.c0) + ":" + abs(r.r1, r.c1)
+    const list = sheet.autoFilter?.range ?? sheet.advancedFilter?.list
+    if (!list) return
     items.push(
-      `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">${escapeXmlText(ref)}</definedName>`,
+      `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">${escapeXmlText(areaRef(sheet.name, list))}</definedName>`,
     )
+    const criteria = !sheet.autoFilter && sheet.advancedFilter?.criteria
+    const criteriaSheet = criteria ? wb.sheets[criteria.sheet] : undefined
+    if (criteria && criteriaSheet)
+      items.push(
+        `<definedName name="_xlnm.Criteria" localSheetId="${index}">${escapeXmlText(areaRef(criteriaSheet.name, criteria.range))}</definedName>`,
+      )
   })
   // Each sheet's print area and titles, and the names that place its text links.
   wb.sheets.forEach((sheet, index) => items.push(...printNamesXml(sheet.name, index, sheet.pageSetup)))

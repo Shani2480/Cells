@@ -272,6 +272,12 @@ export function writeSheet(ctx: SheetWriteContext): SheetWritten {
   const pr = kept.find((k) => k.local === "sheetPr")
   if (pr && withOutline) pr.xml = withOutline
   else if (withOutline) kept.unshift({ local: "sheetPr", xml: withOutline })
+  // An Advanced Filter in place marks the sheet as filtered (Excel's filterMode); with none, a kept mark goes.
+  const filterPr = kept.find((k) => k.local === "sheetPr")
+  if (sheet.advancedFilter && !sheet.autoFilter) {
+    if (filterPr) filterPr.xml = withFilterMode(filterPr.xml, true)
+    else kept.unshift({ local: "sheetPr", xml: `<sheetPr filterMode="1"/>` })
+  } else if (filterPr && !sheet.autoFilter) filterPr.xml = withFilterMode(filterPr.xml, false)
   if (!ctx.source) kept.push({ local: "sheetFormatPr", xml: `<sheetFormatPr defaultRowHeight="15"/>` })
   // The outline bar's depth, which Excel reads to size it.
   const format = kept.find((k) => k.local === "sheetFormatPr")
@@ -583,6 +589,12 @@ export function withOutlinePr(
   if (/<(\w+:)?tabColor\b[^>]*\/>/.test(out)) return out.replace(/(<(?:\w+:)?tabColor\b[^>]*\/>)/, `$1${pr}`)
   out = out.replace(/^(<(?:\w+:)?sheetPr\b[^>]*>)/, `$1${pr}`)
   return out
+}
+
+/** sheetPr with its filterMode attribute set or taken away. */
+export function withFilterMode(sheetPr: string, on: boolean): string {
+  const without = sheetPr.replace(/\s+filterMode="[^"]*"/, "")
+  return on ? without.replace(/^<((?:\w+:)?sheetPr)\b/, '<$1 filterMode="1"') : without
 }
 
 /** sheetFormatPr with outlineLevelRow / outlineLevelCol set to the outline's depth (dropped at 0). */

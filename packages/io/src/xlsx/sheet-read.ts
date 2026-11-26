@@ -100,6 +100,8 @@ export type SheetRead = {
   oleObjects: string | null
   /** The file had dynamic-array formulas: their spilled cells need calculating. */
   dynamic: boolean
+  /** sheetPr's filterMode: rows hidden by a filter (with no AutoFilter element: an Advanced Filter in place). */
+  filterMode: boolean
   /** Conditional formats Cells doesn't model, as `conditionalFormatting` elements to write back as read. */
   keptConditional: string[]
   /** Row and column attributes Cells doesn't model (outline levels, collapsed, dyDescent), as read, by index. */
@@ -198,6 +200,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
   let oleObjects: string | null = null
   const pageExtras = emptyExtras()
   let fitToPage = false
+  let filterMode = false
   let sawPageSetup = false
   let dynamic = false
   const conditional: XDoc[] = []
@@ -430,6 +433,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
         const rgb = color && ctx.styles ? at(color, "rgb") : undefined
         if (rgb) sheet.tabColor = "#" + rgb.slice(-6).toUpperCase()
         fitToPage = readsFitToPage(parseFragment(source, rootTag).root)
+        filterMode = /^(1|true)$/.test(at(parseFragment(source, rootTag).root, "filterMode") ?? "")
         const outlinePr = kid(parseFragment(source, rootTag).root, "outlinePr")
         if (outlinePr) {
           sheet.outline.summaryBelow = !falsy(at(outlinePr, "summaryBelow"))
@@ -600,6 +604,7 @@ export async function readSheet(xml: string, ctx: SheetReadContext): Promise<She
     oleObjects,
     pageExtras,
     dynamic,
+    filterMode,
     keptConditional,
     rowExtras,
     colExtras,
