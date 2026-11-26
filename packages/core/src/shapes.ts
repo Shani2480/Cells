@@ -91,6 +91,18 @@ export type TextEffects = {
   reflection?: boolean
 }
 
+/** One step of a shape's own outline: move, line or cubic curve to a point, or close the figure. */
+export type PathCommand =
+  | { t: "M" | "L"; x: number; y: number }
+  | { t: "C"; x1: number; y1: number; x2: number; y2: number; x: number; y: number }
+  | { t: "Z" }
+
+/**
+ * A shape's own outline (Excel's custGeom: freeforms, scribbles, a shape whose points were edited): its commands in a
+ * w × h space, stretched over the shape's box. `fill: false` draws it as a line only.
+ */
+export type ShapePath = { w: number; h: number; commands: PathCommand[]; fill?: false }
+
 /** Where a connector's end is glued: a shape and one of its connection sites (0-based). */
 export type ShapeGlue = { id: number; site: number }
 
@@ -132,6 +144,8 @@ export type SheetShape = ObjectBase & {
   kind: "shape"
   /** DrawingML preset geometry ("rect", "ellipse", "rightArrow", "line"…). */
   geometry: string
+  /** Geometry "custom": the shape's own outline (absent: one Cells can't model, kept as the file had it). */
+  custom?: ShapePath[]
   /** Adjust values (the yellow handles), by name ("adj", "adj1"…), as DrawingML's 100000ths. */
   adjust?: Record<string, number>
   /** Insert › Text Box: a shape that's mostly text (no fill or outline by default). */
@@ -489,6 +503,7 @@ export function copyObject<T extends SheetObject>(o: T): T {
     out.fill = copyFill(s.fill)
     out.line = copyLine(s.line)!
     if (s.adjust) out.adjust = { ...s.adjust }
+    if (s.custom) out.custom = s.custom.map((p) => ({ ...p, commands: p.commands.map((c) => ({ ...c })) }))
     if (s.ink) out.ink = { strokes: s.ink.strokes.map((k) => ({ ...k, points: [...k.points] })) }
     if (s.text) out.text = copyText(s.text)
     if (s.wordArt)

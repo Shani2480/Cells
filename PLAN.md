@@ -772,7 +772,7 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   setting back); ⏸ print titles repeated on each page in Page Layout view (left out: Excel
   shows them only when printing, as Cells does); ✅ black-and-white printing applied (no fills, text and borders
   black, objects in greys, as Excel's PDF shows); ✅ printing and PDF of chart sheets (one page, the chart filling it inside the margins).
-- 🔄 4. Shapes and text boxes: ✅ formatted text in shapes (typed in place in its own fonts, sizes and colours; Home's
+- ✅ 4. Shapes and text boxes: ✅ formatted text in shapes (typed in place in its own fonts, sizes and colours; Home's
   Font and Alignment commands and Ctrl+B/I/U format the selected text while typing, or all of a selected shape's
   text; typed text takes the look it's typed into; equations and turned text keep the plain editor); ✅ WordArt
   Styles gallery on Shape Format (with Clear WordArt; Shape Styles was already there); ✅ adjustment handles (the yellow dots on 21 shapes: corners, arrow heads and shafts, callout points;
@@ -782,7 +782,10 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   the same undo step; moving a line alone lets go; saved as Excel's stCxn/endCxn, which Excel reads back as
   connected); ✅ the Format Shape pane (Shape Options: fill and transparency, line colour, width, dash and arrows, shadow,
   size, rotation, placement; Text Options: text colour, vertical alignment, direction, margins, wrapping, resize to
-  fit; opened by the Shape Styles, WordArt Styles and Size launchers or Ctrl+1); ⬜ Edit Points and freeform drawing.
+  fit; opened by the Shape Styles, WordArt Styles and Size launchers or Ctrl+1); ✅ freeforms and Edit Points (Insert › Shapes › Freeform: Shape, clicked corner by
+  corner or dragged freehand and closed at its start, and Freeform: Scribble; Shape Format › Edit Shape › Change
+  Shape and Edit Points: drag a point, Ctrl+click to take one out, the box following the points; read and written as
+  Excel's custGeom, which Excel opens as freeforms). Item 4 done.
 - ⬜ 6. Proofing: more spelling languages as optional downloads (setup and Settings, the language picker in the
   Spelling dialog), File › Options › Proofing (ignore UPPERCASE, words with numbers, addresses), AutoCorrect,
   checking text in shapes, comments and headers/footers.

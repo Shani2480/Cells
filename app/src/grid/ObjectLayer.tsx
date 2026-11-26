@@ -1,6 +1,8 @@
 import { isLineGeometry, lineEnds, type Point } from "@/sheet/connectors"
 import { LineGuide, stepAngle, type LineDrag } from "./LineGuide"
 import { AdjustHandles } from "./AdjustHandles"
+import { EditPoints } from "./EditPoints"
+import { FreeformDraw, isFreeformTool } from "./FreeformDraw"
 import { ShapeTextEditor } from "./ShapeTextEditor"
 import { ChartPartMark, chartPartAt } from "./ChartPartMark"
 import { CropView } from "./CropView"
@@ -542,7 +544,10 @@ export function ObjectLayer({
         const dragging = drag?.boxes.get(o.id) ?? null
         const rotation = isChart(o) ? 0 : drag?.rotation !== undefined && dragging ? drag.rotation : (o.rotation ?? 0)
         const flips = !isChart(o) && (o.flipH || o.flipV) ? ` scale(${o.flipH ? -1 : 1}, ${o.flipV ? -1 : 1})` : ""
-        const editing = objects.editing === o.id && !isChart(o) && o.kind === "shape"
+        // Edit Points: the shape's points show in place of its handles.
+        const points = single && objects.editingPoints === o.id && !isChart(o) && o.kind === "shape"
+        const typing = objects.editing === o.id && !isChart(o) && o.kind === "shape"
+        const editing = typing || points
         if (single && objects.cropping === o.id && !isChart(o) && o.kind === "picture")
           return (
             <CropView
@@ -622,7 +627,7 @@ export function ObjectLayer({
             </div>
             {single && isChart(o) && !dragging ? <ChartPartMark part={controller.charts.part} /> : null}
             {turn?.id === o.id ? <ModelPreview model={turn.model} frame={p.box} zoom={zoom} /> : null}
-            {editing && richEditing(o) ? (
+            {typing && richEditing(o) ? (
               <ShapeTextEditor
                 shape={o as SheetShape}
                 box={p.box}
@@ -631,7 +636,7 @@ export function ObjectLayer({
                 controller={controller}
                 onDone={onDone}
               />
-            ) : editing ? (
+            ) : typing ? (
               <TextEditor
                 id={o.id}
                 objects={objects}
@@ -700,6 +705,9 @@ export function ObjectLayer({
             ) : null}
             {single && !editing && !dragging && !isChart(o) && o.kind === "shape" && !o.connector ? (
               <AdjustHandles shape={o} box={p.box} zoom={zoom} rotation={rotation} objects={objects} />
+            ) : null}
+            {points && !dragging ? (
+              <EditPoints shape={o as SheetShape} box={p.box} zoom={zoom} rotation={rotation} objects={objects} />
             ) : null}
             {single &&
             !editing &&
@@ -800,7 +808,26 @@ export function ObjectLayer({
           })}
         />
       ) : null}
-      {pending ? (
+      {pending && isFreeformTool(pending.geometry) ? (
+        <FreeformDraw
+          key={pending.geometry}
+          geometry={pending.geometry}
+          zoom={zoom}
+          sheetPoint={sheetPoint}
+          toLayer={(pt) => ({
+            x: (colX(sheet, layout, 0) - left - sheet.cols.offset(0) + pt.x) * zoom,
+            y: (rowY(sheet, layout, 0) - top - sheet.rows.offset(0) + pt.y) * zoom,
+          })}
+          onFinish={(pts, closed) => {
+            objects.drawFreeform(pts, closed, pending.geometry === "scribble")
+            onDone()
+          }}
+          onCancel={() => {
+            objects.cancelPending()
+            onDone()
+          }}
+        />
+      ) : pending ? (
         <div
           className="object-draw"
           onPointerDown={(event) => {

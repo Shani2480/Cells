@@ -579,7 +579,7 @@ export const SHAPE_FORMAT: Tab = {
     {
       id: "GroupInsertShapes",
       label: "Insert Shapes",
-      columns: [smalls(S("ShapesInsertGallery"), S("TextBoxInsertExcel"))],
+      columns: [smalls(S("ShapesInsertGallery"), S("ObjectEditShape"), S("TextBoxInsertExcel"))],
     },
     {
       id: "GroupShapeStyles",

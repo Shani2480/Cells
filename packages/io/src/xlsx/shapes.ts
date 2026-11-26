@@ -15,6 +15,7 @@ import type {
   ThemeSlot,
 } from "@cells/core"
 import { NS_R } from "./constants"
+import { custGeomXml, readCustGeom } from "./cust-geom"
 import { at, kid, kids, type XDoc, type XNode } from "./dom"
 import { mathFallbackText, mathLook, mathParaXml, NS_A14, readMath } from "./omml"
 import type { MathList, Model3D } from "@cells/core"
@@ -427,6 +428,10 @@ export function readObject(
       line,
     }
     if (Object.keys(adjust).length) shape.adjust = adjust
+    if (geometry === "custom") {
+      const custom = readCustGeom(kid(spPr, "custGeom"))
+      if (custom) shape.custom = custom
+    }
     if (textBox) shape.textBox = true
     if (connector) shape.connector = true
     // Glued ends, by the file's ids for now (the drawing's reader turns them into Cells' ids).
@@ -592,13 +597,14 @@ export function objectXml(o: DrawingObject, box: ChildBox, w: ObjectWriter): str
   const nv = (tag: string, inner: string) => `<xdr:${tag}>${cNvPr}${inner}</xdr:${tag}>`
   if (o.kind === "shape") {
     const geom = o.geometry === "custom" ? "rect" : o.geometry
+    const e = (v: number) => Math.round(v * EMU)
     const av = o.adjust
       ? Object.entries(o.adjust)
           .map(([n, v]) => `<a:gd name="${n}" fmla="val ${Math.round(v)}"/>`)
           .join("")
       : ""
     const spPr =
-      `<xdr:spPr>${xfrmXml(o, box)}<a:prstGeom prst="${geom}"><a:avLst>${av}</a:avLst></a:prstGeom>` +
+      `<xdr:spPr>${xfrmXml(o, box)}${o.geometry === "custom" && o.custom?.length ? custGeomXml(o.custom, e(box.w), e(box.h)) : `<a:prstGeom prst="${geom}"><a:avLst>${av}</a:avLst></a:prstGeom>`}` +
       (o.connector ? "" : fillXml(o.fill)) +
       lineXml(o.line) +
       (o.shadow

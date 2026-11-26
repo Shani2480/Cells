@@ -58,6 +58,8 @@ const PICTURES: Record<string, LucideIcon> = {
   TableStyleClear: L.Eraser,
   FlyoutAnchorInsertPictures: L.Image,
   ShapesInsertGallery: L.Shapes,
+  ObjectEditShape: L.Spline,
+  ObjectEditPoints: L.SplinePointer,
   IconInsertFromFile: L.Smile,
   Insert3DModelDropdown: L.Box,
   Model3DInsertFromFile: L.HardDrive,

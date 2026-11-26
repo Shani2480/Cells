@@ -12,6 +12,8 @@ import type { Command, MenuEntry, RibbonEnv } from "./registry"
 const SHAPE_LABELS: Record<string, string> = {
   line: "Line",
   straightConnector1: "Line Arrow",
+  freeform: "Freeform: Shape",
+  scribble: "Freeform: Scribble",
   rect: "Rectangle",
   roundRect: "Rectangle: Rounded Corners",
   snip1Rect: "Rectangle: Single Corner Snipped",
@@ -56,7 +58,22 @@ const SHAPE_LABELS: Record<string, string> = {
 
 /** A shape's outline drawn small, for the gallery. */
 export function ShapeIcon({ geometry, size = 20 }: { geometry: string; size?: number }) {
-  const g = presetGeometry(geometry, size - 4, size - 4, geometry.includes("Callout") ? { adj2: 40000 } : undefined)
+  const s = size - 4
+  // Freeforms have no preset: a zigzag closing on itself, and a loose squiggle.
+  const g =
+    geometry === "freeform"
+      ? {
+          paths: [
+            `M${s * 0.1} ${s * 0.9}L${s * 0.3} ${s * 0.15}L${s * 0.6} ${s * 0.55}L${s * 0.9} ${s * 0.1}L${s * 0.8} ${s * 0.9}Z`,
+          ],
+        }
+      : geometry === "scribble"
+        ? {
+            paths: [
+              `M${s * 0.05} ${s * 0.7}C${s * 0.25} ${-s * 0.2} ${s * 0.45} ${s * 1.2} ${s * 0.6} ${s * 0.45}S${s} ${s * 0.1} ${s * 0.95} ${s * 0.8}`,
+            ],
+          }
+        : presetGeometry(geometry, s, s, geometry.includes("Callout") ? { adj2: 40000 } : undefined)
   const end = geometry === "straightConnector1"
   return (
     <svg width={size} height={size} viewBox={`-2 -2 ${size} ${size}`} aria-hidden className="shape-icon">
@@ -75,7 +92,7 @@ export function ShapeIcon({ geometry, size = 20 }: { geometry: string; size?: nu
           </marker>
         </defs>
       ) : null}
-      {[...g.paths, ...(g.lines ?? [])].map((d, i) => (
+      {[...g.paths, ...("lines" in g ? (g.lines ?? []) : [])].map((d, i) => (
         <path
           key={i}
           d={d}
@@ -108,6 +125,46 @@ const shapesPanel: MenuEntry = {
                 onClick={() => {
                   close()
                   env.c.objects.startShape(s)
+                }}
+              >
+                <ShapeIcon geometry={s} />
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  ),
+}
+
+/** Edit Shape › Change Shape: the shapes gallery without its lines; the selected shapes take the one picked. */
+const changeShapePanel: MenuEntry = {
+  panel: (env, close) => (
+    <div className="shape-gallery" role="menu" aria-label="Change Shape">
+      {SHAPE_GALLERY.filter((g) => g.group !== "Lines").map((g) => (
+        <div key={g.group}>
+          <div className="color-heading">{g.group}</div>
+          <div className="shape-gallery-row">
+            {g.shapes.map((s) => (
+              <button
+                key={s}
+                type="button"
+                role="menuitem"
+                className="shape-gallery-item"
+                title={SHAPE_LABELS[s] ?? s}
+                aria-label={SHAPE_LABELS[s] ?? s}
+                onClick={() => {
+                  close()
+                  env.c.objects.update(
+                    "Change Shape",
+                    (o) => {
+                      if (isChart(o) || o.kind !== "shape" || o.connector || o.ink) return
+                      o.geometry = s
+                      delete o.custom
+                      delete o.adjust
+                    },
+                    shapes(env).map((x) => x.id),
+                  )
                 }}
               >
                 <ShapeIcon geometry={s} />
@@ -383,6 +440,27 @@ export function objectCommands(): Command[] {
         "Insert an icon to show something with a picture. The icons come with Cells, so nothing goes online.",
       keytip: "Y1",
       run: (env) => env.dialog("icons"),
+    },
+
+    // ── Shape Format › Insert Shapes › Edit Shape ──
+    {
+      id: "ObjectEditShape",
+      label: "Edit Shape",
+      description: "Change the shape of this drawing, or edit its points to reshape it.",
+      keytip: "E",
+      enabled: (env) => shapes(env).some((o) => !o.connector && !o.ink),
+      menu: [{ heading: "Change Shape" }, changeShapePanel, "-", "ObjectEditPoints"],
+    },
+    {
+      id: "ObjectEditPoints",
+      label: "Edit Points",
+      description: "Drag the points of the shape's outline to reshape it; Ctrl+click a point to take it out.",
+      enabled: (env) => {
+        const o = env.c.objects.active()
+        return env.c.objects.selected.length === 1 && !!o && !isChart(o) && o.kind === "shape" && !o.connector && !o.ink
+      },
+      pressed: (env) => env.c.objects.editingPoints !== null,
+      run: (env) => env.c.objects.editPoints(),
     },
 
     // ── Shape Format › the Format Shape pane (the groups' launchers) ──

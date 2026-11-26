@@ -16,6 +16,7 @@ import {
   type TextRun,
   type Theme,
 } from "@cells/core"
+import { shapeGeometry } from "./path"
 import { presetGeometry } from "./geometry"
 import { pictureFilter, pictureOpacity } from "./picture-filter"
 
@@ -333,7 +334,7 @@ export function objectSvg(o: DrawingObject, w: number, h: number, theme: Theme, 
     return items.join("")
   }
   if (o.ink) return inkSvg(o.ink.strokes, w, h)
-  const g = presetGeometry(o.geometry, w, h, o.adjust)
+  const g = shapeGeometry(o, w, h)
   const id = `o${o.id}`
   const stroke = strokeAttr(o.line, theme)
   const ends = o.connector ? markers(id, o.line, theme) : { defs: "", attrs: "" }

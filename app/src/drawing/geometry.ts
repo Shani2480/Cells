@@ -726,7 +726,7 @@ const inset = (w: number, h: number, k: number) => ({ x: w * k, y: h * k, w: w *
 
 /** Insert › Shapes, by group, as Excel's gallery lists them (Cells' subset). */
 export const SHAPE_GALLERY: { group: string; shapes: string[] }[] = [
-  { group: "Lines", shapes: ["line", "straightConnector1"] },
+  { group: "Lines", shapes: ["line", "straightConnector1", "freeform", "scribble"] },
   {
     group: "Rectangles",
     shapes: ["rect", "roundRect", "snip1Rect"],

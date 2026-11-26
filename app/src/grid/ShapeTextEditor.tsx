@@ -12,7 +12,7 @@ import {
   type TextRun,
   type Theme,
 } from "@cells/core"
-import { presetGeometry } from "@/drawing/geometry"
+import { shapeGeometry } from "@/drawing/path"
 import type { SheetController } from "@/sheet/controller"
 
 const PT = 96 / 72
@@ -139,7 +139,7 @@ export function ShapeTextEditor({
 
   const text = model.current
   const ins = text.insets ?? DEFAULT_INSETS
-  const g = presetGeometry(shape.geometry, box.w, box.h, shape.adjust).text
+  const g = shapeGeometry(shape, box.w, box.h).text
   const inner = {
     x: g.x + ins.l,
     y: g.y + ins.t,

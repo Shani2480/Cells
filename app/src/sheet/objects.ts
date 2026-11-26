@@ -25,6 +25,8 @@ import {
   type SheetGroup,
   type SheetObject,
   type SheetPicture,
+  type PathCommand,
+  type ShapePath,
   type SheetShape,
   type SignatureSetup,
   type EmbeddedFile,
@@ -44,6 +46,7 @@ import {
   type PictureAdjust,
 } from "@cells/core"
 import { layoutSmartArt } from "@/drawing/smartart"
+import { fitPaths, presetAsPaths } from "@/drawing/path"
 import { renderModel } from "@/drawing/model3d"
 import { textSize } from "@/drawing/render"
 import { aspectCrop, fillCrop, fitCrop, flipCrop, fullBox, isNoCrop, NO_CROP, type Crop } from "@/drawing/crop"
@@ -119,6 +122,8 @@ export class ObjectCommands {
   inkHidden = false
   /** The picture being cropped (Picture Format › Crop): its crop handles are shown until Esc, Enter or a click away. */
   cropping: number | null = null
+  /** Shape Format › Edit Shape › Edit Points: the shape whose points show (dragged to reshape it). */
+  editingPoints: number | null = null
   /** Set Transparent Color: the picture whose next click picks the colour. */
   pickingColor: number | null = null
   /** A picture with corrections applied (a PNG data URL); the browser's canvas, or a stand-in in tests. */
@@ -172,6 +177,7 @@ export class ObjectCommands {
     this.selected = next
     if (this.editing !== null && !next.includes(this.editing)) this.editing = null
     if (this.cropping !== null && !next.includes(this.cropping)) this.cropping = null
+    if (this.editingPoints !== null && !next.includes(this.editingPoints)) this.editingPoints = null
     if (this.pickingColor !== null && !next.includes(this.pickingColor)) this.pickingColor = null
     this.c.changed()
   }
@@ -463,6 +469,84 @@ export class ObjectCommands {
         delete shape.rotation
         if (glue) shape[which] = { id: glue.id, site: glue.site }
         else delete shape[which]
+      },
+      [id],
+    )
+  }
+
+  /**
+   * Insert › Shapes › Freeform: Shape or Scribble, drawn through `points` (sheet pixels): a shape when its end came
+   * back to its start (filled, Excel's style), else a line. A scribble's points are smoothed into curves.
+   */
+  drawFreeform(points: Point[], closed: boolean, smooth: boolean): SheetShape | null {
+    this.pending = null
+    const pts = thinPoints(points, smooth ? 3 : 0.5)
+    if (pts.length < 2) {
+      this.c.changed()
+      return null
+    }
+    const commands: PathCommand[] = [{ t: "M", x: pts[0].x, y: pts[0].y }]
+    if (smooth) commands.push(...smoothCurves(pts))
+    else for (const p of pts.slice(1)) commands.push({ t: "L", x: p.x, y: p.y })
+    if (closed) commands.push({ t: "Z" })
+    const raw: ShapePath = { w: 1, h: 1, commands }
+    const fit = fitPaths([raw], 1, 1)
+    const id = this.nextId()
+    const look = defaultShape(closed ? "rect" : "line")
+    const shape: SheetShape = {
+      kind: "shape",
+      id,
+      name: objectName({ kind: "shape", geometry: "custom" }, id),
+      anchor: anchorOf(this.c.sheet, fit.box),
+      geometry: "custom",
+      custom: closed ? fit.paths : fit.paths.map((p) => ({ ...p, fill: false as const })),
+      fill: look.fill,
+      line: look.line,
+      ...(closed ? { text: look.text } : {}),
+    }
+    return this.put(shape, "Insert Shape") as SheetShape
+  }
+
+  /** Edit Shape › Edit Points (again, Escape or Enter: done) on the selected shape. */
+  editPoints(on = this.editingPoints === null) {
+    const o = this.active()
+    if (on && (!o || isChart(o) || o.kind !== "shape" || o.connector || o.ink || this.selected.length !== 1)) return
+    this.editingPoints = on && o ? o.id : null
+    this.c.changed()
+  }
+
+  /** The shape's outline as Edit Points shows it (a preset's turned into points) at its box's size. */
+  pointsOf(o: SheetShape): ShapePath[] {
+    const b = this.box(o)
+    return o.geometry === "custom" && o.custom?.length ? o.custom : presetAsPaths(o.geometry, b.w, b.h, o.adjust)
+  }
+
+  /**
+   * The shape's outline replaced by `paths` (in its box's pixels, unflipped): the shape becomes a freeform and its box
+   * follows the points, keeping its turn about where it was, as one undo step.
+   */
+  setPoints(id: number, paths: ShapePath[], label = "Edit Points") {
+    const o = this.find(id)
+    if (!o || isChart(o) || o.kind !== "shape") return
+    const b = this.box(o)
+    const fit = fitPaths(paths, b.w, b.h)
+    // The new box in the shape's own frame (flips applied), then turned about the old centre.
+    const fx = o.flipH ? b.w - fit.box.x - fit.box.w : fit.box.x
+    const fy = o.flipV ? b.h - fit.box.y - fit.box.h : fit.box.y
+    const dx = fx + fit.box.w / 2 - b.w / 2
+    const dy = fy + fit.box.h / 2 - b.h / 2
+    const r = ((o.rotation ?? 0) * Math.PI) / 180
+    const cx = b.x + b.w / 2 + dx * Math.cos(r) - dy * Math.sin(r)
+    const cy = b.y + b.h / 2 + dx * Math.sin(r) + dy * Math.cos(r)
+    const box = { x: cx - fit.box.w / 2, y: cy - fit.box.h / 2, w: fit.box.w, h: fit.box.h }
+    this.update(
+      label,
+      (x) => {
+        const s = x as SheetShape
+        s.geometry = "custom"
+        s.custom = fit.paths
+        delete s.adjust
+        s.anchor = anchorOf(this.c.sheet, box)
       },
       [id],
     )
@@ -1510,6 +1594,7 @@ export class ObjectCommands {
   /** Keys while objects are selected (true: handled). */
   key(key: string, primary: boolean, shift: boolean): boolean {
     if (this.cropping !== null && (key === "Escape" || key === "Enter")) return (this.endCrop(), true)
+    if (this.editingPoints !== null && (key === "Escape" || key === "Enter")) return (this.editPoints(false), true)
     if (this.pickingColor !== null && key === "Escape") return (this.pickColor(false), true)
     if (!this.selected.length) {
       if (key === "Escape" && this.pending) return (this.cancelPending(), true)
@@ -1612,4 +1697,37 @@ function segmentDistance(x: number, y: number, x1: number, y1: number, x2: numbe
   const len = dx * dx + dy * dy
   const t = len ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / len)) : 0
   return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy))
+}
+
+/** Points closer than `gap` pixels to the last one kept are dropped (a pointer's jitter). */
+function thinPoints(points: Point[], gap: number): Point[] {
+  const out: Point[] = []
+  for (const p of points) {
+    const last = out[out.length - 1]
+    if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= gap) out.push(p)
+  }
+  const end = points[points.length - 1]
+  if (end && out.length > 1 && out[out.length - 1] !== end) out[out.length - 1] = end
+  return out
+}
+
+/** Smooth curves through points (Catmull-Rom as cubic Béziers), from the first point on. */
+function smoothCurves(p: Point[]): PathCommand[] {
+  const out: PathCommand[] = []
+  for (let i = 0; i < p.length - 1; i++) {
+    const a = p[Math.max(0, i - 1)]
+    const b = p[i]
+    const c = p[i + 1]
+    const d = p[Math.min(p.length - 1, i + 2)]
+    out.push({
+      t: "C",
+      x1: b.x + (c.x - a.x) / 6,
+      y1: b.y + (c.y - a.y) / 6,
+      x2: c.x - (d.x - b.x) / 6,
+      y2: c.y - (d.y - b.y) / 6,
+      x: c.x,
+      y: c.y,
+    })
+  }
+  return out
 }
