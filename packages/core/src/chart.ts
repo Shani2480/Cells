@@ -228,7 +228,7 @@ export function chartRefText(sheetName: string, range: Range): string {
 
 /**
  * The ranges Excel's Insert Chart takes from data: series down the columns when there are more rows than columns
- * (across the rows otherwise, or as `byRow` says); a first row with text, or an empty corner, gives the series' names,
+ * (across the rows otherwise, a square block too, or as `byRow` says); a first row with text, or an empty corner, gives the series' names,
  * and the leading columns of text give the categories.
  */
 export function chartRefsFor(sheet: Sheet, range: Range, byRow?: boolean): ChartRefs {
@@ -259,7 +259,8 @@ export function chartRefsFor(sheet: Sheet, range: Range, byRow?: boolean): Chart
   const c0 = range.c0 + labelCols
   const rows = range.r1 - r0 + 1
   const cols = range.c1 - c0 + 1
-  const across = byRow ?? rows < cols
+  // Excel's rule: across the rows unless there are more rows than columns (a square block runs across too).
+  const across = byRow ?? rows <= cols
   const ref = (r: Range) => chartRefText(sheet.name, r)
   if (!across) {
     return {

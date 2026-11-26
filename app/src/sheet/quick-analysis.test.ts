@@ -177,8 +177,8 @@ describe("Quick Analysis", () => {
     const shape = c.quick.shape()!
     expect(c.quick.charts(shape)).toEqual(["column", "column-stacked", "hbar", "line", "area-stacked"])
     const spec = c.quick.chartSpec("line")!
-    expect(spec.series.map((s) => s.name)).toEqual(["Q1", "Q2", "Q3"])
-    expect(spec.categories).toEqual(["North", "South", "East"])
+    expect(spec.series.map((s) => s.name)).toEqual(["North", "South", "East"])
+    expect(spec.categories).toEqual(["Q1", "Q2", "Q3"])
     c.goTo({ r0: 0, c0: 0, r1: 3, c1: 1 })
     expect(c.quick.charts(c.quick.shape()!)).toContain("pie")
   })

@@ -120,3 +120,25 @@ describe("chart ranges", () => {
     expect(wb.sheets[0].charts[0].refs!.series[0].values).toBe("Sales!$B$2:$B$4")
   })
 })
+
+describe("which way the series run (Excel's Insert Chart)", () => {
+  // Checked in Excel 365 (SetSourceData's PlotBy): 3×3 and 4×4 run across the rows, 4 rows × 3 columns down.
+  const block = (rows: number, cols: number) => {
+    const wb = new Workbook(["Data"])
+    const ops: Op[] = []
+    for (let c = 1; c <= cols; c++) ops.push(writeInputOp(0, wb.sheets[0], wb.styles, 0, c, `Q${c}`))
+    for (let r = 1; r <= rows; r++) {
+      ops.push(writeInputOp(0, wb.sheets[0], wb.styles, r, 0, `R${r}`))
+      for (let c = 1; c <= cols; c++) ops.push(writeInputOp(0, wb.sheets[0], wb.styles, r, c, String(r * 10 + c)))
+    }
+    wb.transact(ops, { label: "Setup" })
+    return chartRefsFor(wb.sheets[0], { r0: 0, c0: 0, r1: rows, c1: cols }).series.map((s) => s.name)
+  }
+
+  it("a square block runs across the rows; more rows than columns runs down the columns", () => {
+    expect(block(3, 3)).toEqual(["Data!$A$2", "Data!$A$3", "Data!$A$4"])
+    expect(block(4, 4)).toHaveLength(4)
+    expect(block(4, 4)[0]).toBe("Data!$A$2")
+    expect(block(4, 3)).toEqual(["Data!$B$1", "Data!$C$1", "Data!$D$1"])
+  })
+})
