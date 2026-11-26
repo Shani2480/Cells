@@ -6,8 +6,8 @@ Built, but not yet checked against Excel or on a device.
 
 - [ ] Grid colours (gridlines, header fill and text, selected-header tint and bar, selection tint): taken from
       memory; the VM's screen showed the lock screen. Compare with a screenshot of Excel's own window, light and dark.
-- [ ] General format: the thresholds where small and large numbers switch to scientific in a 64 px column, and how
-      many digits fit at 11 characters.
+- [x] General format: the thresholds where small and large numbers switch to scientific in a 64 px column, and how
+      many digits fit at 11 characters. (2026-11-26: 17 values in a default-width column match Excel 365's text.)
 - [ ] Tab-return when Tab moves without typing (only checked with entries typed).
 - [ ] Insert dialog default choice for a tall selection (shift right vs down).
 - [ ] Auto-fit column width with Aptos Narrow metrics (we measure with the font the system has: Carlito on Linux).
@@ -25,7 +25,9 @@ Built, but not yet checked against Excel or on a device.
 Ribbon and formatting:
 
 - [ ] Accounting drop-down codes for £, €, ¥ and CHF (built by analogy with the $ code; only $ was read from Excel).
-- [ ] Theme colour tints in the colour palettes (computed, not read).
+- [x] Theme colour tints in the colour palettes (computed, not read). (2026-11-26: every palette tint of the ten theme
+      colours matches Excel 365's; 158 of 160 amounts tried match exactly, the two others are shades the palette
+      doesn't show, one step off.)
 - [ ] KeyTip letters on every tab (from memory; Home's main ones were checked).
 - [ ] Center (and the other alignment buttons) toggling back to General on a second press (ExecuteMso didn't
       toggle in the VM).
@@ -39,9 +41,11 @@ Sheet tabs:
 - [ ] Tab context menu "Insert...": Excel opens the Insert dialog (Worksheet, Chart, macro sheets); we insert a
       worksheet at once.
 - [ ] Tab Color from the tab menu: Excel opens a submenu; we open the palette at the click.
-- [ ] Copy names ("Sheet1 (2)") when the name is already 29–31 characters long.
-- [ ] A cut pasted on another sheet: Excel moves the cells and references to them follow; we paste and clear the
-      source, so formulas that pointed at the source keep pointing there.
+- [x] Copy names ("Sheet1 (2)") when the name is already 29–31 characters long. (2026-11-26: same as Excel 365, the
+      name cut to fit " (2)" in 31 characters.)
+- [x] A cut pasted on another sheet: Excel moves the cells and references to them follow. (2026-11-26: fixed and
+      checked against Excel 365: references follow with the new sheet's name, a moved formula keeps pointing at its
+      old sheet unless it moved with the cells it points at, references to overwritten cells become #REF!.)
 - [ ] Clicking another sheet's tab while typing a formula: Excel points at the other sheet; we finish the entry first.
 - [ ] Not built: grouped sheets (Shift/Ctrl+click on tabs, Select All Sheets), View Code, Protect Sheet, F11 chart
       sheet, the Activate dialog (we list the sheets in a menu on right-click of the scroll arrows). (Protect Sheet is
@@ -84,15 +88,15 @@ Phase 3, added at the end:
       accepts was checked against Excel; the file round trip was checked in Excel and the Open XML SDK.
 - [ ] Tables: the Table Design tab (built from memory of Excel 365, no reference screenshot): its groups, the Table
       Name box, the order of the style options, and Quick Styles against Excel's in-ribbon gallery. The Create Table and
-      Resize Table dialogs' wording. The gallery thumbnails next to Excel's. The name a copied sheet's table gets
-      (Cells writes Sales_2). The style colours, structured references and the file round trip (with a filtered
+      Resize Table dialogs' wording. The gallery thumbnails next to Excel's. The name a copied sheet's table gets is
+      Excel's since 2026-11-26 (the name and the new table's id + 1: Table1 → Table13). The style colours, structured references and the file round trip (with a filtered
       column) were checked in Excel and the Open XML SDK.
-- [ ] Flash Fill: its results next to Excel's on the same examples (the patterns were written from Excel's documented
-      examples, not run in Excel), and the wording of the "no pattern" message (from memory). Excel's live suggestion
+- [ ] Flash Fill: ~~its results next to Excel's on the same examples~~ (2026-11-26: all 12 examples give Excel 365's
+      results; results are now entered as if typed, numbers as numbers, as Excel does), and the wording of the "no pattern" message (from memory). Excel's live suggestion
       while typing (grey preview, Enter accepts) and the Flash Fill Options button aren't built.
 - [ ] Charts: the Chart Design tab, its galleries (Quick Layout, Change Colors, Chart Styles) and the Insert galleries'
       sections were built from memory of Excel 365, not checked against screenshots. When the data has as many rows as
-      columns, Cells runs the series down the columns (Excel's own rule for that case is unchecked). Charts Cells writes
+      columns, the series run across the rows (checked in Excel 365 on 3×3 and 4×4 blocks, 2026-11-26). Charts Cells writes
       opened in Excel with no repair and the right =SERIES formulas, and an untouched Excel chart is written back as it
       came; how Excel draws a Cells chart (colours, fonts) next to Cells' picture is unchecked. Not built yet: the Format
       tab, the Insert Chart dialog (All Charts, the "More … Charts" rows), Move Chart, chart sheets, and charts the chart
@@ -141,8 +145,8 @@ Phase 3, added at the end:
       `app/src/ribbon/registry.ts`, from memory), and the message wording for a refused one (Cells' own).
 - [ ] Grouped sheets: whether Excel's Merge, Clear All and inserted rows on a group match Cells' (each sheet's own
       cells are cleared and merged); the look of grouped tabs in dark mode.
-- [ ] Split panes in an Excel file: whether xSplit/ySplit count the row and column headings (Cells writes the
-      panes' own size, 15 twips to a pixel at 100%), and the split bar's look and width.
+- [ ] Split panes in an Excel file: ~~whether xSplit/ySplit count the row and column headings~~ (they do: 26 px and
+      20 px at 100%, read and written as Excel does since 2026-11-26), and the split bar's look and width.
 - [ ] Split: overlays (charts, notes, arrows, the cell editor) in the top and left panes are placed in the bottom-right
       pane when it shows the same cells; Excel draws them in each pane.
 - [ ] Page Break Preview against Excel: the grey and blue, the "Page N" size, and what Excel does when an automatic
@@ -159,11 +163,11 @@ Phase 3, added at the end:
       Excel's undo label, whether Esc drops the typed text, and the boxes' size and border.
 - [ ] Custom Views: Excel's own messages for replacing and deleting a view (Cells' wording), and whether Excel
       greys Custom Views out while sheets are grouped.
-- [ ] Fill Across Worksheets on whole rows and columns (Cells copies the used part of the cells; row and column
-      formats aren't copied).
+- [x] Fill Across Worksheets on whole rows and columns. (2026-11-26: Excel 365 copies the row's format and height too;
+      Cells does now.)
 - [ ] Shapes: Excel's standard size for a clicked (not dragged) shape and where it lands; the nudge step with and
-      without Ctrl; the default theme colours of new shapes, text boxes and WordArt in Excel 365 (Cells: accent1
-      fill, accent1 50% outline, white text; text box white with grey outline). A Cells-made file opens with no
+      without Ctrl; the default look of new WordArt. New shapes and text boxes look as in Excel 365 since 2026-11-26
+      (accent 1 with a 15% shade of it as a 1.5 pt outline; text box white with a #BCBCBC 0.75 pt outline). A Cells-made file opens with no
       repair (checked 2026-11-17: shapes, star rotated and flipped, connector, text box, WordArt, picture with a
       border, SVG icon as a Graphic, group).
 - [ ] Icons: Excel's icon size and colour on insert (Cells: one inch, black) and the alt text it fills in.

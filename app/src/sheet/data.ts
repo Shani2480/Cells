@@ -4,6 +4,7 @@ import {
   type AdvancedFilter,
   type AxisEntry,
   consolidateOps,
+  contentForInput,
   type ConsolidateSettings,
   type ConsolidateSource,
   copyTable,
@@ -467,8 +468,14 @@ export class DataCommands {
     found?.rows.forEach((r, i) => {
       const value = found.results[i]
       if (value === null || value === undefined) return
-      const style = sheet.cells.get(r, col)?.style
-      writes.push({ row: r, col, data: { ...(style ? { style } : {}), value } })
+      const current = sheet.cells.get(r, col)
+      const style = current?.style
+      // Entered as if typed, as Excel's Flash Fill does ("0042" becomes 42), unless the cell is formatted as Text.
+      const asText = value.startsWith("=") || styles.get(sheet.styleAt(r, col)).numberFormat === "@"
+      const data = asText
+        ? { ...(style ? { style } : {}), value }
+        : (contentForInput(styles, current, value, sheet.rowStyles.get(r) || sheet.colStyles.get(col)) ?? { value })
+      writes.push({ row: r, col, data })
     })
     if (!writes.length) {
       this.c.shell.alert(NO_FLASH_PATTERN)

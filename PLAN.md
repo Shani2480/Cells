@@ -761,8 +761,13 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   an Advanced Filter in place is saved as Excel saves it (_FilterDatabase, Criteria) so Clear and Reapply work
   after reopening; "Select locked cells" off is enforced on a protected sheet; rows refit when a column width
   changes, and edits over 20,000 rows refit too; the wheel scrolls by rows, as in Excel (a touchpad stays smooth).
-- ⬜ 2. Verify sweep: the open items in `docs/verify-list.md` checked in Excel 365 and on the OnePlus Pad / Pixel,
-  fixed where they differ, ticked off as they pass.
+- 🔄 2. Verify sweep: the open items in `docs/verify-list.md` checked in Excel 365 and on the OnePlus Pad / Pixel,
+  fixed where they differ, ticked off as they pass. Batch 1 (what Excel can report through scripting): General in a
+  default column, palette tints, copy names and Flash Fill matched; fixed to match Excel: a cut pasted on another
+  sheet (references follow), copied tables' names (Table13), square chart data (series across the rows), new
+  shapes' look, split panes (counted with the headings), Fill Across on whole rows and columns, Flash Fill results
+  entered as typed. Excel's own window can't be captured in the VM (it runs hidden), so the items about looks wait
+  for screenshots.
 - ✅ 3. Printing and page layout: ✅ different first page and odd/even headers and footers (the Options group, the
   Page Setup dialog's options and Custom Header tabs; Excel picks them by the page's place, not its number); ✅
   Picture / Format Picture in headers and footers (Header & Footer › Picture puts &[Picture] at the caret, asking

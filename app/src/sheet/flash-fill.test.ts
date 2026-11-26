@@ -29,15 +29,16 @@ describe("Flash Fill (Ctrl+E)", () => {
     expect(c.sheet.cells.get(2, 1)).toBeUndefined()
   })
 
-  it("numbers are read as shown, and the results stay text", () => {
+  it("numbers are read as shown, and the results are entered as if typed (Excel 365: Order 0042 gives 42)", () => {
     const c = sheet([
       ["Order 1001", "1001"],
       ["Order 1002", ""],
+      ["Order 0042", ""],
     ])
-    // The example was typed as a number; the fill writes text, as Excel's Flash Fill does.
     c.goTo({ r0: 1, c0: 1, r1: 1, c1: 1 })
     c.data.flashFill()
-    expect(c.sheet.cells.get(1, 1)?.value).toBe("1002")
+    expect(c.sheet.cells.get(1, 1)?.value).toBe(1002)
+    expect(c.sheet.cells.get(2, 1)?.value).toBe(42)
   })
 
   it("says so when there is no pattern", () => {
