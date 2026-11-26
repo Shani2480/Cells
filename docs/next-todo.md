@@ -329,7 +329,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
   and columns.
 - ~~"Select locked cells" off isn't enforced.~~ Done in Phase 9. With both select options off the cursor stays
   where it is (Excel hides it).
-- Rows don't refit when a column width changes; edits over 20,000 rows don't refit rows at all.
+- ~~Rows don't refit when a column width changes; edits over 20,000 rows don't refit rows at all.~~ Done in Phase 9
+  (an edit refits up to 250,000 rows).
 - Wheel scrolling moves by pixels, not by rows like Excel.
 - Icons in the conditional-formatting menu rows; avatar colours for comment authors (now picked from the name).
 

@@ -51,6 +51,38 @@ describe("rows fit their content", () => {
     expect(c.sheet.rows.size(0)).toBe(4 * 20)
   })
 
+  it("a column made wider or narrower refits its wrapped rows; undo takes the heights back", () => {
+    const { c, select, type } = setup()
+    type("A1", "one two three four five six")
+    type("A3", "short")
+    select("A1:A3")
+    c.format.apply({ wrap: true }, "Wrap Text")
+    expect(c.sheet.rows.size(0)).toBe(4 * 20)
+    // 134 px: 128 inside, 18 characters a line.
+    c.setLineSize("cols", [0], 134)
+    expect(c.sheet.rows.size(0)).toBe(2 * 20)
+    c.setLineSize("cols", [0], 400)
+    expect(c.sheet.rows.size(0)).toBe(20)
+    expect(c.sheet.rows.size(2)).toBe(20)
+    c.undo()
+    expect(c.sheet.rows.size(0)).toBe(2 * 20)
+    c.undo()
+    expect(c.sheet.rows.size(0)).toBe(4 * 20)
+  })
+
+  it("a format over more than 20,000 rows refits the rows with cells", () => {
+    const { c, select } = setup()
+    const cells = []
+    for (let row = 0; row < 30_000; row += 3) cells.push({ row, col: 1, data: { value: "Total" } })
+    c.wb.transact([{ kind: "setCells", sheet: 0, cells }], { label: "Load" })
+    select("B:B")
+    c.format.apply({ fontSize: 24 }, "Font Size")
+    expect(c.sheet.rows.size(29_997)).toBe(Math.round(32 * 1.36))
+    expect(c.sheet.rows.size(29_998)).toBe(20)
+    c.undo()
+    expect(c.sheet.rows.size(29_997)).toBe(20)
+  })
+
   it("a row sized by hand keeps its height", () => {
     const { c, select, type } = setup()
     c.setLineSize("rows", [4], 30)

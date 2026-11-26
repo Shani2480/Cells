@@ -265,8 +265,10 @@ export const LARGE_HEADER_HEIGHT = 30
 
 /** Format changes that can change a row's fitted height. */
 const FIT_KEYS = new Set(["fontSize", "fontName", "wrap", "rotation", "indent", "numberFormat"])
-/** Edits touching more rows than this don't refit rows (see fitRows). */
+/** Whole rows formatted: up to this many are refitted one by one, empty or not (see fitRows). */
 const FIT_LIMIT = 20_000
+/** The most rows one edit refits (each is measured); past it the edit leaves heights as they are. */
+const FIT_CAP = 250_000
 /** The smallest pane a split leaves (sheet pixels); a split bar dragged closer to an edge goes away. */
 export const SPLIT_MIN = 24
 
@@ -539,25 +541,37 @@ export class SheetController {
 
   /**
    * Excel heightens (and lowers again) rows whose content needs it: wrapped text, line breaks, bigger fonts. Rows
-   * the user sized by hand keep their height. The fitted heights join the edit's undo step. Very large edits (more
-   * than FIT_LIMIT rows) are left as they are, to keep formatting whole columns fast.
+   * the user sized by hand keep their height. The fitted heights join the edit's undo step. A format over a big
+   * range refits only the rows with cells in it (a whole column formatted stays fast); a column made wider or
+   * narrower refits the rows where it holds wrapped text.
    */
   private fitRows(entry: UndoEntry<ViewMeta>, ops: Op[]) {
     const fit = this.rowFit
     if (!fit) return
     const rows = new Set<number>()
     const sheetIndex = this.sheetIndex
-    const used = this.sheet.cells.usedBounds()
+    const sheet = this.sheet
+    const used = sheet.cells.usedBounds()
     const addRange = (r: Range) => {
       const r0 = Math.max(r.r0, used ? 0 : r.r1 + 1)
       const r1 = Math.min(r.r1, used ? used.r1 : -1)
-      for (let row = r0; row <= r1 && rows.size <= FIT_LIMIT; row++) rows.add(row)
+      // Whole rows (a row format can heighten an empty row): each of them, when there aren't too many.
+      if (r.c0 === 0 && r.c1 === MAX_COLS - 1 && r1 - r0 < FIT_LIMIT) {
+        for (let row = r0; row <= r1; row++) rows.add(row)
+        return
+      }
+      sheet.cells.forEach({ ...r, r0, r1: Math.max(r0 - 1, r1) }, (row) => rows.add(row))
     }
     for (const op of ops) {
       if (!("sheet" in op) || op.sheet !== sheetIndex) continue
       if (op.kind === "setCells") for (const w of op.cells) rows.add(w.row)
       else if (op.kind === "format" && Object.keys(op.patch).some((k) => FIT_KEYS.has(k))) op.ranges.forEach(addRange)
-      if (rows.size > FIT_LIMIT) return
+      else if (op.kind === "axis" && op.axis === "cols")
+        for (const e of op.entries)
+          sheet.cells.forEach({ r0: 0, r1: MAX_ROWS - 1, c0: e.index, c1: e.index }, (row, col) => {
+            if (this.wb.styles.get(sheet.styleAt(row, col)).wrap) rows.add(row)
+          })
+      if (rows.size > FIT_CAP) return
     }
     if (!rows.size) return
     const axis = this.sheet.rows
