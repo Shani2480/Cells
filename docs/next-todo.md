@@ -327,7 +327,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 
 - Notes and comments don't move with Insert/Delete Cells (shift) or a cut and paste. They do move with whole rows
   and columns.
-- "Select locked cells" off isn't enforced: the cursor can still go to locked cells.
+- ~~"Select locked cells" off isn't enforced.~~ Done in Phase 9. With both select options off the cursor stays
+  where it is (Excel hides it).
 - Rows don't refit when a column width changes; edits over 20,000 rows don't refit rows at all.
 - Wheel scrolling moves by pixels, not by rows like Excel.
 - Icons in the conditional-formatting menu rows; avatar colours for comment authors (now picked from the name).

@@ -281,6 +281,7 @@ export class SheetCommands {
   protect(options: Omit<SheetProtection, "password">, password: string) {
     const protection: SheetProtection = { ...options, ...(password ? { password: hashPassword(password) } : {}) }
     this.run([{ kind: "protect", sheet: this.c.sheetIndex, protection }], "Protect Sheet", this.c.sheetIndex)
+    this.c.keepSelectable()
   }
 
   /** Whether Unprotect Sheet needs to ask for a password. */

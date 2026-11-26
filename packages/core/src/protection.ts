@@ -1,4 +1,4 @@
-import type { Range } from "./address"
+import { MAX_COLS, MAX_ROWS, type Range } from "./address"
 import type { Op } from "./ops"
 import type { Sheet } from "./sheet"
 import type { StyleTable } from "./styles"
@@ -188,6 +188,71 @@ function anyLocked(sheet: Sheet, styles: StyleTable, ranges: readonly Range[]): 
     if (unstyledRow) for (let col = r.c0; col <= r.c1; col++) if (locked(sheet.colStyles.get(col))) return true
   }
   return false
+}
+
+/**
+ * What Protect Sheet lets people select: every cell (Select locked cells on, Excel's default), only unlocked cells
+ * (Select locked cells off), or none (both off).
+ */
+export function selectableCells(sheet: Sheet): "all" | "unlocked" | "none" {
+  const p = sheet.protection
+  if (!p || p.selectLocked) return "all"
+  return p.selectUnlocked ? "unlocked" : "none"
+}
+
+/** Whether the sheet's protection lets these ranges be selected. */
+export function canSelect(sheet: Sheet, styles: StyleTable, ranges: readonly Range[]): boolean {
+  const mode = selectableCells(sheet)
+  return mode === "all" || (mode === "unlocked" && !anyLocked(sheet, styles, ranges))
+}
+
+/**
+ * The cell the cursor goes to from `from` when only unlocked cells can be selected, or null when there's none.
+ * "line": the nearest unlocked cell in that direction along the row or column (the arrow keys). "order": the next
+ * (or, going left or up, the previous) unlocked cell in reading order, row by row for left/right (Tab) and column by
+ * column for up/down (Enter), wrapping round. Reading order looks within the cells that have a format of their own.
+ */
+export function nextSelectable(
+  sheet: Sheet,
+  styles: StyleTable,
+  from: { row: number; col: number },
+  dir: "up" | "down" | "left" | "right",
+  how: "line" | "order",
+): { row: number; col: number } | null {
+  const open = (row: number, col: number) => !isLocked(sheet, styles, row, col)
+  const forward = dir === "down" || dir === "right"
+  if (how === "line") {
+    const dr = dir === "down" ? 1 : dir === "up" ? -1 : 0
+    const dc = dir === "right" ? 1 : dir === "left" ? -1 : 0
+    for (let row = from.row + dr, col = from.col + dc; row >= 0 && row < MAX_ROWS && col >= 0 && col < MAX_COLS;) {
+      if (open(row, col)) return { row, col }
+      row += dr
+      col += dc
+    }
+    return null
+  }
+  const bounds = sheet.cells.usedBounds()
+  if (!bounds) return null
+  const byRows = dir === "left" || dir === "right"
+  const height = bounds.r1 - bounds.r0 + 1
+  const width = bounds.c1 - bounds.c0 + 1
+  const total = height * width
+  if (total > 5_000_000) return null
+  // The cell's place in the order, then each next place in turn until it comes round again.
+  const index = (row: number, col: number) =>
+    byRows ? (row - bounds.r0) * width + (col - bounds.c0) : (col - bounds.c0) * height + (row - bounds.r0)
+  const cell = (i: number) =>
+    byRows
+      ? { row: bounds.r0 + Math.floor(i / width), col: bounds.c0 + (i % width) }
+      : { row: bounds.r0 + (i % height), col: bounds.c0 + Math.floor(i / height) }
+  const inside = from.row >= bounds.r0 && from.row <= bounds.r1 && from.col >= bounds.c0 && from.col <= bounds.c1
+  const start = inside ? index(from.row, from.col) : forward ? -1 : total
+  for (let k = 1; k <= total; k++) {
+    const i = (((start + (forward ? k : -k)) % total) + total) % total
+    const c = cell(i)
+    if (open(c.row, c.col)) return c
+  }
+  return null
 }
 
 /**

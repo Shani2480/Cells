@@ -97,6 +97,9 @@ import {
   quoteSheet,
   rangeHtml,
   type Pagination,
+  canSelect,
+  nextSelectable,
+  selectableCells,
 } from "@cells/core"
 import { openLink } from "@/links/link"
 import { FormatCommands, NUMBER_FORMATS } from "./format"
@@ -665,6 +668,7 @@ export class SheetController {
     this.fillPreview = null
     this.endMode = false
     this.changed()
+    this.keepSelectable()
   }
 
   // ── Views as files keep them ─────────────────────────────────────────────────────────────────────────────
@@ -819,7 +823,10 @@ export class SheetController {
     this.objects.selected = []
     this.objects.editing = null
     this.objects.pending = null
-    this.selection = this.mergeAware(selection)
+    const next = this.mergeAware(selection)
+    // Protect Sheet with "Select locked cells" off: the cursor stays off locked cells (Excel).
+    if (!canSelect(this.sheet, this.wb.styles, next.ranges)) return
+    this.selection = next
     this.lastCtrlARegion = null
     if (reveal) this.scrollIntoView(reveal)
     this.changed()
@@ -1204,6 +1211,10 @@ export class SheetController {
     if (shift) {
       const focus = jump ? dataEdge(this.sheet, this.selection.focus, dir) : step(this.sheet, this.selection.focus, dir)
       this.setSelection(extendSelection(this.selection, keepWholeLines(this.selection, focus)), focus)
+    } else if (selectableCells(this.sheet) === "unlocked") {
+      // Only unlocked cells can be selected: the arrow goes to the nearest one that way.
+      const target = nextSelectable(this.sheet, this.wb.styles, this.selection.active, dir, "line")
+      if (target) this.setSelection(selectCell(target))
     } else {
       const target = jump
         ? dataEdge(this.sheet, this.selection.active, dir)
@@ -1212,9 +1223,27 @@ export class SheetController {
     }
   }
 
+  /**
+   * A protected sheet that lets only unlocked cells be selected: a cursor on a locked cell goes to the first unlocked
+   * one (as Excel does when the sheet is protected or shown).
+   */
+  keepSelectable() {
+    if (selectableCells(this.sheet) !== "unlocked" || canSelect(this.sheet, this.wb.styles, this.selection.ranges))
+      return
+    const first = nextSelectable(this.sheet, this.wb.styles, { row: -1, col: -1 }, "right", "order")
+    if (first) this.setSelection(selectCell(first))
+  }
+
   /** Enter / Shift+Enter / Tab / Shift+Tab: move within a multi-cell selection, or step (with Excel's Tab return). */
   enterMove(dir: Direction) {
     const single = isSingleCellOn(this.sheet, this.selection)
+    if (single && selectableCells(this.sheet) === "unlocked") {
+      // Tab and Enter go round the unlocked cells, like the fields of a form (Excel).
+      this.tabStartCol = null
+      const target = nextSelectable(this.sheet, this.wb.styles, this.selection.active, dir, "order")
+      if (target) this.setSelection(selectCell(target))
+      return
+    }
     if (single && dir === "down" && this.tabStartCol !== null) {
       const row = step(this.sheet, this.selection.active, "down").row
       const target = { row, col: this.tabStartCol }
