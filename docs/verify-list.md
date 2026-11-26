@@ -75,8 +75,8 @@ Phase 3, added at the end:
 - [ ] The filter dropdown's look next to Excel's (built from memory of Excel 365, no reference screenshot): widths,
       the search box, the value list and the order of the submenus.
 - [ ] The filter button's funnel and sort-arrow glyphs at 100% and 200%.
-- [ ] Filter by Color with "No Fill" saved from Cells (written as a fill of pattern none; Excel's own form for it
-      wasn't captured, Excel reapplies it correctly).
+- [x] Filter by Color with "No Fill" saved from Cells. (2026-11-26: Excel 365's own form captured, a fill of pattern
+      none with fgColor indexed 64 and bgColor indexed 65; Cells reads it and now writes exactly that.)
 - [ ] The Sort dialog's layout against Excel's.
 - [ ] Text to Columns: the wizard's three steps against Excel's Convert Text to Columns Wizard, and its messages
       (one column only, nothing to parse, replace the destination). The splitting was checked against Excel.
@@ -107,8 +107,9 @@ Phase 3, added at the end:
       scale, fit-to, margins, centring, gridlines, headings, black and white, page order, first page number, print area,
       titles, header, footer, breaks) and pass the Open XML SDK; Excel's page counts match on the fixture. Excel prints
       columns slightly narrower than the screen's widths, so its fit-to scale can differ (49% in Excel, 53% in Cells, on
-      the fixture's Fit sheet). Excel's own PDF of the fixture came out on Letter (the VM's printer), so page placement
-      against Excel on A4 is unchecked. PDF pages are pictures (no selectable text). Not built: Page Layout view, Page
+      the fixture's Fit sheet). On A4 (2026-11-26, the VM's PDF printer set to A4) Excel's and Cells' PDFs of
+      the fixture's Report sheet break at the same rows with the same margins, centring, titles, header and footer;
+      Cells' rows come out 1–2% shorter. PDF pages are pictures (no selectable text). Not built: Page Layout view, Page
       Break Preview, even/first-page headers (kept in the file), header pictures and fonts, Black and white in the
       drawing, print quality and comments/errors as printed options. The printer and copies are chosen in the system's
       print dialog.

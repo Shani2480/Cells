@@ -584,12 +584,13 @@ export class StylesOut {
 
   /**
    * The dxf of a Filter by Color, as Excel writes it: the colour as a solid fill's fgColor, for a font colour too
-   * (the filter's cellColor="0" says which). No Fill / Automatic is a fill of pattern none.
+   * (the filter's cellColor="0" says which). No Fill / Automatic is a fill of pattern none with the system colours
+   * (indexed 64 and 65), exactly as Excel 365 writes it.
    */
   filterDxf(_cell: boolean, color: string | null): number {
     const x = color
       ? `<fill><patternFill patternType="solid">${colorXml("fgColor", color)}<bgColor rgb="FFFFFFFF"/></patternFill></fill>`
-      : `<fill><patternFill patternType="none"/></fill>`
+      : `<fill><patternFill patternType="none"><fgColor indexed="64"/><bgColor indexed="65"/></patternFill></fill>`
     return this.dxfs.add(`<dxf>${x}</dxf>`)
   }
 

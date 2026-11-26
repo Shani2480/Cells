@@ -94,3 +94,17 @@ describe("AutoFilter in xlsx", () => {
     expect(again.workbook.sheets[0].autoFilter?.columns[0]).toEqual({ kind: "color", cell: false, color: "#0000FF" })
   })
 })
+
+describe("Filter by Color › No Fill", () => {
+  it("reads Excel 365's No Fill filter, and writes it back the way Excel does", async () => {
+    // Excel 365: AutoFilter with xlFilterNoFill on A1:A6 (A3 red, A5 yellow).
+    const bytes = new Uint8Array(readFileSync(new URL("./fixtures/excel/filter-no-fill.xlsx", import.meta.url)))
+    const read = await openXlsx(bytes)
+    expect(read.workbook.sheets[0].autoFilter?.columns[0]).toEqual({ kind: "color", cell: true, color: null })
+    const saved = await saveXlsx(read.workbook, { views: read.views })
+    expect(await text(saved, "xl/worksheets/sheet1.xml")).toMatch(/<colorFilter dxfId="\d+"\/>/)
+    expect(await text(saved, "xl/styles.xml")).toContain(
+      `<dxf><fill><patternFill patternType="none"><fgColor indexed="64"/><bgColor indexed="65"/></patternFill></fill></dxf>`,
+    )
+  })
+})
