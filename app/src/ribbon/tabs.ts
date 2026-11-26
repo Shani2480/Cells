@@ -584,6 +584,7 @@ export const SHAPE_FORMAT: Tab = {
     {
       id: "GroupShapeStyles",
       label: "Shape Styles",
+      launcher: "ObjectFormatDialog",
       columns: [
         L("ShapeStylesGallery"),
         smalls(S("ShapeFillColorPicker"), S("ShapeOutlineColorPicker"), S("ShapeEffectsMenu")),
@@ -592,6 +593,7 @@ export const SHAPE_FORMAT: Tab = {
     {
       id: "GroupWordArtStyles",
       label: "WordArt Styles",
+      launcher: "ObjectFormatTextDialog",
       columns: [
         L("WordArtStylesGallery"),
         smalls(S("TextFillColorPicker"), S("TextOutlineColorPicker"), S("TextEffectsMenu")),
@@ -599,7 +601,7 @@ export const SHAPE_FORMAT: Tab = {
     },
     { id: "GroupShapeAccessibility", label: "Accessibility", columns: [L("ObjectAlternativeText")] },
     ARRANGE,
-    SIZE,
+    { ...SIZE, launcher: "ObjectFormatDialog" },
   ],
 }
 

@@ -405,7 +405,7 @@ function PartOptions({
   return null
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <details className="cfp-section" open>
       <summary>{title}</summary>
@@ -414,7 +414,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="cfp-row">
       <span>{label}</span>
@@ -423,7 +423,15 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (on: boolean) => void }) {
+export function Check({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (on: boolean) => void
+}) {
   return (
     <label className="dialog-radio">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
@@ -432,7 +440,7 @@ function Check({ label, checked, onChange }: { label: string; checked: boolean; 
   )
 }
 
-function Choice({
+export function Choice({
   name,
   value,
   options,
@@ -456,7 +464,7 @@ function Choice({
 }
 
 /** A colour swatch that opens the theme colours; `automatic` offers the style's own colour back. */
-function ColorButton({
+export function ColorButton({
   label,
   color,
   automatic = false,
@@ -495,7 +503,7 @@ function ColorButton({
 }
 
 /** A number typed and kept on Enter or leaving the box (one undo step, not one per key); empty is "Auto". */
-function NumberInput({
+export function NumberInput({
   label,
   value,
   unit,

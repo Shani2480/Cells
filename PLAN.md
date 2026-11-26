@@ -780,7 +780,9 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   sites, as measured in Excel 365 for every shape, snaps and glues there, the sites showing as dots; a selected line
   has its two end handles, green when glued; glued lines follow their shapes as they move, turn or change size, in
   the same undo step; moving a line alone lets go; saved as Excel's stCxn/endCxn, which Excel reads back as
-  connected); ⬜ the Format Shape pane, Edit Points and freeform drawing.
+  connected); ✅ the Format Shape pane (Shape Options: fill and transparency, line colour, width, dash and arrows, shadow,
+  size, rotation, placement; Text Options: text colour, vertical alignment, direction, margins, wrapping, resize to
+  fit; opened by the Shape Styles, WordArt Styles and Size launchers or Ctrl+1); ⬜ Edit Points and freeform drawing.
 - ⬜ 6. Proofing: more spelling languages as optional downloads (setup and Settings, the language picker in the
   Spelling dialog), File › Options › Proofing (ignore UPPERCASE, words with numbers, addresses), AutoCorrect,
   checking text in shapes, comments and headers/footers.

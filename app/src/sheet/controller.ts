@@ -2373,6 +2373,9 @@ export class SheetController {
       if (lower === "i" || key === "3") return (f.toggle("italic"), true)
       if (lower === "u" || key === "4") return (f.underline(), true)
       if (key === "5") return (f.toggle("strike"), true)
+      // With a shape selected, Ctrl+1 formats the shape (Excel's Format Shape pane).
+      if (key === "1" && this.objects.drawings().some((o) => o.kind === "shape"))
+        return (this.objects.openFormatPane(), true)
       if (key === "1") return (this.shell.formatCells(), true)
       return false
     }

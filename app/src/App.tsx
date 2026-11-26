@@ -171,6 +171,7 @@ import { MacrosDialog } from "@/shell/MacrosDialog"
 import { ChartSheetView } from "@/grid/ChartSheetView"
 import { MoveChartDialog } from "@/shell/MoveChartDialog"
 import { ChartFormatPane } from "@/shell/ChartFormatPane"
+import { ShapeFormatPane } from "@/shell/ShapeFormatPane"
 import { InsertChartDialog, type ChartDialogStart } from "@/shell/InsertChartDialog"
 import { ExistingConnectionsDialog, FromWebDialog, NavigatorDialog } from "@/shell/GetDataDialogs"
 import { PictureDataDialog } from "@/shell/PictureDataDialog"
@@ -1387,6 +1388,8 @@ function WorkbookWindow({
   const chartFormatPane =
     controller.charts.formatPaneOpen && controller.charts.active() ? (
       <ChartFormatPane controller={controller} onDone={focusGrid} />
+    ) : controller.objects.formatPaneOpen && drawings.some((o) => o.kind === "shape") ? (
+      <ShapeFormatPane controller={controller} onDone={focusGrid} />
     ) : null
   const ribbonTabs = controller.headerFooter.editing
     ? TABS_IN_HEADER_FOOTER

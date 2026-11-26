@@ -95,6 +95,9 @@ export class ObjectCommands {
   caret: { id: number; fromEnd: number } | null = null
   /** Home › Find & Select › Selection Pane. */
   paneOpen = false
+  /** The Format Shape pane, and which of its tabs shows (Shape Options or Text Options). */
+  formatPaneOpen = false
+  formatPaneTab: "shape" | "text" = "shape"
   /** SmartArt › Text Pane: open beside the selected SmartArt. */
   textPaneOpen = false
   /** The SmartArt point being typed in (the Text Pane's line), what Add Shape, Promote and Demote act on. */
@@ -1120,6 +1123,18 @@ export class ObjectCommands {
     if (!o || isChart(o) || o.kind !== "shape" || o.connector) return
     if (!this.selected.includes(id)) this.selected = [id]
     this.editing = id
+    this.c.changed()
+  }
+
+  /** Format Shape (a Shape Format group's launcher, or Ctrl+1 with a shape selected): the pane, on that tab. */
+  openFormatPane(tab: "shape" | "text" = "shape") {
+    this.formatPaneOpen = true
+    this.formatPaneTab = tab
+    this.c.changed()
+  }
+
+  closeFormatPane() {
+    this.formatPaneOpen = false
     this.c.changed()
   }
 

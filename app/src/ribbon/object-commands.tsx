@@ -300,7 +300,7 @@ function colorMenu(noneLabel: string, pick: (env: RibbonEnv, color: ShapeColor |
 }
 
 const WEIGHTS = [0.25, 0.5, 0.75, 1, 1.5, 2.25, 3, 4.5, 6]
-const DASH_NAMES: [DashStyle, string][] = [
+export const DASH_NAMES: [DashStyle, string][] = [
   ["solid", "Solid"],
   ["sysDot", "Round Dot"],
   ["sysDash", "Square Dot"],
@@ -383,6 +383,23 @@ export function objectCommands(): Command[] {
         "Insert an icon to show something with a picture. The icons come with Cells, so nothing goes online.",
       keytip: "Y1",
       run: (env) => env.dialog("icons"),
+    },
+
+    // ── Shape Format › the Format Shape pane (the groups' launchers) ──
+    {
+      id: "ObjectFormatDialog",
+      label: "Format Shape",
+      description: "Open the Format Shape pane: fill, line, effects, size and properties of the selected shape.",
+      enabled: hasShape,
+      run: (env) => env.c.objects.openFormatPane("shape"),
+    },
+    {
+      id: "ObjectFormatTextDialog",
+      label: "Format Text Effects",
+      description:
+        "Open the Format Shape pane at Text Options: the text's colour, where it sits, margins and wrapping.",
+      enabled: hasShape,
+      run: (env) => env.c.objects.openFormatPane("text"),
     },
 
     // ── Shape Format › Shape Styles ──
