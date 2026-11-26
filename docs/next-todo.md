@@ -250,8 +250,8 @@ Chosen 2026-11-26; details and order in PLAN.md (Phase 9). The verify sweep goes
 
 - Shapes and pictures: no Crop tool, picture corrections, colour or artistic effects yet; no Shape Styles or WordArt
   Styles galleries on the Format tabs (the colour menus are there); Edit Shape / Edit Points, freeform drawing and
-  connectors that stay glued to shapes are missing; adjustment handles (the yellow dots) aren't shown; text in a
-  shape is typed as plain text (one format for all of it); Graphics Fill for icons; the Size dialog (Format Shape
+  connectors that stay glued to shapes are missing; adjustment handles (the yellow dots) aren't shown; ~~text in a
+  shape is typed as plain text (one format for all of it);~~ (done in Phase 9) Graphics Fill for icons; the Size dialog (Format Shape
   pane). Spelling doesn't check text in shapes yet.
 
 - Themes: Effects (the gallery is shown but not built: Cells' shapes don't use the theme's effect styles yet);

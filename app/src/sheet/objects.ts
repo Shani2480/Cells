@@ -1,4 +1,13 @@
 import {
+  alignAt,
+  alignText,
+  formatText,
+  lookAt,
+  textLength,
+  type ShapeText,
+  type TextLook,
+  type TextLookPatch,
+  type TextParagraph,
   allObjects,
   copyObject,
   defaultShape,
@@ -74,6 +83,11 @@ export class ObjectCommands {
   /** The open text editor's way to type at its caret, and to close (set while one is open). */
   textInserter: ((text: string) => void) | null = null
   finishText: (() => void) | null = null
+  /**
+   * The open editor's text and selection (set while one is open): Home's font and alignment commands format the
+   * selected text there, and the ribbon shows its look.
+   */
+  textEditor: { text(): ShapeText; range(): [number, number]; set(text: ShapeText): void } | null = null
   /** Where the caret was when a shape's editor closed (counted from the end of its text). */
   lastCaret: { id: number; fromEnd: number } | null = null
   /** Where the next editor of that shape puts the caret (absent: all its text selected). */
@@ -1030,6 +1044,105 @@ export class ObjectCommands {
     if (!this.selected.includes(id)) this.selected = [id]
     this.editing = id
     this.c.changed()
+  }
+
+  // ── Formatting text in shapes (Home › Font and Alignment) ─────────────────────────────────────────────────
+
+  /**
+   * The shapes Home's font commands format: the one being typed in (its selected text), or every selected shape
+   * and text box (all their text, as Excel does). Lines, ink and equations have no text to format this way.
+   */
+  textTargets(): SheetShape[] {
+    return this.drawings().filter(
+      (o): o is SheetShape => o.kind === "shape" && !o.connector && !o.ink && !isEquation(o),
+    )
+  }
+
+  /** Whether Home's font commands act on shapes rather than cells now. */
+  formatsText(): boolean {
+    return !this.c.edit && (this.textEditor !== null || this.textTargets().length > 0)
+  }
+
+  /** The look the ribbon shows: the selected text's in the editor, or the first selected shape's start. */
+  textLook(): TextLook {
+    if (this.textEditor) return lookAt(this.textEditor.text(), ...this.textEditor.range())
+    const shape = this.textTargets()[0]
+    return shape?.text ? lookAt(shape.text, 0, Math.max(1, textLength(shape.text))) : {}
+  }
+
+  textAlign(): TextParagraph["align"] {
+    if (this.textEditor) return alignAt(this.textEditor.text(), this.textEditor.range()[0])
+    return this.textTargets()[0]?.text?.paragraphs[0]?.align
+  }
+
+  textAnchor(): ShapeText["anchor"] {
+    const id = this.textEditor ? this.editing : this.textTargets()[0]?.id
+    const o = id === null || id === undefined ? undefined : this.find(id)
+    return o && !isChart(o) && o.kind === "shape" ? o.text?.anchor : undefined
+  }
+
+  /** Home › Font on shapes: the editor's selection, or all of each selected shape's text (one undo step). */
+  formatShapeText(patch: TextLookPatch, label: string) {
+    const editor = this.textEditor
+    if (editor) {
+      const [from, to] = editor.range()
+      if (from === to) return
+      editor.set(formatText(editor.text(), from, to, patch))
+      return
+    }
+    const ids = this.textTargets().map((o) => o.id)
+    if (!ids.length) return
+    this.update(
+      label,
+      (o) => {
+        const shape = o as SheetShape
+        const text: ShapeText = shape.text ?? { paragraphs: [{ runs: [] }] }
+        // An empty shape keeps the look for what's typed into it later.
+        shape.text = formatText(text, 0, Math.max(1, textLength(text)), patch)
+      },
+      ids,
+    )
+  }
+
+  /** Home › Align Left, Center, Right, Justify: the paragraphs selected in the editor, or all of each shape's. */
+  alignShapeText(align: TextParagraph["align"] | null) {
+    const editor = this.textEditor
+    if (editor) {
+      const [from, to] = editor.range()
+      editor.set(alignText(editor.text(), from, to, align))
+      return
+    }
+    const ids = this.textTargets().map((o) => o.id)
+    this.update(
+      "Alignment",
+      (o) => {
+        const shape = o as SheetShape
+        shape.text = alignText(shape.text ?? { paragraphs: [{ runs: [] }] }, 0, Number.MAX_SAFE_INTEGER, align)
+      },
+      ids,
+    )
+  }
+
+  /** Home › Top, Middle, Bottom Align: where the text sits in each shape. */
+  anchorShapeText(anchor: ShapeText["anchor"]) {
+    const ids = this.textEditor && this.editing !== null ? [this.editing] : this.textTargets().map((o) => o.id)
+    this.update(
+      "Alignment",
+      (o) => {
+        const shape = o as SheetShape
+        shape.text = { ...(shape.text ?? { paragraphs: [{ runs: [] }] }), anchor }
+      },
+      ids,
+    )
+  }
+
+  /** The formatted text typed into a shape (one undo step with its formatting). */
+  setRichText(id: number, text: ShapeText) {
+    this.editing = null
+    const o = this.find(id)
+    if (!o || isChart(o) || o.kind !== "shape") return this.c.changed()
+    if (JSON.stringify(o.text ?? null) === JSON.stringify(text)) return this.c.changed()
+    this.update("Typing", (x) => ((x as SheetShape).text = text), [id])
   }
 
   /** The text typed into a shape (one undo step); a text box that grows with its text keeps its width. */

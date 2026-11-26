@@ -772,9 +772,11 @@ part; the verify sweep runs alongside, area by area, as each part touches it.
   setting back); ⏸ print titles repeated on each page in Page Layout view (left out: Excel
   shows them only when printing, as Cells does); ✅ black-and-white printing applied (no fills, text and borders
   black, objects in greys, as Excel's PDF shows); ✅ printing and PDF of chart sheets (one page, the chart filling it inside the margins).
-- ⬜ 4. Shapes and text boxes: formatted text in shapes (runs, as in cells' rich text), the Format Shape pane, Shape
-  Styles and WordArt Styles galleries, adjustment handles, Edit Points and freeform drawing, connectors that stay
-  glued to shapes.
+- 🔄 4. Shapes and text boxes: ✅ formatted text in shapes (typed in place in its own fonts, sizes and colours; Home's
+  Font and Alignment commands and Ctrl+B/I/U format the selected text while typing, or all of a selected shape's
+  text; typed text takes the look it's typed into; equations and turned text keep the plain editor); ⬜ the Format
+  Shape pane, Shape Styles and WordArt Styles galleries, adjustment handles, Edit Points and freeform drawing,
+  connectors that stay glued to shapes.
 - ⬜ 6. Proofing: more spelling languages as optional downloads (setup and Settings, the language picker in the
   Spelling dialog), File › Options › Proofing (ignore UPPERCASE, words with numbers, addresses), AutoCorrect,
   checking text in shapes, comments and headers/footers.

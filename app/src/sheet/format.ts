@@ -1,3 +1,5 @@
+import { shapeColorOf } from "@/ribbon/colors"
+import type { TextLookPatch } from "@cells/core"
 import type { ThemeColorRef } from "@cells/core"
 import {
   CLEAR_ALL,
@@ -57,8 +59,51 @@ export class FormatCommands {
 
   /** The active cell's format: what the ribbon shows as pressed. */
   get active(): CellStyle {
+    if (this.c.objects.formatsText()) return this.shapeLook()
     const { row, col } = this.c.selection.active
     return this.c.wb.styles.get(this.c.sheet.styleAt(row, col))
+  }
+
+  /** A shape's text look as the ribbon reads a cell's (font, size, bold…, alignment). */
+  private shapeLook(): CellStyle {
+    const o = this.c.objects
+    const look = o.textLook()
+    const align = o.textAlign()
+    const anchor = o.textAnchor()
+    const style: CellStyle = { ...this.c.wb.styles.get(0) }
+    style.fontName = look.font ?? this.c.wb.theme.fonts.minor
+    style.fontSize = look.size ?? 11
+    for (const k of ["bold", "italic", "strike"] as const) {
+      if (look[k]) style[k] = true
+      else delete style[k]
+    }
+    if (look.underline) style.underline = "single"
+    else delete style.underline
+    if (look.color?.rgb) style.fontColor = look.color.rgb
+    else delete style.fontColor
+    const h =
+      align === "ctr"
+        ? "center"
+        : align === "r"
+          ? "right"
+          : align === "just"
+            ? "justify"
+            : align === "l"
+              ? "left"
+              : undefined
+    if (h) style.hAlign = h
+    else delete style.hAlign
+    const v = anchor === "ctr" ? "center" : anchor === "b" ? "bottom" : anchor === "t" ? "top" : undefined
+    if (v) style.vAlign = v
+    else delete style.vAlign
+    return style
+  }
+
+  /** Home › Font on the selected shapes' text instead of cells (true when it did). */
+  private shapeText(patch: TextLookPatch, label: string): boolean {
+    if (!this.c.objects.formatsText()) return false
+    this.c.objects.formatShapeText(patch, label)
+    return true
   }
 
   apply(patch: StylePatch, label = "Format") {
@@ -74,15 +119,20 @@ export class FormatCommands {
   // ── Font ───────────────────────────────────────────────────────────────────────────────────────────────────
 
   toggle(field: "bold" | "italic" | "strike") {
+    const label = field === "strike" ? "Strikethrough" : cap(field)
+    if (this.shapeText({ [field]: this.active[field] ? null : true }, label)) return
     this.apply({ [field]: this.active[field] ? null : true }, field === "strike" ? "Strikethrough" : cap(field))
   }
 
   /** Underline and Double Underline: pressing the one that is on turns it off. */
   underline(kind: "single" | "double" = "single") {
+    // Shape text has one underline (Office's double underline isn't kept for it).
+    if (this.shapeText({ underline: this.active.underline ? null : true }, "Underline")) return
     this.apply({ underline: this.active.underline === kind ? null : kind }, "Underline")
   }
 
   fontName(name: string) {
+    if (this.shapeText({ font: name }, "Font")) return
     this.apply({ fontName: name === DEFAULT_FONT ? null : name }, "Font")
   }
 
@@ -90,6 +140,7 @@ export class FormatCommands {
   fontSize(size: number) {
     if (!Number.isFinite(size) || size < 1 || size > 409) return false
     const pt = Math.round(size * 2) / 2
+    if (this.shapeText({ size: pt }, "Font Size")) return true
     this.apply({ fontSize: pt === 11 ? null : pt }, "Font Size")
     return true
   }
@@ -101,6 +152,8 @@ export class FormatCommands {
 
   /** `ref`: the colour is the theme's (it follows Page Layout › Themes). */
   fontColor(color: string | null, ref?: ThemeColorRef) {
+    // Automatic: the shape's own text colour (its style's).
+    if (this.shapeText({ color: color ? shapeColorOf(color, ref) : null }, "Font Color")) return
     this.apply({ fontColor: color, fontThemeColor: (color && ref) || null }, "Font Color")
   }
 
@@ -112,11 +165,18 @@ export class FormatCommands {
 
   /** Left, Center, Right: pressing the one that is on goes back to General alignment. */
   hAlign(align: HAlign) {
+    if (this.c.objects.formatsText()) {
+      const a = align === "center" ? "ctr" : align === "right" ? "r" : align === "justify" ? "just" : "l"
+      // In shapes the buttons are a choice of one (pressing the one that's on keeps it).
+      return this.c.objects.alignShapeText(a)
+    }
     this.apply({ hAlign: this.active.hAlign === align ? null : align, indent: align === "center" ? null : undefined })
   }
 
   /** Top, Middle, Bottom: Bottom is the default, so pressing it (or the one that is on) clears it. */
   vAlign(align: VAlign) {
+    if (this.c.objects.formatsText())
+      return this.c.objects.anchorShapeText(align === "center" ? "ctr" : align === "bottom" ? "b" : "t")
     this.apply({ vAlign: align === "bottom" || this.active.vAlign === align ? null : align }, "Alignment")
   }
 

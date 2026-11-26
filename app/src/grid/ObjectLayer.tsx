@@ -1,3 +1,4 @@
+import { ShapeTextEditor } from "./ShapeTextEditor"
 import { ChartPartMark, chartPartAt } from "./ChartPartMark"
 import { CropView } from "./CropView"
 import { renderChart } from "@cells/chart"
@@ -15,6 +16,8 @@ import {
   type Model3D,
   type SheetChart,
   type SheetObject,
+  type SheetShape,
+  isEquation,
   type Theme,
 } from "@cells/core"
 import { Check, Rotate3d } from "lucide-react"
@@ -607,7 +610,16 @@ export function ObjectLayer({
             </div>
             {single && isChart(o) && !dragging ? <ChartPartMark part={controller.charts.part} /> : null}
             {turn?.id === o.id ? <ModelPreview model={turn.model} frame={p.box} zoom={zoom} /> : null}
-            {editing ? (
+            {editing && richEditing(o) ? (
+              <ShapeTextEditor
+                shape={o as SheetShape}
+                box={p.box}
+                zoom={zoom}
+                theme={theme}
+                controller={controller}
+                onDone={onDone}
+              />
+            ) : editing ? (
               <TextEditor
                 id={o.id}
                 objects={objects}
@@ -898,12 +910,20 @@ function picture(controller: SheetController, o: SheetObject, box: ChartBox, the
     if (isChart(o)) return renderChart(controller.charts.liveSpec(o as SheetChart), box.w, box.h)
     // A SmartArt being typed in (the Text Pane) shows the text so far.
     const typing = controller.objects.smartArtPreview
-    const shown = typing && typing.id === o.id && o.kind === "group" ? { ...o, items: typing.items } : o
+    let shown: SheetObject = typing && typing.id === o.id && o.kind === "group" ? { ...o, items: typing.items } : o
+    // A shape being typed in: its text is the editor's meanwhile.
+    if (controller.objects.editing === o.id && richEditing(o)) shown = { ...(o as SheetShape), text: undefined }
     return objectDocument(shown as DrawingObject, box.w, box.h, theme, canvasMeasure)
   } catch {
     // An object the renderer can't draw shows as an empty frame rather than taking the sheet down.
     return ""
   }
+}
+
+/** Shapes typed in with formatting (equations and turned text keep the plain editor). */
+function richEditing(o: SheetObject): boolean {
+  if (isChart(o) || o.kind !== "shape" || isEquation(o)) return false
+  return ((o as SheetShape).text?.vertical ?? "horz") === "horz"
 }
 
 /** Keeps a drag's pointer events coming here (a pointer that's already gone can't be captured: the drag still works). */

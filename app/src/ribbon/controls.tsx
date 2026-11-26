@@ -355,9 +355,13 @@ export function sheetEditor(): HTMLTextAreaElement | null {
   )
 }
 
-/** Puts the keyboard back on the sheet (its hidden editor textarea). */
+/** Puts the keyboard back on the sheet (its hidden editor textarea), or in a shape's text being typed. */
 export function focusSheet() {
-  requestAnimationFrame(() => sheetEditor()?.focus({ preventScroll: true }))
+  requestAnimationFrame(() => (shapeTextEditor() ?? sheetEditor())?.focus({ preventScroll: true }))
+}
+
+function shapeTextEditor(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(".object-text-editor, .shape-text-content")
 }
 
 /** After a ribbon command: the keyboard back where typing was (a shape's text being typed, else the sheet). */
@@ -366,8 +370,7 @@ export function focusAfterCommand() {
     // A command that opened a dialog leaves the focus in it (the menu it was run from is a popup too, but closing).
     const dialog = document.activeElement?.closest("[role=dialog], [role=alertdialog]")
     if (dialog && !dialog.closest(".popover")) return
-    const shapeText = document.querySelector<HTMLTextAreaElement>(".object-text-editor")
-    ;(shapeText ?? sheetEditor())?.focus({ preventScroll: true })
+    ;(shapeTextEditor() ?? sheetEditor())?.focus({ preventScroll: true })
   })
 }
 

@@ -4224,3 +4224,27 @@
 .format-picture-row input[type="range"] {
   accent-color: var(--app-theme-primary);
 }
+
+/* Typing formatted text in a shape: in place, in the text's own look (the shape is drawn without it meanwhile). */
+.shape-text-editor {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  transform-origin: 0 0;
+  outline: 1px dashed var(--chart-select, #8a8a8a);
+  outline-offset: 2px;
+}
+
+.shape-text-content {
+  max-height: 100%;
+  overflow: hidden;
+  outline: none;
+  caret-color: currentColor;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  cursor: text;
+}
+
+.shape-text-p {
+  min-height: 1.2em;
+}
