@@ -697,7 +697,12 @@ Name Box lists, live Flash Fill, .xlsb and .ods).
     tiled with the cells, also replacing the destination's (a cell without a note pasted over one takes it away).
     Sort already moved them with their rows; Fill and text pasted from other apps leave them, as in Excel. Every
     case undoes in one step. Checked in the app: a note's red corner follows its cell.
-  - ⬜ Name Box lists, live Flash Fill, .xlsb and .ods.
+  - ✅ Name Box lists: the Name Box takes a list of ranges (`B1,D3:E4`, or with semicolons) and selects them all,
+    the last one's first cell active, as Excel goes to one (a list across sheets is refused); a name made from a
+    selection of several ranges can now be gone to, and the Name Box shows it when that selection is made again. A
+    table's name goes to its data rows (without the header and total rows, as in Excel). The Name Box's list holds
+    the names that point at cells and the tables, A to Z (constants such as `=0.2` left out), built only while open.
+  - ⬜ Live Flash Fill, .xlsb and .ods.
 - ⏸ Out by design: CUBE*, RTD, CALL, REGISTER.ID, EUROCONVERT, COPILOT, TRANSLATE, DETECTLANGUAGE, FIELDVALUE,
   STOCKHISTORY (online services, add-ins or Data Model).
 

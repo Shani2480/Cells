@@ -36,7 +36,9 @@ export function FormulaBar({
   const [scrollTop, setScrollTop] = useState(0)
   const [namesOpen, setNamesOpen] = useState(false)
   const expanded = controller.formulaBarExpanded
-  const names = controller.names.all()
+  // The list is built only while it's open (it resolves every name).
+  const names = namesOpen ? controller.names.boxNames() : []
+  const hasNames = controller.names.all().length > 0 || controller.wb.sheets.some((sh) => sh.tables.length > 0)
   const nameWrapRef = useRef<HTMLDivElement>(null)
   // The names list closes on a click anywhere else, or Esc.
   useEffect(() => {
@@ -119,7 +121,7 @@ export function FormulaBar({
           aria-label="Defined names"
           aria-haspopup="listbox"
           aria-expanded={namesOpen}
-          disabled={!names.length}
+          disabled={!hasNames}
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => setNamesOpen((open) => !open)}
         >
@@ -132,16 +134,16 @@ export function FormulaBar({
                 type="button"
                 role="option"
                 aria-selected={false}
-                key={n.name}
+                key={n}
                 onPointerDown={(event) => event.preventDefault()}
                 onClick={() => {
                   setNamesOpen(false)
-                  const target = controller.names.resolve(n.name)
+                  const target = controller.names.resolve(n)
                   if (target) controller.names.goTo(target)
                   onFocusGrid()
                 }}
               >
-                {n.name}
+                {n}
               </button>
             ))}
           </div>

@@ -48,6 +48,66 @@ describe("names in the Name Box", () => {
     expect(c.names.define("rate", "=Sheet1!$A$2")).toMatch(/already exists/)
   })
 
+  it("goes to a list of ranges, selecting them all, the last one's first cell active (as Excel)", () => {
+    const { c } = setup()
+    c.names.fromNameBox("B1, D3:E4")
+    expect(c.selection.ranges).toEqual([
+      { r0: 0, c0: 1, r1: 0, c1: 1 },
+      { r0: 2, c0: 3, r1: 3, c1: 4 },
+    ])
+    expect(c.selection.active).toEqual({ row: 2, col: 3 })
+    // Semicolons too (the list separator where the comma is the decimal point).
+    c.names.fromNameBox("D3:E4;B1")
+    expect(c.selection.active).toEqual({ row: 0, col: 1 })
+    expect(c.wb.names.all()).toHaveLength(0)
+  })
+
+  it("names a selection of several ranges, goes back to it, and shows its name", () => {
+    const { c, select } = setup()
+    c.names.fromNameBox("D1,F3:G4")
+    c.names.fromNameBox("Multi")
+    expect(c.wb.names.get("Multi")?.ref).toBe("Sheet1!$D$1,Sheet1!$F$3:$G$4")
+    select("A1")
+    c.names.fromNameBox("multi")
+    expect(c.selection.ranges).toHaveLength(2)
+    expect(c.selection.active).toEqual({ row: 2, col: 5 })
+    expect(c.nameBoxText()).toBe("Multi")
+  })
+
+  it("goes to a table's data rows, without its header and total rows", () => {
+    const { c, select } = setup()
+    c.sheet.cells.set(0, 0, { value: "Item" })
+    c.sheet.cells.set(0, 1, { value: "Qty" })
+    c.sheet.cells.set(1, 0, { value: "Pens" })
+    c.sheet.cells.set(2, 0, { value: "Ink" })
+    c.tables.create({ r0: 0, c0: 0, r1: 2, c1: 1 }, true, "TableStyleMedium2")
+    const name = c.sheet.tables[0].name
+    select("A2")
+    c.tables.setOption("totals", true)
+    select("F9")
+    c.names.fromNameBox(name)
+    expect(c.selection.ranges[0]).toEqual({ r0: 1, c0: 0, r1: 2, c1: 1 })
+  })
+
+  it("refuses a list across sheets", () => {
+    const { c, messages } = setup()
+    c.sheets.insert(1)
+    c.activate(0)
+    c.names.fromNameBox("A1,Sheet2!B2")
+    expect(messages).toEqual([NAME_BOX_INVALID])
+  })
+
+  it("lists the names that point at cells and the tables, A to Z", () => {
+    const { c } = setup()
+    c.names.define("rate", "=0.2")
+    c.names.define("Zones", "=Sheet1!$A$1:$A$5")
+    c.names.define("budget", "=Sheet1!$B$1,Sheet1!$C$3")
+    c.sheet.cells.set(0, 4, { value: "Head" })
+    c.tables.create({ r0: 0, c0: 4, r1: 2, c1: 4 }, true, "TableStyleMedium2")
+    const table = c.sheet.tables[0].name
+    expect(c.names.boxNames()).toEqual(["budget", table, "Zones"].sort((a, b) => a.localeCompare(b)))
+  })
+
   it("writes whole rows and columns absolutely", () => {
     expect(absoluteRef({ r0: 0, r1: 1_048_575, c0: 0, c1: 2 })).toBe("$A:$C")
     expect(absoluteRef({ r0: 2, r1: 4, c0: 0, c1: 16_383 })).toBe("$3:$5")

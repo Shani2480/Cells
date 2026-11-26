@@ -16,7 +16,27 @@ import type { SheetController } from "./controller"
 export const NAME_BOX_INVALID =
   "You must enter a valid reference you want to go to, or type a valid name for the selection."
 
-export type Target = { sheet: number; range: Range }
+/**
+ * Where a reference or name points: a range on a sheet, and every area when it's a list (`B1,D3:E4`, or a name made
+ * from a selection of several ranges); `range` is then the first.
+ */
+export type Target = { sheet: number; range: Range; areas?: Range[] }
+
+/** A list of references split at its commas (or semicolons, the list separator where commas are decimal points). */
+function splitList(text: string): string[] {
+  const parts: string[] = []
+  let current = ""
+  let quoted = false
+  for (const ch of text) {
+    if (ch === "'") quoted = !quoted
+    if (!quoted && (ch === "," || ch === ";")) {
+      parts.push(current)
+      current = ""
+    } else current += ch
+  }
+  parts.push(current)
+  return parts.map((p) => p.trim())
+}
 
 /** A reference as `$A$1:$B$2` (whole rows and columns as `$1:$3`, `$A:$C`). */
 export function absoluteRef(r: Range): string {
@@ -38,13 +58,37 @@ export class NameCommands {
     return this.c.wb.names.all()
   }
 
-  /** What a reference points at: `B7`, `Sheet2!A1:C3`, or a defined name. Null if it isn't one. */
-  resolve(text: string): Target | null {
+  /**
+   * What a reference points at: `B7`, `Sheet2!A1:C3`, a defined name, a table (its data rows, as Excel goes to them),
+   * or a list of these on one sheet (`B1,D3:E4`). Null if it isn't one.
+   */
+  resolve(text: string, depth = 0): Target | null {
+    const parts = splitList(text)
+    if (parts.length === 1) return this.resolveOne(parts[0], depth)
+    if (parts.some((p) => !p)) return null
+    let sheet = -1
+    const areas: Range[] = []
+    for (const part of parts) {
+      const t = this.resolveOne(part, depth)
+      if (!t || (sheet >= 0 && t.sheet !== sheet)) return null
+      sheet = t.sheet
+      areas.push(...(t.areas ?? [t.range]))
+    }
+    return { sheet, range: areas[0], areas }
+  }
+
+  private resolveOne(text: string, depth: number): Target | null {
     const trimmed = text.trim()
     if (!trimmed) return null
     const plain = parseRange(trimmed)
     if (plain) return { sheet: this.c.sheetIndex, range: plain }
     const def = this.c.wb.names.get(trimmed)
+    // A name made from several ranges refers to a list (a name of a name is followed a few steps, no further).
+    if (def && splitList(def.ref).length > 1) return depth < 3 ? this.resolve(def.ref, depth + 1) : null
+    if (!def) {
+      const table = this.table(trimmed)
+      if (table) return table
+    }
     const ref = parseRefText(def ? def.ref : trimmed)
     if (!ref || ref.invalid || ref.sheetTo) return null
     const sheet = ref.sheet === null ? this.c.sheetIndex : this.sheetIndex(ref.sheet)
@@ -55,6 +99,31 @@ export class NameCommands {
     const c0 = Math.min(ref.from.col ?? 0, to.col ?? 0)
     const c1 = ref.from.col === null ? MAX_COLS - 1 : Math.max(ref.from.col, to.col ?? ref.from.col)
     return { sheet, range: { r0, r1, c0, c1 } }
+  }
+
+  /** A table by name: its data rows (without the header and total rows), or the whole table when it has none. */
+  private table(name: string): Target | null {
+    const upper = name.toUpperCase()
+    for (const [sheet, s] of this.c.wb.sheets.entries()) {
+      const t = s.tables.find((x) => x.name.toUpperCase() === upper)
+      if (!t) continue
+      const r0 = t.range.r0 + (t.header ? 1 : 0)
+      const r1 = t.range.r1 - (t.totals ? 1 : 0)
+      return { sheet, range: r1 >= r0 ? { ...t.range, r0, r1 } : t.range }
+    }
+    return null
+  }
+
+  /**
+   * The Name Box's list, as Excel's: the defined names that point at cells (not constants or formulas) and the
+   * tables, A to Z.
+   */
+  boxNames(): string[] {
+    const names = this.all()
+      .filter((n) => this.resolve(n.name) !== null)
+      .map((n) => n.name)
+    const tables = this.c.wb.sheets.flatMap((s) => s.tables.map((t) => t.name))
+    return [...names, ...tables].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
   }
 
   private sheetIndex(name: string): number {
@@ -72,17 +141,29 @@ export class NameCommands {
   /** The name that refers to exactly the selection (the Name Box shows it instead of the cell, as Excel does). */
   nameOfSelection(): string | null {
     const ranges = this.c.selection.ranges
-    if (ranges.length !== 1) return null
     for (const n of this.all()) {
       const t = this.resolve(n.name)
-      if (t && t.sheet === this.c.sheetIndex && sameRange(t.range, ranges[0])) return n.name
+      if (!t || t.sheet !== this.c.sheetIndex) continue
+      const areas = t.areas ?? [t.range]
+      if (areas.length === ranges.length && areas.every((a, i) => sameRange(a, ranges[i]))) return n.name
     }
     return null
   }
 
+  /** Selects the target, every area of a list, the last area's first cell active (as Excel goes to one). */
   goTo(target: Target) {
     if (target.sheet !== this.c.sheetIndex) this.c.activate(target.sheet)
-    this.c.goTo(target.range)
+    if (!target.areas || target.areas.length < 2) {
+      this.c.goTo(target.range)
+      return
+    }
+    const ranges = target.areas
+    const last = ranges[ranges.length - 1]
+    const active = { row: last.r0, col: last.c0 }
+    this.c.setSelection(
+      { ranges, active, activeRange: ranges.length - 1, anchor: active, focus: { row: last.r1, col: last.c1 } },
+      active,
+    )
   }
 
   /** Define Name: a new name, or a changed one (`old`); returns Excel's problem text, or null when done. */

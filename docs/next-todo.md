@@ -281,7 +281,7 @@ built in Part 8b.
   takes the cell's. Links don't move with a cut and paste or Insert/Delete Cells (they do with whole rows and
   columns), and a pasted cell doesn't bring its link.
 
-- The Name Box doesn't take a list of ranges (B1,B3) yet.
+- ~~The Name Box doesn't take a list of ranges (B1,B3) yet.~~ Done in Phase 8.
 - Data tables in .xls files open as their values (the BIFF TABLE record isn't read).
 - An Advanced Filter in place isn't saved as one (its hidden rows are): after reopening, Clear and Reapply don't
   know it (Excel keeps it in the _FilterDatabase and Criteria names).
